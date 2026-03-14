@@ -1,3 +1,9 @@
+---
+name: triage
+description: Classify incoming information and route it to where it belongs
+user-invocable: true
+---
+
 # Triage Incoming Information
 
 Classify incoming information and route it to where it belongs.

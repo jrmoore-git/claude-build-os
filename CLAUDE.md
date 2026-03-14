@@ -1,5 +1,9 @@
 # CLAUDE.md
 
+<!-- Target: under 200 lines. Every line loads into every turn and consumes context. -->
+<!-- These rules are advisory — Claude reads them and tries to follow them, but compliance -->
+<!-- is not guaranteed. For rules that must be enforced, use hooks (see docs/platform-features.md). -->
+
 ## What this project is
 <!-- Replace this section with a one-paragraph description of what you're building and why. -->
 [Describe your project here. What are you building? Who is it for? What problem does it solve?]
@@ -7,7 +11,7 @@
 ## Operating rules
 
 ### Simplicity is the override rule
-<!-- Why: Claude over-engineers by default. This phrase is from Anthropic's own docs and Claude responds to it reliably. Remove only if you want Claude to build speculatively. -->
+<!-- Why: Claude over-engineers by default. This phrase is from Anthropic's own docs and Claude responds to it reliably. -->
 Avoid over-engineering. Only make changes that are directly requested or clearly necessary. Keep solutions simple and focused.
 - Don't add features, refactor code, or make "improvements" beyond what was asked.
 - Don't add error handling, fallbacks, or validation for scenarios that can't happen.
@@ -15,12 +19,12 @@ Avoid over-engineering. Only make changes that are directly requested or clearly
 - Don't design for hypothetical future requirements.
 
 ### The model may decide; software must act
-<!-- Why: Prevents the most dangerous class of AI bugs — LLM-driven state changes. Remove only if your project has no state mutations. -->
+<!-- Why: Prevents the most dangerous class of AI bugs — LLM-driven state changes. -->
 LLMs classify, summarize, and draft. Deterministic code performs state transitions, API calls, and data mutations.
 If the LLM can cause irreversible state changes, it must not be the actor.
 
 ### Retrieve before planning
-<!-- Why: Loading everything into context creates drift, not safety. This rule keeps sessions focused. -->
+<!-- Why: Loading everything into context creates drift, not safety. -->
 Read handoff.md and current-state.md before starting work. Read relevant lessons and decisions before touching risky areas. Don't load everything — load what's relevant.
 
 ### Plan before building (when it matters)

@@ -1,3 +1,9 @@
+---
+name: capture
+description: Extract decisions, lessons, and action items from conversations or documents
+user-invocable: true
+---
+
 # Capture Decisions and Lessons
 
 Extract decisions, lessons, and action items from a conversation, meeting, or document.

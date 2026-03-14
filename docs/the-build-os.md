@@ -173,7 +173,7 @@ project-root/
 ├── CLAUDE.md                    # Always-loaded operating rules. Keep short.
 ├── .claude/
 │   ├── settings.json            # Hook config (Tier 2+)
-│   ├── commands/                # Slash commands — cognitive and engineering operations
+│   ├── skills/                  # Slash commands — session operations (SKILL.md format)
 │   └── rules/                   # Conditional rules, loaded when relevant
 ├── docs/
 │   ├── project-prd.md           # Product source of truth
@@ -191,7 +191,13 @@ project-root/
 
 ### Keep CLAUDE.md short
 
-CLAUDE.md loads into every session on every turn and consumes context budget. Put only rules that apply to every task in every session. The tradeoff: rules in `.claude/rules/` only load when the matcher triggers, so they're invisible for unrelated work. Rules that must apply to every task belong in CLAUDE.md. Rules that apply only to specific domains (security, auth, deployment) belong in scoped files.
+Target under 200 lines. CLAUDE.md loads into every session on every turn and consumes context budget. Research shows instruction compliance decreases as instruction count grows — prioritize ruthlessly. Put only rules that apply to every task in every session. The tradeoff: rules in `.claude/rules/` only load when the matcher triggers, so they're invisible for unrelated work. Rules that must apply to every task belong in CLAUDE.md. Rules that apply only to specific domains (security, auth, deployment) belong in scoped files.
+
+### CLAUDE.md and rules are advisory, not enforced
+
+CLAUDE.md and `.claude/rules/` files are context that Claude reads and tries to follow — they are not enforced configuration. This is why the enforcement ladder exists: when a rule must hold, escalate to a hook (deterministic, cannot be overridden) or architecture (structural, doesn't depend on Claude at all). The right mental model: **rules are strong suggestions; hooks are laws.**
+
+For platform details — how rules load, how hooks fire, skills format, auto memory — see [Platform Features](platform-features.md).
 
 ### Scaling rule
 
@@ -403,27 +409,30 @@ Run `/setup` in Claude Code. It will:
 
 1. Ask about your project — what you're building, who it's for, what's the risk
 2. Pick a governance tier based on blast radius
-3. Create only the files needed for your tier
+3. Create only the files needed for your tier — CLAUDE.md, tasks/, and starter `.claude/skills/` commands
 4. Customize CLAUDE.md for your project
 5. Create starter content — a first decision, an initial PRD skeleton
+
+Alternatively, run `/init` in Claude Code to generate a starter CLAUDE.md from your existing codebase, then layer governance files on top.
 
 ### Option B: Manual checklist
 
 Create in this order:
 
 1. `git init` and `.gitignore`
-2. `CLAUDE.md` — core operating rules (use the starter template)
+2. `CLAUDE.md` — core operating rules (use the starter template, target under 200 lines)
 3. `docs/project-prd.md` — what you're building
 4. `docs/current-state.md` — what is true now
 5. `tasks/decisions.md` — first decision: "We chose [framework/approach] because [reason]"
 6. `tasks/lessons.md` — empty, ready
 7. `tasks/handoff.md` — empty, ready
+8. `.claude/skills/` — copy the skills you need from this repo's `.claude/skills/` directory
 
 Add when complexity demands:
-- `.claude/rules/` — conditional governance
+- `.claude/rules/` — conditional governance (see `examples/rules/` for starters)
 - `docs/contract-tests.md` — behavioral invariants
 - `docs/review-protocol.md` — review order
-- One hook — block commits when tests fail
+- One hook — block commits when tests fail (see `examples/` for hook scripts)
 - One smoke test — full-path integration check
 
 ---
@@ -568,6 +577,10 @@ We learned this when a platform CLI silently overwrote existing configuration du
 After changing `CLAUDE.md`, rules files, `.env`, or other loaded configuration, start a fresh session or reset. Running sessions continue using stale context — they loaded the old config at startup and will not pick up your changes.
 
 This is one of the most common "why isn't my rule working?" issues. The rule is fine. The session is stale.
+
+### Native session management
+
+Claude Code provides built-in session continuity: `--continue` resumes the most recent session, `--resume` picks a specific one, `/rewind` creates checkpoints within a session, and `/btw` asks side questions without adding to conversation history. Use these alongside — not instead of — the handoff file. Native continuity preserves conversation; the handoff preserves decisions and intent. A resumed session has history but not structured context. See [Platform Features](platform-features.md) for the full reference.
 
 ### Sanity-check volumes, not just success codes
 

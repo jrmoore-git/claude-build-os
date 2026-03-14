@@ -1,3 +1,9 @@
+---
+name: sync
+description: Update all affected source-of-truth documents after changes
+user-invocable: true
+---
+
 # Sync Upstream Docs
 
 After approved changes, update all affected source-of-truth documents in one pass.

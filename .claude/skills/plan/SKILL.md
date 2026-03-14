@@ -1,3 +1,9 @@
+---
+name: plan
+description: Research the system, then write a plan to disk before executing
+user-invocable: true
+---
+
 # Plan Before Building
 
 Research the system, then write a plan to disk before executing.

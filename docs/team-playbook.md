@@ -67,6 +67,8 @@ The deciding question: **do the workers need to communicate with each other duri
 
 Agent teams remain experimental. Use subagents for production-critical work; use agent teams when lateral coordination adds real value.
 
+Claude Code also supports custom subagent definitions in `.claude/agents/` — YAML files that restrict tools, override models, and set isolation boundaries. Use these to create specialized agents (e.g., a read-only researcher, a test runner limited to Bash) without cluttering main context. See [Platform Features](../docs/platform-features.md) for the full reference.
+
 ### Decompose by output boundary, not role boundary
 
 The primary failure mode in parallel agent work is not bad code. It is incompatible assumptions at boundaries.

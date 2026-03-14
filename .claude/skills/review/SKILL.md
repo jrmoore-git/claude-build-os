@@ -1,3 +1,9 @@
+---
+name: review
+description: Run a structured review of changes before committing
+user-invocable: true
+---
+
 # Staged Review
 
 Run a structured review of the current changes before committing.

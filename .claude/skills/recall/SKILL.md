@@ -1,3 +1,9 @@
+---
+name: recall
+description: Load relevant context before starting work
+user-invocable: true
+---
+
 # Session Recall
 
 Load relevant context before starting work. This is the "retrieve before planning" rule made executable.

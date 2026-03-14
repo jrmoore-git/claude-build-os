@@ -1,6 +1,14 @@
+---
+name: setup
+description: Interactive project setup using the Build OS framework
+user-invocable: true
+---
+
 # Interactive Project Setup
 
 You are setting up a new project to use the Build OS framework. Guide the user through setup by asking questions and creating files based on their answers.
+
+**Note:** This is a reference framework, not an installer. It creates governance files and points you to templates for structured artifacts. Alternatively, run `/init` in Claude Code to generate a starter CLAUDE.md from your existing codebase, then layer governance files on top using the steps below.
 
 ## Step 1: Understand the project
 
@@ -37,20 +45,24 @@ Based on the chosen tier, create these files:
 ### Tier 2 (adds to Tier 1)
 - `docs/contract-tests.md` — with the essential eight invariants as a starting template
 - `docs/review-protocol.md` — with the staged review order
-- `.claude/rules/security.md` — with starter security rules (LLM boundary, hook safety)
+- `.claude/rules/security.md` — with starter security rules (see `examples/rules/security.md` in the Build OS repo for a starting point)
+- `.claude/settings.json` — with at least one hook wired (see `examples/README.md` in the Build OS repo for hook configuration)
 
 ### Tier 3 (adds to Tier 2)
 - Note: Tier 3 requires custom engineering. Set up Tier 2 files and explain what Tier 3 adds (cross-model debate, model routing, kill switches, approval gating).
 
-## Step 4: Show what was created
+## Step 4: Copy skills
+
+Tell the user: "Copy the `.claude/skills/` directory from the Build OS repo to your project. These provide session operations: `/recall`, `/plan`, `/review`, `/capture`, `/sync`, `/handoff`, `/triage`, and this `/setup` command."
+
+## Step 5: Show what was created
 
 List every file created with a one-line description. Suggest what to do next:
 - Tier 0: "Start building. Update CLAUDE.md as you learn what rules matter."
 - Tier 1: "Run `/recall` at the start of each session. Update handoff.md before closing."
-- Tier 2: "Add one hook (block commits when tests fail). Write your first contract test."
+- Tier 2: "Add one hook (see examples/). Write your first contract test. See `docs/platform-features.md` for hook types and events."
 
 ## Rules for this command
 - Create only the files needed for the chosen tier. Do not create Tier 2 files for a Tier 0 project.
-- Use the templates from `templates/` as starting points, customized with the user's answers.
 - Every file created should have real content, not just placeholders. Use the project description to populate the PRD, the first decision, etc.
 - Keep it conversational. This should feel like a guided setup, not a form.

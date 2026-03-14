@@ -1,3 +1,9 @@
+---
+name: handoff
+description: Write a handoff document for the next session
+user-invocable: true
+---
+
 # Write Session Handoff
 
 Write a handoff document so the next session can pick up where you left off.
