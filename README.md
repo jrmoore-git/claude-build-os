@@ -153,5 +153,3 @@ The model keeps getting smarter. The discipline around it is what you have to bu
 - **[Advanced Patterns](docs/advanced-patterns.md)** — For production systems: audit protocol, degradation testing, cross-model debate, failure classes
 
 ---
-
-*This framework was developed through production work with Claude Code, cross-referenced with Anthropic's documentation and community best practices. The cognitive operations model was informed by [claude-obsidian-os](https://github.com/annamarie-kelly/claude-obsidian-os). The governance tiers emerged from cross-model architectural debate.*
