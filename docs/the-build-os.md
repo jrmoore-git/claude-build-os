@@ -143,7 +143,7 @@ Pick the tier that matches your project's blast radius. Move up when the stakes 
 **Governance cost:** Significant — justified by blast radius.
 
 **What you add to Tier 2:**
-- Cross-model debate for architecture decisions (see [Advanced Patterns](advanced-patterns.md) §9)
+- Cross-model debate for architecture decisions (see [Advanced Patterns](advanced-patterns.md) §7)
 - Enforcement ladder fully operational: advisory → rules → hooks → architecture
 - Model routing by task type with cost tracking
 - Three-strikes escalation (if the same rule is violated 3 times at the same level, move it up)
