@@ -70,6 +70,8 @@ Claude has a strong bias toward plausible overbuilding. Use Anthropic's anti-ove
 
 > Avoid over-engineering. Only make changes that are directly requested or clearly necessary. Keep solutions simple and focused. Don't add features, refactor code, or make "improvements" beyond what was asked. Don't add error handling for scenarios that can't happen. Don't create abstractions for one-time operations. Don't design for hypothetical future requirements.
 
+Use this language verbatim rather than paraphrasing — in practice, Claude responds to these exact phrases more reliably than to rewrites.
+
 ### 6. Every rule has a maintenance cost
 
 Governance prevents failures. Governance also creates maintenance burden, onboarding friction, and operator fatigue. A lesson log that only grows is recording failures, not preventing them. A rule that nobody checks is advisory text in a better location.
@@ -187,6 +189,10 @@ project-root/
 └── tests/                       # At least one smoke test (Tier 2+)
 ```
 
+### Keep CLAUDE.md short
+
+CLAUDE.md loads into every session on every turn and consumes context budget. Put only rules that apply to every task in every session. The tradeoff: rules in `.claude/rules/` only load when the matcher triggers, so they're invisible for unrelated work. Rules that must apply to every task belong in CLAUDE.md. Rules that apply only to specific domains (security, auth, deployment) belong in scoped files.
+
 ### Scaling rule
 
 Flat until it hurts, then nest. Add complexity only when you need it:
@@ -271,7 +277,7 @@ Rules are only as reliable as their enforcement mechanism. When a rule keeps bei
 
 **Escalation speed matches blast radius:** Low-stakes, self-correcting failures can stay advisory. Repeatable failures with material downside should escalate rapidly — sometimes after one strike.
 
-**Test your instructions:** After writing a rule, deliberately test whether Claude follows it. If it does not trigger reliably, escalate. A rule without a verification test is Level 1 regardless of where it lives.
+**Test your instructions:** After writing a rule, deliberately test whether Claude follows it. If it does not trigger reliably, escalate. A rule without a verification test is Level 1 regardless of where it lives. Before promoting a lesson to a `.claude/rules/` file, state how you would catch a violation. If you cannot describe a concrete test, the rule belongs in `lessons.md` until you can — it is advisory text in a better location, not enforced governance.
 
 **Verify your verifiers:** Gates that check accumulated history files (session-log.md, lessons.md) will eventually always pass because the file has grown large enough to contain the keyword. Gates must check for fresh artifacts, not accumulated history.
 
@@ -285,6 +291,8 @@ noticed → lessons.md → .claude/rules/ → hook → architecture
 - **Rule** (Level 2): recurring pattern, promoted to a rules file
 - **Hook** (Level 3): rule kept being violated, now deterministic
 - **Architecture** (Level 4): hook bypassed, now structurally impossible
+
+A lesson violated for the second time should be promoted immediately. A second entry for the same pattern is evidence that Level 1 doesn't work. For high-blast-radius failures, promote after one violation (see escalation speed above).
 
 A lessons file that only grows is recording failures, not preventing them. Target ≤30 active lessons. Triage regularly — promote, archive, or retire.
 
@@ -338,6 +346,8 @@ For full reviews, run staged personas in this order:
 3. **Product / UX** — does it solve the right problem simply enough?
 
 Security has blocking veto on dependency changes, auth changes, and external code.
+
+**Review gates bind to the unit of change.** A review written earlier does not gate later commits automatically. If any file the review covered has been modified since the review was written, the gate is stale. Re-review after significant changes.
 
 ### Contract tests
 
@@ -446,6 +456,8 @@ The problem was model routing. Every cron job — including simple classificatio
 
 The fix was routing by task type: classification and tagging go to the cheapest model that handles them reliably, synthesis goes to mid-tier, and only high-stakes drafting uses the strongest model. Cost discipline is architecture, not a billing cleanup exercise after the fact. A $15 budget documented in a routing guide means nothing — the limit must be enforced in code.
 
+That lesson had a sequel. A post-meeting skill had a documented 10-run daily cap. The cap was never enforced in code. It burned $1,949 in eleven days. A limit that exists only in documentation constrains nothing.
+
 ### The gate that always passed
 
 We built a commit gate: a PreToolUse hook that checked whether the session log contained evidence of a completed review before allowing a commit. It worked perfectly for weeks.
@@ -478,6 +490,47 @@ The model must not invent source data. Names, email addresses, identifiers, and 
 | Meeting topic | Transcript content | Calendar title alone |
 
 Human inputs are also untrusted. Validate human-provided IDs, file paths, and assumptions the same way you validate model outputs.
+
+### The LLM boundary in practice
+
+The principle "the model may decide; software must act" looks like this in code:
+
+```
+# 1. DETERMINISTIC FETCH — code fetches verified data
+record = db.query("SELECT * FROM drafts WHERE id = ?", [draft_id])
+
+# 2. LLM REASONS — model classifies, summarizes, or drafts
+llm_output = call_model("Classify this draft: " + record.text)
+
+# 3. SCHEMA VALIDATE — code validates the model's output
+if not valid_json(llm_output) or llm_output.action not in ALLOWED_ACTIONS:
+    log_error("Invalid LLM output", llm_output)
+    return  # Fail safe: do nothing
+
+# 4. DETERMINISTIC APPLY — code performs the state change
+db.execute("UPDATE drafts SET status = ? WHERE id = ?",
+           [llm_output.action, draft_id])
+
+# 5. AUDIT — code logs what happened
+db.execute("INSERT INTO audit_log (action, draft_id, result) VALUES (?, ?, ?)",
+           [llm_output.action, draft_id, "applied"])
+```
+
+Every step except step 2 is deterministic code. If the LLM hallucinates in step 2, step 3 catches it and step 5 logs it. The worst outcome is "nothing happened" — not "wrong thing happened."
+
+### Strip before it reaches the model
+
+Never trust a default response shape on a cost-sensitive path. In one case, extracting plain text instead of passing raw connector output cut the payload from 582K tokens to 9K — a 63x reduction for the same underlying data. Strip to what the model needs deterministically before it reaches the prompt. The model doesn't need the full API response; it needs the fields relevant to its task.
+
+### Toolbelt audit
+
+Periodically audit your system by mapping each operation to one of two buckets: deterministic code or LLM reasoning. The dangerous gaps are where the LLM is discovering, constructing, or guessing data that code should have fetched and validated first. Run this audit when adding a new integration, after security reviews, or quarterly for production systems.
+
+### Metrics require time bounds
+
+A number without a date range, recency context, and source is an incomplete finding. This applies to audits, reviews, cost reports, and status updates. Ad hoc conversation is exempt.
+
+Wrong: "Daily cost is $488." Right: "Daily cost for March 1–7 (measured March 8, source: Postgres spend logs): $488."
 
 ### Hook safety
 

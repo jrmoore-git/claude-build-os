@@ -25,6 +25,10 @@ Review in this sequence:
 
 **Security has blocking veto** on dependency changes, auth changes, and external code.
 
+A review is only valid for the code it reviewed. If any covered file has been modified since the review, re-review before committing.
+
+**Growing your review protocol:** Start expanding your persona questions when: (1) the same type of issue escapes review twice, (2) your project crosses into Tier 2, or (3) your team has domain-specific risks (financial data, PII, autonomous actions) that the starter questions don't cover. Create a `PERSONAS.md` file with detailed checklists per persona. Example: a Security persona for a system handling PII might add "Are all personal data fields encrypted at rest?" and "Is there a data retention policy enforced in code?"
+
 ## Findings format
 
 For each persona:
