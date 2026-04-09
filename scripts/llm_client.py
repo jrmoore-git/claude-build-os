@@ -80,6 +80,14 @@ _MAX_RETRIES = 3
 _RETRY_BASE_DELAY = 1.0  # seconds
 
 
+_RETRYABLE_OPENAI_CLASS_NAMES = frozenset({
+    "RateLimitError",
+    "APIConnectionError",
+    "APITimeoutError",       # subclass of APIConnectionError but type().__name__ is exact
+    "InternalServerError",
+})
+
+
 def _is_retryable(exc):
     """Check if an exception is transient and worth retrying."""
     # OpenAI SDK errors with status codes
@@ -91,14 +99,21 @@ def _is_retryable(exc):
     # Network / connection errors (URLError without HTTP status, plus others)
     if isinstance(exc, (urllib.error.URLError, ConnectionError, TimeoutError, OSError)):
         return True
-    # OpenAI SDK exception class names (avoid importing them)
-    if type(exc).__name__ in ("RateLimitError", "APIConnectionError", "InternalServerError"):
-        return True
+    # OpenAI SDK exception class names (avoid importing them).
+    # Walk the MRO so subclasses of retryable types are also caught — without
+    # this, APITimeoutError (which inherits from APIConnectionError) is missed
+    # because type(exc).__name__ returns the exact subclass name.
+    for cls in type(exc).__mro__:
+        if cls.__name__ in _RETRYABLE_OPENAI_CLASS_NAMES:
+            return True
     return False
 
 
 def _categorize_error(exc):
     """Classify an exception into an error category for LLMError."""
+    # Walk MRO to catch openai.APITimeoutError (subclass of APIConnectionError)
+    if any(c.__name__ == "APITimeoutError" for c in type(exc).__mro__):
+        return "timeout"
     if isinstance(exc, TimeoutError) or "timeout" in str(exc).lower():
         return "timeout"
     if type(exc).__name__ == "RateLimitError":
@@ -273,6 +288,41 @@ def _legacy_call(system, user, *, model, temperature, max_tokens, timeout,
 # OpenAI SDK path (default)
 # ---------------------------------------------------------------------------
 
+def _default_tool_choice_for_model(model):
+    """Return the safe-default tool_choice for a given model.
+
+    Claude models have ~81% baseline tool adoption with tool_choice="auto" and
+    Anthropic's "any" mode suppresses pre-call reasoning text (a documented
+    side effect that breaks visible critique in our debate output), so Claude
+    stays at "auto".
+
+    Gemini and GPT models have low baseline adoption (~11% Gemini, ~4% GPT in
+    measured pipelines) and the vendor-sanctioned mitigation is forced tool
+    use. LiteLLM exposes this as tool_choice="required", which maps to
+    Gemini's FunctionCallingConfig.mode=ANY.
+
+    See tasks/debate-tool-adoption-findings.md for the underlying research.
+    """
+    if model.startswith("claude"):
+        return "auto"
+    return "required"
+
+
+def _default_temperature_for_model(model):
+    """Return the safe-default temperature for a given model.
+
+    Google explicitly recommends keeping Gemini 3 models at the default
+    temperature of 1.0; lower values "may lead to unexpected behavior, such
+    as looping or degraded performance." Claude and GPT remain at 0.0 for
+    deterministic behavior in the debate pipeline.
+
+    See tasks/debate-tool-adoption-findings.md G9 for the source.
+    """
+    if model.startswith("gemini"):
+        return 1.0
+    return 0.0
+
+
 def _sdk_call(system, user, *, model, temperature, max_tokens, timeout,
               base_url, api_key):
     """OpenAI SDK call via LiteLLM. Returns (content, model_used, usage)."""
@@ -403,13 +453,14 @@ def llm_tool_loop(
     system, user, tools, tool_executor,
     *,
     model=_DEFAULT_MODEL,
-    temperature=0.0,
+    temperature=None,
     max_turns=10,
     max_tokens=1024,
     timeout=30,
     base_url=None,
     api_key=None,
     on_tool_call=None,
+    tool_choice=None,
 ):
     """Run an LLM tool-use loop until the model stops calling tools or max_turns is hit.
 
@@ -443,9 +494,25 @@ def llm_tool_loop(
     total_usage = {"prompt_tokens": 0, "completion_tokens": 0, "total_tokens": 0}
     all_tool_calls = []
 
+    # Resolve tool_choice once: explicit override wins, otherwise per-model default.
+    resolved_tool_choice = tool_choice or _default_tool_choice_for_model(model)
+    # Resolve temperature: explicit override wins (including 0.0), otherwise per-model default.
+    resolved_temperature = (
+        temperature if temperature is not None
+        else _default_temperature_for_model(model)
+    )
+
     for turn in range(max_turns):
+        # On the FIRST turn, force the model toward tools (per resolved_tool_choice).
+        # On SUBSEQUENT turns, fall back to "auto" so the model can synthesize a
+        # text response after tools have run — otherwise "required" can cause
+        # infinite tool-call loops since the model is forced to call again every turn.
+        turn_tool_choice = resolved_tool_choice if turn == 0 else "auto"
         response = _call_with_retry(
-            lambda *_a, **_kw: _sdk_tool_call(client, messages, tools, model, temperature, max_tokens, timeout),
+            lambda *_a, **_kw: _sdk_tool_call(
+                client, messages, tools, model, resolved_temperature, max_tokens, timeout,
+                tool_choice=turn_tool_choice,
+            ),
         )
         msg = response["message"]
         usage = response.get("usage", {})
@@ -502,7 +569,7 @@ def llm_tool_loop(
     })
 
     response = _call_with_retry(
-        lambda *_a, **_kw: _sdk_tool_call(client, synthesis_messages, None, model, temperature, max_tokens, timeout),
+        lambda *_a, **_kw: _sdk_tool_call(client, synthesis_messages, None, model, resolved_temperature, max_tokens, timeout),
     )
     msg = response["message"]
     usage = response.get("usage", {})
@@ -521,8 +588,15 @@ def llm_tool_loop(
     }
 
 
-def _sdk_tool_call(client, messages, tools, model, temperature, max_tokens, timeout):
-    """Single API call with tools. Returns dict with 'message' and 'usage'."""
+def _sdk_tool_call(client, messages, tools, model, temperature, max_tokens, timeout,
+                   tool_choice=None):
+    """Single API call with tools. Returns dict with 'message' and 'usage'.
+
+    tool_choice: "auto" | "required" | dict | None. None means let the caller
+    or the per-model default decide. The hardcoded "auto" that used to live
+    here was overridden by Gemini's AUTO mode tool-shyness on long prompts;
+    callers now route through llm_tool_loop which resolves per model.
+    """
     kwargs = dict(
         model=model,
         messages=messages,
@@ -532,7 +606,7 @@ def _sdk_tool_call(client, messages, tools, model, temperature, max_tokens, time
     )
     if tools:
         kwargs["tools"] = tools
-        kwargs["tool_choice"] = "auto"
+        kwargs["tool_choice"] = tool_choice if tool_choice is not None else "auto"
     response = client.chat.completions.create(**kwargs)
     choice = response.choices[0]
     msg_dict = {"content": choice.message.content, "role": "assistant"}

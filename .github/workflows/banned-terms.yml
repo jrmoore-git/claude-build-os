@@ -25,6 +25,7 @@ jobs:
             --exclude-dir=".github"
             --exclude-dir=".git"
             --exclude-dir="__pycache__"
+            --exclude-dir="_archive"
             --exclude="*.sample"
             --exclude=".env.example"
           )

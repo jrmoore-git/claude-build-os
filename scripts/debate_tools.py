@@ -32,7 +32,10 @@ ALLOWED_COLUMNS = {
 
 ALLOWED_FILE_SETS = {
     "scripts": "scripts/*.py",
-    "skills": "skills/*/SKILL.md",
+    # Skills live under .claude/skills/, not skills/. Earlier value
+    # 'skills/*/SKILL.md' silently matched zero files, causing every
+    # check_code_presence(file_set='skills') call to return exists=false.
+    "skills": ".claude/skills/*/SKILL.md",
     "config": "config/*.json",
 }
 
@@ -363,12 +366,29 @@ TOOL_DEFINITIONS = [
         "type": "function",
         "function": {
             "name": "check_code_presence",
-            "description": "Check if a literal substring exists in a file set.",
+            "description": (
+                "Check if a literal substring exists in a file set. "
+                "Matching is EXACT byte-for-byte substring, NOT regex, NOT word-boundary, NOT case-insensitive. "
+                "Searching for 'foo' will match 'foo', '_foo', 'foobar', and 'find_foo_bar'. "
+                "Searching for 'def foo' will NOT match 'def _foo' or 'def foo_bar'. "
+                "If you want to know whether a name exists in any form (function, variable, dict key), "
+                "search the bare name without prefix/suffix decorations and check the match_count. "
+                "If a search returns exists=false, try variants (with leading underscore, with 'def ', as a string literal) "
+                "before concluding the name is absent."
+            ),
             "parameters": {
                 "type": "object",
                 "properties": {
-                    "substring": {"type": "string", "maxLength": MAX_SUBSTRING_LEN},
-                    "file_set": {"type": "string", "enum": list(ALLOWED_FILE_SETS)},
+                    "substring": {
+                        "type": "string",
+                        "maxLength": MAX_SUBSTRING_LEN,
+                        "description": "Literal substring to search for. Not a regex.",
+                    },
+                    "file_set": {
+                        "type": "string",
+                        "enum": list(ALLOWED_FILE_SETS),
+                        "description": "One of: 'scripts' (scripts/*.py), 'skills' (.claude/skills/*/SKILL.md), 'config' (config/*.json). All non-recursive single-glob.",
+                    },
                 },
                 "required": ["substring", "file_set"],
             },

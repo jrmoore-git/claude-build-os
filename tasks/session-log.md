@@ -135,3 +135,20 @@ ended without running `/wrap-session`. Review and enrich in the next session.
 **Not Finished:** Nothing outstanding
 
 **Next Session:** Continue debate system improvements per 2026-04-08 priority analysis (items 3-5 first)
+
+---
+
+## 2026-04-09 — Sync debate system from downstream project
+
+**Decided:**
+- Sync all 4 changed debate files as atomic batch (engine + tools + client + skill)
+
+**Implemented:**
+- debate.py: Refine pipeline hardening — truncation detection, recommendation slot preservation, higher token cap (4K→16K), judgment context in all rounds
+- llm_client.py: Per-model tool_choice (Claude=auto, Gemini/GPT=required on turn 1), per-model temperature (Gemini=1.0, others=0.0), MRO-aware retry logic
+- debate_tools.py: Fixed skills file_set path (.claude/skills/ not skills/), improved check_code_presence description
+- debate/SKILL.md: Added --verify-claims flag to judge step
+
+**Not Finished:** Nothing outstanding from this sync
+
+**Next Session:** Continue debate system improvements per 2026-04-08 priority analysis (items 3-5 first)

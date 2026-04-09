@@ -1318,6 +1318,148 @@ def cmd_judge(args):
 
 # ── Refinement prompts ──────────────────────────────────────────────────────
 
+# Refine must output the COMPLETE revised document, so the output cap has to
+# accommodate the full input doc + review notes. 4096 (the challenge cap) is
+# catastrophically wrong here — it cuts the revised doc off mid-section and the
+# parser silently promotes the truncated partial as current_doc, cascading
+# truncation across rounds. See tests/repro_refine_truncation.py for the
+# reproduction. 16384 covers ~12K tokens of revised doc + ~4K for notes; models
+# whose true cap is lower (Gemini 8K, Anthropic 8K default) will return less,
+# and the length-based detection in cmd_refine catches that case.
+REFINE_MAX_OUTPUT_TOKENS = 16384
+
+# Refine generation at 16K tokens takes 2-3 minutes at typical rates; 60s
+# (the challenge default) was tight even at 4K and is unworkable at 16K.
+REFINE_TIMEOUT_SECONDS = 240
+
+# A revised doc shorter than this fraction of its input is treated as
+# truncated: the round's notes are kept but current_doc is NOT advanced. This
+# is a heuristic backstop for the case where REFINE_MAX_OUTPUT_TOKENS is still
+# not enough for some specific input, or a model returns less than its true
+# cap.
+REFINE_TRUNCATION_RATIO = 0.6
+
+# Headers that mark a section containing actionable recommendations. Case
+# insensitive. Used by _count_recommendation_slots to scope its scan.
+REFINE_RECOMMENDATIONS_HEADERS = (
+    "## Recommendations",
+    "### Recommendations",
+    "## Recommended",
+    "### Recommended",
+    "## Proposed Changes",
+    "### Proposed Changes",
+)
+
+# How many slots a refine round may silently lose without triggering the
+# preservation guard. 0 means any unjustified drop fails the round.
+REFINE_SLOT_DROP_TOLERANCE = 0
+
+
+def _count_recommendation_slots(text):
+    """Count actionable recommendation slots in a document.
+
+    A 'slot' is one of:
+      - A numbered list item (1. / 2. / 10.) under a Recommendations heading
+      - A bullet item (- / *) under a Recommendations heading
+      - A `### N.` subheader under a Recommendations heading (priority lists)
+      - A `CANNOT RECOMMEND:` block ANYWHERE in the document (these count as
+        preserved-but-blocked slots, not lost slots)
+
+    Returns dict: {"recommendations": int, "cannot_recommend": int, "total": int}
+    where total = recommendations + cannot_recommend.
+
+    Heuristic, intentionally permissive. Documents that don't use a
+    Recommendations section get 0 recommendation slots — for those, the
+    preservation rule is a no-op.
+    """
+    rec_count = 0
+    in_rec_section = False
+    rec_section_level = 0  # heading level of the Recommendations section
+
+    for raw_line in text.splitlines():
+        line = raw_line.rstrip()
+        stripped = line.lstrip()
+
+        # Detect entering a Recommendations section
+        if stripped.startswith("#"):
+            level = len(stripped) - len(stripped.lstrip("#"))
+            header_match = any(
+                stripped.lower().startswith(h.lower())
+                for h in REFINE_RECOMMENDATIONS_HEADERS
+            )
+            if header_match:
+                in_rec_section = True
+                rec_section_level = level
+                continue
+            # Leaving the section: a heading at same or higher level (smaller number)
+            if in_rec_section and level <= rec_section_level:
+                in_rec_section = False
+                # fall through — could still match a deeper recommendation marker
+                # in OTHER sections, but we don't count those
+
+        if in_rec_section:
+            # Numbered list: "1." "2." ... or "10."
+            if re.match(r"^\d+\.\s+\S", stripped):
+                rec_count += 1
+                continue
+            # Bullet list: "- " or "* "
+            if re.match(r"^[-*]\s+\S", stripped):
+                rec_count += 1
+                continue
+            # Subheader recommendation: "### 1." or "#### Recommendation"
+            if re.match(r"^#{3,5}\s+\d+\.", stripped):
+                rec_count += 1
+                continue
+
+    # CANNOT RECOMMEND blocks are counted anywhere in the document
+    cannot_count = len(re.findall(r"CANNOT RECOMMEND\s*:", text))
+
+    return {
+        "recommendations": rec_count,
+        "cannot_recommend": cannot_count,
+        "total": rec_count + cannot_count,
+    }
+
+# Recommendation preservation rule, injected into both refine prompts after
+# {judgment_context} and before the output format directive. Per Gemini's
+# documented guidance to place key instructions LAST in long prompts (G3 in
+# tasks/debate-tool-adoption-findings.md), the "do not delete recommendations"
+# constraint is positioned as close to the model's response as possible
+# without breaking the canonical "## Review Notes / ## Revised Document"
+# output format. Documents with no Recommendations section are unaffected —
+# the rule is a no-op for Mode 1 inputs (data-only, code review).
+REFINE_RECOMMENDATION_PRESERVATION_RULE = """
+RECOMMENDATION PRESERVATION (HARD RULE):
+The original document may contain actionable recommendations under a
+"## Recommendations" or "## Proposed Changes" section. If it does, you MUST
+preserve them. Specifically:
+
+1. If the document has N numbered or bulleted recommendations under such a
+   section, your revised document must contain N entries — either as
+   preserved recommendations (with or without changes) or as explicit
+   "CANNOT RECOMMEND: [reason]" blocks.
+
+2. Accepted challenges about thin evidence, methodological gaps, or
+   uncertainty must be addressed by ONE of:
+   (a) adding a caveat to the affected recommendation,
+   (b) narrowing the recommendation's scope to what the evidence supports,
+   (c) lowering the recommendation's confidence or priority,
+   (d) converting the recommendation to "CANNOT RECOMMEND: [specific reason
+       referencing the accepted challenge]".
+   NEVER by silently deleting the recommendation.
+
+3. A revised document that says "we need more data before we can recommend
+   anything" without preserving the original N entries is a refinement
+   FAILURE. Do not produce that output. Convert recommendations to explicit
+   CANNOT RECOMMEND blocks instead — visible blockers are valuable;
+   silent deletion is not.
+
+4. Documents with zero recommendations (Mode 1: data-only, code review,
+   schema design) are unaffected — this rule is a no-op when there are no
+   recommendations to preserve.
+"""
+
+
 REFINE_FIRST_ROUND_PROMPT = """\
 You are a collaborative document reviewer and improver. Your job is to make \
 this document better — not to find fault, but to produce a stronger version.
@@ -1335,7 +1477,7 @@ remove them or collapse them into summaries. You may reorganize or lightly \
 edit for clarity, but facts and measurements must remain intact.
 
 {judgment_context}
-
+""" + REFINE_RECOMMENDATION_PRESERVATION_RULE + """
 Produce your output in EXACTLY this format:
 
 ## Review Notes
@@ -1365,6 +1507,8 @@ operational context (e.g., "Current System Failures", "Operational Context", \
 remove them or collapse them into summaries. You may reorganize or lightly \
 edit for clarity, but facts and measurements must remain intact.
 
+{judgment_context}
+""" + REFINE_RECOMMENDATION_PRESERVATION_RULE + """
 Produce your output in EXACTLY this format:
 
 ## Review Notes
@@ -1475,12 +1619,17 @@ def cmd_refine(args):
         model = models[i % len(models)]
         round_num = i + 1
 
+        # Both first and subsequent prompts now take {judgment_context}.
+        # Subsequent rounds get the SAME accepted-challenge context as round 0
+        # so the recommendation-preservation rule and accepted findings stay
+        # in scope across the full refinement (was: only round 0 had context,
+        # later rounds operated blind, which the v2 debate flagged as a
+        # MATERIAL gap — Mode2 v2 judgment Challenge #3, Evidence Grade A).
+        ctx = judgment_context if judgment_context else "No specific issues flagged — use your judgment."
         if i == 0:
-            prompt_template = REFINE_FIRST_ROUND_PROMPT
-            ctx = judgment_context if judgment_context else "No specific issues flagged — use your judgment."
-            system_prompt = prompt_template.format(judgment_context=ctx)
+            system_prompt = REFINE_FIRST_ROUND_PROMPT.format(judgment_context=ctx)
         else:
-            system_prompt = REFINE_SUBSEQUENT_ROUND_PROMPT
+            system_prompt = REFINE_SUBSEQUENT_ROUND_PROMPT.format(judgment_context=ctx)
 
         if enable_tools:
             system_prompt += REFINE_TOOL_SUFFIX
@@ -1498,8 +1647,8 @@ def cmd_refine(args):
                     tool_executor=debate_tools.execute_tool,
                     model=model,
                     max_turns=20,
-                    max_tokens=4096,
-                    timeout=60,
+                    max_tokens=REFINE_MAX_OUTPUT_TOKENS,
+                    timeout=REFINE_TIMEOUT_SECONDS,
                     base_url=litellm_url,
                     api_key=api_key,
                     on_tool_call=lambda turn, name, targs, res: tool_log.append(
@@ -1520,16 +1669,66 @@ def cmd_refine(args):
                 r"## New Facts Introduced", response, re.IGNORECASE
             ))
 
+            # Truncation detection: if the revised doc is materially shorter
+            # than the input, the model likely hit its output token cap
+            # mid-document. Keep the round's notes but do NOT promote the
+            # partial revision to current_doc — that would cascade the
+            # truncation across subsequent rounds.
+            truncated = False
+            if revised and len(current_doc) > 0:
+                ratio = len(revised) / len(current_doc)
+                if ratio < REFINE_TRUNCATION_RATIO:
+                    truncated = True
+                    print(f"WARNING: round {round_num} ({model}) appears truncated "
+                          f"(revised doc is {ratio:.0%} of input, threshold "
+                          f"{REFINE_TRUNCATION_RATIO:.0%}). Keeping round notes but "
+                          f"NOT promoting the partial revision to current_doc.",
+                          file=sys.stderr)
+
+            # Recommendation slot preservation: if the revised doc loses
+            # actionable recommendations relative to the input AND the lost
+            # slots aren't accounted for by explicit CANNOT RECOMMEND blocks,
+            # the round is treated as a Mode 2 failure: keep notes, don't
+            # promote. Same shape as truncation detection above.
+            slots_dropped = False
+            slot_delta_msg = ""
+            if revised and not truncated:
+                input_slots = _count_recommendation_slots(current_doc)
+                output_slots = _count_recommendation_slots(revised)
+                # A round is OK if total slots (recommendations + CANNOT RECOMMEND)
+                # is at least input recommendations - tolerance.
+                allowed = input_slots["recommendations"] - REFINE_SLOT_DROP_TOLERANCE
+                if output_slots["total"] < allowed:
+                    slots_dropped = True
+                    slot_delta_msg = (
+                        f"input had {input_slots['recommendations']} recommendation slots, "
+                        f"output has {output_slots['recommendations']} + "
+                        f"{output_slots['cannot_recommend']} CANNOT RECOMMEND = "
+                        f"{output_slots['total']} total"
+                    )
+                    print(f"WARNING: round {round_num} ({model}) dropped recommendation slots "
+                          f"({slot_delta_msg}). Keeping round notes but NOT promoting the "
+                          f"revision to current_doc — Mode 2 preservation rule.",
+                          file=sys.stderr)
+
+            note_suffix = ""
+            if truncated:
+                note_suffix = "\n\n[NOTE: revision discarded as truncated]"
+            elif slots_dropped:
+                note_suffix = f"\n\n[NOTE: revision discarded — recommendation slots dropped ({slot_delta_msg})]"
+
             round_notes.append({
                 "round": round_num,
                 "model": model,
-                "notes": notes,
+                "notes": notes + note_suffix,
                 "tool_calls": len(all_refine_tool_calls.get(f"round_{round_num}", [])),
                 "new_facts_introduced": new_facts_count,
+                "truncated": truncated,
+                "slots_dropped": slots_dropped,
             })
-            if revised:
+            if revised and not truncated and not slots_dropped:
                 current_doc = revised
-            else:
+            elif not revised:
                 print(f"WARNING: round {round_num} did not produce a revised document, "
                       "continuing with current version", file=sys.stderr)
         except (LLMError, urllib.error.HTTPError, urllib.error.URLError, TimeoutError, RuntimeError) as e:

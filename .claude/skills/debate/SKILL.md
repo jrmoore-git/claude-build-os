@@ -64,8 +64,11 @@ python3.11 scripts/debate.py judge \
   --proposal tasks/<topic>-proposal.md \
   --challenge tasks/<topic>-debate.md \
   --model gpt-5.4 \
+  --verify-claims \
   --output tasks/<topic>-judgment.md
 ```
+
+`--verify-claims` runs an independent Claude Sonnet pass that uses verification tools to check factual claims in the challenger transcript before the judge sees them. Catches the case where 1–3 challengers reviewed blind (made 0 tool calls). Adds ~$0.01–0.05 + ~30s to the judge stage. The judgment artifact will contain an `## INDEPENDENT CLAIM VERIFICATION` section.
 
 If judge fails, display warning: "Judge phase failed. Challenge artifact exists at `tasks/<topic>-debate.md`. Partial pipeline is still useful." Stop.
 
