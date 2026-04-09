@@ -1,4 +1,4 @@
-#!/usr/bin/env python3
+#!/usr/bin/env python3.11
 """
 finding_tracker.py — Per-finding state machine for debate findings.
 
@@ -6,10 +6,10 @@ Tracks individual findings through: open → addressed | waived | obsolete.
 Store: stores/findings.jsonl (append-only, last-write-wins per finding_id).
 
 Usage:
-    python3 scripts/finding_tracker.py import --judgment tasks/<topic>-judgment.md
-    python3 scripts/finding_tracker.py list --debate-id <topic> [--state open]
-    python3 scripts/finding_tracker.py transition --finding-id <topic>:3 --to addressed --reason "Fixed in abc123"
-    python3 scripts/finding_tracker.py summary --debate-id <topic>
+    python3.11 scripts/finding_tracker.py import --judgment tasks/<topic>-judgment.md
+    python3.11 scripts/finding_tracker.py list --debate-id <topic> [--state open]
+    python3.11 scripts/finding_tracker.py transition --finding-id <topic>:3 --to addressed --reason "Fixed in abc123"
+    python3.11 scripts/finding_tracker.py summary --debate-id <topic>
 """
 import argparse
 import json

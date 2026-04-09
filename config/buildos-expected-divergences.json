@@ -1,0 +1,6 @@
+[
+  {
+    "file": ".claude/settings.json",
+    "reason": "Downstream projects use absolute paths for hooks; BuildOS uses relative paths"
+  }
+]

@@ -41,9 +41,10 @@ flowchart LR
 | Stage | Role | Skills | Output |
 |---|---|---|---|
 | **Define** | PM | `/define`, `/elevate` | Design doc or brief — the *what* and *why* |
-| **Design** | Designer | `/design-consultation`, `/design-review` | Visual direction, UX review, design system |
+| **Design** | Designer | `/design-consultation`, `/design-review`, `/design-shotgun` | Visual direction, UX review, design variants |
 | **Challenge** | Architect | `/challenge`, `/debate` | Cross-model review — *should we build this?* |
 | **Plan** | Lead Engineer | `/plan`, `/autoplan` | Implementation plan — the *how* |
+| **Refine** | Cross-model panel | `/refine` | 6-round iterative improvement across 3 model families |
 | **Build** | Engineer | *(you + Claude Code)* | Working code against the plan |
 | **Review** | Cross-model panel | `/review` | Three models review through PM, Security, and Architecture lenses |
 | **Ship** | Release Engineer | `/ship` | Pre-flight gates (tests, review, verify, QA) → deploy → post-deploy smoke |
@@ -57,7 +58,9 @@ Not every task uses every stage. The framework scales with risk:
 | **New feature** | `/define discover` → `/challenge` → `/plan` → build → `/review` → `/ship` |
 | **Big bet** | `/define discover` → `/elevate` → `/challenge` → `/plan` → build → `/review` → `/ship` |
 
-Design skills (`/design-consultation`, `/design-review`, `/plan-design-review`) slot in where needed — they're not mandatory pipeline stages. Use `/design-consultation` for new design systems, `/design-review` for visual QA, and `/plan-design-review` after `/plan` when the plan touches UI.
+All tiers can optionally use `/refine` on plans or designs before building. Design skills (`/design-consultation`, `/design-review`, `/plan-design-review`) slot in where needed — they're not mandatory pipeline stages.
+
+Two distinct multi-model workflows: **`/debate`** is adversarial (personas attack → judge rules → collaborative refine). **`/refine`** is standalone collaborative improvement (6 rounds across 3 model families, no personas or judgment). Use `/debate` when you need to pressure-test whether something is right. Use `/refine` when you have something and want it better.
 
 The key insight: **Define** (what are we building and why?) is a different activity from **Plan** (how do we build it?). Skipping the first leads to well-planned solutions to the wrong problem.
 
@@ -86,11 +89,11 @@ Build OS scales its infrastructure requirements with the governance tier. Tier 0
 - [Claude Code](https://claude.ai/claude-code) (CLI, desktop, or IDE extension)
 - git
 
-Skills that work out of the box: `/define`, `/elevate`, `/plan`, `/autoplan`, `/think`, `/ship`, `/recall`, `/wrap-session`, `/capture`, `/status`, `/doc-sync`, `/governance`, `/qa`, `/design-consultation`, `/design-review`, `/design-shotgun`, `/plan-design-review`, `/triage`, `/setup`.
+Skills that work out of the box: `/define`, `/elevate`, `/plan`, `/autoplan`, `/ship`, `/recall`, `/wrap-session`, `/capture`, `/status`, `/doc-sync`, `/governance`, `/qa`, `/design-consultation`, `/design-review`, `/design-shotgun`, `/plan-design-review`, `/triage`, `/setup`.
 
 ### Tier 2+: Cross-Model Review
 
-The `/challenge`, `/debate`, and `/review` skills send proposals to three different model families for independent adversarial review. This requires a proxy that routes requests to each provider.
+The `/challenge`, `/debate`, `/refine`, and `/review` skills send proposals to three different model families for independent review. This requires a proxy that routes requests to each provider.
 
 **You need:**
 
@@ -143,8 +146,8 @@ If `check-models` shows all three models as reachable, cross-model skills will w
 
 | Setup level | What works |
 |---|---|
-| **Claude Code + git only** | All skills except `/challenge`, `/debate`, `/review`. Full governance framework, session management, planning, design, and shipping. |
-| **+ LiteLLM + API keys** | Cross-model adversarial review. Three models independently challenge, judge, and refine your work. |
+| **Claude Code + git only** | All skills except `/challenge`, `/debate`, `/refine`, `/review`. Full governance framework, session management, planning, design, and shipping. |
+| **+ LiteLLM + API keys** | Cross-model review and refinement. Three models independently challenge, judge, refine, and review your work. |
 
 You can start at Tier 0 and add cross-model review later. The framework doesn't break without it — you just won't have multi-model review until you set it up.
 
@@ -334,18 +337,19 @@ For the full guide — spawn prompts, token budgets, custom agent definitions, a
 
 ## The Skills
 
-Build OS ships with 26 skills — slash commands that implement the pipeline stages. Think of them as the team members you'd want on a real project:
+Build OS ships with 24 skills — slash commands that implement the pipeline stages. Think of them as the team members you'd want on a real project:
 
 | Role | Skills | What they do |
 |---|---|---|
 | **PM** | `/define`, `/elevate`, `/status` | Problem discovery, scope review, project status |
 | **Designer** | `/design-consultation`, `/design-review`, `/design-shotgun`, `/plan-design-review` | Design system, visual QA, variant exploration, plan design audit |
 | **Architect** | `/challenge`, `/debate` | Cross-model gate ("should we build this?"), adversarial review |
-| **Lead Engineer** | `/plan`, `/autoplan`, `/think` | Implementation planning, auto-tier detection |
+| **Refiner** | `/refine` | 6-round cross-model collaborative improvement on any document |
+| **Lead Engineer** | `/plan`, `/autoplan` | Implementation planning, auto-tier detection |
 | **Reviewer** | `/review` | Cross-model code review (3 lenses: PM, Security, Architecture). `--fix` auto-fixes mechanical issues. `--fix-loop` runs fix → re-review cycles (max 3 iterations). |
 | **QA** | `/qa`, `/governance` | Domain-specific QA validation, governance hygiene |
 | **Release** | `/ship`, `/doc-sync` | Pre-flight gates (verify + QA + tests + review) → deploy → doc sync |
-| **Session** | `/recall`, `/wrap-session`, `/capture` | Bootstrap, session close, knowledge capture |
+| **Session** | `/recall`, `/wrap-session`, `/capture`, `/triage` | Bootstrap, session close, knowledge capture, info routing |
 
 Running `/define` → `/challenge` → `/plan` → build → `/review` → `/ship` gives you the equivalent of a PM defining scope, an architect stress-testing the approach, engineers building, a cross-model review panel checking quality, and a release engineer running pre-flight gates before deploying. `/ship` includes verification (adversarial probes), QA dimensions, and all other gates inline — the standard path is `/review` → `/ship`, not a longer chain. Each skill writes artifacts to disk so the next stage (or session) picks up where the last one left off. Pipeline progress is tracked in manifest files (`tasks/<topic>-manifest.json`) so you can see which stages have completed for any topic.
 

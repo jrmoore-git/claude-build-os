@@ -32,13 +32,13 @@ Pass = exit 0. Fail = exit non-zero.
 
 **Gate 2: Review (HARD)**
 ```bash
-python3 scripts/artifact_check.py --scope <topic>
+python3.11 scripts/artifact_check.py --scope <topic>
 ```
 Parse the JSON. Pass = review artifact exists AND not stale AND (`open_material_findings` is 0 or null). Fail = missing or stale or has open findings.
 
 **Gate 3: Plan (HARD for protected paths only)**
 ```bash
-python3 scripts/tier_classify.py --diff-base main
+python3.11 scripts/tier_classify.py --diff-base main
 ```
 Check if any changed files match protected paths from `config/protected-paths.json`. If yes, check that `artifact_check.py` shows plan exists. If no protected paths touched, auto-pass.
 
@@ -188,4 +188,4 @@ Warn the user and suggest investigating. Do NOT auto-rollback.
 - Verification (adversarial probes) is NEVER bypassed, even with --force. The whole point is to catch what happy-path testing misses.
 - Degraded review status (from failed debate) is allowed — `/ship` will note it but not block.
 - SOFT gates (QA dimensions, docs, git) are advisory. They appear in the dashboard but never block.
-- `/verify` and `/qa` still exist as standalone commands for isolated use, but the standard pipeline is `/review` → `/ship`.
+- `/qa` still exists as a standalone command for isolated use, but the standard pipeline is `/review` → `/ship`.

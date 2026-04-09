@@ -14,22 +14,25 @@ jobs:
 
       - name: Scan for project-specific terms
         run: |
-          # Same pattern as buildos-sync.sh and pre-commit hook.
-          # Keep all three in sync.
-          BANNED_PATTERN='Justin|Jarvis|jarvis|openclaw|OpenClaw|innovius|Innovius|/Users/macmini|@innovius|@cloudzero|TELEGRAM_BOT_TOKEN|JUSTIN_TELEGRAM|8387329260|6507037822|6503803830|9256395873|sk-ant-|xoxb-|xapp-|GOG_KEYRING|AFFINITY_API|innoviuscapital|nicole_filter|Nicole|Meaghan|Granola|WebChat'
+          # Same pattern as pre-commit hook. Keep both in sync.
+          # Add project-specific terms that must never appear in BuildOS upstream.
+          BANNED_PATTERN='sk-ant-|xoxb-|xapp-'
 
           # Files that legitimately contain the pattern
           EXCLUDE_ARGS=(
+            --exclude="./hooks/pre-commit-banned-terms.sh"
             --exclude="hooks/pre-commit-banned-terms.sh"
             --exclude-dir=".github"
             --exclude-dir=".git"
+            --exclude-dir="__pycache__"
             --exclude="*.sample"
+            --exclude=".env.example"
           )
 
           echo "Scanning for project-specific term leaks..."
           echo ""
 
-          MATCHES="$(grep -rnE "$BANNED_PATTERN" "${EXCLUDE_ARGS[@]}" . 2>/dev/null || true)"
+          MATCHES="$(grep -rnE "$BANNED_PATTERN" "${EXCLUDE_ARGS[@]}" . 2>/dev/null | grep -v 'pre-commit-banned-terms\.sh' || true)"
 
           if [ -n "$MATCHES" ]; then
             echo "FAILED — project-specific terms found:"

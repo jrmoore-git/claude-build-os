@@ -1,4 +1,4 @@
-#!/usr/bin/env python3
+#!/usr/bin/env python3.11
 """
 tier_classify.py — Deterministic review tier classifier.
 
@@ -8,9 +8,9 @@ Loads project-specific patterns from config/tier-patterns.json if present.
 Falls back to sensible defaults (PRD, schema, security, toolbelt scripts).
 
 Usage:
-    python3 scripts/tier_classify.py [file1 file2 ...]
-    python3 scripts/tier_classify.py --stdin
-    python3 scripts/tier_classify.py --diff-base main
+    python3.11 scripts/tier_classify.py [file1 file2 ...]
+    python3.11 scripts/tier_classify.py --stdin
+    python3.11 scripts/tier_classify.py --diff-base main
 """
 import argparse
 import json

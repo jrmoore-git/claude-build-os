@@ -53,7 +53,7 @@ Based on the chosen tier, create these files:
 
 ## Step 4: Copy skills
 
-Tell the user: "Copy the `.claude/skills/` directory from the Build OS repo to your project. These provide session operations: `/recall`, `/plan`, `/review`, `/capture`, `/sync`, `/handoff`, `/triage`, and this `/setup` command."
+Tell the user: "Copy the `.claude/skills/` directory from the Build OS repo to your project. These provide session operations: `/recall`, `/plan`, `/review`, `/capture`, `/wrap-session`, `/triage`, and this `/setup` command."
 
 ## Step 5: Show what was created
 

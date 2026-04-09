@@ -15,11 +15,11 @@ Before executing any operation that modifies or deletes >10 records:
 4. **Pre-execution audit:** Log the operation to audit.db BEFORE executing (action_type, record count, WHERE clause summary).
 5. **Prefer soft deletes:** Use state changes (e.g., `state='dismissed'`) over `DELETE` where schema supports it.
 
-*Origin: D82 debate (2026-03-14) — 166 outbox items bulk-dismissed without preview or confirmation. Both challengers + judge agreed human confirmation alone is insufficient; structural safeguards required.*
+*Origin: D82 debate — bulk records dismissed without preview or confirmation. Both challengers + judge agreed human confirmation alone is insufficient; structural safeguards required.*
 
 ## Ad-hoc Database Queries
 
-Before writing any inline Python that queries a SQLite database, run `python3 scripts/db_inspect.py <db> <table>` first to get the exact schema. NEVER guess column names — the outbox has `target` not `source`, `content` not `subject`, etc. Schema mismatches in heredoc Python cause cascading errors that waste time.
+Before writing any inline Python that queries a SQLite database, inspect the schema first to get exact column names. NEVER guess column names — tables often have non-obvious names (`target` not `source`, `content` not `subject`). Schema mismatches in heredoc Python cause cascading errors that waste time.
 
 ## SQLite Pitfalls
 

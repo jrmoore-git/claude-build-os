@@ -42,10 +42,22 @@ Cross-model code review. Three models review the diff through independent lenses
 
 Output: `tasks/<topic>-review.md`.
 
+### Optional: `/refine` -- Make it better
+
+6-round cross-model collaborative improvement. Standalone on any input (plan, design, answer). Not adversarial — just iterative quality improvement across 3 model families.
+
+**When to run:** You have a draft and want it sharper. Plans before building, designs before challenge, answers to complex questions.
+**When to skip:** The document is already tight, or time pressure makes 6 rounds impractical.
+
+Output: `tasks/<topic>-refined.md`.
+
+Note: `/refine` also runs as the final phase of `/debate`. The standalone `/refine` skill skips the adversarial phases.
+
 ### Typical paths by change type
 
 - **Bugfix:** `/plan --skip-challenge` -> build -> `/review` -> `/ship`
 - **Small feature:** `/challenge` -> `/plan` -> build -> `/review` -> `/ship`
+- **Improve a plan/design:** `/refine` (standalone, no adversarial framing)
 - **Architectural change:** `/challenge` -> `/plan` -> `/debate` -> build -> `/review` (with spec compliance) -> `/ship`
 
 ## Cross-Model Debate Engine
@@ -54,7 +66,7 @@ Tool: `scripts/debate.py`. Run `debate.py --help` for full usage.
 
 Both `/challenge` and `/debate` invoke `debate.py`. The `/review` skill also uses it for cross-model code review.
 
-Configure at least three models across different model families. Assign one as judge (a different family from the author avoids self-preference bias), and rotate all models through the refinement phase. Always include a PM challenger.
+Models: Claude Opus 4.6 (architect), Gemini 3.1 Pro (staff + PM), GPT-5.4 (security + judge). Refinement rotates all three (gemini -> gpt -> claude). Before judging, multi-challenger findings are automatically consolidated (deduplicated and merged with corroboration notes). Use `--no-consolidate` to skip consolidation.
 
 **Security BLOCKING VETO on external code** is not subject to override.
 

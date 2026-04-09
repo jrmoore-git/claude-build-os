@@ -7,12 +7,10 @@
 # Escalation path: if compliance drops below 90% over 2 weeks,
 # escalate to blocking (exit 2) per three-strikes policy.
 
-source "$(dirname "$0")/resolve-python.sh"
-
 INPUT=$(cat)
 
 # Extract subagent_type from tool input
-SUBTYPE=$("$PYTHON3" -c "
+SUBTYPE=$(/opt/homebrew/bin/python3.11 -c "
 import sys, json
 try:
     data = json.load(sys.stdin)

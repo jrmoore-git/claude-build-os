@@ -23,6 +23,11 @@
             "type": "command",
             "command": "bash hooks/hook-pre-edit-gate.sh",
             "timeout": 10
+          },
+          {
+            "type": "command",
+            "command": "python3 hooks/hook-memory-size-gate.py",
+            "timeout": 2
           }
         ]
       },
@@ -63,6 +68,11 @@
             "type": "command",
             "command": "bash hooks/hook-plan-gate.sh",
             "timeout": 10
+          },
+          {
+            "type": "command",
+            "command": "python3 hooks/hook-bash-fix-forward.py",
+            "timeout": 5
           }
         ]
       }
@@ -85,6 +95,17 @@
             "type": "command",
             "command": "bash hooks/hook-ruff-check.sh",
             "timeout": 15
+          }
+        ]
+      }
+    ],
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3 hooks/hook-stop-autocommit.py",
+            "timeout": 30
           }
         ]
       }

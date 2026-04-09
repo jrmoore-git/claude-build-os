@@ -22,10 +22,12 @@ test -f tasks/<topic>-proposal.md && echo "found" || echo "none"
 
 If missing: "Write your proposal to `tasks/<topic>-proposal.md`, then run `/debate` again." Stop.
 
+If found, check for fat template sections (`### Current System Failures`, `### Operational Context`, `### Baseline Performance`). If any are missing, tell the user which sections are absent and offer to enrich the proposal before proceeding. Fat context prevents challengers from fabricating numbers and was proven to flip debate conclusions in A/B testing.
+
 ### Step 3: Enrich context
 
 ```bash
-python3 scripts/enrich_context.py --proposal tasks/<topic>-proposal.md
+python3.11 scripts/enrich_context.py --proposal tasks/<topic>-proposal.md --scope debate
 ```
 
 If enrichment returns results, create a temp file with the proposal + `## Prior Context` section appended.
@@ -39,9 +41,10 @@ test -f tasks/<topic>-debate.md && echo "found" || echo "none"
 
 If missing, run:
 ```bash
-python3 scripts/debate.py challenge \
+python3.11 scripts/debate.py challenge \
   --proposal <enriched or original proposal> \
   --personas architect,security,pm \
+  --enable-tools \
   --output tasks/<topic>-debate.md
 ```
 
@@ -57,7 +60,7 @@ test -f tasks/<topic>-judgment.md && echo "found" || echo "none"
 
 If missing, run:
 ```bash
-python3 scripts/debate.py judge \
+python3.11 scripts/debate.py judge \
   --proposal tasks/<topic>-proposal.md \
   --challenge tasks/<topic>-debate.md \
   --model gpt-5.4 \
@@ -74,7 +77,7 @@ test -f tasks/<topic>-refined.md && echo "found" || echo "none"
 
 If missing, run:
 ```bash
-python3 scripts/debate.py refine \
+python3.11 scripts/debate.py refine \
   --document tasks/<topic>-proposal.md \
   --judgment tasks/<topic>-judgment.md \
   --rounds 3 \
@@ -99,6 +102,16 @@ Next: Build the implementation, then run /review <topic>
 ```
 
 The refined document becomes the spec. `/review` will automatically check implementation against it when `tasks/<topic>-refined.md` exists.
+
+After displaying the summary, update the pipeline manifest with all completed stages:
+
+```bash
+python3.11 scripts/pipeline_manifest.py add <topic> --skill debate-challenge --artifact tasks/<topic>-debate.md --status complete
+python3.11 scripts/pipeline_manifest.py add <topic> --skill debate-judge --artifact tasks/<topic>-judgment.md --status complete
+python3.11 scripts/pipeline_manifest.py add <topic> --skill debate-refine --artifact tasks/<topic>-refined.md --status complete
+```
+
+Only add stages that completed successfully (check the status table above).
 
 ## Degraded Mode
 

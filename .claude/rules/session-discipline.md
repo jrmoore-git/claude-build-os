@@ -20,7 +20,7 @@ description: Session management, documentation-first, context budgeting
 | Session summary | tasks/session-log.md |
 
 ## Session Close Protocol (MANDATORY)
-When context reaches ~45% (stage 1 of compaction protocol), write to `tasks/session-log.md` FIRST:
+When context reaches ~55% (stage 1 of compaction protocol), write to `tasks/session-log.md` FIRST:
 - Decided: [bullets]
 - Documented: [file + what changed]
 - Implemented: [bullets]
@@ -56,9 +56,9 @@ Enforced by `scripts/hook-plan-gate.sh`. Protected paths require a `tasks/<topic
 - **What survives compaction** is controlled by the `## Compact Instructions` section in CLAUDE.md — update it if your session has unusual context needs
 
 **Compaction protocol (three stages):**
-1. **At 45%**: Start writing working state to disk proactively between tasks (current-state.md, session-log, in-progress analysis). No compaction yet — just insurance.
-2. **45–65%**: Compact at the next **natural breakpoint** — task completion, commit, review boundary. Never mid-thought or mid-edit.
-3. **At 65%**: Hard compact. If mid-thought, write the thought to disk first (even rough notes to `tasks/working-notes.md`), then `/compact` immediately.
+1. **At 55%**: Start writing working state to disk proactively between tasks (current-state.md, session-log, in-progress analysis). No compaction yet — just insurance.
+2. **55–70%**: Compact at the next **natural breakpoint** — task completion, commit, review boundary. Never mid-thought or mid-edit.
+3. **At 70%**: Hard compact. If mid-thought, write the thought to disk first (even rough notes to `tasks/working-notes.md`), then `/compact` immediately.
 
 ## Presenting Options
 

@@ -186,7 +186,7 @@ using the landscape file content.
 Before challenging scope, understand the landscape. Use `web_search.py` for research:
 
 ```bash
-YOU_COM_API_KEY="$YOU_COM_API_KEY" python3 scripts/web_search.py search "query here" --num 5
+YOU_COM_API_KEY="$YOU_COM_API_KEY" /opt/homebrew/bin/python3.11 scripts/web_search.py search "query here" --num 5
 ```
 
 Search for:
@@ -557,7 +557,7 @@ cat > "$TMPFILE" << 'PLAN_EOF'
 <plan content -- truncate to 30KB if needed>
 PLAN_EOF
 
-python3 scripts/debate.py review \
+/opt/homebrew/bin/python3.11 scripts/debate.py review \
   --persona staff \
   --prompt "You are a brutally honest technical reviewer examining a development plan that has already been through a multi-section review. Find what it missed: logical gaps, overcomplexity (is there a fundamentally simpler approach?), feasibility risks taken for granted, missing dependencies, strategic miscalibration (is this the right thing to build?). Be direct. Be terse. No compliments. Just the problems." \
   --input "$TMPFILE"

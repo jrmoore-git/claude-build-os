@@ -126,9 +126,9 @@ Claude Code maintains automatic memory at `~/.claude/projects/<project>/memory/M
 | File | Purpose | Who writes it |
 |---|---|---|
 | `MEMORY.md` (auto) | Claude's session-to-session observations | Claude (automatic) |
-| `tasks/decisions.md` | Deliberate architectural choices with rationale | You (via /capture or /sync) |
-| `tasks/lessons.md` | Mistakes and patterns worth remembering | You (via /capture or /sync) |
-| `tasks/handoff.md` | Next-session context and status | You (via /handoff) |
+| `tasks/decisions.md` | Deliberate architectural choices with rationale | You (via /capture or /doc-sync) |
+| `tasks/lessons.md` | Mistakes and patterns worth remembering | You (via /capture or /doc-sync) |
+| `tasks/handoff.md` | Next-session context and status | You (via /wrap-session) |
 
 Auto memory and framework files serve different purposes. Auto memory captures what Claude notices; framework files capture what you deliberately record. If both contain the same information, the framework file is authoritative.
 

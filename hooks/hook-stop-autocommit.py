@@ -1,4 +1,4 @@
-#!/usr/bin/env python3
+#!/usr/bin/env python3.11
 """
 hook-stop-autocommit.py — Auto-commit uncommitted session work on Stop.
 
@@ -26,7 +26,7 @@ PACIFIC = ZoneInfo("America/Los_Angeles")
 
 # Paths worth auto-committing
 RELEVANT_PREFIXES = [
-    "primitives/", "tasks/", "scripts/", "tests/", "skills/",
+    "tasks/", "scripts/", "tests/", "skills/",
     "config/", "docs/", "stores/baseline/", ".claude/rules/",
     ".claude/skills/",
 ]

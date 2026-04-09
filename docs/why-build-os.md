@@ -1,7 +1,5 @@
 # Why Build OS Exists
 
-**By Justin Moore**
-
 The narrative case for governance over prompting. These essays explain the thinking behind the framework — start here if you want the "why" before the "how."
 
 For the full framework, see [The Build OS](the-build-os.md). For setup, see the [README](../README.md).

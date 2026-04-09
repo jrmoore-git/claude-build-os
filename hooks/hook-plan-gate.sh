@@ -16,10 +16,8 @@
 #
 # Missing config = fail-open (exit 0).
 
-source "$(dirname "$0")/resolve-python.sh"
-
 INPUT=$(cat)
-COMMAND=$(printf '%s' "$INPUT" | "$PYTHON3" -c "import sys,json; d=json.load(sys.stdin); print(d.get('tool_input',{}).get('command',''))" 2>/dev/null)
+COMMAND=$(printf '%s' "$INPUT" | /opt/homebrew/bin/python3.11 -c "import sys,json; d=json.load(sys.stdin); print(d.get('tool_input',{}).get('command',''))" 2>/dev/null)
 
 case "$COMMAND" in
   git\ commit*)
@@ -34,7 +32,7 @@ case "$COMMAND" in
     [ -z "$STAGED" ] && exit 0
 
     # Check if any staged files match protected globs (minus exempt patterns)
-    PROTECTED_HIT=$(PLAN_GATE_CONFIG="$CONFIG" PLAN_GATE_STAGED="$STAGED" "$PYTHON3" <<'PYEOF'
+    PROTECTED_HIT=$(PLAN_GATE_CONFIG="$CONFIG" PLAN_GATE_STAGED="$STAGED" /opt/homebrew/bin/python3.11 <<'PYEOF'
 import json, os, re, sys
 
 config_path = os.environ["PLAN_GATE_CONFIG"]
@@ -101,7 +99,7 @@ PYEOF
     fi
 
     # --- Check for valid plan artifact ---
-    PLAN_VALID=$(PLAN_GATE_CONFIG="$CONFIG" PLAN_GATE_TASKS="$TASKS" "$PYTHON3" <<'PYEOF'
+    PLAN_VALID=$(PLAN_GATE_CONFIG="$CONFIG" PLAN_GATE_TASKS="$TASKS" /opt/homebrew/bin/python3.11 <<'PYEOF'
 import json, os, re, sys
 
 config_path = os.environ["PLAN_GATE_CONFIG"]

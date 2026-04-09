@@ -8,6 +8,20 @@
 <!-- Replace this section with a one-paragraph description of what you're building and why. -->
 [Describe your project here. What are you building? Who is it for? What problem does it solve?]
 
+## Hard Rules
+
+<!-- These are the non-negotiable invariants. Advisory rules live in Operating Rules below. -->
+- Nothing is done because Claude says it is done. Verify with evidence.
+- Put constraints near the action they govern, not front-loaded at the top.
+- After config changes (CLAUDE.md, rules, .env, hooks), start a fresh session.
+- If the LLM can cause irreversible state changes, it must not be the actor.
+- Resource limits must be enforced in code — a limit in documentation constrains nothing.
+- No task completion without the appropriate review tier.
+- Every commit must update relevant tracking docs.
+- Before trusting a new hook or gate, verify it can actually fail.
+
+**Essential eight invariants:** idempotency · approval gating · audit completeness · degraded mode visible · state machine validation · rollback path exists · version pinning enforced · exactly-once scheduling.
+
 ## Operating rules
 
 ### Simplicity is the override rule
@@ -54,14 +68,16 @@ If `[CHALLENGE-SKIPPED]` or `[TRIVIAL]` appears more than 3 times in a sprint, t
 - **Hooks:** `hooks/hook-plan-gate.sh`, `hooks/hook-review-gate.sh`, `hooks/hook-tier-gate.sh`, `hooks/hook-decompose-gate.py` (blocks Write|Edit until decomposition assessed), `hooks/hook-agent-isolation.py` (blocks Agent dispatch without worktree isolation after parallel plan), `hooks/hook-guard-env.sh`, `hooks/hook-pre-edit-gate.sh`, `hooks/hook-post-tool-test.sh`, `hooks/hook-prd-drift-check.sh`, `hooks/hook-pre-commit-tests.sh`, `hooks/hook-ruff-check.sh`, `hooks/hook-syntax-check-python.sh` — wired in `.claude/settings.json` (see [Hooks Reference](docs/hooks.md))
 - **Scripts:** `scripts/debate.py` (cross-model engine: challenge, judge, refine, review, review-panel, check-models — config-driven via `config/debate-models.json`), `scripts/tier_classify.py` (file tier classification), `scripts/recall_search.py` (governance search), `scripts/finding_tracker.py` (finding lifecycle), `scripts/enrich_context.py` (context enrichment), `scripts/artifact_check.py` (artifact validation) — see [How It Works](docs/how-it-works.md)
 - **Config:** `config/protected-paths.json` defines protected globs, exempt paths, and required plan fields. `config/debate-models.json` maps personas to LiteLLM models (fallback to hardcoded defaults if missing).
-- **Skills:** `.claude/skills/` — each skill is a `SKILL.md` file with YAML frontmatter (25 skills):
-  - Pipeline: `/recall` → `/define` → `/elevate` → `/challenge` → `/debate` → `/plan` → `/review` → `/ship`
-  - Design: `/design-consultation`, `/design-review`, `/plan-design-review`
-  - Session: `/status`, `/capture`, `/wrap-session`, `/handoff`, `/sync`
+- **Skills:** `.claude/skills/` — each skill is a `SKILL.md` file with YAML frontmatter (24 skills):
+  - Pipeline: `/recall` → `/define` → `/elevate` → `/challenge` → `/debate` → `/plan` → `/refine` → `/review` → `/ship`
+  - Design: `/design-consultation`, `/design-review`, `/design-shotgun`, `/plan-design-review`
+  - Session: `/status`, `/capture`, `/wrap-session`, `/triage`
   - Quality: `/qa`, `/governance`, `/doc-sync`
-  - Automation: `/autoplan`, `/think`, `/triage`, `/review-x`
+  - Automation: `/autoplan`, `/review-x`
   - Bootstrap: `/setup`, `/audit`
-  - Pipeline tiers: T0 (spike) = build. T2 (standard) = `/define refine` → `/plan` → build. T1 (new feature) = `/define discover` → `/challenge` → `/plan` → build. Big bet = `/define discover` → `/elevate` → `/challenge` → `/plan` → build. All end with → `/review` → `/ship`.
+  - `/debate` = adversarial personas attack → judge rules → refine. For pressure-testing decisions.
+  - `/refine` = 6-round cross-model collaborative improvement. Standalone on any input, or as final phase of `/debate`.
+  - Pipeline tiers: T0 (spike) = build. T2 (standard) = `/define refine` → `/plan` → build. T1 (new feature) = `/define discover` → `/challenge` → `/plan` → build. Big bet = `/define discover` → `/elevate` → `/challenge` → `/plan` → build. All tiers can optionally use `/refine` on plans or designs before building. All end with → `/review` → `/ship`.
 - **Rules:** `.claude/rules/` — code-quality, design, orchestration, review-protocol, session-discipline, skill-authoring, workflow (see individual files for details)
 
 ## Project-specific rules

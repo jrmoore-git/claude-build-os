@@ -8,7 +8,7 @@ Read each file below. If a file is missing, skip it silently — do not mention 
 
 0. **Uncommitted work check** — Run:
    ```
-   python3 scripts/detect-uncommitted.py
+   python3.11 scripts/detect-uncommitted.py
    ```
    If `has_uncommitted` is true OR `auto_commit_pending` is true, add a **Prior Session Recovery** section at the TOP of the output brief:
    ```
@@ -20,7 +20,7 @@ Read each file below. If a file is missing, skip it silently — do not mention 
 
 0b. **Memory staleness check** — Run:
    ```
-   python3 scripts/verify-plan-progress.py
+   python3.11 scripts/verify-plan-progress.py
    ```
    If `has_stale_memory` is true, add a **Stale Memory** warning after the Prior Session Recovery section (or at the top if no recovery needed):
    ```
@@ -32,7 +32,7 @@ Read each file below. If a file is missing, skip it silently — do not mention 
 
 0c. **Current-state freshness check** — Run:
    ```
-   python3 scripts/check-current-state-freshness.py
+   python3.11 scripts/check-current-state-freshness.py
    ```
    If `is_stale` is true, add a **Stale Current State** warning after the Stale Memory section (or at the top if no prior warnings):
    ```
@@ -42,6 +42,13 @@ Read each file below. If a file is missing, skip it silently — do not mention 
    ACTION: Do NOT trust "Next Action" from current-state.md. Determine actual state from git log and session-log entries, then update current-state.md before recommending next steps.
    ```
    **HARD RULE:** When this fires, the "Next" section of the recall brief must be derived from git log + session-log, NOT from current-state.md's "Next Action".
+
+0d. **Infrastructure version check** — Run:
+   ```
+   python3.11 scripts/check-infra-versions.py
+   ```
+   If `has_drift` is true, add a **Version Drift** warning and update MEMORY.md's "Key Architecture" section with the live versions before writing the brief. Do NOT use version numbers from memory — use the live values from this script's output.
+   If `check_failed` is true (even with `has_drift` false), add a warning: "Infrastructure version check incomplete — [error details]. Version numbers from memory may be stale."
 
 1. **Current state** — `docs/current-state.md`
 
@@ -59,14 +66,14 @@ Read each file below. If a file is missing, skip it silently — do not mention 
 6. **Recent lessons** — `tasks/lessons.md`
    Read the last 10 rows of the table (highest lesson numbers).
 
-7. **Topic search** (optional) — If the session involves a specific domain (e.g. "auth flow", "database schema", "API design"), run:
+7. **Topic search** (optional) — If the session involves a specific domain (e.g. "database migration", "API design", "testing strategy"), run:
    ```
-   python3 scripts/recall_search.py [domain keywords] --files lessons,decisions
+   python3.11 scripts/recall_search.py [domain keywords] --files lessons,decisions
    ```
    Extract any results with score > 0.1 and include in the brief under a **Relevant prior context** section.
    If BM25 returns zero results or all scores < 0.5, try semantic fallback:
    ```
-   python3 scripts/recall_search.py [domain keywords] --semantic --files lessons,decisions
+   python3.11 scripts/recall_search.py [domain keywords] --semantic --files lessons,decisions
    ```
    Include results with similarity > 0.5 under "Relevant prior context."
    Semantic search is speculative — treat results below 0.55 as low-confidence.

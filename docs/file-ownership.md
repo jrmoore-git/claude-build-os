@@ -6,12 +6,12 @@ Which skill owns which file, and in what order skills run at session close.
 
 | File | Owner skill | Other skills may... |
 |------|-------------|---------------------|
-| `tasks/handoff.md` | `/handoff` | Read. `/sync` may flag incomplete work but does not write the full handoff. |
-| `tasks/session-log.md` | `/handoff` | Append only (never overwrite previous entries). |
-| `docs/current-state.md` | `/sync` | `/handoff` may also update if state changed and `/sync` wasn't run. `hook-stop-autocommit.py` injects a `⚠ STALE` marker on unclean session exit. |
-| `tasks/decisions.md` | `/capture` or `/sync` | Append only. Entries are numbered and never modified after writing. |
-| `tasks/lessons.md` | `/capture` or `/sync` | Append only. Promote recurring lessons to `.claude/rules/` and archive. |
-| `docs/project-prd.md` | `/sync` | Read by `/recall`, `/plan`, `/review`. |
+| `tasks/handoff.md` | `/wrap-session` | Overwritten each session close. |
+| `tasks/session-log.md` | `/wrap-session` | Append only (never overwrite previous entries). |
+| `docs/current-state.md` | `/wrap-session` | `hook-stop-autocommit.py` injects a `⚠ STALE` marker on unclean session exit. |
+| `tasks/decisions.md` | `/capture` or `/doc-sync` | Append only. Entries are numbered and never modified after writing. |
+| `tasks/lessons.md` | `/capture` or `/doc-sync` | Append only. Promote recurring lessons to `.claude/rules/` and archive. |
+| `docs/project-prd.md` | `/doc-sync` | Read by `/recall`, `/plan`, `/review`. |
 | `.claude/rules/*.md` | Manual or `/setup` | Read by Claude automatically. Promoted from lessons.md when recurring. |
 | `CLAUDE.md` | Manual or `/setup` | Read by Claude automatically on every turn. |
 | `tasks/plan-*.md` | `/plan` | Read by `/review`. Deleted after successful implementation (optional). |
@@ -29,12 +29,11 @@ Both capture "what's done" and "what's not done" — but session-log records it 
 
 ## Session close sequence
 
-Run skills in this order at session end:
+Run `/wrap-session` at session end. It handles everything in one command:
 
-```
-1. /sync     — update source-of-truth docs (decisions, lessons, PRD, current-state)
-2. /handoff  — read updated state, write forward-looking handoff
-3. git commit
-```
-
-Running `/handoff` before `/sync` produces a stale handoff. Running `/sync` after `/handoff` may update docs that the handoff doesn't reflect.
+1. Check doc hygiene (lessons.md, decisions.md updated?)
+2. Write `docs/current-state.md`
+3. Write `tasks/handoff.md`
+4. Append to `tasks/session-log.md`
+5. Check BuildOS sync status
+6. Commit all wrap docs

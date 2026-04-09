@@ -131,7 +131,7 @@ echo ""
 HOOKS_INSTALLED=false
 if [[ -d .git ]]; then
   mkdir -p .git/hooks
-  ln -sf ../../hooks/pre-commit-banned-terms.sh .git/hooks/pre-commit
+  cp hooks/pre-commit-banned-terms.sh .git/hooks/pre-commit
   HOOKS_INSTALLED=true
   ok "Git hooks:" "pre-commit installed"
 else

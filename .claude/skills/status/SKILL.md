@@ -26,12 +26,12 @@ ls -t tasks/*-review.md tasks/*-plan.md tasks/*-challenge.md tasks/*-judgment.md
 
 If there are changed files, classify them:
 ```bash
-echo "<changed files>" | python3 scripts/tier_classify.py --stdin
+echo "<changed files>" | python3.11 scripts/tier_classify.py --stdin
 ```
 
 If there's a recent topic (from artifacts), check its status:
 ```bash
-python3 scripts/artifact_check.py --scope <topic>
+python3.11 scripts/artifact_check.py --scope <topic>
 ```
 
 ### Step 2: Determine stage and recommendation
@@ -51,7 +51,7 @@ Based on the checks, determine which stage the user is in:
 
 Run the verification script:
 ```bash
-bash scripts/verify-state.sh 2>/dev/null
+python3.11 scripts/verify_state.py 2>/dev/null
 ```
 
 Read the output:

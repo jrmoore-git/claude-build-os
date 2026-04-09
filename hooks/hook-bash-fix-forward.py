@@ -1,4 +1,4 @@
-#!/usr/bin/env python3
+#!/usr/bin/env python3.11
 """PreToolUse hook: block common bash bandaid patterns, force investigation first.
 
 Reads JSON from stdin (Claude Code hook contract), checks for known

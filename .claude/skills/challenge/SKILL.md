@@ -63,16 +63,48 @@ If found, read for problem framing, constraints, and prior decisions.
 Check for `tasks/<slug>-proposal.md`.
 
 If missing:
-- If prior context exists from Step 2, synthesize a short proposal from it.
+- If prior context exists from Step 2, synthesize from it.
 - Otherwise ask the user to describe: what they want to build, why it matters, the proposed approach, and what they are not building.
 
-Write to `tasks/<slug>-proposal.md`.
+Write to `tasks/<slug>-proposal.md` using this standard template:
 
-If the proposal is vague or high-risk, use the optional template covering: problem/user, evidence, cheapest test, non-goals, simplest version, new concepts, deletion cost, real vs speculative need.
+```markdown
+---
+topic: <slug>
+created: <YYYY-MM-DD>
+---
+# <Title>
+
+## Problem
+What is broken or missing, who it affects, and why it matters now.
+
+## Proposed Approach
+What to build and how. Non-goals: what this deliberately excludes.
+
+## Simplest Version
+The cheapest test or MVP that validates the idea before full build.
+
+### Current System Failures
+3+ concrete examples of the problem occurring. Include dates, error messages, or user reports where available. If no failures exist yet (greenfield), state that explicitly.
+
+### Operational Context
+Real numbers from the running system relevant to this proposal. Pull from audit.db, cron schedules, cost data, or metrics.db as applicable. Examples: "morning-briefing runs daily at 7am, costs $0.04/run, last failure 2026-03-15" or "email-triage processes ~40 emails/day, 3 errors in last 7 days." If the proposal doesn't touch operational systems, state "N/A — greenfield."
+
+### Baseline Performance
+How the current system performs on the dimension this proposal changes. Include: current behavior, current cost, current error rate. Required when the proposal replaces or modifies an existing system. If greenfield, state "No existing system."
+```
+
+Every proposal should include all sections. `debate.py` will warn on missing `Current System Failures`, `Operational Context`, or `Baseline Performance` sections — these provide the grounding that prevents challengers from fabricating numbers.
 
 ### Step 4: Enrich context (optional)
 
-If `scripts/enrich_context.py` exists, run it to pull relevant decisions and lessons. If the script is missing, errors, or returns nothing, continue with the raw proposal. Do not mutate `tasks/<slug>-proposal.md`. If enrichment succeeds, append a `## Prior Context` section to a working copy used as debate input.
+If `scripts/enrich_context.py` exists, run it to pull relevant decisions and lessons:
+
+```bash
+python3.11 scripts/enrich_context.py --proposal tasks/<slug>-proposal.md --scope challenge
+```
+
+If the script is missing, errors, or returns nothing, continue with the raw proposal. Do not mutate `tasks/<slug>-proposal.md`. If enrichment succeeds, append a `## Prior Context` section to a working copy used as debate input.
 
 ### Step 5: Determine review mode
 
@@ -97,9 +129,10 @@ Add dynamically based on proposal content:
 ### Step 7: Run cross-model challenge
 
 ```bash
-python3 scripts/debate.py challenge \
+python3.11 scripts/debate.py challenge \
   --proposal <enriched or raw proposal> \
   --personas architect,security,pm[,product][,design] \
+  --enable-tools \
   --output tasks/<slug>-findings.md
 ```
 
@@ -141,6 +174,12 @@ Next:
 - /plan <topic>     (if proceed)
 - revise scope, then /plan <topic>   (if simplify)
 - address findings first   (if pause/reject)
+```
+
+After displaying the result, update the pipeline manifest:
+
+```bash
+python3.11 scripts/pipeline_manifest.py add <slug> --skill challenge --artifact tasks/<slug>-challenge.md --status complete --recommendation <PROCEED|SIMPLIFY|PAUSE|REJECT>
 ```
 
 ## Recommendation guidance

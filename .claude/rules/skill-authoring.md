@@ -16,9 +16,17 @@ globs:
 - **Audit log for every run, even zero results.** Skills that process meetings, emails, or items MUST write an audit_log entry for every execution, including runs with 0 results found. Without this, a silent failure (timeout, no data, wrong date) is indistinguishable from a legitimate empty run. Log: action_type, item_count, and any candidate counts before filtering.
 - **Two-pass extraction for LLM tasks.** For promise extraction, fact extraction, or any LLM classification task: first ask the LLM to list ALL candidate items without filtering, then ask it to filter/classify the full candidate list. A single "extract only the important ones" pass causes the LLM to silently miss items. Separating "find everything" from "evaluate each" prevents lazy omission.
 
+## LLM-Extracted Descriptions
+
+LLM-extracted descriptions for tasks and action items must be action-oriented. State WHAT the owner must deliver ("Send deck to X by Friday"), never narrate that they promised ("X committed to send the deck"). Direction/description mismatches confuse downstream consumers. Enforce with a deterministic coherence check that rejects mismatched direction/description.
+
 ## Skill Query Bounds
 
 Every skill that queries external data (email, calendar, APIs, database) must have explicit bounds: max result count (`--max` or `LIMIT`), max content size per result, and a scope filter (time window, account). Before committing a skill, answer: "If every query returns its maximum, how many tokens does one run consume?" If unbounded, the skill is not ready.
+
+## Batch-then-Cache for Cron Skills
+
+When a cron skill produces output that is consumed at a later scheduled time (e.g., prep generated in the morning, delivered as a reminder later), batch all work at the scheduled time and write results to a cache. At delivery time, read from cache — do not poll per-item. Per-item polling wastes API calls and tokens when a cache exists. The pattern: batch at generation time → write to cache → read at delivery time.
 
 ## Cron Output Contract
 Any skill running in cron context MUST satisfy ALL of these:

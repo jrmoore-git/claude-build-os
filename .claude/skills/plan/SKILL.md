@@ -53,7 +53,7 @@ From the user's description (or think brief), list the files that will be create
 
 Classify:
 ```bash
-echo "<file list, one per line>" | python3 scripts/tier_classify.py --stdin
+echo "<file list, one per line>" | python3.11 scripts/tier_classify.py --stdin
 ```
 
 Parse the JSON output to determine the review tier.
@@ -132,7 +132,7 @@ Build the plan content:
 ---
 scope: "<from analysis — one line>"
 surfaces_affected: "<comma-separated files to touch>"
-verification_commands: "<how to verify — e.g., 'python3.11 -m pytest tests/test_foo.py'>"
+verification_commands: "<how to verify — e.g., 'python3 -m pytest tests/test_foo.py'>"
 rollback: "<how to undo — e.g., 'git revert <sha>'>"
 review_tier: "<Tier 1|Tier 1.5|Tier 2 — from tier_classify.py>"
 verification_evidence: "PENDING"
@@ -156,6 +156,12 @@ After writing:
 - "Plan written to `tasks/<topic>-plan.md`."
 - "This satisfies the plan gate for protected paths."
 - "Build the changes, then run `/qa` to validate and `/review` when ready."
+
+Update the pipeline manifest:
+
+```bash
+python3.11 scripts/pipeline_manifest.py add <topic> --skill plan --artifact tasks/<topic>-plan.md --status complete
+```
 
 ## Important Notes
 

@@ -1,4 +1,4 @@
-#!/usr/bin/env python3
+#!/usr/bin/env python3.11
 """
 hook-decompose-gate.py — PreToolUse hook that gates Write|Edit until a
 decomposition plan exists for the session.

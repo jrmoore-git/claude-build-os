@@ -1,4 +1,4 @@
-#!/usr/bin/env python3
+#!/usr/bin/env python3.11
 """
 hook-agent-isolation.py — PreToolUse hook that enforces worktree isolation
 on write-capable Agent dispatches when a parallel plan is active.
@@ -46,8 +46,8 @@ ABS_PATH_MESSAGE = (
     "paths to the main checkout ({repo_root}/...). Absolute paths bypass "
     "worktree isolation — the agent will write to the MAIN checkout, not its "
     "worktree copy. Use relative paths instead:\n"
-    "  Wrong: {repo_root}/primitives/synthesis.py\n"
-    "  Right: primitives/synthesis.py\n"
+    "  Wrong: {repo_root}/scripts/debate.py\n"
+    "  Right: scripts/debate.py\n"
     "Found {count} absolute repo path(s) in the prompt. "
     "Rewrite the prompt with relative paths."
 )

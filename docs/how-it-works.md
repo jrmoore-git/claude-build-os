@@ -23,10 +23,10 @@ Personas map to models via `config/debate-models.json`. The default assignments 
 
 | Persona | Default model | Rationale |
 |---------|--------------|-----------|
-| architect | gemini-3.1-pro | Systems reasoning, architecture benchmarks |
+| architect | claude-opus-4-6 | Systems reasoning, architecture benchmarks |
 | staff | gemini-3.1-pro | Code quality review by a different family than the author |
 | security | gpt-5.4 | Strictest reviewer, best at finding edge cases |
-| pm | claude-opus-4-6 | Product reasoning, spec compliance, user empathy |
+| pm | gemini-3.1-pro | Product reasoning, spec compliance, user empathy |
 
 The judge defaults to gpt-5.4 (different family from the typical Claude author avoids self-preference bias). The refinement rotation cycles all three families: gemini → gpt → claude.
 
@@ -36,7 +36,7 @@ Each persona gets a role-specific adversarial prompt (architecture concerns, sec
 
 Produces: `tasks/<topic>-challenge.md` with YAML frontmatter containing `debate_id`, `created` timestamp, and a `mapping` of challenger labels (A, B, C...) to model names. Also prints a JSON status object to stdout with `status`, `challengers` count, `mapping`, and any `warnings`.
 
-**judge** — Independent evaluation of challenges by a non-author model. The judge receives the proposal and challenges (with challenger sections shuffled to eliminate position bias), then issues ACCEPT, DISMISS, or ESCALATE on each MATERIAL challenge with a confidence score (0.0–1.0).
+**judge** — Independent evaluation of challenges by a non-author model. Before judging, multi-challenger findings are automatically consolidated: overlapping findings from different challengers are deduplicated and merged into a unified list with corroboration notes (e.g., "Raised by 2/3 challengers"). This reduces redundancy and gives the judge a cleaner input. Use `--no-consolidate` to skip this step and send raw challenger sections (shuffled to eliminate position bias). The judge then issues ACCEPT, DISMISS, or ESCALATE on each MATERIAL challenge with a confidence score (0.0–1.0).
 
 ```
 python3.11 scripts/debate.py judge \
@@ -49,17 +49,27 @@ Default judge model: gpt-5.4 (chosen because a different model family avoids sel
 
 Produces: `tasks/<topic>-judgment.md` with accepted/dismissed/escalated counts. Findings marked ESCALATE require human review. Prints JSON to stdout with `accepted`, `dismissed`, `escalated` counts and `needs_human` flag.
 
-**refine** — Iterative cross-model document improvement. Each round, a different model reviews and rewrites the document. The first round is seeded with accepted challenges from the judgment file so models know exactly what to fix.
+**refine** — Iterative cross-model document improvement. Each round, a different model reviews and rewrites the document. Works as both the final phase of the `/debate` pipeline (seeded with accepted challenges) and as a standalone tool via the `/refine` skill (for collaborative improvement without adversarial framing).
 
 ```
+# As part of /debate pipeline (seeded with judgment)
 python3.11 scripts/debate.py refine \
     --document tasks/auth-redesign-proposal.md \
     --judgment tasks/auth-redesign-judgment.md \
-    --rounds 3 \
+    --rounds 6 \
     --output tasks/auth-redesign-refined.md
+
+# Standalone via /refine skill (no judgment needed)
+python3.11 scripts/debate.py refine \
+    --document tasks/any-document.md \
+    --rounds 6 \
+    --output tasks/any-document-refined.md \
+    --enable-tools
 ```
 
-Default model rotation: gemini-3.1-pro → gpt-5.4 → claude-opus-4-6 (cycles if rounds exceed model count). All three model families participate in refinement, ensuring no single family's biases dominate the final output. Default rounds: 6. Each round produces review notes and a complete revised document; the revised document feeds into the next round.
+Default model rotation: gemini-3.1-pro → gpt-5.4 → claude-opus-4-6 (cycles if rounds exceed model count). All three model families participate in refinement, ensuring no single family's biases dominate the final output. Default rounds: 6 (each model refines twice). Each round produces review notes and a complete revised document; the revised document feeds into the next round.
+
+The `--judgment` flag is optional. When provided (as in the `/debate` pipeline), the first round is seeded with accepted challenges so models know exactly what to fix. When omitted (standalone `/refine`), models use their own judgment to improve the document. The `/refine` skill can also pass user-specified focus areas via the same `--judgment` slot.
 
 Produces: `tasks/<topic>-refined.md` with per-round review notes and the final refined document.
 
@@ -86,11 +96,13 @@ python3.11 scripts/debate.py verdict \
 
 ### The standard pipeline
 
-The recommended three-step pipeline:
+The recommended three-step pipeline (via `/debate`):
 
 1. `challenge` — adversarial models find issues
 2. `judge` — independent model evaluates which issues are real
 3. `refine` — collaborative models fix accepted issues and improve the document
+
+The `refine` subcommand also runs standalone (via `/refine` skill) for collaborative improvement without the adversarial phases. Use `/debate` when you need to pressure-test whether something is right. Use `/refine` when you have something and want it better.
 
 All events are logged to `stores/debate-log.jsonl` (append-only JSONL with timestamps, phase, model mapping, and counts).
 

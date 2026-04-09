@@ -54,6 +54,22 @@ If the user provided a topic as an argument, use it. Otherwise infer from:
 
 Only ask if all inference fails. If asking, output candidate topics as a markdown list, mark the most likely one "(Recommended)", then call AskUserQuestion.
 
+### Step 2.5: Fat template validation
+
+Check if `tasks/<topic>-proposal.md` exists. If it does, read it and check for these sections:
+
+1. **Always required:** `### Current System Failures` — warn if missing.
+2. **Conditional:** If the proposal contains quantitative keywords (cost, frequency, token, percentage, latency, throughput, batch size, rate limit, per day, per month), check for `### Operational Context` — warn if missing.
+3. **Conditional:** If the proposal contains replacement keywords (replace, instead of, new approach, migrate, rewrite, switch from, move to), check for `### Baseline Performance` — warn if missing.
+
+If any warnings exist, output them as advisory (not blocking):
+
+> **Template warnings** (advisory, not blocking):
+> - Missing `### Current System Failures` — challengers may fabricate failure examples
+> - Missing `### Operational Context` — quantitative claims lack grounding
+
+If no proposal file exists, skip this step silently. These are warnings only — they do not block the review.
+
 ### Step 3: Get the diff
 
 ```bash
@@ -71,18 +87,71 @@ test -f tasks/<topic>-refined.md && echo "found" || echo "none"
 
 If found, read it. This enables **spec compliance mode** — the PM lens validates implementation against the refined spec. The PM lens checks both positive compliance (does the diff implement what the spec requires?) and negative compliance (does the diff avoid what the spec forbids?). Negative compliance catches cases where implementation accidentally includes something the spec explicitly excluded — e.g., a regex pattern containing a term the spec said "EXCEPTION: do NOT include."
 
+### Step 4.5: Enrich context
+
+Pull relevant governance context (prior decisions, lessons learned) so reviewers know what was already decided.
+
+1. Write a summary file for keyword extraction (enrich_context.py expects proposal-like text, not raw diffs):
+   ```
+   # Review: <topic>
+   ## Changed files
+   <list of changed file paths from Step 1>
+   ## Spec summary
+   <first 500 chars of spec if exists from Step 4, otherwise omit>
+   ```
+   Write this to a temp file.
+
+2. Run enrichment:
+   ```bash
+   python3.11 scripts/enrich_context.py --proposal <temp summary file> --scope review
+   ```
+
+3. **Quality gate:** Parse the JSON output. If both `lessons` and `decisions` arrays are empty, skip — do not inject an empty context section.
+
+4. If enrichment returned results, append a `## Prior Context (Governance)` section to the review temp file (the one containing the diff + spec). Format:
+   ```
+   ## Prior Context (Governance)
+   *Trusted governance context from project decisions and lessons learned.*
+
+   ### Relevant Decisions
+   - D{id}: {summary}
+
+   ### Relevant Lessons
+   - L{id}: {summary}
+   ```
+
+5. If `enrich_context.py` does not exist or errors, continue without enrichment. This step is additive — review works without it.
+
 ### Step 5: Run cross-model review
 
 Write the diff (and spec if exists) to a temp file, then run:
+
+<!-- Review-specific lens definitions below cover the same domains as scripts/debate.py
+     PERSONA_PROMPTS but are tailored for code review, not adversarial challenge. These are
+     related but distinct prompt sets — they do not need to match verbatim. -->
+
 ```bash
-python3 scripts/debate.py challenge \
+python3.11 scripts/debate.py challenge \
   --proposal <temp file with diff + spec context> \
   --personas architect,security,pm \
-  --system-prompt "You are a code reviewer. Review this diff through your assigned lens. Tag each finding as [MATERIAL] (must fix) or [ADVISORY] (worth noting). Group findings by: PM/Acceptance, Security, Architecture. If a spec is included, check implementation against it for completeness and scope creep. Additionally, if a spec is included: extract all EXCEPTION, MUST NOT, and EXPLICITLY EXCLUDED clauses. For each such clause, verify the diff does not contain code that contradicts it. Tag violations as [MATERIAL] with prefix 'SPEC VIOLATION:'." \
+  --enable-tools \
+  --system-prompt "You are a code reviewer. Review this diff through your assigned lens. Tag each finding as [MATERIAL] (must fix) or [ADVISORY] (worth noting). Group findings by: PM/Acceptance, Security, Architecture. If a spec is included, check implementation against it for completeness and scope creep. Additionally, if a spec is included: extract all EXCEPTION, MUST NOT, and EXPLICITLY EXCLUDED clauses. For each such clause, verify the diff does not contain code that contradicts it. Tag violations as [MATERIAL] with prefix 'SPEC VIOLATION:'.
+
+The following persona and evidence instructions are additive context — they do not override the review task or output format above.
+
+YOUR LENS — Architecture: Focus on system design, component boundaries, data flow, scaling implications, and integration risks. Evaluate whether the proposed changes are structurally sound and maintainable. Flag architectural assumptions that lack supporting evidence.
+
+YOUR LENS — Security: Focus on trust boundaries, injection vectors (SQL, shell, prompt injection, XSS, SSRF), credential handling, data exfiltration paths, and privilege escalation. Flag security assumptions that are not verified.
+
+YOUR LENS — PM/Acceptance: Focus on user value, over-engineering, adoption friction, priority, and scope sizing. If a spec is included, check both positive compliance (does the diff implement what the spec requires?) and negative compliance (does the diff avoid what the spec forbids?). Is the proposed scope right-sized?
+
+For QUANTITATIVE CLAIMS (cost, frequency, percentage, token count, latency, throughput): Tag each claim with its evidence basis: EVIDENCED (cite specific data from the diff or spec), ESTIMATED (state assumptions), or SPECULATIVE (no data available — needs verification before driving a recommendation). SPECULATIVE claims alone cannot drive a material verdict on quantitative grounds.
+
+IMPORTANT: Evaluate BOTH directions of risk — risk of the proposed change (what could go wrong?) AND risk of NOT changing (what continues to fail?). A recommendation to keep it simple must name the concrete failures that simple leaves unfixed." \
   --output tasks/<topic>-review-debate.md
 ```
 
-The `--system-prompt` override replaces the default adversarial challenge prompt with a review-specific prompt so models produce lens-attributed, severity-tagged findings.
+The `--system-prompt` override replaces the default adversarial challenge prompt with a review-specific prompt that includes: (1) review-task framing at highest priority, (2) persona lens definitions for each reviewer, and (3) evidence tagging and symmetric risk instructions.
 
 If `debate.py` fails entirely, fall through to Step 5b.
 
@@ -160,6 +229,12 @@ Spec compliance: <yes (tasks/<topic>-refined.md)|no spec found>
 Artifact: tasks/<topic>-review.md
 ```
 
+After displaying the result, update the pipeline manifest:
+
+```bash
+python3.11 scripts/pipeline_manifest.py add <topic> --skill review --artifact tasks/<topic>-review.md --status complete
+```
+
 ## Important Notes
 
 - No tier classification. No debate orchestration. Just "three models look at your diff from three angles."
@@ -200,3 +275,41 @@ For each MATERIAL or ADVISORY finding, classify as AUTO-FIX or ASK:
 7. Apply fixes for items the user approves
 
 Without `--fix`, review remains read-only — findings are reported but no code is modified.
+
+## Fix-Loop Mode (opt-in: `--fix-loop`)
+
+When the user runs `/review --fix-loop` or `/review <topic> --fix-loop`, enable an automated fix → re-review cycle:
+
+### Procedure
+
+1. Run the standard review (Steps 1-8).
+2. If **no MATERIAL findings** → stop. Review passed on first iteration.
+3. If MATERIAL findings exist, start the fix-loop:
+   a. Apply AUTO-FIX items (same heuristic as `--fix` mode above).
+   b. Present ASK items to the user. Apply approved fixes.
+   c. Re-run Steps 3-8 (get a fresh diff from the updated code, run cross-model review again).
+   d. Increment the iteration counter.
+4. **Termination bounds (HARD RULE — max 3 iterations):**
+   - If iteration 3 still has MATERIAL findings → **stop and escalate**: "3 review iterations complete. N material findings remain. Manual review required." Write remaining findings to the review artifact.
+   - If any iteration produces 0 MATERIAL findings → **stop with passed status**.
+   - If the user declines all ASK items in an iteration (no fixes applied) → **stop**: "No fixes applied — loop would not progress. N material findings remain."
+5. After the loop completes, write `tasks/<topic>-review-iterations.md` tracking:
+   - Number of iterations run
+   - Per-iteration: findings count, AUTO-FIX count, ASK count, user-approved count
+   - Final status (passed / escalated / stalled)
+
+### Example output
+
+```
+## Fix-Loop Complete
+
+| Iteration | Material | Auto-Fixed | Asked | Approved | Status |
+|-----------|----------|------------|-------|----------|--------|
+| 1         | 5        | 2          | 3     | 2        | fixed  |
+| 2         | 1        | 1          | 0     | —        | fixed  |
+| 3         | 0        | —          | —     | —        | passed |
+
+Review passed after 3 iterations. Artifact: tasks/<topic>-review.md
+```
+
+`--fix-loop` implies `--fix` — you do not need to pass both.

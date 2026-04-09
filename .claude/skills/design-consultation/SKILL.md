@@ -115,7 +115,7 @@ Store answers for use in Phase 3.
 Use `web_search.py` to find 5-10 products in their space:
 
 ```bash
-YOU_COM_API_KEY="$YOU_COM_API_KEY" python3 scripts/web_search.py search "[product category] website design" --num 10
+YOU_COM_API_KEY="$YOU_COM_API_KEY" python3.11 scripts/web_search.py search "[product category] website design" --num 10
 ```
 
 Search for:

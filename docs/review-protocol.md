@@ -75,11 +75,15 @@ Each reviewer tags quantitative claims with an evidence basis: **EVIDENCED** (ci
 
 The engine (`scripts/debate.py`) powers all three stages. It sends the same prompt to multiple models from different model families and synthesizes their responses.
 
+### Automatic Challenge Consolidation
+
+Before judging, multi-challenger findings are automatically consolidated. Overlapping findings from different challengers are deduplicated and merged into a unified list with corroboration notes (e.g., "Raised by 2/3 challengers"). This reduces redundancy and gives the judge cleaner input. Use `--no-consolidate` to skip this step and judge raw challenges individually (with position-bias shuffling applied instead).
+
 ### Model Selection Principles
 
-- **Use all three model families as challengers.** This prevents self-preference bias where a model rates its own output higher. The default mapping assigns each family at least one persona: Gemini (architect + staff), GPT (security), Claude (PM).
+- **Use all three model families as challengers.** This prevents self-preference bias where a model rates its own output higher. The default mapping assigns each family at least one persona: Claude Opus (architect), Gemini (staff + PM), GPT (security).
 - **Assign the judge role to a different family than the author.** The judge (GPT by default) should be the empirically strictest reviewer. Since Claude is typically the code author, having Claude also judge its own work produces sycophantic results.
-- **Avoid self-review bias.** Claude serves as PM challenger (product reasoning, spec compliance) rather than staff/architecture reviewer — reviewing product fit is less prone to self-preference than reviewing code quality of code Claude itself wrote.
+- **Avoid self-review bias.** Claude serves as architect (systems reasoning) while Gemini handles PM and staff roles. The judge (GPT) is always a different family from the typical Claude author.
 - **Rotate all models through refinement.** Each model contributes to the final refined spec (gemini → gpt → claude rotation).
 - **Always include a PM challenger.** Product perspective catches scope drift and spec violations that technical reviewers miss.
 

@@ -7,9 +7,10 @@
 
 set -uo pipefail
 
-# Same banned pattern as buildos-sync.sh in the downstream project.
-# Keep in sync — if you add terms there, add them here.
-BANNED_PATTERN='Justin|Jarvis|jarvis|openclaw|OpenClaw|innovius|Innovius|cloudzero|CloudZero|/Users/macmini|@innovius|@cloudzero|TELEGRAM_BOT_TOKEN|JUSTIN_TELEGRAM|8387329260|6507037822|6503803830|9256395873|sk-ant-|xoxb-|xapp-|GOG_KEYRING|AFFINITY_API|innoviuscapital|nicole_filter|Nicole|Meaghan|Granola|WebChat'
+# Add project-specific terms that must never appear in BuildOS upstream.
+# Example: 'MyApp|myapp|specific-customer|/Users/myuser|sk-ant-|xoxb-'
+# Keep empty if no downstream project terms need blocking.
+BANNED_PATTERN='sk-ant-|xoxb-|xapp-'
 
 # Files/patterns to skip (these legitimately mention banned terms)
 SKIP_PATTERNS=(

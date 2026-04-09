@@ -161,8 +161,8 @@ For architecture decisions where single-pass LLM review misses things, use genui
 The standard pipeline is: **challenge → judge → refine.**
 
 1. **Author writes proposal** — the primary model produces the initial artifact, written to disk
-2. **Challengers review** — three model families (Gemini as architect/staff, GPT as security, Claude as PM) review through adversarial lenses. Claude serves as PM rather than code reviewer to avoid self-review bias (Claude typically authors the code).
-3. **Judge evaluates** — an independent model (GPT by default, different family from the author) scores each challenge and determines which findings are material
+2. **Challengers review** — three model families (Claude Opus as architect, Gemini as staff/PM, GPT as security) review through adversarial lenses. All three families participate, with personas assigned to balance diversity and avoid self-review bias.
+3. **Judge evaluates** — an independent model (GPT by default, different family from the author) first auto-consolidates overlapping findings from multiple challengers (deduplicating and merging with corroboration notes), then scores each challenge and determines which findings are material. Use `--no-consolidate` to skip consolidation and judge raw challenges individually.
 4. **Refinement** — all three model families rotate through refining the spec to incorporate accepted findings
 
 All events are logged to `stores/debate-log.jsonl`. Model-to-persona assignments are configured in `config/debate-models.json`.

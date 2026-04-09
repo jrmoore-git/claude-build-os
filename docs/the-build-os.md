@@ -399,11 +399,11 @@ The test: does this change affect how the system behaves? If yes → full review
 
 Cross-model review runs three independent lenses in parallel, each assigned to a different model family:
 
-1. **Architecture (Gemini)** — structural issues, boundary violations, unnecessary complexity
+1. **Architecture (Claude Opus)** — structural issues, boundary violations, unnecessary complexity
 2. **Security (GPT)** — auth weaknesses, injection risks, trust boundary violations
-3. **PM (Claude)** — does it match the spec? Does it solve the right problem simply enough?
+3. **PM (Gemini)** — does it match the spec? Does it solve the right problem simply enough?
 
-Model-to-persona assignments are configured in `config/debate-models.json`. Claude serves as PM reviewer (not architecture/staff) to avoid self-review bias — Claude typically authors the code, so having it judge code quality produces sycophantic results. Product reasoning is less prone to this bias.
+Model-to-persona assignments are configured in `config/debate-models.json`. Before judging, multi-challenger findings are automatically consolidated — overlapping findings from different challengers are deduplicated and merged with corroboration notes. Use `--no-consolidate` to skip this and judge raw challenges individually.
 
 Security has blocking veto on dependency changes, auth changes, and external code.
 

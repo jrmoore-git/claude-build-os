@@ -3,7 +3,6 @@
     "skills/**/*.md",
     "scripts/*_tool.py",
     "scripts/*_pipeline.py",
-    "scripts/contact_*.py",
     ".claude/rules/*.md",
     "hooks/hook-*",
     ".claude/settings.json"
