@@ -1,0 +1,137 @@
+#!/bin/bash
+# PreToolUse hook: Classify task tier BEFORE first file edit.
+# Fires on: Write|Edit
+#
+# Tier 1 (debate required): PRD, database schema, trust boundary code, security rules
+# Tier 1.5 (quality review): core skills, toolbelt scripts
+# Tier 2 (log only): everything else
+#
+# Behavior:
+#   - On first Tier 1 file edit in a session, BLOCKS unless debate artifacts exist
+#   - On first Tier 1.5 file edit, WARNS (advisory, not blocking)
+#   - Tracks "already classified" via a session marker file to avoid re-firing every edit
+
+INPUT=$(cat)
+PROJECT=$(git rev-parse --show-toplevel 2>/dev/null || pwd)
+
+RESULT=$(python3 -c "
+import sys, json, os, re, subprocess, time
+
+PROJECT = '$PROJECT'
+TASKS = os.path.join(PROJECT, 'tasks')
+MARKER_DIR = '/tmp/build-os-tier-gate'
+os.makedirs(MARKER_DIR, exist_ok=True)
+
+try:
+    d = json.load(sys.stdin)
+except json.JSONDecodeError:
+    print('ALLOW')
+    sys.exit(0)
+
+ti = d.get('tool_input', {})
+file_path = ti.get('file_path', '')
+
+if not file_path:
+    print('ALLOW')
+    sys.exit(0)
+
+# Normalize to relative path
+rel = file_path
+if rel.startswith(PROJECT + '/'):
+    rel = rel[len(PROJECT) + 1:]
+
+# ── Tier classification via tier_classify.py ──────────────────────────────
+try:
+    result = subprocess.run(
+        [sys.executable, os.path.join(PROJECT, 'scripts/tier_classify.py'), rel],
+        capture_output=True, text=True, timeout=5
+    )
+    tier_data = json.loads(result.stdout)
+    raw_tier = tier_data.get('tier', 2)
+except Exception:
+    raw_tier = 2
+
+if raw_tier == 'exempt' or raw_tier == 2:
+    print('ALLOW')
+    sys.exit(0)
+
+tier = 15 if raw_tier == 1.5 else int(raw_tier)
+
+# ── Session dedup — don't fire on every single edit ──────────────────────
+marker_file = os.path.join(MARKER_DIR, f'tier{tier}_passed')
+if os.path.exists(marker_file):
+    age = time.time() - os.path.getmtime(marker_file)
+    if age < 14400:  # 4 hours
+        print('ALLOW')
+        sys.exit(0)
+
+# ── Check for valid debate artifacts (Tier 1 only) ───────────────────────
+if tier == 1:
+    session_marker = os.path.join(MARKER_DIR, 'session_start')
+    if not os.path.exists(session_marker):
+        with open(session_marker, 'w') as sm:
+            sm.write(str(time.time()))
+        session_start = time.time()
+    else:
+        session_start = os.path.getmtime(session_marker)
+
+    found_artifact = False
+    if os.path.isdir(TASKS):
+        for f in os.listdir(TASKS):
+            path = os.path.join(TASKS, f)
+            try:
+                mtime = os.path.getmtime(path)
+            except OSError:
+                continue
+            if mtime < session_start:
+                continue
+
+            if f.endswith('-challenge.md'):
+                try:
+                    content = open(path).read()
+                except OSError:
+                    continue
+                has_frontmatter = bool(re.match(r'^---\n.*?debate_id:', content, re.DOTALL))
+                has_material = bool(re.search(r'MATERIAL', content))
+                if has_frontmatter and has_material:
+                    found_artifact = True
+                    break
+
+            if f.endswith('-judgment.md') or f.endswith('-resolution.md'):
+                found_artifact = True
+                break
+
+    if found_artifact:
+        with open(marker_file, 'w') as mf:
+            mf.write(f'artifact_found:{rel}')
+        print('ALLOW')
+        sys.exit(0)
+
+    print(f'BLOCK_TIER1:{rel}')
+    sys.exit(0)
+
+# ── Tier 1.5: advisory warning ───────────────────────────────────────────
+if tier == 15:
+    with open(marker_file, 'w') as mf:
+        mf.write(f'warned:{rel}')
+    print(f'WARN_TIER15:{rel}')
+    sys.exit(0)
+
+print('ALLOW')
+" <<< "$INPUT" 2>/dev/null)
+
+case "$RESULT" in
+  BLOCK_TIER1:*)
+    FILE="${RESULT#BLOCK_TIER1:}"
+    printf '{"hookSpecificOutput":{"hookEventName":"PreToolUse","permissionDecision":"block","permissionDecisionReason":"BLOCKED: %s is a Tier 1 file (PRD/schema/trust boundary). Cross-model debate required BEFORE editing. Write a proposal to tasks/<topic>-proposal.md, then run: python3 scripts/debate.py challenge --proposal tasks/<topic>-proposal.md --personas architect,security,pm --output tasks/<topic>-challenge.md"}}\n' "$FILE"
+    exit 2
+    ;;
+  WARN_TIER15:*)
+    FILE="${RESULT#WARN_TIER15:}"
+    echo "NOTICE: $FILE is Tier 1.5 (core skill/toolbelt). Consider running a quality review (1 round, 1 challenger). Proceeding — this is advisory."
+    exit 0
+    ;;
+  *)
+    exit 0
+    ;;
+esac

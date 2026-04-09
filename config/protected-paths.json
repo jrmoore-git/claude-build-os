@@ -1,0 +1,22 @@
+{
+  "protected_globs": [
+    "skills/**/*.md",
+    "scripts/*_tool.py",
+    "scripts/*_pipeline.py",
+    ".claude/rules/*.md"
+  ],
+  "exempt_patterns": [
+    "tasks/*",
+    "docs/*",
+    "tests/*",
+    "config/*",
+    "stores/*"
+  ],
+  "required_plan_fields": [
+    "scope",
+    "surfaces_affected",
+    "verification_commands",
+    "rollback",
+    "review_tier"
+  ]
+}

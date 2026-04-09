@@ -1,0 +1,202 @@
+# The Build OS
+
+A practical framework for building serious projects with Claude Code.
+
+## Start Here
+
+| You are... | Read | Skip (for now) |
+|---|---|---|
+| Curious what this is | This README | Everything else |
+| Starting a project with Claude Code | This README → run `/setup` | Team Playbook, Advanced Patterns |
+| Running a team project | README → Build OS → Team Playbook | Advanced Patterns |
+| Building a production or autonomous system | Everything | Nothing |
+
+## Quick Start
+
+Open this repo in Claude Code and run:
+
+```
+/setup
+```
+
+It asks three questions about your project, picks a governance tier, and creates everything you need.
+
+Or do it manually: copy `CLAUDE.md` to your project root, copy templates from `templates/` into `docs/` and `tasks/`, copy `.claude/commands/` to your project, edit `CLAUDE.md` to describe your project, and `git init`.
+
+**Requirements:** [Claude Code](https://claude.ai/claude-code) with `/commands` support, git. Hooks need a Unix shell (macOS, Linux, WSL) but are optional for personal projects.
+
+---
+
+## The Pipeline
+
+The Build OS ships with slash commands that chain into a workflow pipeline.
+
+```
+/recall → /triage → /plan → /review → /ship (commit)
+```
+
+| Command | What it does |
+|---------|-------------|
+| /setup | Bootstrap a new project — picks governance tier, creates all files |
+| /recall | Session start — loads handoff, current state, relevant lessons and decisions |
+| /triage | Classify incoming information and route to decisions, lessons, tasks, or reference |
+| /plan | Research the system, write a plan to disk. Checks for /challenge artifact when new abstractions, dependencies, or scope expansion are detected. |
+| /challenge | Pre-planning gate — questions whether proposed work is necessary and appropriately scoped. Produces an artifact that /plan checks as a dependency. |
+| /review | Structured self-review with Architect, Staff+Security, and PM lenses before committing |
+| /review-x | Cross-model second opinion — sends findings to a different AI model family and classifies agreement vs. disputes |
+| /audit | Two-phase audit — blind discovery first, then targeted questions from evidence |
+| /capture | Extract decisions, lessons, and action items from conversations before they're lost |
+| /sync | Update PRD, decisions, lessons, and current state after approved changes |
+| /handoff | Write what the next session needs to know |
+
+## Under the Hood
+
+The skills are powered by deterministic scripts and enforcement hooks. See [How It Works](docs/how-it-works.md) and [Hooks Reference](docs/hooks.md) for full details.
+
+**Scripts:**
+
+| Script | What it does | Used by |
+|--------|-------------|---------|
+| debate.py | Cross-model adversarial review: challenge → judge → refine | Standalone pipeline |
+| tier_classify.py | Classifies files by blast radius and review tier | hook-review-gate, hook-tier-gate |
+| recall_search.py | BM25 + semantic hybrid search across governance files | enrich_context.py, standalone CLI |
+| finding_tracker.py | Tracks debate findings through open → addressed lifecycle | artifact_check.py |
+| enrich_context.py | Enriches proposals with relevant lessons and decisions | Debate pipeline (pre-challenge) |
+| artifact_check.py | Validates plan, challenge, judgment, review artifacts | Hooks (artifact validation) |
+
+**Hooks:**
+
+| Hook | When it fires | What it gates |
+|------|--------------|---------------|
+| hook-plan-gate.sh | Before commit to protected paths | Requires valid plan artifact with verified frontmatter |
+| hook-review-gate.sh | Before commit | Requires debate artifacts for Tier 1 changes; warns for Tier 1.5 |
+| hook-tier-gate.sh | Before file edit (Write/Edit) | Blocks Tier 1 edits without debate artifacts; warns for Tier 1.5 |
+
+---
+
+## Why This Exists
+
+Most writing about AI assistants still lives in the world of prompt engineering: how to ask better questions, how to provide better context, how to get cleaner code back. Those questions matter. But once Claude starts participating in real engineering work, they stop being the main event.
+
+The teams getting real leverage from Claude aren't the ones writing cleverer prompts. They're the ones defining where the model is allowed to reason, where it is not allowed to act, and how the system behaves when the model is wrong.
+
+That shift — from prompting to governance — is the difference between dabbling and building. And it is still under-discussed.
+
+---
+
+### The first mistake: treating Claude like a chatbot
+
+Most people interact with Claude Code the way they'd interact with a smart colleague in a chat window. Ask a question, get an answer, ask a follow-up. That works for small tasks. It falls apart the moment you're building anything with state, persistence, or consequences.
+
+The problem isn't Claude's intelligence. It's that Claude is stateless. Every session starts from zero. There is no memory, no accumulated context, no institutional knowledge — unless you build it yourself. A human colleague remembers what you decided last week. Claude doesn't.
+
+So the first investment isn't a better prompt. It's a better operating environment: a PRD that defines what you're building, a decisions log that records what you've already settled, a lessons log that prevents repeating mistakes. These are just files — markdown on disk — but they transform Claude from an amnesiac assistant into something that operates against a stable specification.
+
+But persistent files are only half the answer. A pile of markdown is not memory until it is queryable. Serious Claude workflows need a retrieval layer — whether that is search, an indexed notes system, or a bootstrap skill — that loads the right slice of context before planning begins.
+
+The gap between "using Claude" and "building with Claude" is the same gap between having a conversation and running a project. Conversations are stateless. Projects have memory, governance, and accountability.
+
+---
+
+### The most important decision: where the model stops
+
+The single most important architectural choice in an AI system is not which model to use. It's where the model stops and deterministic software begins.
+
+We learned this the hard way. After enough build sessions, we discovered that multiple critical components had the LLM constructing raw SQL queries with string interpolation from untrusted input. Each one looked reasonable in isolation. Together, they were a disaster waiting to happen — one malformed update in an approval workflow could approve the wrong item, send the wrong email, or corrupt the wrong record.
+
+The fix wasn't better prompting. It was architectural: build a deterministic toolbelt that handles all data operations with parameterized queries and state validation. The LLM's job shrinks to classifying, summarizing, and drafting. It produces structured JSON. Deterministic code validates the schema and applies the change. If the LLM hallucinates, the worst outcome is "draft not created" — not "data corrupted."
+
+The one-line rule: if the LLM can cause irreversible state changes, it must not be the actor.
+
+---
+
+### The hidden lever: move state to disk
+
+The context window is RAM: scarce, expensive, and ephemeral. The filesystem is durable memory. Treat them accordingly.
+
+Plans, decisions, reviews, state tracking — all belong on disk. Not in conversation history, which vanishes on compaction. Not in Claude's "memory," which doesn't exist between sessions. On disk, where any session can read it and no session can lose it.
+
+This sounds obvious, but the natural workflow fights it. When you're moving fast in a Claude Code session, everything lives in the conversation. Decisions get made conversationally. Plans exist as chat messages. Review results float in the output. Then the session ends, or the context compacts, and it's gone.
+
+The discipline: every decision gets written to decisions.md. Every lesson gets written to lessons.md. Every session writes a handoff document. Every plan gets written to a task file before execution starts. The context window is for active reasoning. The filesystem is for everything that needs to survive.
+
+---
+
+### The difference between guidance and governance
+
+Instructions in CLAUDE.md are suggestions. Claude will probably follow them. Under context pressure, in complex workflows, during long sessions — it may not.
+
+Hooks are policy.
+
+Claude Code supports hooks — shell commands that fire automatically before or after specific events. A PostToolUse hook that runs your test suite after every code edit doesn't rely on Claude remembering to test. A PreToolUse hook that blocks commits when tests fail doesn't rely on Claude's judgment about whether tests matter right now.
+
+This distinction generalizes into what I think of as the enforcement ladder:
+
+1. **Advisory** — CLAUDE.md instructions. "Please follow this convention." Works most of the time.
+2. **Rules** — `.claude/rules/` files. Loaded conditionally, more authoritative. Works more reliably.
+3. **Hooks** — Deterministic code. Fires every time. Cannot be ignored.
+4. **Architecture** — The system physically cannot do the wrong thing. LLM never sees the database. Secrets never enter the context.
+
+Most teams stop at level 1 and wonder why Claude keeps breaking their conventions. The answer: move the important rules up the ladder.
+
+A practical example: we had a model invent an email address from a person's name and company context. An advisory rule saying "do not hallucinate contact data" did not stop it. Deterministic validation did. That is the enforcement ladder in one sentence.
+
+If you've told Claude to do something three times and it keeps not doing it, stop writing stronger instructions. Escalate to the next enforcement level.
+
+---
+
+### The default failure mode: complexity drift
+
+Anthropic's own documentation acknowledges it: Claude Opus has "a tendency to overengineer by creating extra files, adding unnecessary abstractions, or building in flexibility that wasn't requested."
+
+This is the single most important behavioral tendency to understand. Claude sounds confident and reasonable while doing it. "I've added a factory pattern for extensibility." "I've created a helper utility for reuse." "I've added comprehensive error handling." Each addition sounds defensible. Collectively, they turn a 50-line script into a 400-line architecture that nobody asked for.
+
+The antidote is active simplicity. After every plan review: "What can I remove and still meet the requirement?" Anthropic provides specific anti-overengineering language that Claude is trained to follow — use it verbatim in your configuration rather than paraphrasing, because the model responds to those exact phrases more reliably than to rewrites.
+
+But the deeper point is that style rules alone don't solve this. If the architecture gives the LLM a large, unconstrained surface to operate on, you'll get entropy — just simpler entropy. The real defense is architectural: shrink the surface. Move deterministic operations out of LLM control. Then simplicity rules apply to a much smaller, more manageable area.
+
+---
+
+### The missing discipline: testing, rollback, and release control
+
+AI-assisted development creates a dangerous velocity illusion. Every session ships working features, each with ad-hoc verification during the build. Reviews pass. Commits land. The system grows. But those verifications are ephemeral — they happened in conversation, not in repeatable test scripts.
+
+We saw a production path with strong unit-test coverage fail completely because the tests were validating the wrong assumption at the integration boundary. The API returned one shape, the code expected another, and the mocks mirrored the broken expectation. The tests passed with full confidence while the real system quietly returned nothing. A single end-to-end smoke test would have caught it immediately.
+
+The lesson: your mocks encode your assumptions. If your assumptions are wrong, your tests validate the wrong thing perfectly.
+
+Testing, rollback capability, and release discipline aren't separate from the AI development workflow — they're more important because of it. Build test infrastructure in the first session, not the fiftieth. Require a rollback path before any deployment. Use kill switches for anything that runs autonomously.
+
+The same is true of model cost. One team discovered a $724 day against a roughly $15 expected budget because every scheduled job defaulted to the strongest model. Nothing was technically broken; the routing policy was. Cost discipline is not a billing cleanup exercise. It is architecture.
+
+---
+
+### The practical starter kit
+
+If you do nothing else:
+
+1. **Create a PRD in Markdown** that Claude references every session. Numbered sections, explicit scope, concrete examples.
+2. **Plan before building.** Write the plan to a file. Review it. Then execute.
+3. **Keep a lessons log.** Every surprise, every mistake, numbered and referenceable.
+4. **Draw the LLM boundary.** LLMs classify, summarize, and draft. Deterministic code acts.
+5. **Write to disk, not context.** Plans, reviews, decisions — all go to files.
+6. **Use hooks for enforcement.** If a rule matters, don't phrase it as guidance. Enforce it as code.
+7. **Test from day one.** Build the test directory alongside git init.
+
+---
+
+Using Claude is conversational. Building with Claude is operational.
+
+The teams that will get the most leverage from AI coding tools over the next few years won't be the ones with the best prompts. They'll be the ones that figured out governance: where to draw the boundary, what to put on disk, which rules to enforce deterministically, and how to keep the system simple as it grows.
+
+The model keeps getting smarter. The discipline around it is what you have to build yourself.
+
+---
+
+## Further Reading
+
+- **[The Build OS](docs/the-build-os.md)** — The full framework: governance tiers, file system, operations, enforcement ladder, review, bootstrap
+- **[Team Playbook](docs/team-playbook.md)** — For engineering teams: agent teams, parallel work, orchestration, cheat sheets
+- **[Advanced Patterns](docs/advanced-patterns.md)** — For production systems: audit protocol, degradation testing, cross-model debate, failure classes
+
+---
