@@ -19,9 +19,9 @@ python3 scripts/debate.py challenge \
     --output tasks/auth-redesign-challenge.md
 ```
 
-Personas map to models: architect → gpt-5.4, staff → gemini-3.1-pro, security → gpt-5.4, pm → gemini-3.1-pro. Each persona gets a role-specific adversarial prompt (architecture concerns, security focus, operational feasibility, or user value). Alternatively, pass `--models gpt-5.4,gemini-3.1-pro` directly with a generic adversarial prompt. An optional `--system-prompt` flag overrides the default prompt entirely.
+Personas map to models: architect → gpt-5.4, staff → gemini-3.1-pro, security → gpt-5.4, pm → gemini-3.1-pro. Each persona gets a role-specific adversarial prompt (architecture concerns, security focus, operational feasibility, or user value). Note that personas sharing a model are deduplicated — `--personas architect,security` produces one challenger since both map to gpt-5.4. Alternatively, pass `--models gpt-5.4,gemini-3.1-pro` directly with a generic adversarial prompt. An optional `--system-prompt` flag (takes a file path) overrides the default prompt entirely.
 
-Produces: `tasks/<topic>-challenge.md` with YAML frontmatter containing `debate_id`, `created` timestamp, and a `mapping` of challenger labels (A, B, C...) to model names.
+Produces: `tasks/<topic>-challenge.md` with YAML frontmatter containing `debate_id`, `created` timestamp, and a `mapping` of challenger labels (A, B, C...) to model names. Also prints a JSON status object to stdout with `status`, `challengers` count, `mapping`, and any `warnings`.
 
 **judge** — Independent evaluation of challenges by a non-author model. The judge receives the proposal and challenges (with challenger sections shuffled to eliminate position bias), then issues ACCEPT, DISMISS, or ESCALATE on each MATERIAL challenge with a confidence score (0.0–1.0).
 
@@ -32,9 +32,9 @@ python3 scripts/debate.py judge \
     --output tasks/auth-redesign-judgment.md
 ```
 
-Default judge model: gpt-5.4 (chosen because a different model family avoids self-preference bias when the author is Claude). The judge warns if it matches the author model. An optional `--rebuttal` flag passes author context without giving the author decision authority.
+Default judge model: gpt-5.4 (chosen because a different model family avoids self-preference bias when the author is Claude). The judge warns if it matches the author model. An optional `--rebuttal` flag passes author context without giving the author decision authority. `--system-prompt` (file path) overrides the default judge prompt.
 
-Produces: `tasks/<topic>-judgment.md` with accepted/dismissed/escalated counts. Findings marked ESCALATE require human review.
+Produces: `tasks/<topic>-judgment.md` with accepted/dismissed/escalated counts. Findings marked ESCALATE require human review. Prints JSON to stdout with `accepted`, `dismissed`, `escalated` counts and `needs_human` flag.
 
 **refine** — Iterative cross-model document improvement. Each round, a different model reviews and rewrites the document. The first round is seeded with accepted challenges from the judgment file so models know exactly what to fix.
 
@@ -94,8 +94,8 @@ The problem it solves: commit-time hooks need to know whether staged files requi
 
 ### Tiers
 
-- **Tier 1 (Cross-model debate):** PRD files, database schema/migrations, security rules, direct `.db` edits
-- **Tier 1.5 (Quality review):** Core skill SKILL.md files, toolbelt scripts (`*_tool.py`), debate.py itself, hook scripts
+- **Tier 1 (Cross-model debate):** PRD files (matching `docs/.*PRD` or `docs/project-prd.md`), database schema/migration SQL files, `.claude/rules/security.md` specifically, direct `.db` edits
+- **Tier 1.5 (Quality review):** Core skill SKILL.md files (requires populating `CORE_SKILLS` in the script — empty by default), toolbelt scripts (`scripts/*_tool.py`), `scripts/debate.py`, and scripts matching `scripts/hook-*.sh`. Note: actual hook files in `hooks/` are not matched by default — only scripts-directory hooks are Tier 1.5
 - **Tier 2 (Log only):** Everything else
 - **Exempt:** `tasks/`, `docs/` (non-PRD), `tests/`, `config/`, `stores/` (non-db)
 
@@ -176,10 +176,10 @@ python3 scripts/recall_search.py --json --top-k 3 hook gate bypass
 ### Flags
 
 - `--files` — Comma-separated source filter: `lessons`, `decisions`, `sessions`, `current`, or `all` (default: `all`)
-- `--tags` — Search frontmatter tags only (lessons table only)
+- `--tags` — Search frontmatter tags only (lessons table only, BM25 mode only)
 - `--semantic` — Use Ollama semantic search instead of BM25
-- `--json` — Output results as a JSON array
-- `--top-k` — Max results to return (default: 5)
+- `--json` — Output results as a JSON array (BM25 mode only — semantic mode always outputs formatted text)
+- `--top-k` — Max results to return (default: 5, BM25 mode only — semantic mode uses its own default of 5)
 
 ### Used by
 
@@ -285,7 +285,7 @@ Keyword extraction: up to 8 keywords from frontmatter `scope:` field, first head
 
 ### Used by
 
-Part of the debate pipeline — enriches proposals before the challenge step. Calls `recall_search.py` internally with `--json` output.
+Standalone CLI tool. Run manually before `debate.py challenge` to surface relevant prior context for challengers. Calls `recall_search.py` internally with `--json` output. Note: `debate.py` does not call this script automatically — you run it yourself and append its output to the proposal or pass it as additional context.
 
 
 ## artifact_check.py
@@ -300,8 +300,8 @@ For each artifact type:
 - **Existence** — Does the file exist at `tasks/<scope>-{plan,challenge,judgment,review}.md`?
 - **Staleness** — Is the artifact older than the newest file changed since `--base` ref?
 - **Validity** — Type-specific checks:
-  - **plan**: Has required frontmatter fields (`scope`, `review_tier`)
-  - **challenge**: Has YAML frontmatter with `debate_id` and contains `MATERIAL` tag
+  - **plan**: Has at least one of the expected frontmatter fields (`scope`, `review_tier`)
+  - **challenge**: `valid` checks YAML frontmatter with `debate_id`; `has_material` is a separate field checking for the `MATERIAL` tag
   - **judgment**: Counts of ACCEPT, DISMISS, ESCALATE decisions
   - **review**: Reads `status` and `review_tier` from frontmatter
 
@@ -334,4 +334,4 @@ JSON to stdout:
 
 ### Used by
 
-Hooks use this (or replicate its logic inline) to validate artifacts before allowing commits to protected paths.
+Standalone CLI tool. The hooks replicate similar validation logic inline rather than calling this script directly. Use `artifact_check.py` for manual pre-commit checks or in CI pipelines.

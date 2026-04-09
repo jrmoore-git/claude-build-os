@@ -1,0 +1,88 @@
+{
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Agent",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash hooks/hook-decompose-gate.sh",
+            "timeout": 5
+          }
+        ]
+      },
+      {
+        "matcher": "Write|Edit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash hooks/hook-guard-env.sh",
+            "timeout": 10
+          },
+          {
+            "type": "command",
+            "command": "bash hooks/hook-tier-gate.sh \"$TOOL_INPUT\"",
+            "timeout": 10
+          },
+          {
+            "type": "command",
+            "command": "bash hooks/hook-pre-edit-gate.sh",
+            "timeout": 10
+          }
+        ]
+      },
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash hooks/hook-guard-env.sh",
+            "timeout": 10
+          },
+          {
+            "type": "command",
+            "command": "bash hooks/hook-pre-commit-tests.sh",
+            "timeout": 60
+          },
+          {
+            "type": "command",
+            "command": "bash hooks/hook-prd-drift-check.sh",
+            "timeout": 10
+          },
+          {
+            "type": "command",
+            "command": "bash hooks/hook-review-gate.sh",
+            "timeout": 10
+          },
+          {
+            "type": "command",
+            "command": "bash hooks/hook-plan-gate.sh",
+            "timeout": 10
+          }
+        ]
+      }
+    ],
+    "PostToolUse": [
+      {
+        "matcher": "Write|Edit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash hooks/hook-syntax-check-python.sh",
+            "timeout": 30
+          },
+          {
+            "type": "command",
+            "command": "bash hooks/hook-post-tool-test.sh",
+            "timeout": 60
+          },
+          {
+            "type": "command",
+            "command": "bash hooks/hook-ruff-check.sh",
+            "timeout": 15
+          }
+        ]
+      }
+    ]
+  }
+}

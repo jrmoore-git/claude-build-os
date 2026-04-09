@@ -22,3 +22,8 @@ node_modules/
 __pycache__/
 *.pyc
 .venv/
+
+# Data stores
+stores/*.db
+*.jsonl
+!stores/debate-log.jsonl

@@ -1,6 +1,6 @@
 # The Build OS — A Framework for Building with Claude Code
 
-**By Justin Moore**
+**A practical framework for building with Claude Code**
 
 A practical operating system for teams and individuals building serious projects with Claude Code. This framework treats Claude as a governed subsystem inside a real engineering workflow — not a chatbot you prompt harder.
 

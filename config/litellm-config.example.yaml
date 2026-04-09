@@ -1,0 +1,26 @@
+# LiteLLM model routing for cross-model debate
+# Copy to litellm-config.yaml and fill in API keys
+# Start with: litellm --config config/litellm-config.yaml
+
+model_list:
+  - model_name: claude-opus
+    litellm_params:
+      model: claude-opus-4-6
+      api_key: os.environ/ANTHROPIC_API_KEY
+
+  - model_name: gpt-latest
+    litellm_params:
+      model: gpt-4.1
+      api_key: os.environ/OPENAI_API_KEY
+
+  - model_name: gemini-pro
+    litellm_params:
+      model: gemini/gemini-2.5-pro
+      api_key: os.environ/GEMINI_API_KEY
+
+litellm_settings:
+  drop_params: true
+  request_timeout: 120
+
+general_settings:
+  master_key: os.environ/LITELLM_MASTER_KEY

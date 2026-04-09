@@ -206,7 +206,7 @@ See the [Build OS](the-build-os.md) §V for the full enforcement ladder.
 
 ### Outside-session knowledge
 
-The session loop captures what happened during Claude Code sessions. It does not capture institutional knowledge from outside those sessions: meeting transcripts, Slack threads, email exchanges, conversations with collaborators.
+The session loop captures what happened during Claude Code sessions. It does not capture institutional knowledge from outside those sessions: meeting transcripts, chat threads, email exchanges, conversations with collaborators.
 
 After significant meetings or external conversations where decisions were made, review those sources and capture to `decisions.md` and `lessons.md`. These are the most common source of knowledge that never makes it to disk.
 

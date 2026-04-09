@@ -1,40 +1,63 @@
----
-name: recall
-description: Load relevant context before starting work
-user-invocable: true
----
+# Recall — Session Bootstrap
 
-# Session Recall
-
-Load relevant context before starting work. This is the "retrieve before planning" rule made executable.
+Load a compact working brief to orient the current session. Invoked by `/recall`, "catch me up", or at session start.
 
 ## Procedure
 
-1. **Read the handoff** — if `tasks/handoff.md` exists, read it. This tells you what the last session was working on, what's unfinished, and what to do next.
+Read each file below. If a file is missing, skip it silently — do not mention it.
 
-2. **Read current state** — if `docs/current-state.md` exists, read it. This tells you what is true right now: blockers, recent changes, verified state.
+1. **Current state** — `docs/current-state.md`
 
-3. **Scan recent decisions** — if `tasks/decisions.md` exists, read the last 5-10 entries. These are settled choices that should not be relitigated.
+2. **Handoff notes** — `tasks/handoff.md` (skip if missing)
 
-4. **Scan relevant lessons** — if `tasks/lessons.md` exists, scan for lessons related to the area you're about to work in. Don't load all lessons — load relevant ones.
+3. **Recent sessions** — `tasks/session-log.md`
+   Read the whole file, extract the **last 5 entries** (entries are separated by `---`).
 
-5. **Read relevant PRD sections** — if `docs/project-prd.md` exists and you know what area you're working in, read only the relevant section. Don't load the whole PRD.
+4. **Active phase** — `docs/build-plan.md`
+   From the phase status in current-state.md, identify the current in-progress phase. Read only that phase's section from `docs/build-plan.md`. Skip if phase is unclear or file is missing.
 
-## Output
+5. **Open decisions** — `tasks/decisions.md`
+   Scan for any entry marked undecided, blocked, or lacking a resolution. Extract only those.
 
-After loading context, produce a brief orientation:
+6. **Recent lessons** — `tasks/lessons.md`
+   Read the last 10 rows of the table (highest lesson numbers).
+
+7. **Topic search** (optional) — If the session involves a specific domain, run:
+   ```
+   python3 scripts/recall_search.py [domain keywords] --files lessons,decisions
+   ```
+   Extract any results with score > 0.1 and include in the brief under a **Relevant prior context** section.
+   If BM25 returns zero results or all scores < 0.5, try semantic fallback:
+   ```
+   python3 scripts/recall_search.py [domain keywords] --semantic --files lessons,decisions
+   ```
+   Include results with similarity > 0.5 under "Relevant prior context."
+   Semantic search is speculative — treat results below 0.55 as low-confidence.
+
+## Output Format
+
+Write a single compact brief, under 2000 tokens. Use this structure:
 
 ```
-## Session Context
-- **Last session:** [what happened, from handoff]
-- **Current state:** [blockers, recent changes]
-- **Relevant decisions:** [D## titles that apply]
-- **Relevant lessons:** [L## titles that apply]
-- **Starting point:** [what to do first]
+## Status
+[1–3 bullets: what phase we're in, what's working, what's broken]
+
+## Last Session
+[2–4 bullets: what was done, what was decided, what was NOT finished]
+
+## Open Decisions
+[bullets: only genuinely undecided items — skip if none]
+
+## Lessons (recent)
+[5–10 bullets: most useful recent lessons, paraphrased short]
+
+## Next
+[1–3 bullets: what to do first this session]
 ```
 
-## Rules
-- Do NOT load everything. Load what's relevant to this session's work.
-- If no handoff exists, say so — this is the first session or context was lost.
-- If the user hasn't said what they want to work on, ask before loading context.
-- Keep the orientation to 10 lines or fewer. Brevity is the point.
+**Rules:**
+- No essays. Bullets only. One line per bullet.
+- Skip any section that has nothing real to say.
+- Do not quote raw message content from personal channels.
+- Do not surface file contents verbatim — synthesize.
+- If context is thin (files sparse), say so in one line and stop.

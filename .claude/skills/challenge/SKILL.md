@@ -1,133 +1,108 @@
 ---
 name: challenge
-description: Challenge whether proposed work is necessary and appropriately scoped before planning
+description: "Principal engineer asking 'should we build this?' Cross-model gate before /plan. Prevents scope creep and unnecessary abstractions."
 user-invocable: true
 ---
 
-# Challenge Before Building
+# /challenge — Should We Build This?
 
-Question the premise, scope, and complexity of proposed work before committing to a plan. Produces a written artifact that `/plan` checks as a dependency.
-
-## When this runs
-
-### Automatically (as a /plan dependency)
-`/plan` invokes `/challenge` when the proposed work includes **any** of:
-- **New abstractions**: new class, module, service, base class, wrapper, adapter, or plugin
-- **New dependencies**: new package, external API, or service integration
-- **New infrastructure**: new config surface (env vars, feature flags), schema change, or routing change
-- **Generalization**: plan aims to make something "generic," "reusable," "extensible," or "future-proof"
-- **Scope expansion**: work beyond the stated ask — cleanup, migration, speculative refactor
-
-A single trigger is enough. One new external dependency is sufficient reason to challenge.
-
-Line count and file count are **not triggers**. Complexity accretes through new concepts, not through editing existing code.
-
-### Manually (standalone)
-Run `/challenge` anytime to pressure-test an idea before investing in planning. Standalone invocations produce the same artifact with the same authority — there is no "advisory-only" mode.
+Cross-model gate that evaluates whether proposed work is necessary and appropriately scoped. Run before `/plan` for any non-trivial change.
 
 ## Procedure
 
-### Step 1: Identify what's being proposed
-Read the user's request. Understand what they're asking for and what scope the implementation implies.
+### Step 1: Get topic
 
-### Step 2: Answer these questions (exactly these, in order)
+If the user provided a topic as an argument, use it. Otherwise ask: "What's the topic name for this challenge? (e.g., `review-skill-restructure`)"
 
-**Product challenge (should we build this?):**
-1. What problem are we solving? For whom?
-2. What evidence exists that this matters?
-3. What is the cheapest test of whether this works?
-4. What should we explicitly NOT build?
+### Step 2: Check for prior work
 
-**Complexity challenge (is the approach too heavy?):**
-5. What is the simplest version that doesn't introduce new abstractions? Describe it concretely — this becomes the fallback if recommendation is `simplify`.
-6. What new concepts are being introduced, and why can't existing patterns handle it?
-7. What does this cost to delete if it turns out to be wrong?
-8. Is this solving a problem we have, or a problem we might have?
-
-### Step 3: Write the artifact
-
-Create `tasks/<topic-slug>-challenge.md`:
-
-```markdown
----
-topic: [topic name]
-topic_slug: [lowercase-hyphenated — must match plan filename slug]
-date: [ISO 8601]
-type: challenge-preflight
-triggers_fired: [list what triggered — e.g., "new module, new dependency"]
-recommendation: proceed | simplify | pause | reject
-complexity_score: low | medium | high
----
-
-# Challenge: [topic]
-
-## Product
-1. Problem/user: [answer]
-2. Evidence: [answer]
-3. Cheapest test: [answer]
-4. Non-goals: [answer]
-
-## Complexity
-5. Simplest version: [answer]
-6. New concepts and justification: [answer]
-7. Deletion cost: [answer]
-8. Real vs speculative need: [answer]
-
-## Simpler alternative
-[Concrete description of the simplest implementation from Q5. This is what /plan must use if recommendation is "simplify". Not a vague gesture — specific enough to plan against.]
-
-## Recommendation
-[proceed | simplify | pause | reject] — [one sentence rationale]
-
-## Override
-[Blank unless user overrides a non-proceed recommendation.]
-- Justification: [required — why override is warranted]
-- Logged to decisions.md: [yes/no — must be yes before /plan proceeds]
+Check for a `/think` brief:
+```bash
+test -f tasks/<topic>-think.md && echo "found" || echo "none"
 ```
 
-### Step 4: State the recommendation
+If found, read it — this provides problem context.
 
-- **proceed** — work is justified, scope is appropriate
-- **simplify** — the goal is valid but the approach is overengineered. The "Simpler alternative" section becomes the plan's scope.
-- **pause** — insufficient evidence this matters. Define what evidence would change the answer.
-- **reject** — this shouldn't be built. Explain why.
+### Step 3: Ensure proposal exists
 
-**Complexity score** (derived from answers, not line count):
-- **low** — editing existing patterns, no new concepts
-- **medium** — one new abstraction with clear justification
-- **high** — multiple new concepts, speculative need, or high deletion cost
+Check for `tasks/<topic>-proposal.md`:
+```bash
+test -f tasks/<topic>-proposal.md && echo "found" || echo "none"
+```
 
-## How /plan uses this
+If missing:
+- If a think brief exists, synthesize a brief proposal (1-2 paragraphs) covering: what problem, why now, proposed approach.
+- If no think brief either, ask the user: "Describe what you want to build and why."
+- Write to `tasks/<topic>-proposal.md`.
 
-When `/plan` detects work that meets any trigger:
-1. Check for `tasks/<topic-slug>-challenge.md`
-2. Verify the artifact is **less than 7 days old**
-3. Verify `topic_slug` matches the plan's topic slug **exactly** (no fuzzy matching)
-4. Read the recommendation:
-   - `proceed` → continue planning
-   - `simplify` → plan must implement the "Simpler alternative" section, not the original scope
-   - `pause` → hard stop. Surface what evidence is needed.
-   - `reject` → hard stop. Do not plan.
-5. If artifact is missing, stale, or slug-mismatched → run `/challenge` first
-6. If artifact has missing required sections → run `/challenge` again
+### Step 4: Enrich context
 
-Override: user provides justification in the artifact's Override section AND it is logged to `decisions.md` before `/plan` proceeds. Override is allowed for `simplify` and `pause`. Override for `reject` requires explicit acknowledgment that the rejection rationale was considered.
+Pull relevant lessons and decisions:
+```bash
+python3 scripts/enrich_context.py --proposal tasks/<topic>-proposal.md
+```
 
-## Bypass rules
+If enrichment returns results, create a temp file with the proposal + a `## Prior Context` section appended. Use the temp file as input to the challenge. Original proposal stays untouched.
 
-Skip `/challenge` entirely for:
-- Bugfixes (fixing broken behavior, not adding new behavior)
-- Test-only changes
-- Documentation and copy changes
-- Refactors that **reduce** abstractions (deleting > adding)
-- Tasks marked `[TRIVIAL]`
+### Step 5: Run cross-model challenge
 
-**`[TRIVIAL]` defined:** changes to 2 or fewer files, introduces no new abstractions or dependencies, and can be fully described in one sentence. If you can't describe it in one sentence, it's not trivial.
+Select personas based on the proposal content:
+- **Base personas (always):** architect, security, pm
+- **Add `product` IF** the proposal introduces a new user-facing feature or changes user workflow (NOT for refactors, infrastructure, or backend-only changes)
+- **Add `design` IF** the proposal touches frontend files (CSS, UI components) (NOT for backend-only changes)
 
-All bypasses are logged: `[CHALLENGE-SKIPPED] <date> <topic> reason: <classification>`
+```bash
+python3 scripts/debate.py challenge \
+  --proposal <enriched or original proposal> \
+  --personas architect,security,pm[,product][,design] \
+  --output tasks/<topic>-challenge.md
+```
 
-## Rules
-- The artifact goes to disk, not conversation. It must survive session compaction.
-- No free-form strategy memos. Answer the 8 questions, write the simpler alternative, state the recommendation.
-- Anti-sycophancy: the default posture is skepticism, not agreement. Challenge the premise before accepting it.
-- When answers are contradictory (strong evidence + high deletion cost + speculative need), surface the tension explicitly rather than forcing a single recommendation.
+Parse JSON stdout. If status is `"ok"` or `"partial"`, continue to Step 6. If all challengers failed, fall through to Step 5b.
+
+### Step 5b: Degraded fallback
+
+If `debate.py` fails entirely (connection error, timeout, all models down):
+
+Self-challenge with these 4 questions:
+1. What problem are we solving? What evidence exists that it matters?
+2. What's the simplest version that tests the hypothesis?
+3. What should we explicitly NOT build?
+4. What is the cheapest test of whether this works?
+
+Write answers to `tasks/<topic>-challenge.md` with frontmatter. Include a `MATERIAL` tag on any substantive concern so `artifact_check.py` recognizes this as a valid challenge artifact:
+```yaml
+---
+debate_id: <topic>
+created: <ISO datetime>
+phase: challenge
+status: degraded
+producer: claude-opus
+note: "Cross-model debate unavailable. Single-model self-challenge."
+---
+```
+
+### Step 6: Synthesize recommendation
+
+Read `tasks/<topic>-challenge.md`. Based on the findings, recommend one of:
+
+- **proceed** — No material objections. Go to `/plan`.
+- **simplify** — Valid idea, but scope needs reduction. State what to cut.
+- **pause** — Needs more information or prerequisites. State what's missing.
+- **reject** — Cost exceeds benefit or conflicts with existing architecture. State why.
+
+Display:
+```
+## Challenge Result: <PROCEED|SIMPLIFY|PAUSE|REJECT>
+
+<1-3 sentence summary>
+
+Artifacts: tasks/<topic>-challenge.md
+Next: /plan <topic>
+```
+
+### Step 7: Handoff
+
+- If **proceed**: "Run `/plan <topic>` to generate the build plan."
+- If **simplify**: "Revise your approach, then `/plan <topic>`."
+- If **pause** or **reject**: "Address the concerns above before proceeding."

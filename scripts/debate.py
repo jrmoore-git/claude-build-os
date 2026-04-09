@@ -1,13 +1,16 @@
 #!/usr/bin/env python3
 """
-debate.py — Cross-model adversarial review automation.
+debate.py — Cross-model review automation for review protocol.
 
 Subcommands:
-    challenge   Send proposal to challenger models for adversarial review
-    judge       Independent judgment: non-author model evaluates challenges
-    refine      Iterative cross-model refinement (guided by judgment)
-    compare     Compare two review methods on the same document
-    verdict     Send resolution back to challengers for final verdict (legacy)
+    challenge     Send proposal to challenger models for adversarial review
+    judge         Independent judgment: non-author model evaluates challenges
+    refine        Iterative cross-model refinement (guided by judgment)
+    review        Single-model review via persona (for skill inline reviews)
+    review-panel  Multi-persona panel review (3 models, anonymous labels)
+    check-models  Compare LiteLLM available models against config
+    compare       Compare two review methods on the same document
+    verdict       Send resolution back to challengers for final verdict (legacy)
 
 Standard pipeline:
     1. challenge -> find issues (adversarial)
@@ -280,13 +283,70 @@ def _shuffle_challenger_sections(challenge_body, mapping):
 
 TYPE_TAGS = {"RISK", "ASSUMPTION", "ALTERNATIVE", "OVER-ENGINEERED", "UNDER-ENGINEERED"}
 
-# Convenience mapping: persona name -> LiteLLM model
-PERSONA_MODEL_MAP = {
-    "architect": "gpt-5.4",
-    "staff": "gemini-3.1-pro",
+# Hardcoded fallback mapping: persona name -> LiteLLM model
+_DEFAULT_PERSONA_MODEL_MAP = {
+    "architect": "gemini-3.1-pro",
+    "staff": "gpt-5.4",
     "security": "gpt-5.4",
     "pm": "gemini-3.1-pro",
 }
+
+_DEFAULT_JUDGE = "gpt-5.4"
+_DEFAULT_REFINE_ROTATION = ["gemini-3.1-pro", "gpt-5.4", "claude-opus-4-6"]
+
+VALID_PERSONAS = {"architect", "staff", "security", "pm"}
+
+
+def _load_config(config_path=None):
+    """Load debate model config from JSON file, fall back to hardcoded defaults.
+
+    Returns dict with keys: persona_model_map, judge_default, refine_rotation,
+    single_review_default, version.
+    """
+    if config_path is None:
+        config_path = os.path.join(PROJECT_ROOT, "config", "debate-models.json")
+
+    defaults = {
+        "persona_model_map": dict(_DEFAULT_PERSONA_MODEL_MAP),
+        "judge_default": _DEFAULT_JUDGE,
+        "refine_rotation": list(_DEFAULT_REFINE_ROTATION),
+        "single_review_default": "gpt-5.4",
+        "version": "unknown",
+    }
+
+    if not os.path.exists(config_path):
+        print(f"WARNING: {config_path} not found, using hardcoded defaults",
+              file=sys.stderr)
+        return defaults
+
+    try:
+        with open(config_path) as f:
+            config = json.load(f)
+    except json.JSONDecodeError as e:
+        print(f"ERROR: malformed JSON in {config_path}: {e} — using defaults",
+              file=sys.stderr)
+        return defaults
+
+    # Validate persona names
+    pmap = config.get("persona_model_map", {})
+    for persona in pmap:
+        if persona not in VALID_PERSONAS:
+            print(f"WARNING: unknown persona '{persona}' in config — ignoring",
+                  file=sys.stderr)
+
+    return {
+        "persona_model_map": {k: v for k, v in pmap.items() if k in VALID_PERSONAS}
+                              or defaults["persona_model_map"],
+        "judge_default": config.get("judge_default", defaults["judge_default"]),
+        "refine_rotation": config.get("refine_rotation", defaults["refine_rotation"]),
+        "single_review_default": config.get("single_review_default",
+                                            defaults["single_review_default"]),
+        "version": config.get("version", defaults["version"]),
+    }
+
+
+# Keep backward-compat name for any code that reads this directly
+PERSONA_MODEL_MAP = _DEFAULT_PERSONA_MODEL_MAP
 
 # Role-differentiated adversarial prompts per persona
 PERSONA_PROMPTS = {
@@ -572,22 +632,35 @@ def cmd_challenge(args):
         return 1
 
     # Resolve --personas to (model, prompt) pairs; --models uses generic prompt
+    config = _load_config()
+    pmap = config["persona_model_map"]
     challengers = []  # list of (model, system_prompt)
     custom_prompt = args.system_prompt.read() if args.system_prompt else None
 
     if args.personas:
         seen = set()
+        persona_models = {}  # track persona->model for duplicate warning
         for p in args.personas.split(","):
             p = p.strip().lower()
-            if p not in PERSONA_MODEL_MAP:
-                print(f"ERROR: unknown persona '{p}'. Valid: {', '.join(sorted(PERSONA_MODEL_MAP))}", file=sys.stderr)
+            if p not in pmap:
+                print(f"ERROR: unknown persona '{p}'. Valid: {', '.join(sorted(pmap))}", file=sys.stderr)
                 return 1
-            model = PERSONA_MODEL_MAP[p]
+            model = pmap[p]
+            persona_models[p] = model
             key = (model, p)
             if key not in seen:
                 prompt = custom_prompt or PERSONA_PROMPTS.get(p, ADVERSARIAL_SYSTEM_PROMPT)
                 challengers.append((model, prompt))
                 seen.add(key)
+        # Duplicate-model warning
+        model_to_personas = {}
+        for persona, model in persona_models.items():
+            model_to_personas.setdefault(model, []).append(persona)
+        for model, ps in model_to_personas.items():
+            if len(ps) > 1:
+                print(f"WARNING: personas {', '.join(ps)} both resolve to "
+                      f"{model} — consider diversifying",
+                      file=sys.stderr)
     elif args.models:
         prompt = custom_prompt or ADVERSARIAL_SYSTEM_PROMPT
         for m in args.models.split(","):
@@ -785,7 +858,8 @@ def cmd_judge(args):
         return 1
 
     debate_id = meta.get("debate_id", "unknown")
-    judge_model = args.model or "gpt-5.4"
+    config = _load_config()
+    judge_model = args.model or config["judge_default"]
 
     # Ensure judge is not the author model (avoid self-preference bias)
     author_models = {"claude-opus-4-6", "litellm/claude-opus-4-6"}
@@ -965,9 +1039,6 @@ def _parse_refine_response(text):
     return text.strip(), ""
 
 
-DEFAULT_REFINE_MODELS = ["gemini-3.1-pro", "gpt-5.4", "claude-opus-4-6"]
-
-
 def cmd_refine(args):
     """Iterative cross-model refinement: each model improves the document in turn."""
     api_key = os.environ.get("LITELLM_MASTER_KEY")
@@ -976,6 +1047,7 @@ def cmd_refine(args):
         return 1
 
     litellm_url = os.environ.get("LITELLM_URL", DEFAULT_LITELLM_URL)
+    config = _load_config()
 
     document = args.document.read()
     if not document.strip():
@@ -983,7 +1055,7 @@ def cmd_refine(args):
         return 1
 
     rounds = args.rounds
-    models = args.models.split(",") if args.models else DEFAULT_REFINE_MODELS
+    models = args.models.split(",") if args.models else config["refine_rotation"]
     models = [m.strip() for m in models if m.strip()]
 
     # Load judgment context if provided
@@ -1090,6 +1162,220 @@ def cmd_refine(args):
         "seeded_from_judgment": bool(judgment_context),
         "output": args.output,
     })
+    return 0
+
+
+def cmd_review(args):
+    """Single-model review for inline skill use (e.g., /define, /elevate)."""
+    api_key = os.environ.get("LITELLM_MASTER_KEY")
+    if not api_key:
+        print("ERROR: LITELLM_MASTER_KEY not set", file=sys.stderr)
+        return 1
+
+    litellm_url = os.environ.get("LITELLM_URL", DEFAULT_LITELLM_URL)
+    config = _load_config()
+
+    # Resolve model from persona or explicit --model
+    if args.persona:
+        persona = args.persona.strip().lower()
+        pmap = config["persona_model_map"]
+        if persona not in pmap:
+            print(f"ERROR: unknown persona '{persona}'. "
+                  f"Valid: {', '.join(sorted(pmap))}",
+                  file=sys.stderr)
+            return 1
+        model = pmap[persona]
+    elif args.model:
+        model = args.model
+    else:
+        print("ERROR: specify --persona or --model", file=sys.stderr)
+        return 1
+
+    # Load prompt
+    if args.prompt:
+        prompt = args.prompt
+    elif args.prompt_file:
+        prompt = args.prompt_file.read()
+    else:
+        print("ERROR: specify --prompt or --prompt-file", file=sys.stderr)
+        return 1
+
+    # Load input document
+    input_text = args.input.read()
+    if not input_text.strip():
+        print("ERROR: input file is empty", file=sys.stderr)
+        return 1
+
+    print(f"Calling reviewer ({args.persona or 'explicit'})...", file=sys.stderr)
+    try:
+        response = _call_litellm(model, prompt, input_text, litellm_url, api_key)
+    except (urllib.error.HTTPError, urllib.error.URLError, TimeoutError) as e:
+        print(f"ERROR: review call failed — {e}", file=sys.stderr)
+        return 1
+
+    if not response or not response.strip():
+        print("ERROR: model returned empty response", file=sys.stderr)
+        return 1
+
+    # Output with anonymous label — no model name
+    print(f"## Reviewer\n\n{response}")
+
+    _log_debate_event({
+        "phase": "review",
+        "persona": args.persona or None,
+        "model": model,
+        "input_file": args.input.name if hasattr(args.input, 'name') else "stdin",
+        "success": True,
+        "response_length": len(response),
+    })
+    return 0
+
+
+def cmd_review_panel(args):
+    """Multi-persona panel review: 3 models review independently, anonymous labels."""
+    import random
+
+    api_key = os.environ.get("LITELLM_MASTER_KEY")
+    if not api_key:
+        print("ERROR: LITELLM_MASTER_KEY not set", file=sys.stderr)
+        return 1
+
+    litellm_url = os.environ.get("LITELLM_URL", DEFAULT_LITELLM_URL)
+    config = _load_config()
+
+    personas = [p.strip().lower() for p in args.personas.split(",") if p.strip()]
+    if not personas:
+        print("ERROR: no personas specified", file=sys.stderr)
+        return 1
+
+    pmap = config["persona_model_map"]
+    for p in personas:
+        if p not in pmap:
+            print(f"ERROR: unknown persona '{p}'. Valid: {', '.join(sorted(pmap))}",
+                  file=sys.stderr)
+            return 1
+
+    # Load prompt
+    if args.prompt:
+        prompt = args.prompt
+    elif args.prompt_file:
+        prompt = args.prompt_file.read()
+    else:
+        print("ERROR: specify --prompt or --prompt-file", file=sys.stderr)
+        return 1
+
+    input_text = args.input.read()
+    if not input_text.strip():
+        print("ERROR: input file is empty", file=sys.stderr)
+        return 1
+
+    # Call each persona's model
+    reviews = []  # list of (persona, model, response_or_error, success)
+    for p in personas:
+        model = pmap[p]
+        print(f"Calling {p}...", file=sys.stderr)
+        try:
+            response = _call_litellm(model, prompt, input_text, litellm_url, api_key)
+            if response and response.strip():
+                reviews.append((p, model, response, True))
+            else:
+                reviews.append((p, model, "Empty response", False))
+                print(f"WARNING: {p} returned empty response", file=sys.stderr)
+        except (urllib.error.HTTPError, urllib.error.URLError, TimeoutError) as e:
+            reviews.append((p, model, str(e), False))
+            print(f"WARNING: {p} failed — {e}", file=sys.stderr)
+
+    successful = [r for r in reviews if r[3]]
+    if not successful:
+        print("ERROR: all panel reviewers failed", file=sys.stderr)
+        return 1
+
+    # Position randomization (Zheng et al.) — shuffle before labeling
+    random.shuffle(successful)
+
+    # Output with anonymous labels — no model names
+    for i, (persona, model, response, _) in enumerate(successful):
+        label = CHALLENGER_LABELS[i]
+        print(f"## Reviewer {label}\n\n{response}\n\n---\n")
+
+    failed = [r for r in reviews if not r[3]]
+    if failed:
+        print(f"Note: {len(failed)} of {len(reviews)} reviewers failed.",
+              file=sys.stderr)
+
+    # Build mapping for audit (not visible in output)
+    mapping = {}
+    for i, (persona, model, _, _) in enumerate(successful):
+        mapping[CHALLENGER_LABELS[i]] = model
+
+    _log_debate_event({
+        "phase": "review-panel",
+        "personas": personas,
+        "mapping": mapping,
+        "successful": len(successful),
+        "failed": len(failed),
+        "input_file": args.input.name if hasattr(args.input, 'name') else "stdin",
+    })
+
+    # JSON status to stderr (stdout is the reviews)
+    result = {
+        "status": "ok" if not failed else "partial",
+        "reviewers": len(successful),
+        "mapping": mapping,
+    }
+    print(json.dumps(result), file=sys.stderr)
+    return 0
+
+
+def cmd_check_models(args):
+    """Compare LiteLLM available models against config."""
+    config = _load_config()
+    litellm_url = os.environ.get("LITELLM_URL", DEFAULT_LITELLM_URL)
+    api_key = os.environ.get("LITELLM_MASTER_KEY")
+
+    if not api_key:
+        print("ERROR: LITELLM_MASTER_KEY not set", file=sys.stderr)
+        return 1
+
+    # Fetch available models from LiteLLM
+    url = f"{litellm_url.rstrip('/')}/models"
+    req = urllib.request.Request(
+        url,
+        headers={"Authorization": f"Bearer {api_key}"},
+    )
+    try:
+        resp = urllib.request.urlopen(req, timeout=10)
+        body = json.loads(resp.read().decode())
+        available = {m["id"] for m in body.get("data", [])}
+    except (urllib.error.HTTPError, urllib.error.URLError, TimeoutError) as e:
+        print(f"ERROR: cannot reach LiteLLM at {url} — {e}", file=sys.stderr)
+        return 1
+
+    # Models referenced in config
+    configured = set()
+    for model in config["persona_model_map"].values():
+        configured.add(model)
+    configured.add(config["judge_default"])
+    for model in config["refine_rotation"]:
+        configured.add(model)
+    configured.add(config["single_review_default"])
+
+    # Report
+    print(f"Config version: {config['version']}")
+    print(f"\nConfigured models: {', '.join(sorted(configured))}")
+    print(f"Available in LiteLLM: {', '.join(sorted(available))}")
+
+    missing = configured - available
+    if missing:
+        print(f"\n⚠ Models in config but NOT in LiteLLM: {', '.join(sorted(missing))}")
+
+    new_models = available - configured
+    if new_models:
+        print(f"\n→ New models in LiteLLM not in config: {', '.join(sorted(new_models))}")
+        print("  Consider running 'debate.py benchmark' to evaluate new models.")
+    else:
+        print("\nAll available models are accounted for in config.")
+
     return 0
 
 
@@ -1200,7 +1486,7 @@ def main():
     ch.add_argument("--models", default=None,
                      help="Comma-separated LiteLLM model names")
     ch.add_argument("--personas", default=None,
-                     help="Comma-separated persona names (architect,staff,security). "
+                     help="Comma-separated persona names (architect,staff,security,pm). "
                           "Expands to models via PERSONA_MODEL_MAP. Alternative to --models.")
     ch.add_argument("--output", required=True,
                      help="Output path for anonymized challenge file")
@@ -1246,6 +1532,36 @@ def main():
     rf.add_argument("--output", required=True,
                      help="Output path for refined document")
 
+    # review (single-persona inline review)
+    rv = sub.add_parser("review", help="Single-model review via persona")
+    rv_model = rv.add_mutually_exclusive_group()
+    rv_model.add_argument("--persona", default=None,
+                          help="Persona name — resolved to model via config")
+    rv_model.add_argument("--model", default=None,
+                          help="Explicit model name (debug/admin only)")
+    rv_prompt = rv.add_mutually_exclusive_group()
+    rv_prompt.add_argument("--prompt", default=None,
+                           help="Review prompt string")
+    rv_prompt.add_argument("--prompt-file", type=argparse.FileType("r"), default=None,
+                           help="File containing review prompt")
+    rv.add_argument("--input", required=True, type=argparse.FileType("r"),
+                    help="Document to review")
+
+    # review-panel (multi-persona panel review)
+    rp = sub.add_parser("review-panel", help="Multi-persona panel review")
+    rp.add_argument("--personas", required=True,
+                    help="Comma-separated persona names (e.g., architect,security,pm)")
+    rp_prompt = rp.add_mutually_exclusive_group()
+    rp_prompt.add_argument("--prompt", default=None,
+                           help="Review prompt string")
+    rp_prompt.add_argument("--prompt-file", type=argparse.FileType("r"), default=None,
+                           help="File containing review prompt")
+    rp.add_argument("--input", required=True, type=argparse.FileType("r"),
+                    help="Document to review")
+
+    # check-models
+    sub.add_parser("check-models", help="Compare LiteLLM models against config")
+
     # compare
     cp = sub.add_parser("compare", help="Compare two review methods")
     cp.add_argument("--original", required=True, type=argparse.FileType("r"),
@@ -1272,6 +1588,12 @@ def main():
         return cmd_judge(args)
     elif args.command == "refine":
         return cmd_refine(args)
+    elif args.command == "review":
+        return cmd_review(args)
+    elif args.command == "review-panel":
+        return cmd_review_panel(args)
+    elif args.command == "check-models":
+        return cmd_check_models(args)
     elif args.command == "compare":
         return cmd_compare(args)
     return 1
