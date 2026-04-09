@@ -76,7 +76,7 @@ ended without running `/wrap-session`. Review and enrich in the next session.
 
 **Files changed (uncommitted):**
 - **docs/**: project-prd.md
-- **tasks/**: decisions.md, lessons.md
+- **tasks/**: decisions.md, lessons.md, _archive (79 files)
 
 **Auto-committed:** 2026-04-08 22:49 PT
 
@@ -101,3 +101,37 @@ ended without running `/wrap-session`. Review and enrich in the next session.
 **Not Finished:** Contract test files still reference outbox system (template placeholders, not blocking)
 
 **Next Session:** Pick next project priority — repo is clean and ready
+
+---
+
+## 2026-04-08 — Debate impl priority + verify sync fixes
+
+**Decided:**
+- Cross-model consensus (3 models, 9 refinement rounds): invert debate improvement priority order
+- Items 3-5 (audience flags, thesis gate, persona sets) first, then chunked refinement, then validate before closed-loop
+- Persona sets revised to ~1 session (prompt infra missing, not just config — tool-verified by challenger)
+
+**Implemented:**
+- Full /debate + /refine pipeline on implementation priority question (5 artifacts)
+- Verified other sessions fixed recall scripts, skill consolidation, and tests/run_all.sh
+
+**Not Finished:** No code changes — analysis-only session. tasks/lessons.md and tasks/decisions.md still don't exist.
+
+**Next Session:** Read tasks/debate-impl-priority-final-refined.md, start with item 3 (audience/decision flags)
+
+---
+
+## 2026-04-09 — README update: recall/debate separation
+
+**Decided:**
+- None — documentation update only
+
+**Implemented:**
+- README: Expanded Semantic Search section to explain `/recall` (session bootstrap) vs `enrich_context.py` (debate pipeline enrichment) as separate concerns sharing `recall_search.py`
+- README: Added key scripts table (debate.py, recall_search.py, enrich_context.py)
+- README: Clarified Session role in skills table
+- Looked up root cause of debate tool-calling failure (GPT anti-tool "focus on reasoning" prompt)
+
+**Not Finished:** Nothing outstanding
+
+**Next Session:** Continue debate system improvements per 2026-04-08 priority analysis (items 3-5 first)

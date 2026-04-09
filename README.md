@@ -142,6 +142,14 @@ python3 scripts/debate.py check-models
 
 If `check-models` shows all three models as reachable, cross-model skills will work. If a model fails, check the API key and model name in your config.
 
+**Key scripts:**
+
+| Script | Purpose |
+|---|---|
+| `scripts/debate.py` | Cross-model engine: challenge, judge, refine, review |
+| `scripts/recall_search.py` | BM25 + semantic search across governance files (lessons, decisions, sessions) |
+| `scripts/enrich_context.py` | Extracts keywords from proposals, searches via `recall_search.py`, feeds prior context to debate models |
+
 ### What works without this setup
 
 | Setup level | What works |
@@ -165,7 +173,12 @@ YOU_COM_API_KEY=ydc-sk-...
 
 ### Optional: Semantic Search (Ollama)
 
-Gives `/recall` semantic similarity search for finding conceptually related lessons and decisions, even when they don't share exact keywords.
+Gives governance search semantic similarity matching for finding conceptually related lessons and decisions, even when they don't share exact keywords. Two systems use this:
+
+- **`/recall`** — session bootstrap. Loads prior context (PRD, decisions, lessons, last handoff) at the start of each session via `recall_search.py`.
+- **Context enrichment** — debate pipeline. Before `/challenge`, `/debate`, or `/review` runs, `enrich_context.py` extracts keywords from the proposal, searches governance files via `recall_search.py`, and feeds structured prior context to the cross-model reviewers. This prevents challengers from fabricating numbers by grounding them in real project history.
+
+The two are separate concerns: `/recall` orients *you* at session start; `enrich_context.py` orients *the debate models* before review. Both share the same search backend (`recall_search.py`).
 
 ```bash
 brew install ollama    # or see https://ollama.ai/
@@ -176,7 +189,7 @@ OLLAMA_HOST=http://localhost:11434
 
 Ollama runs locally — no data leaves your machine. The `nomic-embed-text` model is ~274MB.
 
-**Fallback:** Without this, `/recall` uses BM25 keyword search, which works well for exact term matches but misses conceptually related results.
+**Fallback:** Without this, both `/recall` and context enrichment use BM25 keyword search, which works well for exact term matches but misses conceptually related results.
 
 ### Optional: Headless Browser (for `/design-review`, `/design-consultation`)
 
@@ -349,7 +362,7 @@ Build OS ships with 24 skills — slash commands that implement the pipeline sta
 | **Reviewer** | `/review` | Cross-model code review (3 lenses: PM, Security, Architecture). `--fix` auto-fixes mechanical issues. `--fix-loop` runs fix → re-review cycles (max 3 iterations). |
 | **QA** | `/qa`, `/governance` | Domain-specific QA validation, governance hygiene |
 | **Release** | `/ship`, `/doc-sync` | Pre-flight gates (verify + QA + tests + review) → deploy → doc sync |
-| **Session** | `/recall`, `/wrap-session`, `/capture`, `/triage` | Bootstrap, session close, knowledge capture, info routing |
+| **Session** | `/recall`, `/wrap-session`, `/capture`, `/triage` | Bootstrap (recall), session close, knowledge capture, info routing. Note: `/recall` orients the session; context enrichment for debate models is handled separately by `enrich_context.py`. |
 
 Running `/define` → `/challenge` → `/plan` → build → `/review` → `/ship` gives you the equivalent of a PM defining scope, an architect stress-testing the approach, engineers building, a cross-model review panel checking quality, and a release engineer running pre-flight gates before deploying. `/ship` includes verification (adversarial probes), QA dimensions, and all other gates inline — the standard path is `/review` → `/ship`, not a longer chain. Each skill writes artifacts to disk so the next stage (or session) picks up where the last one left off. Pipeline progress is tracked in manifest files (`tasks/<topic>-manifest.json`) so you can see which stages have completed for any topic.
 
