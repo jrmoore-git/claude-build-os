@@ -1,0 +1,43 @@
+name: Banned Terms Check
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  scan:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Scan for project-specific terms
+        run: |
+          # Same pattern as buildos-sync.sh and pre-commit hook.
+          # Keep all three in sync.
+          BANNED_PATTERN='Justin|Jarvis|jarvis|openclaw|OpenClaw|innovius|Innovius|/Users/macmini|@innovius|@cloudzero|TELEGRAM_BOT_TOKEN|JUSTIN_TELEGRAM|8387329260|6507037822|6503803830|9256395873|sk-ant-|xoxb-|xapp-|GOG_KEYRING|AFFINITY_API|innoviuscapital|nicole_filter|Nicole|Meaghan|Granola|WebChat'
+
+          # Files that legitimately contain the pattern
+          EXCLUDE_ARGS=(
+            --exclude="hooks/pre-commit-banned-terms.sh"
+            --exclude-dir=".github"
+            --exclude-dir=".git"
+            --exclude="*.sample"
+          )
+
+          echo "Scanning for project-specific term leaks..."
+          echo ""
+
+          MATCHES="$(grep -rnE "$BANNED_PATTERN" "${EXCLUDE_ARGS[@]}" . 2>/dev/null || true)"
+
+          if [ -n "$MATCHES" ]; then
+            echo "FAILED — project-specific terms found:"
+            echo ""
+            echo "$MATCHES"
+            echo ""
+            echo "This repo must stay generic. Remove these references."
+            exit 1
+          fi
+
+          echo "PASSED — no project-specific terms found."

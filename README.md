@@ -65,25 +65,15 @@ The key insight: **Define** (what are we building and why?) is a different activ
 
 ## Quick Start
 
-Open the Build OS repository in Claude Code and run:
-
+```bash
+git clone https://github.com/jrmoore-git/claude-build-os.git
+cd claude-build-os
+./setup.sh
 ```
-/setup
-```
 
-This asks about your project type, team size, and risk level, then selects a governance tier and scaffolds the matching files: `CLAUDE.md`, PRD template, task structure, and starter skills.
+`setup.sh` detects your platform, finds Python 3.11+, installs git hooks, copies templates, and writes a config cache. No interactive prompts — everything auto-detected. Then open Claude Code and run `/setup` to configure your project.
 
-**Or set it up manually:**
-
-1. Copy `CLAUDE.md` to your project root
-2. Copy templates from `templates/` into `docs/` and `tasks/`
-3. Copy `.claude/skills/` into your project
-4. Edit `CLAUDE.md` to describe your project, constraints, and workflow
-5. Choose a [governance tier](#governance-tiers) and add only the artifacts that tier requires
-6. Run `git init` if not already a repo
-
-**Requirements:** [Claude Code](https://claude.ai/claude-code) with slash command support, plus git.
-Hooks require a Unix shell (macOS, Linux, or WSL) but are optional for Tier 0–1 projects.
+**Requirements:** [Claude Code](https://claude.ai/claude-code), git, Python 3.11+, Unix shell (macOS or Linux).
 
 ---
 
@@ -130,7 +120,7 @@ cp .env.example .env
 cp config/litellm-config.example.yaml config/litellm-config.yaml
 
 # 3. Edit .env — add your API keys
-#    ANTHROPIC_API_KEY=sk-ant-...
+#    ANTHROPIC_API_KEY=your-anthropic-key
 #    OPENAI_API_KEY=sk-...
 #    GEMINI_API_KEY=AI...
 #    LITELLM_MASTER_KEY=sk-buildos-local-1234  (any string you choose)
@@ -144,7 +134,7 @@ litellm --config config/litellm-config.yaml
 # Runs on http://localhost:4000. Leave this terminal open.
 
 # 6. In a new terminal, verify models are reachable
-python3.11 scripts/debate.py check-models
+python3 scripts/debate.py check-models
 ```
 
 If `check-models` shows all three models as reachable, cross-model skills will work. If a model fails, check the API key and model name in your config.
@@ -390,6 +380,21 @@ If you do nothing else:
 6. **Draw the LLM boundary.** LLMs classify and draft. Deterministic code validates and acts.
 7. **Use hooks for enforcement.** If a rule keeps getting missed, enforce it in code.
 8. **Test from day one.** Create the test directory alongside `git init`, not after the first incident.
+
+---
+
+## Staying Updated
+
+Build OS is actively maintained. Rules, hooks, skills, and scripts improve as we learn from real multi-session projects. To pull improvements:
+
+```bash
+git pull origin main
+./setup.sh   # re-runs safely — idempotent, won't overwrite your files
+```
+
+`setup.sh` only copies templates to `docs/` and `tasks/` if the destination doesn't already exist. Your project-specific files (PRD, decisions, lessons) are never overwritten. Updated hooks, skills, rules, and scripts take effect immediately.
+
+**What updates include:** New skills, hook improvements, better debate prompts, portability fixes, new contract tests, and documentation. **What never changes:** Your project files, `.env`, or `config/litellm-config.yaml`.
 
 ---
 

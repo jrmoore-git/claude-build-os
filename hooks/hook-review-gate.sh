@@ -10,8 +10,10 @@
 # Warns: skills/, *_tool.py, .claude/rules/, hook scripts, security files.
 # No hard blocks since D78 — skills/rules/tools are Tier 2 (log only).
 
+source "$(dirname "$0")/resolve-python.sh"
+
 INPUT=$(cat)
-COMMAND=$(printf '%s' "$INPUT" | /opt/homebrew/bin/python3.11 -c "import sys,json; d=json.load(sys.stdin); print(d.get('tool_input',{}).get('command',''))" 2>/dev/null)
+COMMAND=$(printf '%s' "$INPUT" | "$PYTHON3" -c "import sys,json; d=json.load(sys.stdin); print(d.get('tool_input',{}).get('command',''))" 2>/dev/null)
 
 case "$COMMAND" in
   git\ commit*)
@@ -28,14 +30,14 @@ case "$COMMAND" in
     # --- Classify staged files via tier_classify.py ---
     # Since D78 (2026-03-13), skills/rules/tools are Tier 2 (log only).
     # Only trust boundary and schema changes need debate artifacts.
-    RISK_LEVEL=$(echo "$STAGED" | PLAN_GATE_PROJECT="$PROJECT" /opt/homebrew/bin/python3.11 -c "
+    RISK_LEVEL=$(echo "$STAGED" | PLAN_GATE_PROJECT="$PROJECT" "$PYTHON3" -c "
 import os, sys, json
 
 project = os.environ['PLAN_GATE_PROJECT']
 stdin_text = sys.stdin.read()
 import subprocess
 result = subprocess.run(
-    ['/opt/homebrew/bin/python3.11', 'scripts/tier_classify.py', '--stdin'],
+    [os.environ.get('PYTHON3', 'python3'), 'scripts/tier_classify.py', '--stdin'],
     input=stdin_text, capture_output=True, text=True,
     cwd=project
 )
@@ -61,7 +63,7 @@ else:
     [ "$RISK_LEVEL" = "ok" ] && exit 0
 
     # --- Find newest staged file mtime ---
-    NEWEST_STAGED=$(PLAN_GATE_PROJECT="$PROJECT" /opt/homebrew/bin/python3.11 -c "
+    NEWEST_STAGED=$(PLAN_GATE_PROJECT="$PROJECT" "$PYTHON3" -c "
 import os, subprocess, sys
 project = os.environ['PLAN_GATE_PROJECT']
 result = subprocess.run(
@@ -83,7 +85,7 @@ print(newest)
 
     # --- Check for valid debate artifacts ---
     TASKS="$PROJECT/tasks"
-    ARTIFACT_VALID=$(/opt/homebrew/bin/python3.11 -c "
+    ARTIFACT_VALID=$("$PYTHON3" -c "
 import os, re, sys
 
 tasks = '$TASKS'

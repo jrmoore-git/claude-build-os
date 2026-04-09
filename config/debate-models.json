@@ -1,13 +1,13 @@
 {
   "persona_model_map": {
-    "architect": "gemini-3.1-pro",
+    "architect": "claude-opus-4-6",
     "staff": "gemini-3.1-pro",
     "security": "gpt-5.4",
-    "pm": "claude-opus-4-6"
+    "pm": "gemini-3.1-pro"
   },
   "judge_default": "gpt-5.4",
   "refine_rotation": ["gemini-3.1-pro", "gpt-5.4", "claude-opus-4-6"],
   "single_review_default": "gpt-5.4",
   "version": "2026-03-28",
-  "notes": "Research-backed assignments. Re-benchmark when GPT-6, Gemini 4, or Claude 5 ships."
+  "notes": "GPT restored to security with tool-encouraging prompt (was anti-tool 'focus on reasoning'). read_file_snippet tool unlocked GPT tool use (9 calls in first debate). P2 verifier as safety net. 3 model families for diversity. Re-benchmark when GPT-6, Gemini 4, or Claude 5 ships."
 }

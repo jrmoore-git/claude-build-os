@@ -5,8 +5,10 @@
 # Count-based trigger: counts "### D" entries in tasks/decisions.md added AFTER
 # the PRD's last git commit. Blocks at ≥5, warns at ≥3.
 
+source "$(dirname "$0")/resolve-python.sh"
+
 INPUT=$(cat)
-COMMAND=$(printf '%s' "$INPUT" | /opt/homebrew/bin/python3.11 -c "import sys,json; d=json.load(sys.stdin); print(d.get('tool_input',{}).get('command',''))" 2>/dev/null)
+COMMAND=$(printf '%s' "$INPUT" | "$PYTHON3" -c "import sys,json; d=json.load(sys.stdin); print(d.get('tool_input',{}).get('command',''))" 2>/dev/null)
 
 case "$COMMAND" in
   git\ commit*)
@@ -15,7 +17,7 @@ case "$COMMAND" in
 
     # --- Count-based drift check ---
     # Find the PRD's last commit date, count decisions added after it
-    DRIFT_COUNT=$(PLAN_GATE_PROJECT="$PROJECT" /opt/homebrew/bin/python3.11 -c "
+    DRIFT_COUNT=$(PLAN_GATE_PROJECT="$PROJECT" "$PYTHON3" -c "
 import os, subprocess, re, sys
 from datetime import datetime
 

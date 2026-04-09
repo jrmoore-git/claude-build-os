@@ -1,4 +1,4 @@
-#!/usr/bin/env python3.11
+#!/usr/bin/env python3
 """
 artifact_check.py — Artifact integrity and staleness checker.
 
@@ -6,7 +6,7 @@ Checks for plan, challenge, judgment, and review artifacts for a given topic.
 Validates frontmatter, staleness relative to source files, and open findings.
 
 Usage:
-    python3.11 scripts/artifact_check.py --scope <topic> [--base <ref>]
+    python3 scripts/artifact_check.py --scope <topic> [--base <ref>]
 """
 import argparse
 import json

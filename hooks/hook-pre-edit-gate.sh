@@ -20,10 +20,12 @@
 
 set -euo pipefail
 
+source "$(dirname "$0")/resolve-python.sh"
+
 INPUT=$(cat)
 
 # Extract file_path from tool input JSON using python (minimal, just JSON parse)
-FILE_PATH=$(/opt/homebrew/bin/python3.11 -c "
+FILE_PATH=$("$PYTHON3" -c "
 import sys, json
 try:
     d = json.load(sys.stdin)
@@ -48,7 +50,7 @@ fi
 # Single source of truth — no hardcoded patterns.
 # Self-check: this hook file is always protected regardless of config.
 CONFIG="$PROJECT/config/protected-paths.json"
-PROTECTED=$(PLAN_GATE_CONFIG="$CONFIG" PLAN_GATE_REL="$REL" /opt/homebrew/bin/python3.11 <<'PYEOF'
+PROTECTED=$(PLAN_GATE_CONFIG="$CONFIG" PLAN_GATE_REL="$REL" "$PYTHON3" <<'PYEOF'
 import json, os, sys, fnmatch
 
 config_path = os.environ["PLAN_GATE_CONFIG"]
@@ -102,7 +104,7 @@ PYEOF
 #   3. surfaces_affected must match target via exact path or fnmatch glob
 #   4. Artifact must be modified within 24 hours AND match content
 #   5. Fail closed: parse failure or missing surfaces_affected = no match
-PLAN_MATCH=$(PLAN_GATE_TASKS="$TASKS" PLAN_GATE_REL="$REL" /opt/homebrew/bin/python3.11 <<'PYEOF'
+PLAN_MATCH=$(PLAN_GATE_TASKS="$TASKS" PLAN_GATE_REL="$REL" "$PYTHON3" <<'PYEOF'
 import os, sys, fnmatch, re, time
 
 tasks_dir = os.environ["PLAN_GATE_TASKS"]

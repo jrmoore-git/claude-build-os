@@ -1,4 +1,4 @@
-#!/usr/bin/env python3.11
+#!/usr/bin/env python3
 """
 hook-primitive-enforcement.py — PreToolUse hook that blocks direct DB access
 outside of primitives/ and scripts/*_tool.py.

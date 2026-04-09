@@ -1,4 +1,4 @@
-#!/usr/bin/env python3.11
+#!/usr/bin/env python3
 """
 enrich_context.py — Pull relevant lessons/decisions into debate proposals.
 
@@ -6,12 +6,13 @@ Extracts keywords from a proposal, searches governance files via recall_search.p
 and returns structured JSON for challengers to consume.
 
 Usage:
-    python3.11 scripts/enrich_context.py --proposal tasks/<topic>-proposal.md [--top-k 5]
+    python3 scripts/enrich_context.py --proposal tasks/<topic>-proposal.md [--top-k 5]
 """
 import argparse
 import json
 import os
 import re
+import shutil
 import subprocess
 import sys
 
@@ -21,7 +22,7 @@ try:
     ).strip()
 except (subprocess.CalledProcessError, FileNotFoundError):
     PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-PYTHON = "/opt/homebrew/bin/python3.11"
+PYTHON = shutil.which("python3.13") or shutil.which("python3.12") or shutil.which("python3.11") or shutil.which("python3") or "python3"
 RECALL = os.path.join(PROJECT_ROOT, "scripts/recall_search.py")
 
 

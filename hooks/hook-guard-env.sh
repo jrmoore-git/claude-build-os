@@ -3,9 +3,11 @@
 # Fires on: Write|Edit (file_path check + SKILL.md content check)
 #            Bash (command check)
 
+source "$(dirname "$0")/resolve-python.sh"
+
 INPUT=$(cat)
 
-RESULT=$(/opt/homebrew/bin/python3.11 -c "
+RESULT=$("$PYTHON3" -c "
 import sys, json, re
 
 try:

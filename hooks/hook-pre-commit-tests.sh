@@ -1,8 +1,10 @@
 #!/bin/bash
 # PreToolUse hook: Block git commit if pytest fails
 
+source "$(dirname "$0")/resolve-python.sh"
+
 INPUT=$(cat)
-COMMAND=$(printf '%s' "$INPUT" | /opt/homebrew/bin/python3.11 -c "import sys,json; d=json.load(sys.stdin); print(d.get('tool_input',{}).get('command',''))" 2>/dev/null)
+COMMAND=$(printf '%s' "$INPUT" | "$PYTHON3" -c "import sys,json; d=json.load(sys.stdin); print(d.get('tool_input',{}).get('command',''))" 2>/dev/null)
 
 case "$COMMAND" in
   git\ commit*)

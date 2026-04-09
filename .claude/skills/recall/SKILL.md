@@ -8,7 +8,7 @@ Read each file below. If a file is missing, skip it silently — do not mention 
 
 0. **Uncommitted work check** — Run:
    ```
-   python3.11 scripts/detect-uncommitted.py
+   python3 scripts/detect-uncommitted.py
    ```
    If `has_uncommitted` is true OR `auto_commit_pending` is true, add a **Prior Session Recovery** section at the TOP of the output brief:
    ```
@@ -20,7 +20,7 @@ Read each file below. If a file is missing, skip it silently — do not mention 
 
 0b. **Memory staleness check** — Run:
    ```
-   python3.11 scripts/verify-plan-progress.py
+   python3 scripts/verify-plan-progress.py
    ```
    If `has_stale_memory` is true, add a **Stale Memory** warning after the Prior Session Recovery section (or at the top if no recovery needed):
    ```
@@ -32,7 +32,7 @@ Read each file below. If a file is missing, skip it silently — do not mention 
 
 0c. **Current-state freshness check** — Run:
    ```
-   python3.11 scripts/check-current-state-freshness.py
+   python3 scripts/check-current-state-freshness.py
    ```
    If `is_stale` is true, add a **Stale Current State** warning after the Stale Memory section (or at the top if no prior warnings):
    ```

@@ -117,7 +117,7 @@ Pull relevant prior decisions and lessons so problem framing doesn't rediscover 
 
 2. Run enrichment:
    ```bash
-   python3.11 scripts/enrich_context.py --proposal <temp summary file> --scope define
+   python3 scripts/enrich_context.py --proposal <temp summary file> --scope define
    ```
 
 3. **Quality gate:** Parse the JSON output. If both `lessons` and `decisions` arrays are empty, skip — no governance context to surface.
@@ -347,7 +347,7 @@ landscape" not "SuperTodo AI-powered task killer."
 Use `web_search.py` for research. Run searches via Bash with env var injection:
 
 ```bash
-YOU_COM_API_KEY="$YOU_COM_API_KEY" /opt/homebrew/bin/python3.11 scripts/web_search.py search "query here" --num 5
+YOU_COM_API_KEY="$YOU_COM_API_KEY" python3 scripts/web_search.py search "query here" --num 5
 ```
 
 If `YOU_COM_API_KEY` is not set or search fails, fall back to Claude's built-in WebSearch tool:
@@ -447,7 +447,7 @@ Run via Bash:
 ```bash
 TMPFILE=$(mktemp /tmp/define-summary-XXXXXX.md)
 # Write the structured summary to $TMPFILE
-/opt/homebrew/bin/python3.11 scripts/debate.py review \
+python3 scripts/debate.py review \
   --persona pm \
   --prompt "<mode-specific prompt above>" \
   --input "$TMPFILE"
@@ -620,7 +620,7 @@ Run a multi-persona review panel on the design doc. The panel provides independe
 perspectives from different reviewer archetypes — anonymized and position-randomized.
 
 ```bash
-/opt/homebrew/bin/python3.11 scripts/debate.py review-panel \
+python3 scripts/debate.py review-panel \
   --personas architect,security,pm \
   --enable-tools \
   --allowed-tools check_code_presence,read_config_value \

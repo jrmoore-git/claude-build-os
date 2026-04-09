@@ -19,7 +19,7 @@ Before executing any operation that modifies or deletes >10 records:
 
 ## Ad-hoc Database Queries
 
-Before writing any inline Python that queries a SQLite database, run `python3.11 scripts/db_inspect.py <db> <table>` first to get the exact schema. NEVER guess column names — the outbox has `target` not `source`, `content` not `subject`, etc. Schema mismatches in heredoc Python cause cascading errors that waste time.
+Before writing any inline Python that queries a SQLite database, run `python3 scripts/db_inspect.py <db> <table>` first to get the exact schema. NEVER guess column names — the outbox has `target` not `source`, `content` not `subject`, etc. Schema mismatches in heredoc Python cause cascading errors that waste time.
 
 ## SQLite Pitfalls
 

@@ -14,7 +14,9 @@
 
 INPUT=$(cat)
 
-RESULT=$(PLAN_GATE_PROJECT="$(git rev-parse --show-toplevel)" /opt/homebrew/bin/python3.11 -c "
+source "$(dirname "$0")/resolve-python.sh"
+
+RESULT=$(PLAN_GATE_PROJECT="$(git rev-parse --show-toplevel)" "$PYTHON3" -c "
 import sys, json, os, re, subprocess, time
 
 PROJECT = os.environ.get('PLAN_GATE_PROJECT', '.')
@@ -43,7 +45,7 @@ if rel.startswith(PROJECT + '/'):
 # ── Tier classification via tier_classify.py ──────────────────────────────
 try:
     result = subprocess.run(
-        ['/opt/homebrew/bin/python3.11', os.path.join(PROJECT, 'scripts/tier_classify.py'), rel],
+        [os.environ.get('PYTHON3', 'python3'), os.path.join(PROJECT, 'scripts/tier_classify.py'), rel],
         capture_output=True, text=True, timeout=5
     )
     tier_data = json.loads(result.stdout)
@@ -129,7 +131,7 @@ print('ALLOW')
 case "$RESULT" in
   BLOCK_TIER1:*)
     FILE="${RESULT#BLOCK_TIER1:}"
-    printf '{"hookSpecificOutput":{"hookEventName":"PreToolUse","permissionDecision":"block","permissionDecisionReason":"BLOCKED: %s is a Tier 1 file (PRD/schema/trust boundary). Cross-model debate required BEFORE editing. Write a proposal to tasks/<topic>-proposal.md, then run: python3.11 scripts/debate.py challenge --proposal tasks/<topic>-proposal.md --models gpt-5.4,gemini-3.1-pro --output tasks/<topic>-challenge.md. See .claude/rules/review-protocol.md."}}\n' "$FILE"
+    printf '{"hookSpecificOutput":{"hookEventName":"PreToolUse","permissionDecision":"block","permissionDecisionReason":"BLOCKED: %s is a Tier 1 file (PRD/schema/trust boundary). Cross-model debate required BEFORE editing. Write a proposal to tasks/<topic>-proposal.md, then run: python3 scripts/debate.py challenge --proposal tasks/<topic>-proposal.md --models gpt-5.4,gemini-3.1-pro --output tasks/<topic>-challenge.md. See .claude/rules/review-protocol.md."}}\n' "$FILE"
     exit 2
     ;;
   WARN_TIER15:*)

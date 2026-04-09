@@ -1,4 +1,4 @@
-#!/opt/homebrew/bin/python3.11
+#!/usr/bin/env python3
 """BM25 + semantic recall search across governance files. Pure stdlib, no pip."""
 import argparse, json, math, re, sqlite3, sys, urllib.request
 from collections import Counter

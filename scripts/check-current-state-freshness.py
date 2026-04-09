@@ -1,4 +1,4 @@
-#!/usr/bin/env python3.11
+#!/usr/bin/env python3
 """Check whether docs/current-state.md is stale relative to recent git activity."""
 
 import json
