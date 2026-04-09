@@ -81,9 +81,18 @@ If the same behavior has been corrected three times at the same level, escalate 
 
 The context window is expensive RAM; the filesystem is free storage. For complex multi-track work, write the plan to disk and execute against the file, not the conversation. Write plans, reviews, and state to files — read selectively. If a skill runs in a loop (N items × M calls), process in batches to avoid quadratic context growth. Anti-pattern: loading 312K tokens "just in case" when 50K suffices.
 
-## Commit Doc Update Rule (HARD RULE)
+## Commit Discipline (HARD RULE)
 
-Every commit must include updates to ALL relevant tracking docs. Before committing, check:
+### Batch related changes into logical commits
+
+- **One logical change = one commit.** A sync of 4 debate files is one atomic commit, not 4 separate commits.
+- **Auto-capture commits ([auto] Session work captured...) should be rare.** They indicate the session ended without proper wrap. Prefer `/wrap-session` which produces a single clean commit.
+- **Session wrap docs are one commit.** current-state.md + handoff.md + session-log.md = one commit, not three.
+- **Target: 1-4 commits per session.** If you're making 10+ commits in a session, you're committing too granularly.
+
+### Every commit must include relevant doc updates
+
+Before committing, check:
 
 - **tasks/decisions.md**: Any new decision? Add numbered entry with rationale.
 - **tasks/session-log.md**: Focus, result, decisions, next steps, commit hash.
@@ -92,3 +101,11 @@ Every commit must include updates to ALL relevant tracking docs. Before committi
 - **config/.env**: Any new credential or token? Already stored?
 
 If none apply, state "No doc updates needed" in the commit message.
+
+### Test CI locally before pushing
+
+Run the banned-terms scan locally before `git push`:
+```bash
+bash -c "$(grep -A20 'run: |' .github/workflows/banned-terms.yml | tail -n+2)"
+```
+This catches false positives (archived files, grep pattern references) before they fail in CI.
