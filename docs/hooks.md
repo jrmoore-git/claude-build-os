@@ -1,6 +1,6 @@
 # Hooks Reference
 
-The Build OS ships three enforcement hooks. Each is a shell script configured as a Claude Code PreToolUse hook — it runs before the matched tool executes, and can block or warn based on what it finds. Each hook is scoped by a matcher pattern: plan-gate and review-gate match `Bash` (firing on `git commit`), while tier-gate matches `Write|Edit` (firing on file edits).
+The Build OS ships four enforcement hooks. Each is configured as a Claude Code PreToolUse hook — it runs before the matched tool executes, and can block or warn based on what it finds. Each hook is scoped by a matcher pattern: plan-gate and review-gate match `Bash` (firing on `git commit`), while decompose-gate and tier-gate match `Write|Edit` (firing on file edits).
 
 Hooks are the third level of the enforcement ladder: advisory (CLAUDE.md) → rules (.claude/rules/) → **hooks** → architecture. They fire every time the matched tool is called, cannot be ignored by the model, and enforce governance as deterministic code.
 
@@ -86,6 +86,44 @@ Gates commits to high-risk files without valid debate artifacts.
 Neither `[EMERGENCY]` nor any other bypass (besides `[TRIVIAL]`) is available in review-gate.
 
 
+## hook-decompose-gate.py
+
+Forces decomposition assessment before the first write operation in each session.
+
+**When it fires:** PreToolUse with `Write|Edit` matcher. Fires on every `Write` or `Edit` tool call, but only blocks until a session flag file exists.
+
+**What it checks:**
+
+1. Reads tool call JSON from stdin; extracts `tool_name`
+2. Only gates `Write` and `Edit` — all other tools pass through
+3. Checks for a session-scoped flag file at `/tmp/claude-decompose-{session_id}.json`
+4. If flag file exists with `plan_submitted: true` or `bypass: true` → allow
+5. If flag file is corrupt or unreadable → **deny** with recovery message (fail-closed)
+6. If no flag file → **deny** with decomposition prompt
+
+**Session ID:** Uses `$CLAUDE_SESSION_ID` if set, falls back to parent PID (`os.getppid()`).
+
+**Pass conditions:**
+- Tool is not `Write` or `Edit`
+- Flag file exists with valid `plan_submitted` or `bypass` key
+- Stdin is unreadable or tool call JSON is malformed (fail-open on infrastructure errors only)
+
+**Block conditions:**
+- First `Write` or `Edit` in a session before flag file exists → deny with prompt to assess decomposability
+- Flag file exists but is corrupt JSON → deny with recovery instructions
+
+**How to create the flag file:** The deny message instructs the agent to use `Bash` (not `Write`) to create the flag:
+```bash
+echo '{"plan_submitted": true}' > /tmp/claude-decompose-{session_id}.json
+# or for bypass:
+echo '{"bypass": true}' > /tmp/claude-decompose-{session_id}.json
+```
+
+This is critical: if the agent attempts to use the `Write` tool to create the flag file, it will be blocked by this very hook, creating an infinite loop.
+
+**Design rationale:** Advisory rules for parallel decomposition were ignored for months across three escalation levels. This hook is Level 3 on the enforcement ladder — mechanical enforcement of a behavioral requirement that advisory text could not sustain.
+
+
 ## hook-tier-gate.sh
 
 Classifies file tier before the first edit and gates accordingly.
@@ -123,12 +161,16 @@ Neither `[EMERGENCY]` nor `[TRIVIAL]` bypass is available in tier-gate.
 
 Add hooks to `.claude/settings.json` (or `.claude/settings.local.json` for personal, non-committed settings). Each hook needs a matcher pattern and the script path.
 
-### All three hooks
+### All four hooks
 
 ```json
 {
   "hooks": {
     "PreToolUse": [
+      {
+        "matcher": "Write|Edit",
+        "command": "python3 hooks/hook-decompose-gate.py"
+      },
       {
         "matcher": "Bash",
         "command": "bash hooks/hook-plan-gate.sh"

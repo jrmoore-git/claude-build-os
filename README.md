@@ -93,7 +93,7 @@ Each stage produces an artifact on disk. Each artifact feeds the next stage. Ski
 
 Both modes include a spec review step. In discover mode, this is a multi-model panel review (`debate.py review-panel --personas architect,security,pm`) that catches completeness gaps and YAGNI before you start building.
 
-**Cost:** `/define refine` is free. `/define discover` costs ~$0.05-0.15 if the cross-model steps run (external model calls through LiteLLM).
+**Cost:** `/define refine` is free. `/define discover` costs ~$0.03–0.10 (measured: $0.03 on a small proposal, ~35 sec of external model time). Scales with input size.
 
 **Why it exists:** We kept building the wrong thing. Not wrong as in buggy — wrong as in solving the wrong problem. Claude is agreeable by default. Tell it "build X" and it builds X, even when what you actually need is Y. `/define` forces the model into an anti-sycophancy posture: it pushes back on your framing before accepting your conclusion. The design doc or brief it produces becomes the input to everything downstream — if the problem statement is wrong here, every subsequent stage optimizes for the wrong goal.
 
@@ -127,7 +127,7 @@ Four modes:
 
 Includes an optional "outside voice" — an independent agent via `debate.py review --persona staff` that gives a brutally honest challenge after all review sections complete.
 
-**Cost:** ~$0.05–0.10 if the outside voice runs (one external model call). Free otherwise.
+**Cost:** ~$0.01–0.05 if the outside voice runs (measured: $0.01, ~8 sec for one external model call). Free otherwise.
 
 **Why it exists:** `/challenge` asks "should we build this?" — a gate. `/elevate` asks "are we thinking big enough?" — an amplifier. They're complementary. `/elevate` catches the opposite failure mode from overengineering: underengineering, where the plan solves today's problem but creates next quarter's nightmare. The 11 review sections map every error path, trace every data flow, and force you to answer "what breaks at 10x?"
 
@@ -143,7 +143,7 @@ Includes an optional "outside voice" — an independent agent via `debate.py rev
 
 **What happens:** Three models from different families independently evaluate whether the proposed work is necessary and appropriately scoped. Model assignments are config-driven via `config/debate-models.json` — by default, GPT-5.4 and Gemini 3.1 Pro challenge as architect/security/PM, with Claude as author. Each labels findings as MATERIAL (changes the recommendation) or ADVISORY (valid but doesn't change the decision). Produces `tasks/<topic>-challenge.md` with a verdict: proceed, simplify, pause, or reject.
 
-**Cost:** ~$0.05–0.15 per run. Three model calls through LiteLLM.
+**Cost:** ~$0.05–0.20 per run (measured: $0.10, ~22 sec on a small proposal). Three model calls through LiteLLM. Scales with proposal size.
 
 **Why it exists:** Claude has a documented tendency to overengineer. Tell it "add logging" and it builds a logging framework. Tell it "add a config option" and it builds a plugin system. Each addition sounds reasonable in isolation. `/challenge` catches this before you spend a session building something that should have been three lines of code.
 
@@ -159,7 +159,7 @@ In our project, `/challenge` has rejected or simplified roughly 40% of proposed 
 
 **What happens:** Full adversarial pipeline: challenge → judge → refine. Three models rotate through all roles across multiple rounds. GPT-5.4 judges (different model family prevents self-preference bias). The output is a refined specification that has survived genuine disagreement — not rubber-stamp consensus. Produces three artifacts: `tasks/<topic>-challenge.md`, `tasks/<topic>-judgment.md`, and `tasks/<topic>-refined.md`.
 
-**Cost:** ~$0.50–1.00 per run. Multiple rounds, three models each round.
+**Cost:** ~$0.20–0.75 per run (measured: $0.24, ~78 sec on a small proposal). Multiple rounds, three models each round. Scales with proposal size — real architectural proposals cost 2–3x more.
 
 **Why it exists:** Models from the same family agree with each other too easily. We measured this: when Claude reviews Claude's work, it catches surface issues but misses structural problems. When GPT reviews Claude's work, it catches different things. When all three flag the same concern, it is almost certainly real.
 
@@ -228,7 +228,7 @@ If `tasks/<topic>-refined.md` exists from a prior `/debate`, the PM lens escalat
 
 Produces `tasks/<topic>-review.md` with findings grouped by lens and severity.
 
-**Cost:** ~$0.05–0.15 per run. Three model calls through LiteLLM.
+**Cost:** ~$0.02–0.10 per run (measured: $0.02, ~26 sec on a small diff). Three model calls through LiteLLM. Scales with diff size.
 
 **Why it exists:** Self-review is weak. We tracked this: Claude reviewing its own code catches ~60% of issues. Adding the security lens catches injection and data-leak patterns the architect lens misses. Adding the PM lens catches spec drift the other two don't care about. The three lenses together catch roughly 85–90% of what a human staff engineer would flag.
 
@@ -273,20 +273,22 @@ At ~50% context usage, use `/compact` proactively. At ~60%, write your session l
 
 ### The full cost picture
 
-| Stage | Cost | Time | Runs per typical feature |
-|-------|------|------|------------------------|
-| `/recall` | Free | 5 sec | Every session |
-| `/define refine` | Free | 3–5 min | Once per feature |
-| `/define discover` | $0.05–0.15 | 10–15 min | Once per new feature/architecture |
-| `/elevate` | $0.05–0.10 | 10–20 min | Only for scope uncertainty |
-| PRD | Free | 10–30 min | Once (updates as needed) |
-| `/challenge` | $0.05–0.15 | 2–3 min | Once per feature |
-| `/debate` | $0.50–1.00 | 5–10 min | Only for architecture decisions |
-| `/plan` | Free | 3–5 min | Once per feature |
-| `/review` | $0.05–0.15 | 2–3 min | Once per feature (re-run after fixes) |
-| `/ship` | Free | 1–5 min | Once per deploy |
+Measured on 2026-03-28 against a 144-word test proposal routed through LiteLLM → Gemini 3.1 Pro + GPT-5.4. Real proposals are 3–10x longer; costs scale roughly linearly with input size. Time columns show external model call time — full skill time includes conversation and tool calls on top.
 
-**Total cost for a typical feature:** $0.10–0.30. For an architectural decision with full debate: $0.60–1.30. For a big bet with discover + elevate + debate: ~$1.00–1.50. The cost of *not* running the pipeline — building the wrong thing, missing a vulnerability, shipping without rollback — is orders of magnitude higher.
+| Stage | Measured cost | Measured time | Estimated range | Runs per typical feature |
+|-------|--------------|---------------|-----------------|------------------------|
+| `/recall` | $0.00 | <1 sec | Free | Every session |
+| `/define refine` | $0.00 | <1 sec | Free | Once per feature |
+| `/define discover` | $0.03 | ~35 sec | $0.03–0.10 | Once per new feature/architecture |
+| `/elevate` | $0.01 | ~8 sec | $0.01–0.05 | Only for scope uncertainty |
+| PRD | $0.00 | — | Free (your time) | Once (updates as needed) |
+| `/challenge` | $0.10 | ~22 sec | $0.05–0.20 | Once per feature |
+| `/debate` | $0.24 | ~78 sec | $0.20–0.75 | Only for architecture decisions |
+| `/plan` | $0.00 | <1 sec | Free | Once per feature |
+| `/review` | $0.02 | ~26 sec | $0.02–0.10 | Once per feature (re-run after fixes) |
+| `/ship` | $0.00 | 1–5 min | Free | Once per deploy |
+
+**Total cost for a typical feature** (define + challenge + review): ~$0.15. For an architectural decision with full debate: ~$0.40–0.80. For a big bet with discover + elevate + debate: ~$0.50–1.00. Costs scale with proposal size — a 1,000-word proposal costs roughly 3–5x more than the measurements above. The cost of *not* running the pipeline — building the wrong thing, missing a vulnerability, shipping without rollback — is orders of magnitude higher.
 
 ---
 
@@ -296,13 +298,13 @@ Not every task needs every stage. Here are the common routes:
 
 | Change type | Path | Cost |
 |---|---|---|
-| Bugfix | `/recall` → `/define refine` → `/plan` → build → `/review` → `/ship` | ~$0.10 |
-| Small feature | `/recall` → `/define refine` → `/challenge` → `/plan` → build → `/review` → `/ship` | ~$0.20 |
-| New feature | `/recall` → `/define discover` → `/challenge` → `/plan` → build → `/review` → `/ship` | ~$0.30 |
-| UI feature | `/recall` → `/define discover` → `/challenge` → `/plan` → `/plan-design-review` → build → `/design-review` → `/review` → `/ship` | ~$0.40 |
-| Architectural change | `/recall` → `/define discover` → `/challenge` → `/debate` → `/plan` → build → `/review` (with spec compliance) → `/ship` | ~$1.00 |
-| Big bet | `/recall` → `/define discover` → `/elevate` → `/challenge` → `/plan` → build → `/review` → `/ship` | ~$1.00–1.50 |
-| New design system | `/recall` → `/define discover` → `/design-consultation` → `/plan` → `/plan-design-review` → build → `/design-review` → `/ship` | ~$0.40 |
+| Bugfix | `/recall` → `/define refine` → `/plan` → build → `/review` → `/ship` | ~$0.02 |
+| Small feature | `/recall` → `/define refine` → `/challenge` → `/plan` → build → `/review` → `/ship` | ~$0.12 |
+| New feature | `/recall` → `/define discover` → `/challenge` → `/plan` → build → `/review` → `/ship` | ~$0.15 |
+| UI feature | `/recall` → `/define discover` → `/challenge` → `/plan` → `/plan-design-review` → build → `/design-review` → `/review` → `/ship` | ~$0.17 |
+| Architectural change | `/recall` → `/define discover` → `/challenge` → `/debate` → `/plan` → build → `/review` (with spec compliance) → `/ship` | ~$0.40 |
+| Big bet | `/recall` → `/define discover` → `/elevate` → `/challenge` → `/plan` → build → `/review` → `/ship` | ~$0.50–1.00 |
+| New design system | `/recall` → `/define discover` → `/design-consultation` → `/plan` → `/plan-design-review` → build → `/design-review` → `/ship` | ~$0.17 |
 | Docs or config only | `/recall` → edit → `/wrap-session` | Free |
 
 ---
@@ -360,7 +362,8 @@ The skills are powered by deterministic scripts and enforcement hooks. See [How 
 | hook-plan-gate.sh | Before commit to protected paths | Requires valid plan artifact with verified frontmatter |
 | hook-review-gate.sh | Before commit | Blocks Tier 1 without debate artifacts; warns for Tier 1.5 and risk-flagged Tier 2 |
 | hook-tier-gate.sh | Before file edit (Write/Edit) | Blocks Tier 1 edits without debate artifacts; warns for Tier 1.5 |
-| hook-decompose-gate.sh | Before Agent tool calls | Advisory reminder to decompose before parallelizing |
+| hook-decompose-gate.py | Before Write/Edit (first per session) | Blocks writes until decomposition assessed; blocks main-session writes after parallel plan (must dispatch agents or bypass with reason); fail-closed on corrupt state |
+| hook-agent-isolation.py | Before Agent dispatch (when plan_submitted) | Requires isolation: "worktree" on write-capable agents; exempts read-only subagent types |
 | hook-guard-env.sh | Before .env writes | Blocks .env modification and credential management commands |
 | hook-pre-edit-gate.sh | Before Write/Edit on protected paths | Requires plan or proposal artifact |
 | hook-post-tool-test.sh | After *_tool.py edits | Auto-runs pytest on changed test files |
@@ -379,7 +382,7 @@ The skills are powered by deterministic scripts and enforcement hooks. See [How 
 |-----------|----------------|
 | code-quality.md | Anti-overengineering, anti-slop vocabulary, input validation patterns |
 | design.md | AI slop detection checklist for generated UI |
-| orchestration.md | When and how to decompose into parallel agents |
+| orchestration.md | When and how to decompose into parallel agents; decomposition gate enforcement |
 | review-protocol.md | Three-stage review: challenge → debate → review |
 | session-discipline.md | Plan gates, document-first protocol, context budget |
 | skill-authoring.md | Output silence, cron contracts, query bounds |
@@ -463,7 +466,7 @@ This distinction generalizes into what I think of as the enforcement ladder:
 3. **Hooks** — Deterministic code. Fires every time. Cannot be ignored.
 4. **Architecture** — The system physically cannot do the wrong thing. LLM never sees the database. Secrets never enter the context.
 
-The Build OS ships eleven hooks that implement level 3: `hook-plan-gate.sh` blocks commits to protected paths without a valid plan artifact, `hook-review-gate.sh` blocks Tier 1 commits without debate artifacts, `hook-tier-gate.sh` blocks file edits to high-risk files without prior review, `hook-pre-edit-gate.sh` requires a plan artifact before writing to protected paths, `hook-pre-commit-tests.sh` blocks commits when tests fail, and six more covering decomposition reminders, env file protection, post-edit testing, PRD drift detection, linting, and syntax validation. Each is configured as a Claude Code hook — deterministic shell scripts that fire before or after the matched tool executes. See [Hooks Reference](docs/hooks.md) for the full specification.
+The Build OS ships twelve hooks that implement level 3: `hook-plan-gate.sh` blocks commits to protected paths without a valid plan artifact, `hook-review-gate.sh` blocks Tier 1 commits without debate artifacts, `hook-tier-gate.sh` blocks file edits to high-risk files without prior review, `hook-pre-edit-gate.sh` requires a plan artifact before writing to protected paths, `hook-pre-commit-tests.sh` blocks commits when tests fail, `hook-agent-isolation.py` blocks write-capable Agent dispatches without worktree isolation after a parallel plan is declared, and five more covering decomposition reminders, env file protection, post-edit testing, PRD drift detection, linting, and syntax validation. Each is configured as a Claude Code hook — deterministic shell scripts that fire before or after the matched tool executes. See [Hooks Reference](docs/hooks.md) for the full specification.
 
 Most teams stop at level 1 and wonder why Claude keeps breaking their conventions. The answer: move the important rules up the ladder.
 
@@ -493,7 +496,7 @@ The antidote is active simplicity. After every plan review: "What can I remove a
 
 The Build OS operationalizes this with `/define` and `/challenge`. `/define` forces problem clarity before solutions — its forcing questions ("What's the current workaround? What's the smallest version?") prevent scope creep at the idea stage. `/challenge` is a pre-planning gate where multiple external models independently evaluate whether proposed work is necessary. The default posture is skepticism: the simplest version wins unless there's evidence otherwise. For features where scope is uncertain, `/elevate` stress-tests ambition in the opposite direction — ensuring you're not underbuilding.
 
-A related discipline: mandatory decomposition analysis before parallelizing work. Before spawning parallel agents, the plan must list every subtask with its write targets, identify dependencies, and justify the execution strategy. "Sequential because it's simpler" is not a justification — cite the specific task property (shared files, output dependency, or genuine independence).
+A related discipline: mandatory decomposition analysis before parallelizing work. Before spawning parallel agents, the plan must list every subtask with its write targets, identify dependencies, and justify the execution strategy. "Sequential because it's simpler" is not a justification — cite the specific task property (shared files, output dependency, or genuine independence). This started as advisory guidance and was ignored for months. Three escalation levels (lesson → rule → stronger rule) failed. Only `hook-decompose-gate.py` — a PreToolUse hook that physically blocks `Write|Edit` until decomposition is assessed — changed the behavior. A companion hook, `hook-agent-isolation.py`, completes the enforcement: after a parallel plan is declared, it blocks write-capable Agent dispatches that lack `isolation: "worktree"`, ensuring the model can't simply spawn non-isolated agents. If a rule matters, enforce it mechanically.
 
 But the deeper point is that style rules alone don't solve this. If the architecture gives the LLM a large, unconstrained surface to operate on, you'll get entropy — just simpler entropy. The real defense is architectural: shrink the surface. Move deterministic operations out of LLM control. Then simplicity rules apply to a much smaller, more manageable area.
 

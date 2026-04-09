@@ -51,6 +51,10 @@ A task is not done because the model says it is done. It is done when:
 
 ## 2. Parallel Work and Orchestration
 
+### Decomposition gate
+
+Claude defaults to sequential execution even when tasks are clearly independent. Advisory rules fail under cognitive load. The fix is a PreToolUse hook that blocks `Write|Edit` until the session assesses whether the task should be decomposed into parallel agents. The gate fires once per session; after the agent writes a flag file (via `Bash`, not `Write`), all writes proceed normally. See [The Build OS — Enforcement Ladder](the-build-os.md) for the full pattern.
+
 ### When to parallelize
 
 Default to a single agent unless parallelism clearly earns its cost through context isolation, real wall-clock speedup, or necessary specialization. Parallel work has real overhead — duplicated context, coordination cost, and merge complexity.

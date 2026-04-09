@@ -2,18 +2,13 @@
   "hooks": {
     "PreToolUse": [
       {
-        "matcher": "Agent",
+        "matcher": "Write|Edit",
         "hooks": [
           {
             "type": "command",
-            "command": "bash hooks/hook-decompose-gate.sh",
-            "timeout": 5
-          }
-        ]
-      },
-      {
-        "matcher": "Write|Edit",
-        "hooks": [
+            "command": "python3 hooks/hook-decompose-gate.py",
+            "timeout": 2
+          },
           {
             "type": "command",
             "command": "bash hooks/hook-guard-env.sh",
@@ -28,6 +23,16 @@
             "type": "command",
             "command": "bash hooks/hook-pre-edit-gate.sh",
             "timeout": 10
+          }
+        ]
+      },
+      {
+        "matcher": "Agent",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3 hooks/hook-agent-isolation.py",
+            "timeout": 2
           }
         ]
       },

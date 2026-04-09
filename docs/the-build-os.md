@@ -291,6 +291,7 @@ Rules are only as reliable as their enforcement mechanism. When a rule keeps bei
 | 1 | Advisory instruction in CLAUDE.md | Usually follows | "Do not edit .env files" |
 | 2 | Conditional rule in `.claude/rules/` | When loaded | Auth rules load when touching auth code |
 | 3 | Deterministic hook | Always fires | Block commits when tests fail |
+| 3b | Decomposition gate | Always fires on first write | Force parallel assessment before code changes |
 | 4 | Architectural constraint | Impossible to violate | LLM cannot write directly to the database |
 
 **Three-strikes rule:** If the same behavior has been corrected three times at the same level, escalate immediately. Do not keep rewriting advisory text for a behavior that clearly needs a hook or architectural constraint.
@@ -317,6 +318,23 @@ noticed → lessons.md → .claude/rules/ → hook → architecture
 A lesson violated for the second time should be promoted immediately. A second entry for the same pattern is evidence that Level 1 doesn't work. For high-blast-radius failures, promote after one violation (see escalation speed above).
 
 A lessons file that only grows is recording failures, not preventing them. Target ≤30 active lessons. Triage regularly — promote, archive, or retire.
+
+### Decomposition gate pattern
+
+A concrete Level 3 enforcement for parallel work. Claude has a strong bias toward sequential execution even when tasks are clearly independent. Advisory rules ("prefer parallel agents") get ignored under cognitive load. The fix is a PreToolUse hook that blocks `Write|Edit` until the session has assessed whether the task should be decomposed.
+
+**How it works:**
+1. A Python hook fires on every `Write` or `Edit` tool call
+2. If no session flag file exists, the hook **denies** the write and prompts: "Is this 3+ independent subtasks? If yes, output a plan and dispatch parallel agents. If no, write a bypass flag."
+3. The agent writes a flag file via `Bash` (not `Write` — that would be blocked) to signal assessment is complete
+4. All subsequent writes proceed normally
+
+**Key design choices:**
+- **Fail-closed on corrupt state.** A damaged flag file denies with a recovery message, not silently allows. The gate is behavioral enforcement, not security — but fail-open defeats the purpose.
+- **Session-scoped.** The flag file uses a session ID, so the gate fires once per session. After assessment, writes are unimpeded.
+- **Bash creates the flag, not Write.** The hook gates `Write|Edit`. If the agent tried to use `Write` to create the flag file, it would be blocked by its own gate. The deny message explicitly says "use Bash tool."
+
+This pattern generalizes: any behavior that advisory rules cannot enforce reliably can be gated by a PreToolUse hook that blocks until a precondition is met.
 
 ---
 
@@ -496,6 +514,14 @@ The problem was model routing. Every cron job — including simple classificatio
 The fix was routing by task type: classification and tagging go to the cheapest model that handles them reliably, synthesis goes to mid-tier, and only high-stakes drafting uses the strongest model. Cost discipline is architecture, not a billing cleanup exercise after the fact. A $15 budget documented in a routing guide means nothing — the limit must be enforced in code.
 
 That lesson had a sequel. A post-meeting skill had a documented 10-run daily cap. The cap was never enforced in code. It burned $1,949 in eleven days. A limit that exists only in documentation constrains nothing.
+
+### The sequential-by-default agent
+
+We added a rule: "prefer parallel agents for independent work." The model ignored it. We promoted it to a `.claude/rules/` file. Still ignored. We made it a stronger rule with explicit heuristics. Still ignored — under cognitive load, Claude defaults to sequential execution regardless of how many times you tell it to parallelize.
+
+Three escalation levels failed. The fix was a PreToolUse hook that blocks `Write|Edit` until the session has assessed whether the task involves 3+ independent subtasks. The hook physically prevents code changes until decomposition is considered. After months of advisory failure, mechanical enforcement changed the behavior in one session.
+
+The lesson: some behaviors are not about the model misunderstanding the instruction. They are about the model's default under pressure. No amount of rewording fixes a behavioral default — you need a gate.
 
 ### The gate that always passed
 

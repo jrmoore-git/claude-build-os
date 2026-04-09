@@ -111,6 +111,6 @@ Stop at the step that fails. Partial artifacts are valid. Do not delete them.
 
 ## Important Notes
 
-- This skill is expensive (~$0.50-1.00). Reserve for architectural decisions, PRD changes, schema changes, and design uncertainty.
+- This skill costs ~$0.20-0.75 per run (measured: $0.24 on a small proposal, scales with input size). Reserve for architectural decisions, PRD changes, schema changes, and design uncertainty.
 - Each step checks for existing artifacts and skips if found. Re-running `/debate` after a partial failure resumes where it left off.
 - The judgment uses a different model family from the author to avoid self-preference bias.
