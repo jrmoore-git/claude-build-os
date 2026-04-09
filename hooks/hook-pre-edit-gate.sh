@@ -1,29 +1,29 @@
 #!/bin/bash
-# PreToolUse hook: Block Edit/Write on protected paths without a recent plan artifact.
+# PreToolUse hook: Block Edit/Write on protected paths without a recent plan or proposal artifact.
 #
 # Fires on: Write|Edit (BEFORE code is written)
 #
-# Protected paths are loaded from config/protected-paths.json:
-#   - scripts/*_tool.py, scripts/*_pipeline.py
+# Protected paths (from config/protected-paths.json + this script itself):
+#   - scripts/*_tool.py, scripts/*_pipeline.py, scripts/mcp_server.py
 #   - skills/**/*.md, .claude/rules/*.md
-#   - This script itself (self-check — hook must protect itself)
+#   - scripts/hook-pre-edit-gate.sh (self-check — hook must protect itself)
 #
 # Exempt paths (always pass):
 #   - tasks/*, docs/*, tests/*, config/*, stores/*
 #
 # Artifact check:
-#   - tasks/*-plan.md modified in last 24 hours -> ALLOW
-#   - No recent artifact -> BLOCK
+#   - tasks/*-proposal.md modified in last 2 hours → ALLOW
+#   - tasks/*-plan.md modified in last 2 hours → ALLOW
+#   - No recent artifact → BLOCK
 #
-# No external dependencies beyond Python stdlib.
+# No Python. Fast bash + find only.
 
 set -euo pipefail
 
 INPUT=$(cat)
-PROJECT_ROOT="$(git rev-parse --show-toplevel 2>/dev/null || echo ".")"
 
-# Extract file_path from tool input JSON
-FILE_PATH=$(python3 -c "
+# Extract file_path from tool input JSON using python (minimal, just JSON parse)
+FILE_PATH=$(/opt/homebrew/bin/python3.11 -c "
 import sys, json
 try:
     d = json.load(sys.stdin)
@@ -32,32 +32,30 @@ except Exception:
     print('')
 " <<< "$INPUT" 2>/dev/null)
 
-# No file path -> allow
+# No file path → allow
 [ -z "$FILE_PATH" ] && exit 0
 
-TASKS="$PROJECT_ROOT/tasks"
+PROJECT="$(git rev-parse --show-toplevel)"
+TASKS="$PROJECT/tasks"
 
 # Normalize to relative path
 REL="$FILE_PATH"
-if [[ "$REL" == "$PROJECT_ROOT/"* ]]; then
-    REL="${REL#$PROJECT_ROOT/}"
+if [[ "$REL" == "$PROJECT/"* ]]; then
+    REL="${REL#$PROJECT/}"
 fi
 
-# -- Check exempt/protected status from config/protected-paths.json --
+# ── Check exempt/protected status from config/protected-paths.json ─────
 # Single source of truth — no hardcoded patterns.
 # Self-check: this hook file is always protected regardless of config.
-CONFIG="$PROJECT_ROOT/config/protected-paths.json"
-HOOK_SELF="hooks/hook-pre-edit-gate.sh"
-
-PROTECTED=$(PLAN_GATE_CONFIG="$CONFIG" PLAN_GATE_REL="$REL" PLAN_GATE_SELF="$HOOK_SELF" python3 <<'PYEOF'
+CONFIG="$PROJECT/config/protected-paths.json"
+PROTECTED=$(PLAN_GATE_CONFIG="$CONFIG" PLAN_GATE_REL="$REL" /opt/homebrew/bin/python3.11 <<'PYEOF'
 import json, os, sys, fnmatch
 
 config_path = os.environ["PLAN_GATE_CONFIG"]
 rel = os.environ["PLAN_GATE_REL"]
-hook_self = os.environ["PLAN_GATE_SELF"]
 
 # Self-check: this hook is always protected
-if rel == hook_self:
+if rel == "scripts/hook-pre-edit-gate.sh":
     print("yes")
     sys.exit(0)
 
@@ -79,6 +77,7 @@ for pat in config.get("exempt_patterns", []):
 for pat in config.get("protected_globs", []):
     # fnmatch doesn't handle ** well; expand ** to match any depth
     if "**" in pat:
+        # skills/**/*.md → skills/*.md, skills/*/*.md, skills/*/*/*.md
         base, rest = pat.split("**", 1)
         for depth in range(4):
             expanded = base + ("*/" * depth) + rest.lstrip("/")
@@ -93,17 +92,17 @@ print("no")
 PYEOF
 )
 
-# Not protected -> allow
+# Not protected → allow
 [ "$PROTECTED" != "yes" ] && exit 0
 
-# -- Protected path hit. Check for matching plan artifact --
-# Requirements:
+# ── Protected path hit. Check for matching plan artifact ───────────────
+# Requirements (from debate judgment 2026-03-25):
 #   1. Only *-plan.md files count (proposals lack structured scope metadata)
-#   2. Deterministic frontmatter parser (stdlib only)
+#   2. Deterministic frontmatter parser (stdlib only — no PyYAML dependency)
 #   3. surfaces_affected must match target via exact path or fnmatch glob
 #   4. Artifact must be modified within 24 hours AND match content
 #   5. Fail closed: parse failure or missing surfaces_affected = no match
-PLAN_MATCH=$(PLAN_GATE_TASKS="$TASKS" PLAN_GATE_REL="$REL" python3 <<'PYEOF'
+PLAN_MATCH=$(PLAN_GATE_TASKS="$TASKS" PLAN_GATE_REL="$REL" /opt/homebrew/bin/python3.11 <<'PYEOF'
 import os, sys, fnmatch, re, time
 
 tasks_dir = os.environ["PLAN_GATE_TASKS"]
@@ -196,6 +195,6 @@ if [ "$PLAN_MATCH" = "yes" ]; then
     exit 0
 fi
 
-# -- No matching plan found -> BLOCK --
-printf '{"hookSpecificOutput":{"hookEventName":"PreToolUse","permissionDecision":"block","permissionDecisionReason":"BLOCKED: %s is a protected path. Write tasks/<topic>-plan.md with surfaces_affected listing this file before editing. Required frontmatter: scope, surfaces_affected, verification_commands, rollback, review_tier."}}\n' "$REL"
+# ── No matching plan found → BLOCK ────────────────────────────────────
+printf '{"hookSpecificOutput":{"hookEventName":"PreToolUse","permissionDecision":"block","permissionDecisionReason":"BLOCKED: %s is a protected path. Write tasks/<topic>-plan.md with surfaces_affected listing this file before editing. Required frontmatter: scope, surfaces_affected, verification_commands, rollback, review_tier. See .claude/rules/session-discipline.md."}}\n' "$REL"
 exit 2

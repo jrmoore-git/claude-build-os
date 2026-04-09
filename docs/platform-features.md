@@ -153,14 +153,30 @@ Use these alongside — not instead of — the handoff file. Native session cont
 
 ---
 
-## 7. Subagents (.claude/agents/)
+## 7. Built-in Subagents
 
-Define custom subagents with restricted capabilities:
+Claude Code includes three built-in subagent types available via the Agent tool:
+
+| Type | Model | Tools | Use case |
+|------|-------|-------|----------|
+| **Explore** | Haiku (fast) | Read-only (Read, Glob, Grep, WebSearch, WebFetch) | Codebase search, file discovery, research questions |
+| **Plan** | Inherited | Read-only | Research during plan mode |
+| **general-purpose** | Inherited | All tools | Complex multi-step tasks, code changes |
+
+These run automatically when Claude delegates work. Explore agents are cheap and safe to fan out widely (5-10 parallel). General-purpose agents need worktree isolation when running in parallel.
+
+---
+
+## 8. Custom Subagents (.claude/agents/)
+
+Define custom subagents with restricted capabilities. Files live in `.claude/agents/` (project-level) or `~/.claude/agents/` (user-level).
+
+### Basic example — read-only researcher
 
 ```yaml
 # .claude/agents/researcher.yaml
 name: researcher
-description: Read-only research agent
+description: Read-only research agent for codebase exploration
 tools:
   - Read
   - Glob
@@ -169,9 +185,74 @@ tools:
 model: haiku
 ```
 
-- **Tool restrictions.** Limit what tools the subagent can use — for example, a researcher that can read but not write.
-- **Model override.** Use cheaper models for simple subagent tasks.
-- **Worktree isolation.** Add `isolation: worktree` for subagents that need an isolated copy of the repo.
-- **Skills access.** Subagents can load specific skills.
+### Example — test runner restricted to Bash
 
-Use subagents to delegate investigation without cluttering main context, or to create specialized agents with restricted permissions.
+```yaml
+# .claude/agents/test-runner.yaml
+name: test-runner
+description: Runs tests and reports results — cannot modify code
+tools:
+  - Read
+  - Bash
+  - Glob
+  - Grep
+model: sonnet
+```
+
+### Example — code reviewer with write access
+
+```yaml
+# .claude/agents/implementer.yaml
+name: implementer
+description: Implements code changes in an isolated worktree
+tools:
+  - Read
+  - Write
+  - Edit
+  - Bash
+  - Glob
+  - Grep
+isolation: worktree
+```
+
+### Key capabilities
+
+- **Tool restrictions.** Limit what tools the subagent can use. A researcher that literally cannot write files is the [enforcement ladder](the-build-os.md#part-v-the-enforcement-ladder) applied at the agent level — architectural prevention, not advisory guidance.
+- **Model override.** Use cheaper models for focused tasks. A common pattern: Opus for the lead, Haiku for research subagents, Sonnet for implementation workers.
+- **Worktree isolation.** Add `isolation: worktree` for subagents that write files in parallel. Each gets its own git checkout. Required by `hook-agent-isolation.py` when a parallel plan is active.
+- **Skills access.** Subagents can load specific skills from `.claude/skills/`.
+
+### Scope hierarchy
+
+Custom agents are discovered in order: project (`.claude/agents/`) → user (`~/.claude/agents/`). Project-level definitions take precedence over user-level definitions with the same name.
+
+### Connecting to hooks
+
+Two hooks govern subagent behavior:
+
+- **`SubagentStart`** — fires when any subagent is spawned. Use for auditing or restricting subagent behavior at the governance level.
+- **`hook-agent-isolation.py`** (Build OS) — blocks write-capable Agent dispatches without `isolation: "worktree"` after a parallel plan is declared. This enforces isolation as a structural gate, not a suggestion.
+
+---
+
+## 9. Headless and Programmatic Mode
+
+Claude Code can run non-interactively for CI/CD pipelines and automation scripts:
+
+```bash
+# Single prompt, no interactive session
+claude -p "Run the test suite and report failures"
+
+# Pipe input
+echo "Explain this error" | claude -p
+
+# With specific model
+claude -p --model sonnet "Summarize changes in the last 5 commits"
+```
+
+This is relevant for:
+- **CI/CD integration** — run code review, test analysis, or doc generation as pipeline steps
+- **Automated workflows** — scripts that invoke Claude for classification, summarization, or structured extraction
+- **Batch processing** — process multiple files or inputs programmatically
+
+Headless mode respects the same `.claude/` configuration (CLAUDE.md, rules, settings, hooks) as interactive mode. Hooks fire normally. The key difference: there is no interactive approval — permissions must be pre-configured in settings or the command will fail on any action that requires user confirmation.

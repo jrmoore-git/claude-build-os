@@ -1,15 +1,15 @@
-#!/usr/bin/env python3
+#!/usr/bin/env python3.11
 """
 finding_tracker.py — Per-finding state machine for debate findings.
 
-Tracks individual findings through: open -> addressed | waived | obsolete.
+Tracks individual findings through: open → addressed | waived | obsolete.
 Store: stores/findings.jsonl (append-only, last-write-wins per finding_id).
 
 Usage:
-    python3 scripts/finding_tracker.py import --judgment tasks/<topic>-judgment.md
-    python3 scripts/finding_tracker.py list --debate-id <topic> [--state open]
-    python3 scripts/finding_tracker.py transition --finding-id <topic>:3 --to addressed --reason "Fixed in abc123"
-    python3 scripts/finding_tracker.py summary --debate-id <topic>
+    python3.11 scripts/finding_tracker.py import --judgment tasks/<topic>-judgment.md
+    python3.11 scripts/finding_tracker.py list --debate-id <topic> [--state open]
+    python3.11 scripts/finding_tracker.py transition --finding-id <topic>:3 --to addressed --reason "Fixed in abc123"
+    python3.11 scripts/finding_tracker.py summary --debate-id <topic>
 """
 import argparse
 import json
@@ -19,21 +19,12 @@ import subprocess
 import sys
 from datetime import datetime, timezone
 
-
-def _detect_project_root():
-    """Detect project root via git."""
-    try:
-        result = subprocess.run(
-            ["git", "rev-parse", "--show-toplevel"],
-            capture_output=True, text=True, timeout=5)
-        if result.returncode == 0:
-            return result.stdout.strip()
-    except (subprocess.TimeoutExpired, FileNotFoundError):
-        pass
-    return os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-
-
-PROJECT_ROOT = _detect_project_root()
+try:
+    PROJECT_ROOT = subprocess.check_output(
+        ["git", "rev-parse", "--show-toplevel"], text=True, stderr=subprocess.DEVNULL
+    ).strip()
+except (subprocess.CalledProcessError, FileNotFoundError):
+    PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 STORE_PATH = os.path.join(PROJECT_ROOT, "stores/findings.jsonl")
 
 VALID_STATES = {"open", "addressed", "waived", "obsolete"}
@@ -194,7 +185,7 @@ def cmd_transition(args):
         sys.exit(1)
 
     if (old_state, new_state) not in VALID_TRANSITIONS:
-        print(f"ERROR: Invalid transition {old_state} -> {new_state}. "
+        print(f"ERROR: Invalid transition {old_state} → {new_state}. "
               f"Valid from {old_state}: {[t[1] for t in VALID_TRANSITIONS if t[0] == old_state]}",
               file=sys.stderr)
         sys.exit(1)

@@ -74,7 +74,7 @@ The essential eight invariants apply to every change: idempotency, approval gati
 
 ## Definition of Done
 
-Behavior matches spec. Tests pass (`tests/run_all.sh`). Audit log shows expected events. Rollback plan exists. Negative tests run. Review completed via `/review`.
+Behavior matches spec. Tests pass. Audit log shows expected events. Rollback plan exists. Negative tests run. Review completed via `/review`.
 
 ## Rule Enforcement
 

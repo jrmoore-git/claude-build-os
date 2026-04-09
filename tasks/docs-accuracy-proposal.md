@@ -772,7 +772,7 @@ TIER1_PATTERNS = [
 
 # ── Tier 1.5: core skills, toolbelt scripts, hooks ──────────────────────
 # Customize: list your project's core skill names.
-CORE_SKILLS = ""  # e.g., "morning-briefing|email-triage|approval-queue"
+CORE_SKILLS = ""  # e.g., "auth-flow|data-pipeline|notifications"
 
 TIER15_PATTERNS = [
     *(

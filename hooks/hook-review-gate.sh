@@ -8,10 +8,10 @@
 #   4. tasks/*-review.md (legacy compat) newer than staged files
 #
 # Warns: skills/, *_tool.py, .claude/rules/, hook scripts, security files.
+# No hard blocks since D78 — skills/rules/tools are Tier 2 (log only).
 
 INPUT=$(cat)
-PROJECT=$(git rev-parse --show-toplevel 2>/dev/null || pwd)
-COMMAND=$(printf '%s' "$INPUT" | python3 -c "import sys,json; d=json.load(sys.stdin); print(d.get('tool_input',{}).get('command',''))" 2>/dev/null)
+COMMAND=$(printf '%s' "$INPUT" | /opt/homebrew/bin/python3.11 -c "import sys,json; d=json.load(sys.stdin); print(d.get('tool_input',{}).get('command',''))" 2>/dev/null)
 
 case "$COMMAND" in
   git\ commit*)
@@ -21,18 +21,23 @@ case "$COMMAND" in
       exit 0
     fi
 
+    PROJECT="$(git rev-parse --show-toplevel)"
     STAGED=$(cd "$PROJECT" && git diff --cached --name-only 2>/dev/null)
     [ -z "$STAGED" ] && exit 0
 
     # --- Classify staged files via tier_classify.py ---
-    RISK_LEVEL=$(echo "$STAGED" | python3 -c "
-import sys, json, subprocess
+    # Since D78 (2026-03-13), skills/rules/tools are Tier 2 (log only).
+    # Only trust boundary and schema changes need debate artifacts.
+    RISK_LEVEL=$(echo "$STAGED" | PLAN_GATE_PROJECT="$PROJECT" /opt/homebrew/bin/python3.11 -c "
+import os, sys, json
 
+project = os.environ['PLAN_GATE_PROJECT']
 stdin_text = sys.stdin.read()
+import subprocess
 result = subprocess.run(
-    [sys.executable, 'scripts/tier_classify.py', '--stdin'],
+    ['/opt/homebrew/bin/python3.11', 'scripts/tier_classify.py', '--stdin'],
     input=stdin_text, capture_output=True, text=True,
-    cwd='$PROJECT'
+    cwd=project
 )
 try:
     d = json.loads(result.stdout)
@@ -56,10 +61,11 @@ else:
     [ "$RISK_LEVEL" = "ok" ] && exit 0
 
     # --- Find newest staged file mtime ---
-    NEWEST_STAGED=$(python3 -c "
+    NEWEST_STAGED=$(PLAN_GATE_PROJECT="$PROJECT" /opt/homebrew/bin/python3.11 -c "
 import os, subprocess, sys
+project = os.environ['PLAN_GATE_PROJECT']
 result = subprocess.run(
-    ['git', '-C', '$PROJECT', 'diff', '--cached', '--name-only'],
+    ['git', '-C', project, 'diff', '--cached', '--name-only'],
     capture_output=True, text=True
 )
 newest = 0
@@ -67,7 +73,7 @@ for rel in result.stdout.splitlines():
     rel = rel.strip()
     if not rel:
         continue
-    full = os.path.join('$PROJECT', rel)
+    full = os.path.join(project, rel)
     try:
         newest = max(newest, os.path.getmtime(full))
     except OSError:
@@ -77,16 +83,12 @@ print(newest)
 
     # --- Check for valid debate artifacts ---
     TASKS="$PROJECT/tasks"
-    ARTIFACT_VALID=$(python3 -c "
+    ARTIFACT_VALID=$(/opt/homebrew/bin/python3.11 -c "
 import os, re, sys
 
 tasks = '$TASKS'
 newest_staged = float('$NEWEST_STAGED')
 found_valid = False
-
-if not os.path.isdir(tasks):
-    print('no')
-    sys.exit(0)
 
 for f in sorted(os.listdir(tasks)):
     path = os.path.join(tasks, f)
@@ -97,6 +99,7 @@ for f in sorted(os.listdir(tasks)):
     if mtime <= newest_staged:
         continue
 
+    # Check 1: challenge file with frontmatter + MATERIAL + verdict
     if f.endswith('-challenge.md'):
         try:
             content = open(path).read()
@@ -109,6 +112,7 @@ for f in sorted(os.listdir(tasks)):
             found_valid = True
             break
 
+    # Check 2: resolution file with PM/UX Assessment
     if f.endswith('-resolution.md'):
         try:
             content = open(path).read()
@@ -118,6 +122,7 @@ for f in sorted(os.listdir(tasks)):
             found_valid = True
             break
 
+    # Check 3: legacy review file
     if f.endswith('-review.md'):
         found_valid = True
         break
@@ -131,7 +136,8 @@ print('yes' if found_valid else 'no')
 
     # --- No valid artifacts found ---
     if [ "$RISK_LEVEL" = "tier1" ]; then
-      printf '{"hookSpecificOutput":{"hookEventName":"PreToolUse","permissionDecision":"block","permissionDecisionReason":"BLOCKED: Tier 1 files staged without debate artifacts. Run cross-model debate before committing."}}\n'
+      # HARD BLOCK for Tier 1 files (PRD, schema, trust boundary)
+      printf '{"hookSpecificOutput":{"hookEventName":"PreToolUse","permissionDecision":"block","permissionDecisionReason":"BLOCKED: Tier 1 files staged without debate artifacts. Run cross-model debate before committing. See .claude/rules/review-protocol.md."}}\n'
       exit 2
     fi
 

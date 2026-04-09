@@ -1,11 +1,10 @@
 ---
 description: AI slop detection checklist and anti-pattern vocabulary for frontend and content output
 globs:
-  - "frontend/**"
   - "app/**"
 ---
 
-# Design -- AI Slop Detection
+# Design — AI Slop Detection
 
 ## AI Slop Checklist
 
@@ -24,6 +23,4 @@ Watch for these anti-patterns in generated UI and content. Any match = rewrite.
 
 ## Anti-Slop Vocabulary
 
-Words to NEVER use in output, docs, or generated content:
-
-delve, crucial, robust, comprehensive, nuanced, leverage, facilitate, utilize, streamline, cutting-edge, state-of-the-art, paradigm, synergy, holistic, scalable (when not discussing actual scaling), ecosystem (when not discussing actual ecosystems), empower, innovative, seamless, transformative
+See `code-quality.md` for the full banned word list — applies to all output, not just design.

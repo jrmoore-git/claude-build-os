@@ -45,13 +45,23 @@ A full adversarial pipeline that produces a refined specification. The flow is: 
 
 ### Stage 3: `/review` -- Is the implementation correct?
 
-Cross-model code review where three models examine the diff through independent lenses: PM (does it match the spec?), Security (does it introduce vulnerabilities?), and Architecture (is it well-structured?).
+Cross-model code review where three models examine the diff through independent lenses, each with a specific focus:
+- **Architecture:** System design, component boundaries, data flow, scaling, integration risks
+- **Security:** Trust boundaries, injection vectors (SQL, shell, prompt, XSS, SSRF), credential handling, exfiltration paths
+- **PM/Acceptance:** User value, over-engineering, scope sizing, spec compliance (positive and negative)
 
-**Special behavior:** If `tasks/<topic>-refined.md` exists from a prior debate, the PM lens escalates to strict spec compliance -- every requirement in the refined spec must be addressed.
+Each reviewer tags quantitative claims with an evidence basis: **EVIDENCED** (cite specific data), **ESTIMATED** (state assumptions), or **SPECULATIVE** (no data — needs verification). Speculative claims alone cannot drive a material verdict. Reviewers evaluate **both directions of risk** — what could go wrong with the change AND what continues to fail without it.
+
+**Spec compliance:** If `tasks/<topic>-refined.md` exists from a prior debate, the PM lens escalates to strict spec compliance. This includes **negative compliance** — extracting all EXCEPTION, MUST NOT, and EXPLICITLY EXCLUDED clauses from the spec and verifying the diff does not contradict them. Violations are tagged `[MATERIAL] SPEC VIOLATION:`.
+
+**Modes:**
+- `/review` — read-only findings report
+- `/review --fix` — after review, auto-fix mechanical issues and present judgment calls for approval
+- `/review --fix-loop` — automated fix → re-review cycle (max 3 iterations). Each iteration: apply fixes, re-run cross-model review. Stops when no material findings remain or after 3 iterations (whichever comes first). Escalates to manual review if findings persist.
 
 **When to run:** Every non-trivial change, before commit.
 
-**Output:** `tasks/<topic>-review.md` with findings categorized as BLOCKING (max 5), CONCERNS (max 5), and VERIFIED (bullet list).
+**Output:** `tasks/<topic>-review.md` with findings categorized as MATERIAL (must fix) or ADVISORY (worth noting), grouped by lens.
 
 ## Typical Paths by Change Type
 
@@ -67,10 +77,34 @@ The engine (`scripts/debate.py`) powers all three stages. It sends the same prom
 
 ### Model Selection Principles
 
-- **Use at least three models from different families.** This prevents self-preference bias where a model rates its own output higher.
-- **Assign the judge role to a different family than the author.** The judge should be the empirically strictest reviewer.
-- **Rotate all models through refinement.** Each model contributes to the final refined spec.
+- **Use all three model families as challengers.** This prevents self-preference bias where a model rates its own output higher. The default mapping assigns each family at least one persona: Gemini (architect + staff), GPT (security), Claude (PM).
+- **Assign the judge role to a different family than the author.** The judge (GPT by default) should be the empirically strictest reviewer. Since Claude is typically the code author, having Claude also judge its own work produces sycophantic results.
+- **Avoid self-review bias.** Claude serves as PM challenger (product reasoning, spec compliance) rather than staff/architecture reviewer — reviewing product fit is less prone to self-preference than reviewing code quality of code Claude itself wrote.
+- **Rotate all models through refinement.** Each model contributes to the final refined spec (gemini → gpt → claude rotation).
 - **Always include a PM challenger.** Product perspective catches scope drift and spec violations that technical reviewers miss.
+
+Model-to-persona assignments are configured in `config/debate-models.json` and can be changed without code modifications.
+
+### Verifier Tools (--enable-tools)
+
+When `--enable-tools` is passed to `debate.py challenge`, challengers get access to read-only verifier tools that let them check claims against the actual codebase:
+
+- **check_function_exists** — Verify a function/class/subcommand exists at the stated location
+- **check_test_coverage** — Find test files for a given source file
+- **count_records** — Count rows in a SQLite table (no content access)
+- **get_recent_costs** — Query API cost data from audit logs
+
+These tools convert speculative claims into evidenced ones. A challenger saying "this function might not exist" can verify it directly. Tools are read-only — they cannot modify files or data.
+
+### Proposal Quality Requirements
+
+Debate proposals grounded in abstract risk analysis instead of empirical evidence produce wrong recommendations. Proposals must include:
+
+1. **3+ concrete failure examples** from the current system (not hypothetical)
+2. **Measured cost estimates** using actual operational parameters (frequency, batch size, rate limits)
+3. **Tested baseline performance** of the "simpler alternative" before recommending it
+
+The `/challenge` skill enforces a structured proposal template with sections for Current System Failures, Operational Context, and Baseline Performance. `debate.py` warns when these sections are missing.
 
 ### Security Veto
 

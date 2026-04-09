@@ -6,27 +6,40 @@ Technical internals for every script in the Build OS. Each script is a standalon
 
 Cross-model adversarial review automation. This is the most important script: it orchestrates the full challenge → judge → refine pipeline by routing proposals through multiple AI models via a LiteLLM proxy.
 
-The problem it solves: a single model reviewing its own work produces sycophantic reviews. debate.py sends proposals to different model families (GPT-5.4, Gemini 3.1 Pro, Claude Opus) with adversarial system prompts, then has an independent judge evaluate the challenges, and finally runs iterative cross-model refinement seeded by the judge's accepted findings.
+The problem it solves: a single model reviewing its own work produces sycophantic reviews. debate.py sends proposals to different model families (Gemini 3.1 Pro, GPT-5.4, Claude Opus) with adversarial system prompts, then has an independent judge evaluate the challenges, and finally runs iterative cross-model refinement seeded by the judge's accepted findings. All three model families participate as both challengers and refiners, with the judge assigned to a different family than the code author to avoid self-preference bias.
 
 ### Subcommands
 
 **challenge** — Send a proposal to challenger models for adversarial review. Each challenger receives the proposal (with author metadata redacted) and a role-specific adversarial prompt. Challengers must tag each finding with a type (RISK, ASSUMPTION, ALTERNATIVE, OVER-ENGINEERED, UNDER-ENGINEERED) and a materiality label (MATERIAL or ADVISORY).
 
 ```
-python3 scripts/debate.py challenge \
+python3.11 scripts/debate.py challenge \
     --proposal tasks/auth-redesign-proposal.md \
     --personas architect,security,pm \
     --output tasks/auth-redesign-challenge.md
 ```
 
-Personas map to models: architect → gpt-5.4, staff → gemini-3.1-pro, security → gpt-5.4, pm → gemini-3.1-pro. Each persona gets a role-specific adversarial prompt (architecture concerns, security focus, operational feasibility, or user value). Note that personas sharing a model are deduplicated — `--personas architect,security` produces one challenger since both map to gpt-5.4. Alternatively, pass `--models gpt-5.4,gemini-3.1-pro` directly with a generic adversarial prompt. An optional `--system-prompt` flag (takes a file path) overrides the default prompt entirely.
+Personas map to models via `config/debate-models.json`. The default assignments balance all three model families across four personas:
+
+| Persona | Default model | Rationale |
+|---------|--------------|-----------|
+| architect | gemini-3.1-pro | Systems reasoning, architecture benchmarks |
+| staff | gemini-3.1-pro | Code quality review by a different family than the author |
+| security | gpt-5.4 | Strictest reviewer, best at finding edge cases |
+| pm | claude-opus-4-6 | Product reasoning, spec compliance, user empathy |
+
+The judge defaults to gpt-5.4 (different family from the typical Claude author avoids self-preference bias). The refinement rotation cycles all three families: gemini → gpt → claude.
+
+Each persona gets a role-specific adversarial prompt (architecture concerns, security focus, operational feasibility, or user value). Note that personas sharing a model are deduplicated — `--personas architect,staff` produces one challenger since both map to gemini-3.1-pro. Alternatively, pass `--models gpt-5.4,gemini-3.1-pro` directly with a generic adversarial prompt. An optional `--system-prompt` flag (takes a string or file path) overrides the default prompt entirely — used by `/review` to replace adversarial challenge prompts with review-specific persona lens definitions.
+
+**`--enable-tools`** gives challengers access to read-only verifier tools (check_function_exists, check_test_coverage, count_records, get_recent_costs). These let challengers verify claims against the actual codebase rather than speculating. Tools are sandboxed to read-only operations.
 
 Produces: `tasks/<topic>-challenge.md` with YAML frontmatter containing `debate_id`, `created` timestamp, and a `mapping` of challenger labels (A, B, C...) to model names. Also prints a JSON status object to stdout with `status`, `challengers` count, `mapping`, and any `warnings`.
 
 **judge** — Independent evaluation of challenges by a non-author model. The judge receives the proposal and challenges (with challenger sections shuffled to eliminate position bias), then issues ACCEPT, DISMISS, or ESCALATE on each MATERIAL challenge with a confidence score (0.0–1.0).
 
 ```
-python3 scripts/debate.py judge \
+python3.11 scripts/debate.py judge \
     --proposal tasks/auth-redesign-proposal.md \
     --challenge tasks/auth-redesign-challenge.md \
     --output tasks/auth-redesign-judgment.md
@@ -39,33 +52,33 @@ Produces: `tasks/<topic>-judgment.md` with accepted/dismissed/escalated counts. 
 **refine** — Iterative cross-model document improvement. Each round, a different model reviews and rewrites the document. The first round is seeded with accepted challenges from the judgment file so models know exactly what to fix.
 
 ```
-python3 scripts/debate.py refine \
+python3.11 scripts/debate.py refine \
     --document tasks/auth-redesign-proposal.md \
     --judgment tasks/auth-redesign-judgment.md \
     --rounds 3 \
     --output tasks/auth-redesign-refined.md
 ```
 
-Default model rotation: gemini-3.1-pro → gpt-5.4 → claude-opus-4-6 (cycles if rounds exceed model count). Default rounds: 6. Each round produces review notes and a complete revised document; the revised document feeds into the next round.
+Default model rotation: gemini-3.1-pro → gpt-5.4 → claude-opus-4-6 (cycles if rounds exceed model count). All three model families participate in refinement, ensuring no single family's biases dominate the final output. Default rounds: 6. Each round produces review notes and a complete revised document; the revised document feeds into the next round.
 
 Produces: `tasks/<topic>-refined.md` with per-round review notes and the final refined document.
 
 **compare** — Score two review methods against the same original document on five dimensions (accuracy, completeness, constructiveness, efficiency, artifact quality). Useful for evaluating whether the full pipeline outperforms simpler review approaches.
 
 ```
-python3 scripts/debate.py compare \
+python3.11 scripts/debate.py compare \
     --original tasks/auth-redesign-proposal.md \
     --method-a tasks/auth-redesign-challenge.md \
     --method-b tasks/auth-redesign-refined.md \
     --output tasks/auth-redesign-compare.md
 ```
 
-Default judge: gemini-3.1-pro. Produces a scorecard with METHOD_A / METHOD_B / TIE verdict.
+Default judge: gpt-5.4. Produces a scorecard with METHOD_A / METHOD_B / TIE verdict.
 
 **verdict** (legacy) — Sends a resolution back to the original challengers for a final APPROVE / REVISE / REJECT. This was the original pipeline's final step before the judge subcommand replaced it. Still functional but the standard pipeline now uses judge + refine instead.
 
 ```
-python3 scripts/debate.py verdict \
+python3.11 scripts/debate.py verdict \
     --resolution tasks/auth-redesign-resolution.md \
     --challenge tasks/auth-redesign-challenge.md \
     --output tasks/auth-redesign-verdict.md
@@ -103,13 +116,13 @@ The problem it solves: commit-time hooks need to know whether staged files requi
 
 ```
 # Classify specific files
-python3 scripts/tier_classify.py scripts/debate.py docs/project-prd.md
+python3.11 scripts/tier_classify.py scripts/debate.py docs/project-prd.md
 
 # Classify files from git diff
-python3 scripts/tier_classify.py --diff-base main
+python3.11 scripts/tier_classify.py --diff-base main
 
 # Classify from stdin (one path per line)
-echo "scripts/debate.py" | python3 scripts/tier_classify.py --stdin
+echo "scripts/debate.py" | python3.11 scripts/tier_classify.py --stdin
 ```
 
 ### Output
@@ -161,16 +174,16 @@ The problem it solves: governance files grow over time. Manually scanning 80+ le
 
 ```
 # BM25 search across all files
-python3 scripts/recall_search.py oauth token refresh
+python3.11 scripts/recall_search.py oauth token refresh
 
 # Search only lessons and decisions
-python3 scripts/recall_search.py --files lessons,decisions sqlite timeout
+python3.11 scripts/recall_search.py --files lessons,decisions sqlite timeout
 
 # Semantic search (requires Ollama)
-python3 scripts/recall_search.py --semantic "database migration failures"
+python3.11 scripts/recall_search.py --semantic "database migration failures"
 
 # JSON output for programmatic use
-python3 scripts/recall_search.py --json --top-k 3 hook gate bypass
+python3.11 scripts/recall_search.py --json --top-k 3 hook gate bypass
 ```
 
 ### Flags
@@ -210,7 +223,7 @@ Valid transitions: open → addressed, open → waived, open → obsolete. No ot
 **import** — Parse a judgment file and import all ACCEPT findings as open.
 
 ```
-python3 scripts/finding_tracker.py import \
+python3.11 scripts/finding_tracker.py import \
     --judgment tasks/auth-redesign-judgment.md
 ```
 
@@ -219,14 +232,14 @@ Idempotent: already-imported findings are skipped.
 **list** — List findings for a debate, optionally filtered by state.
 
 ```
-python3 scripts/finding_tracker.py list --debate-id auth-redesign
-python3 scripts/finding_tracker.py list --debate-id auth-redesign --state open
+python3.11 scripts/finding_tracker.py list --debate-id auth-redesign
+python3.11 scripts/finding_tracker.py list --debate-id auth-redesign --state open
 ```
 
 **transition** — Move a finding to a new state.
 
 ```
-python3 scripts/finding_tracker.py transition \
+python3.11 scripts/finding_tracker.py transition \
     --finding-id auth-redesign:3 \
     --to addressed \
     --reason "Fixed in commit abc123"
@@ -235,7 +248,7 @@ python3 scripts/finding_tracker.py transition \
 **summary** — Counts by state for a debate.
 
 ```
-python3 scripts/finding_tracker.py summary --debate-id auth-redesign
+python3.11 scripts/finding_tracker.py summary --debate-id auth-redesign
 ```
 
 Output: `{"debate_id": "auth-redesign", "open": 2, "addressed": 3, "waived": 0, "obsolete": 0}`
@@ -258,10 +271,18 @@ Sits between proposal authoring and the challenge step. The enrichment output (J
 ### Usage
 
 ```
-python3 scripts/enrich_context.py \
+# Default enrichment
+python3.11 scripts/enrich_context.py \
     --proposal tasks/auth-redesign-proposal.md \
     --top-k 5
+
+# Scoped enrichment (adjusts keyword weighting by stage)
+python3.11 scripts/enrich_context.py \
+    --proposal tasks/auth-redesign-proposal.md \
+    --scope challenge    # or: debate, review
 ```
+
+The `--scope` parameter adjusts keyword extraction and scoring weights for the pipeline stage. For example, `--scope review` emphasizes implementation-related terms, while `--scope challenge` emphasizes problem-space terms. Without `--scope`, uses balanced defaults.
 
 ### Output
 
@@ -285,7 +306,46 @@ Keyword extraction: up to 8 keywords from frontmatter `scope:` field, first head
 
 ### Used by
 
-Standalone CLI tool. Run manually before `debate.py challenge` to surface relevant prior context for challengers. Calls `recall_search.py` internally with `--json` output. Note: `debate.py` does not call this script automatically — you run it yourself and append its output to the proposal or pass it as additional context.
+Called by `/challenge`, `/debate`, and `/review` skills to enrich context before sending to cross-model reviewers. Also usable as a standalone CLI tool. Calls `recall_search.py` internally with `--json` output.
+
+
+## pipeline_manifest.py
+
+Tracks pipeline stage completion for a topic. Records which skills have run, what artifacts they produced, and their status.
+
+The problem it solves: a topic may pass through `/challenge` → `/plan` → build → `/review` across multiple sessions. Without a manifest, you have to manually check for each artifact file. This script provides a single query point for pipeline progress.
+
+### Subcommands
+
+**add** — Record a completed pipeline stage.
+
+```
+python3.11 scripts/pipeline_manifest.py add auth-redesign \
+    --skill challenge \
+    --artifact tasks/auth-redesign-challenge.md \
+    --status complete \
+    --recommendation PROCEED
+```
+
+**show** — Display pipeline progress for a topic.
+
+```
+python3.11 scripts/pipeline_manifest.py show auth-redesign
+```
+
+**validate** — Check whether all required stages for a given tier are complete.
+
+```
+python3.11 scripts/pipeline_manifest.py validate auth-redesign --tier T1
+```
+
+### Output
+
+Manifests are written to `tasks/<topic>-manifest.json`. The `show` and `validate` subcommands output JSON to stdout.
+
+### Used by
+
+`/challenge`, `/debate`, `/plan`, and `/review` skills call `add` after completing their stage. `/ship` calls `validate` to check pipeline completeness.
 
 
 ## artifact_check.py
@@ -310,8 +370,8 @@ Also counts open material findings by calling `finding_tracker.py summary` if `s
 ### Usage
 
 ```
-python3 scripts/artifact_check.py --scope auth-redesign
-python3 scripts/artifact_check.py --scope auth-redesign --base main
+python3.11 scripts/artifact_check.py --scope auth-redesign
+python3.11 scripts/artifact_check.py --scope auth-redesign --base main
 ```
 
 ### Output
@@ -335,3 +395,93 @@ JSON to stdout:
 ### Used by
 
 Standalone CLI tool. The hooks replicate similar validation logic inline rather than calling this script directly. Use `artifact_check.py` for manual pre-commit checks or in CI pipelines.
+
+
+## check-current-state-freshness.py
+
+Detects whether `docs/current-state.md` is stale relative to recent git activity. Used by `/recall` to prevent trusting a frozen "Next Action" from a previous session.
+
+The problem it solves: if a session exits without running `/wrap-session`, the `hook-stop-autocommit.py` safety net captures uncommitted work and marks `current-state.md` with a `## ⚠ STALE` warning. But staleness can also happen without the marker — if commits land after the date in the current-state header. This script detects both cases.
+
+### What it checks
+
+1. Parses the date from the `# Current State — YYYY-MM-DD` header
+2. Checks for an explicit `## ⚠ STALE` marker (injected by `hook-stop-autocommit.py`)
+3. Compares the header date against the latest git commit date
+4. If the latest commit is >24 hours after the header date, or the stale marker exists, reports stale
+
+### Usage
+
+```
+python3.11 scripts/check-current-state-freshness.py
+```
+
+### Output
+
+JSON to stdout:
+
+```json
+{
+  "is_stale": true,
+  "current_state_date": "2026-03-30",
+  "latest_commit_date": "2026-04-01",
+  "days_behind": 2,
+  "has_stale_marker": true,
+  "recent_commits": ["f3c306b App v2 reliability fix", "dea3eb5 Session capture"],
+  "message": "current-state.md has an explicit STALE marker. current-state.md date (2026-03-30) is 2 day(s) behind latest commit (2026-04-01). Do NOT trust 'Next Action' — check recent commits and session-log instead."
+}
+```
+
+When not stale: `{"is_stale": false}`.
+
+### Used by
+
+The `/recall` skill calls this in step 0c. When `is_stale` is true, `/recall` adds a warning to the session brief and derives its "Next" recommendations from git log + session-log instead of the frozen current-state doc.
+
+
+## verify_state.py
+
+Parallel health check runner. Reads a configurable list of health checks from `config/health-checks.json`, runs all checks concurrently with per-check timeouts, and reports pass/fail.
+
+The problem it solves: session-close and deployment need a single command that verifies the system is healthy — databases accessible, services running, governance counts within limits. This script makes that check fast (parallel execution), reliable (per-check timeouts prevent hangs), and configurable (JSON-driven check list).
+
+### How it works
+
+1. Reads `config/health-checks.json` — each check has an `id`, `name`, shell `cmd`, `ok_text`, `fail_text`, and optional `timeout_s` (default: 10s)
+2. Runs all checks in parallel using `ThreadPoolExecutor`
+3. Each check runs its shell command; exit code 0 = pass, non-zero = fail, timeout = fail
+4. Writes results atomically to `/tmp/verify-state-output.json`
+5. Prints a summary to stdout: `verify-state: N/M OK` or `verify-state: N/M OK, K FAILING` with details
+
+### Usage
+
+```
+# Run all checks (excludes test suite by default)
+python3.11 scripts/verify_state.py
+
+# Include the test suite check
+python3.11 scripts/verify_state.py --include-tests
+```
+
+### Output
+
+JSON written to `/tmp/verify-state-output.json`:
+
+```json
+{
+  "timestamp": "2026-04-02T16:00:00.000000",
+  "pass": 5,
+  "fail": 1,
+  "total": 6,
+  "checks": [
+    {"id": "db_accessible", "name": "Database accessible", "status": "ok", "detail": "Database responds"},
+    {"id": "rules_size", "name": "Rules under 50KB", "status": "fail", "detail": "Rules exceed 50KB limit"}
+  ]
+}
+```
+
+Exit code: 0 if all pass, 1 if any fail.
+
+### Used by
+
+`hook-stop-autocommit.py` and `/wrap-session` call this at session close. Also used by `/ship` as a pre-deploy health check. The `--include-tests` flag adds the full test suite — excluded by default to keep session-close fast.

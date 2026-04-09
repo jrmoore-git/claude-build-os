@@ -45,7 +45,7 @@ python3 scripts/debate.py challenge \
   --output tasks/<topic>-debate.md
 ```
 
-Parse JSON stdout. If all challengers failed, display warning and stop: "Challenge phase failed (model routing may be down). Partial artifact at `tasks/<topic>-debate.md`. Retry later or proceed with what exists."
+Parse JSON stdout. If all challengers failed, display warning and stop: "Challenge phase failed (LiteLLM may be down). Partial artifact at `tasks/<topic>-debate.md`. Retry later or proceed with what exists."
 
 Note: output is `-debate.md`, NOT `-challenge.md` — avoids collision with `/challenge` artifacts.
 
@@ -91,9 +91,9 @@ Display:
 
 | Stage     | Artifact                        | Status |
 |-----------|---------------------------------|--------|
-| Challenge | tasks/<topic>-debate.md         | pass/fail |
-| Judgment  | tasks/<topic>-judgment.md       | pass/fail |
-| Refined   | tasks/<topic>-refined.md        | pass/fail |
+| Challenge | tasks/<topic>-debate.md         | ✅/❌   |
+| Judgment  | tasks/<topic>-judgment.md       | ✅/❌   |
+| Refined   | tasks/<topic>-refined.md        | ✅/❌   |
 
 Next: Build the implementation, then run /review <topic>
 ```
@@ -113,4 +113,4 @@ Stop at the step that fails. Partial artifacts are valid. Do not delete them.
 
 - This skill costs ~$0.20-0.75 per run (measured: $0.24 on a small proposal, scales with input size). Reserve for architectural decisions, PRD changes, schema changes, and design uncertainty.
 - Each step checks for existing artifacts and skips if found. Re-running `/debate` after a partial failure resumes where it left off.
-- The judgment uses a different model family from the author to avoid self-preference bias.
+- The judgment uses GPT-5.4 as judge (different model family from Claude to avoid self-preference bias).

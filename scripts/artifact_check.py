@@ -1,4 +1,4 @@
-#!/usr/bin/env python3
+#!/usr/bin/env python3.11
 """
 artifact_check.py — Artifact integrity and staleness checker.
 
@@ -6,7 +6,7 @@ Checks for plan, challenge, judgment, and review artifacts for a given topic.
 Validates frontmatter, staleness relative to source files, and open findings.
 
 Usage:
-    python3 scripts/artifact_check.py --scope <topic> [--base <ref>]
+    python3.11 scripts/artifact_check.py --scope <topic> [--base <ref>]
 """
 import argparse
 import json
@@ -15,21 +15,12 @@ import re
 import subprocess
 import sys
 
-
-def _detect_project_root():
-    """Detect project root via git."""
-    try:
-        result = subprocess.run(
-            ["git", "rev-parse", "--show-toplevel"],
-            capture_output=True, text=True, timeout=5)
-        if result.returncode == 0:
-            return result.stdout.strip()
-    except (subprocess.TimeoutExpired, FileNotFoundError):
-        pass
-    return os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-
-
-PROJECT_ROOT = _detect_project_root()
+try:
+    PROJECT_ROOT = subprocess.check_output(
+        ["git", "rev-parse", "--show-toplevel"], text=True, stderr=subprocess.DEVNULL
+    ).strip()
+except (subprocess.CalledProcessError, FileNotFoundError):
+    PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 TASKS_DIR = os.path.join(PROJECT_ROOT, "tasks")
 
 
@@ -111,6 +102,11 @@ def _check_artifact(name, path, scope_mtime):
         has_fm = bool(re.match(r"^---\n.*?debate_id:", content, re.DOTALL))
         info["valid"] = has_fm
 
+    elif name == "debate":
+        info["has_material"] = bool(re.search(r"MATERIAL", content))
+        has_fm = bool(re.match(r"^---\n.*?debate_id:", content, re.DOTALL))
+        info["valid"] = has_fm
+
     elif name == "judgment":
         accepted = len(re.findall(r"Decision:\s*ACCEPT", content, re.IGNORECASE))
         dismissed = len(re.findall(r"Decision:\s*DISMISS", content, re.IGNORECASE))
@@ -127,7 +123,12 @@ def _check_artifact(name, path, scope_mtime):
 
 
 def _count_open_material(artifacts, scope=None):
-    """Count open material findings. Uses finding_tracker if available, falls back to judgment counts."""
+    """Count open material findings. Review status > finding_tracker > judgment fallback."""
+    # If review exists and passed, findings are resolved
+    review = artifacts.get("review", {})
+    if review.get("exists") and review.get("status") == "passed":
+        return 0
+
     judgment = artifacts.get("judgment", {})
     if not judgment.get("exists"):
         return None  # No judgment yet
@@ -172,6 +173,7 @@ def main():
     artifact_names = {
         "plan": f"tasks/{scope}-plan.md",
         "challenge": f"tasks/{scope}-challenge.md",
+        "debate": f"tasks/{scope}-debate.md",
         "judgment": f"tasks/{scope}-judgment.md",
         "review": f"tasks/{scope}-review.md",
     }

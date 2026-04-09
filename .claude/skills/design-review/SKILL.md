@@ -39,7 +39,7 @@ Run full audit, then load previous `tasks/design-baseline.json`. Compare: per-ca
 ## Auth Detection
 
 After first navigation, check URL with `$B url`. If redirected to `/login`, `/signin`, `/auth`, or `/sso`, STOP and tell the user:
-> "The app redirected to /login. Please provide a valid auth URL or token so I can access the app."
+> "The app redirected to a login page. Please provide valid auth credentials or configure your app's auth mechanism so the review can proceed."
 
 Do NOT attempt to bypass auth or guess tokens.
 
@@ -48,7 +48,7 @@ Do NOT attempt to bypass auth or guess tokens.
 - **Report:** `tasks/design-review-report.md`
 - **Baseline:** `tasks/design-baseline.json`
 - **Screenshots:** `/tmp/design-review/screenshots/`
-- **Design system reference:** `DESIGN.md` (if it exists)
+- **Design system reference:** `app/DESIGN.md` (if it exists)
 
 ---
 
@@ -77,7 +77,7 @@ If running in audit-only mode (no `--fix`), a dirty working tree is fine — the
 
 **Check for DESIGN.md:**
 
-Read `DESIGN.md` if it exists. This is the documented design system. Deviations between documented and rendered values are findings.
+Read `app/DESIGN.md` if it exists. This is the documented design system. Deviations between documented and rendered values are findings.
 
 **Verify browse binary:**
 
@@ -165,7 +165,7 @@ Structure findings as an **Inferred Design System**:
 - **Spacing Patterns:** sample padding/margin values. Flag non-scale values.
 - **Touch Targets:** undersized elements listed.
 
-If `DESIGN.md` exists, compare extracted values against documented values. Flag every deviation as a finding.
+If `app/DESIGN.md` exists, compare extracted values against documented values. Flag every deviation as a finding.
 
 ---
 
@@ -518,7 +518,7 @@ Search for the CSS classes, component names, or style files responsible.
 
 ```bash
 # Example -- find where a class is defined
-# Use Grep to search src/ for the class name or style
+# Use Grep to search app/src/ for the class name or style
 ```
 
 Only read source code during the fix loop, never during audit phases. Start with CSS/SCSS/Tailwind files before touching component files.

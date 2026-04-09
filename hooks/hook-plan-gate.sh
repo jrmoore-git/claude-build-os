@@ -6,20 +6,22 @@
 #
 # Accepts:
 #   1. [EMERGENCY] in commit message — bypass with stderr warning (logged)
-#   2. tasks/*-plan.md with complete YAML frontmatter AND verification_evidence != "PENDING"
+#   2. tasks/*-plan.md with complete YAML frontmatter (all required_plan_fields)
+#      AND verification_evidence != "PENDING"
 #
 # Rejects:
-#   1. [TRIVIAL] on protected paths
+#   1. [TRIVIAL] on protected paths — Claude misclassifies complexity
 #   2. Missing or incomplete plan artifacts
+#   3. Plan with verification_evidence: PENDING
 #
 # Missing config = fail-open (exit 0).
 
 INPUT=$(cat)
-PROJECT=$(git rev-parse --show-toplevel 2>/dev/null || pwd)
-COMMAND=$(printf '%s' "$INPUT" | python3 -c "import sys,json; d=json.load(sys.stdin); print(d.get('tool_input',{}).get('command',''))" 2>/dev/null)
+COMMAND=$(printf '%s' "$INPUT" | /opt/homebrew/bin/python3.11 -c "import sys,json; d=json.load(sys.stdin); print(d.get('tool_input',{}).get('command',''))" 2>/dev/null)
 
 case "$COMMAND" in
   git\ commit*)
+    PROJECT="$(git rev-parse --show-toplevel)"
     CONFIG="$PROJECT/config/protected-paths.json"
     TASKS="$PROJECT/tasks"
 
@@ -30,7 +32,7 @@ case "$COMMAND" in
     [ -z "$STAGED" ] && exit 0
 
     # Check if any staged files match protected globs (minus exempt patterns)
-    PROTECTED_HIT=$(PLAN_GATE_CONFIG="$CONFIG" PLAN_GATE_STAGED="$STAGED" python3 <<'PYEOF'
+    PROTECTED_HIT=$(PLAN_GATE_CONFIG="$CONFIG" PLAN_GATE_STAGED="$STAGED" /opt/homebrew/bin/python3.11 <<'PYEOF'
 import json, os, re, sys
 
 config_path = os.environ["PLAN_GATE_CONFIG"]
@@ -84,20 +86,20 @@ PYEOF
 
     [ "$PROTECTED_HIT" != "yes" ] && exit 0
 
-    # --- [TRIVIAL] BLOCKED on protected paths ---
+    # --- Protected files staged. Check for [TRIVIAL] (BLOCKED on protected paths) ---
     if printf '%s' "$COMMAND" | grep -q '\[TRIVIAL\]'; then
-      printf '{"hookSpecificOutput":{"hookEventName":"PreToolUse","permissionDecision":"block","permissionDecisionReason":"BLOCKED: [TRIVIAL] bypass not allowed for protected paths. Write a plan to tasks/<topic>-plan.md first. See config/protected-paths.json."}}\n'
+      printf '{"hookSpecificOutput":{"hookEventName":"PreToolUse","permissionDecision":"block","permissionDecisionReason":"BLOCKED: [TRIVIAL] bypass not allowed for protected paths (skills, tools, rules). Write a plan to tasks/<topic>-plan.md first. See config/protected-paths.json for protected paths."}}\n'
       exit 2
     fi
 
-    # --- [EMERGENCY] bypass ---
+    # --- Check for [EMERGENCY] bypass ---
     if printf '%s' "$COMMAND" | grep -q '\[EMERGENCY\]'; then
-      echo "WARNING: [EMERGENCY] bypass — plan gate skipped. This will be audited." >&2
+      echo "WARNING: [EMERGENCY] bypass — plan gate skipped for protected paths. This will be audited in weekly review." >&2
       exit 0
     fi
 
     # --- Check for valid plan artifact ---
-    PLAN_VALID=$(PLAN_GATE_CONFIG="$CONFIG" PLAN_GATE_TASKS="$TASKS" python3 <<'PYEOF'
+    PLAN_VALID=$(PLAN_GATE_CONFIG="$CONFIG" PLAN_GATE_TASKS="$TASKS" /opt/homebrew/bin/python3.11 <<'PYEOF'
 import json, os, re, sys
 
 config_path = os.environ["PLAN_GATE_CONFIG"]
@@ -112,10 +114,6 @@ except (OSError, json.JSONDecodeError):
 
 required_fields = config.get("required_plan_fields", [])
 
-if not os.path.isdir(tasks_dir):
-    print("no")
-    sys.exit(0)
-
 for f in sorted(os.listdir(tasks_dir)):
     if not f.endswith("-plan.md"):
         continue
@@ -125,6 +123,7 @@ for f in sorted(os.listdir(tasks_dir)):
     except OSError:
         continue
 
+    # Must have YAML frontmatter
     if not content.startswith("---"):
         continue
     fm_end = content.find("---", 3)
@@ -132,6 +131,7 @@ for f in sorted(os.listdir(tasks_dir)):
         continue
     frontmatter = content[3:fm_end]
 
+    # Check all required fields present
     all_present = True
     for field in required_fields:
         if not re.search(r"^" + re.escape(field) + r"\s*:", frontmatter, re.MULTILINE):
@@ -140,6 +140,7 @@ for f in sorted(os.listdir(tasks_dir)):
     if not all_present:
         continue
 
+    # Check verification_evidence is not PENDING
     ve_match = re.search(r"^verification_evidence\s*:\s*(.+)", frontmatter, re.MULTILINE)
     if ve_match:
         val = ve_match.group(1).strip().strip('"').strip("'")
@@ -158,7 +159,7 @@ PYEOF
     fi
 
     # --- No valid plan found ---
-    printf '{"hookSpecificOutput":{"hookEventName":"PreToolUse","permissionDecision":"block","permissionDecisionReason":"BLOCKED: Protected files staged without a valid plan artifact. Create tasks/<topic>-plan.md with YAML frontmatter containing: scope, surfaces_affected, verification_commands, rollback, review_tier. verification_evidence must not be PENDING."}}\n'
+    printf '{"hookSpecificOutput":{"hookEventName":"PreToolUse","permissionDecision":"block","permissionDecisionReason":"BLOCKED: Protected files staged without a valid plan artifact. Create tasks/<topic>-plan.md with YAML frontmatter containing: scope, surfaces_affected, verification_commands, rollback, review_tier. verification_evidence must not be PENDING. See config/protected-paths.json."}}\n'
     exit 2
     ;;
 esac

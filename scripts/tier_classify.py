@@ -1,13 +1,16 @@
-#!/usr/bin/env python3
+#!/usr/bin/env python3.11
 """
 tier_classify.py — Deterministic review tier classifier.
 
-Consolidates tier logic for commit-time review gates.
+Consolidates tier logic from hook-tier-gate.sh and hook-review-gate.sh.
+
+Loads project-specific patterns from config/tier-patterns.json if present.
+Falls back to sensible defaults (PRD, schema, security, toolbelt scripts).
 
 Usage:
-    python3 scripts/tier_classify.py [file1 file2 ...]
-    python3 scripts/tier_classify.py --stdin
-    python3 scripts/tier_classify.py --diff-base main
+    python3.11 scripts/tier_classify.py [file1 file2 ...]
+    python3.11 scripts/tier_classify.py --stdin
+    python3.11 scripts/tier_classify.py --diff-base main
 """
 import argparse
 import json
@@ -16,55 +19,71 @@ import re
 import subprocess
 import sys
 
+try:
+    PROJECT_ROOT = subprocess.check_output(
+        ["git", "rev-parse", "--show-toplevel"], text=True, stderr=subprocess.DEVNULL
+    ).strip()
+except (subprocess.CalledProcessError, FileNotFoundError):
+    PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
-def _detect_project_root():
-    """Detect project root via git."""
-    try:
-        result = subprocess.run(
-            ["git", "rev-parse", "--show-toplevel"],
-            capture_output=True, text=True, timeout=5)
-        if result.returncode == 0:
-            return result.stdout.strip()
-    except (subprocess.TimeoutExpired, FileNotFoundError):
-        pass
-    return os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+# ── Load config ──────────────────────────────────────────────────────────────
 
-
-PROJECT_ROOT = _detect_project_root()
-
-# ── Tier 1: Architecture docs, database schema, security rules ──────────
-# Customize: add your project's trust-boundary files here.
-TIER1_PATTERNS = [
-    r"^docs/.*PRD",           # product requirements docs
+_DEFAULT_TIER1 = [
+    r"^docs/.*PRD",
     r"^docs/project-prd\.md$",
-    r"schema.*\.sql$",        # database schema
-    r"migration.*\.sql$",     # database migrations
+    r"schema.*\.sql$",
+    r"migration.*\.sql$",
     r"^\.claude/rules/security\.md$",
-    r"^stores/.*\.db$",       # direct DB file edits
+    r"^stores/.*\.db$",
 ]
 
-# ── Tier 1.5: core skills, toolbelt scripts, hooks ──────────────────────
-# Customize: list your project's core skill names.
-CORE_SKILLS = ""  # e.g., "morning-briefing|email-triage|approval-queue"
-
-TIER15_PATTERNS = [
-    *(
-        [rf"^skills/({CORE_SKILLS})/SKILL\.md$"]
-        if CORE_SKILLS else []
-    ),
-    r"^scripts/[a-z]+_tool\.py$",  # toolbelt scripts
-    r"^scripts/debate\.py$",       # debate engine
-    r"^scripts/hook-.*\.sh$",      # hook scripts
+_DEFAULT_TIER15 = [
+    r"^scripts/[a-z]+_tool\.py$",
+    r"^scripts/debate\.py$",
+    r"^scripts/hook-.*\.sh$",
 ]
 
-# ── Exempt paths ─────────────────────────────────────────────────────────
-EXEMPT_PATTERNS = [
+_DEFAULT_EXEMPT = [
     r"^tasks/",
     r"^docs/(?!.*PRD|project-prd\.md)",
     r"^tests/",
     r"^config/",
     r"^stores/(?!.*\.db$)",
 ]
+
+_DEFAULT_REASONS = {
+    "PRD": "PRD change",
+    "schema|migration": "database schema",
+    "security.md": "security rules",
+    ".db$": "direct DB file edit",
+    "SKILL.md": "core skill",
+    "_tool.py": "toolbelt script",
+    "debate.py": "debate tooling",
+    "hook-": "hook script",
+}
+
+
+def _load_config():
+    """Load tier patterns from config/tier-patterns.json, falling back to defaults."""
+    config_path = os.path.join(PROJECT_ROOT, "config", "tier-patterns.json")
+    if os.path.isfile(config_path):
+        with open(config_path) as f:
+            cfg = json.load(f)
+        tier1 = cfg.get("tier1_patterns", _DEFAULT_TIER1)
+        tier15 = cfg.get("tier15_patterns", _DEFAULT_TIER15)
+        exempt = cfg.get("exempt_patterns", _DEFAULT_EXEMPT)
+        reasons = cfg.get("reasons", _DEFAULT_REASONS)
+
+        # Expand core_skills into tier1.5 pattern if provided
+        core_skills = cfg.get("core_skills", "")
+        if core_skills:
+            tier15 = [rf"^skills/({core_skills})/SKILL\.md$"] + tier15
+
+        return tier1, tier15, exempt, reasons
+    return _DEFAULT_TIER1, _DEFAULT_TIER15, _DEFAULT_EXEMPT, _DEFAULT_REASONS
+
+
+TIER1_PATTERNS, TIER15_PATTERNS, EXEMPT_PATTERNS, REASONS = _load_config()
 
 
 def classify_file(rel_path):
@@ -75,26 +94,17 @@ def classify_file(rel_path):
 
     for pat in TIER1_PATTERNS:
         if re.search(pat, rel_path):
-            if "PRD" in rel_path or "project-prd" in rel_path:
-                return 1, "PRD change"
-            if re.search(r"schema|migration", rel_path):
-                return 1, "database schema"
-            if "security.md" in rel_path:
-                return 1, "security rules"
-            if rel_path.endswith(".db"):
-                return 1, "direct DB file edit"
+            # Check reasons map for specific match
+            for pattern, reason in REASONS.items():
+                if re.search(pattern, rel_path):
+                    return 1, reason
             return 1, "trust boundary"
 
     for pat in TIER15_PATTERNS:
         if re.search(pat, rel_path):
-            if "SKILL.md" in rel_path:
-                return 1.5, "core skill"
-            if "_tool.py" in rel_path:
-                return 1.5, "toolbelt script"
-            if "debate.py" in rel_path:
-                return 1.5, "debate tooling"
-            if "hook-" in rel_path:
-                return 1.5, "hook script"
+            for pattern, reason in REASONS.items():
+                if re.search(pattern, rel_path):
+                    return 1.5, reason
             return 1.5, "core infrastructure"
 
     return 2, "standard change"

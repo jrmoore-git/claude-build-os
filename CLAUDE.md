@@ -52,11 +52,15 @@ If `[CHALLENGE-SKIPPED]` or `[TRIVIAL]` appears more than 3 times in a sprint, t
 
 <!-- These point at the enforcement and tooling layers that back the rules above. -->
 - **Hooks:** `hooks/hook-plan-gate.sh`, `hooks/hook-review-gate.sh`, `hooks/hook-tier-gate.sh`, `hooks/hook-decompose-gate.py` (blocks Write|Edit until decomposition assessed), `hooks/hook-agent-isolation.py` (blocks Agent dispatch without worktree isolation after parallel plan), `hooks/hook-guard-env.sh`, `hooks/hook-pre-edit-gate.sh`, `hooks/hook-post-tool-test.sh`, `hooks/hook-prd-drift-check.sh`, `hooks/hook-pre-commit-tests.sh`, `hooks/hook-ruff-check.sh`, `hooks/hook-syntax-check-python.sh` — wired in `.claude/settings.json` (see [Hooks Reference](docs/hooks.md))
-- **Scripts:** `scripts/debate.py` (cross-model engine: challenge, judge, refine, review, review-panel, check-models — config-driven via `config/debate-models.json`), `scripts/multi_model_debate.py` (three-model debate), `scripts/model_conversation.py` (persistent conversation manager), `scripts/tier_classify.py` (file tier classification), `scripts/recall_search.py` (governance search), `scripts/finding_tracker.py` (finding lifecycle), `scripts/enrich_context.py` (context enrichment), `scripts/artifact_check.py` (artifact validation) — see [How It Works](docs/how-it-works.md)
+- **Scripts:** `scripts/debate.py` (cross-model engine: challenge, judge, refine, review, review-panel, check-models — config-driven via `config/debate-models.json`), `scripts/tier_classify.py` (file tier classification), `scripts/recall_search.py` (governance search), `scripts/finding_tracker.py` (finding lifecycle), `scripts/enrich_context.py` (context enrichment), `scripts/artifact_check.py` (artifact validation) — see [How It Works](docs/how-it-works.md)
 - **Config:** `config/protected-paths.json` defines protected globs, exempt paths, and required plan fields. `config/debate-models.json` maps personas to LiteLLM models (fallback to hardcoded defaults if missing).
-- **Skills:** `.claude/skills/` — each skill is a `SKILL.md` file with YAML frontmatter. Design skills: `/design-consultation`, `/design-review`, `/plan-design-review`. Operational skills: `/debate`, `/qa`, `/status`, `/capture`, `/wrap-session`
-  - `/define` — Problem definition. Two modes: `discover` (full problem discovery with forcing questions, premise challenges, alternatives — writes `tasks/<topic>-design.md`) and `refine` (lightweight sanity check — writes `tasks/<topic>-think.md`). Run before `/challenge` or `/plan`.
-  - `/elevate` — Scope and ambition review. 10-star product thinking, 4 scope modes (expansion, selective expansion, hold, reduction). Reads the design doc from `/define discover`. Run after `/define discover` to stress-test scope and ambition before planning.
+- **Skills:** `.claude/skills/` — each skill is a `SKILL.md` file with YAML frontmatter (25 skills):
+  - Pipeline: `/recall` → `/define` → `/elevate` → `/challenge` → `/debate` → `/plan` → `/review` → `/ship`
+  - Design: `/design-consultation`, `/design-review`, `/plan-design-review`
+  - Session: `/status`, `/capture`, `/wrap-session`, `/handoff`, `/sync`
+  - Quality: `/qa`, `/governance`, `/doc-sync`
+  - Automation: `/autoplan`, `/think`, `/triage`, `/review-x`
+  - Bootstrap: `/setup`, `/audit`
   - Pipeline tiers: T0 (spike) = build. T2 (standard) = `/define refine` → `/plan` → build. T1 (new feature) = `/define discover` → `/challenge` → `/plan` → build. Big bet = `/define discover` → `/elevate` → `/challenge` → `/plan` → build. All end with → `/review` → `/ship`.
 - **Rules:** `.claude/rules/` — code-quality, design, orchestration, review-protocol, session-discipline, skill-authoring, workflow (see individual files for details)
 

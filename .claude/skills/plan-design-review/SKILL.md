@@ -4,6 +4,30 @@ description: "Designer's eye plan review. Rates plan 0-10 on design completeness
 user-invocable: true
 ---
 
+## Interactive Question Protocol
+
+These rules apply to EVERY AskUserQuestion call in this skill:
+
+1. **Text-before-ask:** Before every AskUserQuestion, output the question, all options,
+   and context as regular markdown. Then call AskUserQuestion. Options persist if the
+   user discusses rather than picks immediately.
+
+2. **Recommended-first:** Mark the recommended option with "(Recommended)" and list it
+   as option A. If no option is clearly better (depends on user intent), omit the marker.
+
+3. **Empty-answer guard:** If AskUserQuestion returns empty/blank: re-prompt once with
+   "I didn't catch a response — here are the options again:" and the same options.
+   If still empty: pause the skill — "Pausing — let me know when you're ready."
+   Do NOT auto-select any option.
+
+4. **Vague answer recovery:** If the user says "whatever you think" / "either is fine" /
+   "up to you": state "Going with [recommended] since no strong preference. Noted as
+   assumption." Proceed with recommended.
+
+5. **Topic sanitization:** Before constructing any file path with `<topic>`, sanitize to
+   lowercase alphanumeric + hyphens only (`[a-z0-9-]`). Strip `/`, `..`, spaces, and
+   special characters. This prevents path traversal in file writes.
+
 # /plan-design-review — Design Completeness Review
 
 You are a senior product designer reviewing a PLAN — not a live site. Your job is
@@ -106,10 +130,10 @@ cat CLAUDE.md
 ```
 
 ```bash
-cat DESIGN.md
+cat app/DESIGN.md
 ```
 
-If `DESIGN.md` does not exist, note the gap — it will matter in Pass 5.
+If `app/DESIGN.md` does not exist, note the gap — it will matter in Pass 5.
 
 4. **Map UI scope.** Read the plan and identify:
    - Pages / routes touched
@@ -137,30 +161,34 @@ Explain what a 10 looks like for THIS plan.
 
 #### 0B. DESIGN.md Status
 
-- **If `DESIGN.md` exists:** "All design decisions will be calibrated against your stated design system." Calibrate all ratings against it. Note which tokens, components, and patterns from the design system apply to this plan.
-- **If it does not exist:** "No design system found at `DESIGN.md`. Recommend running `/design-consultation` first. Proceeding with universal design principles."
+- **If `app/DESIGN.md` exists:** "All design decisions will be calibrated against your stated design system." Calibrate all ratings against it. Note which tokens, components, and patterns from the design system apply to this plan.
+- **If it does not exist:** "No design system found at `app/DESIGN.md`. Recommend running `/design-consultation` first. Proceeding with universal design principles."
 
 #### 0C. Existing Design Leverage
 
-What existing UI patterns, components, or design decisions in the codebase should this plan reuse? Check for relevant component precedent:
+What existing UI patterns, components, or design decisions in the codebase should this plan reuse? Check `app/src/components/` for relevant precedent:
 
 ```bash
-ls src/components/ 2>/dev/null
+ls app/src/components/
 ```
 
 Do not reinvent what already works.
 
+After displaying pre-filled values (initial rating, DESIGN.md status, existing components), add: "Pre-filled from codebase. If anything looks stale or wrong, say so now."
+
 #### 0D. Focus Areas
 
-AskUserQuestion:
+Output the following as regular markdown text before calling AskUserQuestion. Mark the recommended option based on the rating scores — if overall score is ≤5, recommend "All 7 dimensions"; if 6-7, recommend focusing on the lowest-scoring dimensions; if 8+, recommend skipping to specific gaps:
 
 > I've rated this plan **N/10** on design completeness. The biggest gaps are **{X, Y, Z}**.
 >
 > Want me to review all 7 dimensions, or focus on specific areas?
 >
-> 1. All 7 dimensions (full review)
-> 2. Focus on: {top 2-3 gaps}
-> 3. Skip to a specific pass (1-7)
+> - **A. All 7 dimensions (full review)** (Recommended if score ≤5)
+> - **B. Focus on: {top 2-3 lowest-scoring gaps}** (Recommended if score 6-7)
+> - **C. Skip to a specific pass (1-7)**
+
+Then call AskUserQuestion with the same options.
 
 **STOP.** Do NOT proceed until user responds.
 
@@ -185,10 +213,13 @@ Re-run loop: invoke /plan-design-review again, re-rate. Sections at 8+ get a qui
 - Present 2-3 options with tradeoffs.
 - Map to a Design Principle above. One sentence connecting your recommendation to a specific principle.
 - **Escape hatch:** If a section has no issues, say so and move on. If a gap has an obvious fix, state what you'll add and move on — do not waste a question on it. Only use AskUserQuestion when there is a genuine design choice with meaningful tradeoffs.
+- **Batching rule:** If 3+ issues found in a single pass and some have obvious fixes, batch obvious-fix items into a statement: "I'll fix these unless you object: [list]". Reserve AskUserQuestion for genuine design choices that need user input.
 
 ---
 
 ### Pass 1: Information Architecture
+
+Output `[Pass 1/7]` as the header when presenting this pass to the user.
 
 **Rate 0-10:** Does the plan define what the user sees first, second, third?
 
@@ -201,21 +232,23 @@ Re-run loop: invoke /plan-design-review again, re-rate. Sections at 8+ get a qui
 
 Example wireframe format:
 ```
-+-----------------------------+
-| HEADER: page title + action |
-+-----------------------------+
-| PRIMARY: main content area  |
-|                             |
-+-----------------------------+
-| SECONDARY: supporting info  |
-+-----------------------------+
+┌─────────────────────────────┐
+│ HEADER: page title + action │
+├─────────────────────────────┤
+│ PRIMARY: main content area  │
+│                             │
+├─────────────────────────────┤
+│ SECONDARY: supporting info  │
+└─────────────────────────────┘
 ```
 
-**STOP.** AskUserQuestion once per unresolved issue. Recommend + explain WHY. If no issues, say so and move on. Do NOT proceed until user responds.
+**STOP.** Apply batching rule: batch obvious fixes, reserve AskUserQuestion for genuine design choices. Recommend + explain WHY. If no issues, say so and move on. Do NOT proceed until user responds.
 
 ---
 
 ### Pass 2: Interaction State Coverage
+
+Output `[Pass 2/7]` as the header when presenting this pass to the user.
 
 **Rate 0-10:** Does the plan specify loading, empty, error, success, and partial states for every UI feature?
 
@@ -245,14 +278,16 @@ EMPTY STATE: No meetings today
 
 Example of a bad empty state spec:
 ```
-EMPTY STATE: "No items found."  <- This is not a design.
+EMPTY STATE: "No items found."  ← This is not a design.
 ```
 
-**STOP.** AskUserQuestion once per unresolved issue. Recommend + WHY.
+**STOP.** Apply batching rule: batch obvious fixes, reserve AskUserQuestion for genuine design choices. Recommend + WHY.
 
 ---
 
 ### Pass 3: User Journey & Emotional Arc
+
+Output `[Pass 3/7]` as the header when presenting this pass to the user.
 
 **Rate 0-10:** Does the plan consider the user's emotional experience through the flow?
 
@@ -274,11 +309,13 @@ Apply time-horizon design thinking (Norman, Emotional Design):
 
 Storyboard the journey (Gebbia's "Snow White" method): every moment is a scene with a mood, not just a screen with a layout. Before touching any UI spec, walk through the full emotional arc.
 
-**STOP.** AskUserQuestion once per unresolved issue. Recommend + WHY.
+**STOP.** Apply batching rule: batch obvious fixes, reserve AskUserQuestion for genuine design choices. Recommend + WHY.
 
 ---
 
 ### Pass 4: AI Slop Risk
+
+Output `[Pass 4/7]` as the header when presenting this pass to the user.
 
 **Rate 0-10:** Does the plan describe specific, intentional UI — or could it produce generic AI-generated patterns?
 
@@ -386,13 +423,15 @@ Challenge vague descriptions:
 - "Clean, modern UI" — meaningless. Replace with actual design decisions.
 - "Dashboard with widgets" — what makes this NOT every other dashboard?
 
-**STOP.** AskUserQuestion once per unresolved issue. Recommend + WHY.
+**STOP.** Apply batching rule: batch obvious fixes, reserve AskUserQuestion for genuine design choices. Recommend + WHY.
 
 ---
 
 ### Pass 5: Design System Alignment
 
-**Rate 0-10:** Does the plan use tokens and components from `DESIGN.md`?
+Output `[Pass 5/7]` as the header when presenting this pass to the user.
+
+**Rate 0-10:** Does the plan use tokens and components from `app/DESIGN.md`?
 
 **If DESIGN.md exists:**
 - Read it and cross-reference every UI element in the plan
@@ -403,7 +442,7 @@ Challenge vague descriptions:
 
 **If DESIGN.md does not exist:**
 - Rate 0/10 by default
-- Add to the plan: "PREREQUISITE: Establish design system at `DESIGN.md` before implementation. Recommend running `/design-consultation`."
+- Add to the plan: "PREREQUISITE: Establish design system at `app/DESIGN.md` before implementation. Recommend running `/design-consultation`."
 
 **FIX TO 10:** Add design system annotations inline in the plan. Every color, spacing value, and component should reference a token or explain why a new one is needed.
 
@@ -412,11 +451,13 @@ Check for consistency:
 - Does the plan reuse existing component patterns or invent new ones unnecessarily?
 - Are new patterns justified by new requirements, or are they accidental divergence?
 
-**STOP.** AskUserQuestion once per unresolved issue. Recommend + WHY.
+**STOP.** Apply batching rule: batch obvious fixes, reserve AskUserQuestion for genuine design choices. Recommend + WHY.
 
 ---
 
 ### Pass 6: Responsive & Accessibility
+
+Output `[Pass 6/7]` as the header when presenting this pass to the user.
 
 **Rate 0-10:** Does the plan specify behavior across viewports and for assistive technology users?
 
@@ -445,11 +486,13 @@ For each major layout element, specify behavior at each breakpoint:
 - **Screen reader experience:** what is announced, in what order, how state changes are communicated (live regions for dynamic content)
 - **Reduced motion:** what animations are skipped or replaced when `prefers-reduced-motion` is set. Transitions become instant, parallax becomes static.
 
-**STOP.** AskUserQuestion once per unresolved issue. Recommend + WHY.
+**STOP.** Apply batching rule: batch obvious fixes, reserve AskUserQuestion for genuine design choices. Recommend + WHY.
 
 ---
 
 ### Pass 7: Unresolved Design Decisions
+
+Output `[Pass 7/7]` as the header when presenting this pass to the user.
 
 Surface every ambiguity where an engineer would have to make a design choice:
 
@@ -462,7 +505,7 @@ What's the loading skeleton shape?     | Engineer shows a spinner
 Mobile nav pattern?                    | Desktop nav hides behind hamburger
 ```
 
-Each decision gets its own AskUserQuestion with:
+Apply batching rule: batch obvious fixes, reserve AskUserQuestion for genuine design choices. Each genuine design decision gets its own AskUserQuestion with:
 - A recommendation and WHY
 - 2-3 alternatives with tradeoffs
 - What happens if the decision is deferred (the "engineer default")
@@ -526,19 +569,19 @@ Unresolved Decisions       |   N    |   N
 +====================================================================+
 | System Audit         | [DESIGN.md status, UI scope]                |
 | Step 0               | [initial rating, focus areas]               |
-| Pass 1  (Info Arch)  | ___/10 -> ___/10 after fixes                |
-| Pass 2  (States)     | ___/10 -> ___/10 after fixes                |
-| Pass 3  (Journey)    | ___/10 -> ___/10 after fixes                |
-| Pass 4  (AI Slop)    | ___/10 -> ___/10 after fixes                |
-| Pass 5  (Design Sys) | ___/10 -> ___/10 after fixes                |
-| Pass 6  (Responsive) | ___/10 -> ___/10 after fixes                |
+| Pass 1  (Info Arch)  | ___/10 → ___/10 after fixes                |
+| Pass 2  (States)     | ___/10 → ___/10 after fixes                |
+| Pass 3  (Journey)    | ___/10 → ___/10 after fixes                |
+| Pass 4  (AI Slop)    | ___/10 → ___/10 after fixes                |
+| Pass 5  (Design Sys) | ___/10 → ___/10 after fixes                |
+| Pass 6  (Responsive) | ___/10 → ___/10 after fixes                |
 | Pass 7  (Decisions)  | ___ resolved, ___ deferred                 |
 +--------------------------------------------------------------------+
 | NOT in scope         | written (___ items)                         |
 | What already exists  | written                                     |
 | Decisions made       | ___ added to plan                           |
 | Decisions deferred   | ___ (listed below)                          |
-| Overall design score | ___/10 -> ___/10                             |
+| Overall design score | ___/10 → ___/10                             |
 +====================================================================+
 ```
 

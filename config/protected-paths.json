@@ -3,7 +3,10 @@
     "skills/**/*.md",
     "scripts/*_tool.py",
     "scripts/*_pipeline.py",
-    ".claude/rules/*.md"
+    "scripts/contact_*.py",
+    ".claude/rules/*.md",
+    "hooks/hook-*",
+    ".claude/settings.json"
   ],
   "exempt_patterns": [
     "tasks/*",

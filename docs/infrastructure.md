@@ -8,40 +8,47 @@ What each dependency does and why the Build OS needs it.
 
 ### Python 3
 
-All Build OS scripts are Python. `debate.py`, `tier_classify.py`, `recall_search.py`, `finding_tracker.py`, `enrich_context.py`, `artifact_check.py`, `multi_model_debate.py`, and `model_conversation.py` all require Python 3.
+All Build OS scripts are Python. `debate.py`, `tier_classify.py`, `recall_search.py`, `finding_tracker.py`, `enrich_context.py`, and `artifact_check.py` all require Python 3.
 
 Any recent Python 3 (3.9+) works. No third-party Python packages are required for the pipeline skills themselves.
 
-### gh CLI
-
-The GitHub CLI (`gh`) is used by review workflows for pull request integration. Install from [cli.github.com](https://cli.github.com/).
-
-After installing, authenticate with `gh auth login`.
-
 ### LiteLLM
 
-The cross-model debate engine (`/challenge`, `/debate`, `/review`) calls models from multiple provider families through a single API. LiteLLM is the routing layer that makes this possible.
+The cross-model debate engine (`/challenge`, `/debate`, `/review`) calls models from multiple provider families through a single API. LiteLLM is the routing layer that makes this possible. Scripts call LiteLLM's OpenAI-compatible API at `http://localhost:4000` via stdlib `urllib.request` — no pip install needed in your project.
 
 ```bash
+# Copy and configure
+cp config/litellm-config.example.yaml config/litellm-config.yaml
+
+# Docker (recommended)
+docker run -d -p 4000:4000 --name litellm \
+  --env-file .env \
+  -v $(pwd)/config/litellm-config.yaml:/app/config.yaml \
+  ghcr.io/berriai/litellm:main-latest \
+  --config /app/config.yaml
+
+# Or standalone (in its own venv)
 pip install litellm
 litellm --config config/litellm-config.yaml
 ```
 
-Copy `config/litellm-config.example.yaml` to `config/litellm-config.yaml` and fill in your API keys. LiteLLM runs as a local proxy on port 4000 by default.
+Why a proxy instead of direct API calls: `debate.py` calls multiple model families in a single pipeline. LiteLLM normalizes the API surface so the scripts don't need provider-specific client code. Swapping a model is a config change in `litellm-config.yaml` + `config/debate-models.json`, not a code change.
 
-Why a proxy instead of direct API calls: `debate.py` and `multi_model_debate.py` call multiple model families in a single pipeline. LiteLLM normalizes the API surface so the scripts don't need provider-specific client code.
+**Important:** The `model_name` fields in `litellm-config.yaml` must match the model names in `config/debate-models.json`. The example config ships with matching names. If you change one, change both.
 
 ### API Keys (at least two model families)
 
 The debate engine uses adversarial review across model families. Models from the same family agree with each other too easily (self-preference bias). Cross-family disagreement produces stronger review signals.
 
-You need API keys for at least two of:
+You need API keys for at least two of (all three recommended):
 
-- **Anthropic** (Claude) — [console.anthropic.com](https://console.anthropic.com/)
-- **OpenAI** (GPT) — [platform.openai.com](https://platform.openai.com/)
-- **Google AI** (Gemini) — [aistudio.google.com](https://aistudio.google.com/)
+| Provider | Role in debate | Get a key |
+|----------|---------------|-----------|
+| **Anthropic** (Claude) | Author + PM challenger + refiner | [console.anthropic.com](https://console.anthropic.com/) |
+| **OpenAI** (GPT) | Judge + security challenger | [platform.openai.com](https://platform.openai.com/) |
+| **Google AI** (Gemini) | Architect + staff challenger | [aistudio.google.com](https://aistudio.google.com/) |
 
-All three families are recommended for best results. Copy `.env.example` to `.env` and fill in your keys.
+Copy `.env.example` to `.env` and fill in your keys. Model-to-role assignments are in `config/debate-models.json`.
 
 ---
 
@@ -57,6 +64,18 @@ ollama pull nomic-embed-text
 ```
 
 Ollama runs locally. No data leaves your machine. The `nomic-embed-text` model is small (~274MB) and fast.
+
+### You.com Search API
+
+Enables web research in skills that need external context — `/define discover` (competitive research), context enrichment, and any skill that needs to look up people or companies. `web_search.py` wraps the You.com API with SSRF protection and untrusted content labeling.
+
+```bash
+# Get an API key at https://you.com/search-api
+# Add to .env:
+YOU_COM_API_KEY=ydc-sk-...
+```
+
+Without it, skills fall back to Claude's built-in WebSearch tool. If that's also unavailable, they skip web research and proceed with training knowledge only. The core debate pipeline does not require it.
 
 ---
 
@@ -77,8 +96,8 @@ python3 scripts/tier_classify.py scripts/debate.py
 # Check artifact validation
 python3 scripts/artifact_check.py --help
 
-# Check multi-model debate
-python3 scripts/multi_model_debate.py --help
+# Verify debate engine
+python3 scripts/debate.py check-models
 ```
 
 ### LiteLLM
@@ -107,6 +126,6 @@ ollama show nomic-embed-text
 
 **Why cross-model review matters:** When three models from different families all flag the same concern, it is almost certainly real. When only one flags something, it may be model-specific bias. Cross-model agreement is a stronger signal than single-model confidence.
 
-**Why LiteLLM over direct calls:** The debate scripts rotate models through different roles (challenger, judge, author). LiteLLM lets the scripts address models by alias (`claude-opus`, `gpt-latest`, `gemini-pro`) without embedding provider-specific client code. Swapping a model is a config change, not a code change.
+**Why LiteLLM over direct calls:** The debate scripts rotate models through different roles (challenger, judge, author). LiteLLM lets the scripts address models by alias (`claude-opus-4-6`, `gpt-5.4`, `gemini-3.1-pro`) without embedding provider-specific client code. Swapping a model is a config change, not a code change.
 
 **Why local embeddings:** Semantic search over governance files (lessons, decisions, PRD) finds conceptually related context that keyword search misses. Running embeddings locally via Ollama means no data leaves your machine and no API costs for retrieval.

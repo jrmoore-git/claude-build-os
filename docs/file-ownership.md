@@ -8,7 +8,7 @@ Which skill owns which file, and in what order skills run at session close.
 |------|-------------|---------------------|
 | `tasks/handoff.md` | `/handoff` | Read. `/sync` may flag incomplete work but does not write the full handoff. |
 | `tasks/session-log.md` | `/handoff` | Append only (never overwrite previous entries). |
-| `docs/current-state.md` | `/sync` | `/handoff` may also update if state changed and `/sync` wasn't run. |
+| `docs/current-state.md` | `/sync` | `/handoff` may also update if state changed and `/sync` wasn't run. `hook-stop-autocommit.py` injects a `⚠ STALE` marker on unclean session exit. |
 | `tasks/decisions.md` | `/capture` or `/sync` | Append only. Entries are numbered and never modified after writing. |
 | `tasks/lessons.md` | `/capture` or `/sync` | Append only. Promote recurring lessons to `.claude/rules/` and archive. |
 | `docs/project-prd.md` | `/sync` | Read by `/recall`, `/plan`, `/review`. |

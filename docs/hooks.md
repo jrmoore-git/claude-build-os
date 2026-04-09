@@ -1,6 +1,6 @@
 # Hooks Reference
 
-The Build OS ships four enforcement hooks. Each is configured as a Claude Code PreToolUse hook — it runs before the matched tool executes, and can block or warn based on what it finds. Each hook is scoped by a matcher pattern: plan-gate and review-gate match `Bash` (firing on `git commit`), while decompose-gate and tier-gate match `Write|Edit` (firing on file edits).
+The Build OS ships five hooks. Four are PreToolUse enforcement hooks — they run before the matched tool executes, and can block or warn based on what they find. Each is scoped by a matcher pattern: plan-gate and review-gate match `Bash` (firing on `git commit`), while decompose-gate and tier-gate match `Write|Edit` (firing on file edits). The fifth, stop-autocommit, is a Stop hook that fires when the session ends.
 
 Hooks are the third level of the enforcement ladder: advisory (CLAUDE.md) → rules (.claude/rules/) → **hooks** → architecture. They fire every time the matched tool is called, cannot be ignored by the model, and enforce governance as deterministic code.
 
@@ -109,7 +109,8 @@ Forces decomposition assessment before the first write operation in each session
 - Stdin is unreadable or tool call JSON is malformed (fail-open on infrastructure errors only)
 
 **Block conditions:**
-- First `Write` or `Edit` in a session before flag file exists → deny with prompt to assess decomposability
+- First `Write` or `Edit` in a session before flag file exists → deny with full decomposition prompt
+- Subsequent `Write` or `Edit` calls in the same batch (before the flag file is created) → deny with a short "waiting for assessment" message instead of repeating the full prompt. Uses a sentinel file (`/tmp/claude-decompose-{session_id}.pending`) to deduplicate — the sentinel is cleaned up once the real flag file exists
 - Flag file exists but is corrupt JSON → deny with recovery instructions
 
 **How to create the flag file:** The deny message instructs the agent to use `Bash` (not `Write`) to create the flag:
@@ -157,11 +158,45 @@ Classifies file tier before the first edit and gates accordingly.
 Neither `[EMERGENCY]` nor `[TRIVIAL]` bypass is available in tier-gate.
 
 
+## hook-stop-autocommit.py
+
+Session safety net. When a Claude Code session exits without running `/wrap-session`, this hook auto-captures uncommitted work so nothing is lost.
+
+**When it fires:** Stop hook (runs when the Claude Code session ends).
+
+**What it does:**
+
+1. Checks for uncommitted changes in the working tree
+2. If changes exist, writes an auto-capture entry to `tasks/session-log.md` listing the changed files
+3. Marks `docs/current-state.md` as stale by injecting a `## ⚠ STALE` warning after the first header line. The warning includes the auto-capture date, file count, and a notice that the "Next Action" section may be outdated
+4. Stages all changed files plus the updated session log and current-state doc
+5. Commits with message `[auto] Session work captured <date>`
+
+**Staleness marking:** The stale marker in `current-state.md` is detected by `/recall`'s freshness check (`scripts/check-current-state-freshness.py`). When `/recall` sees the marker, it warns the user not to trust the frozen "Next Action" and derives recommendations from git log + session-log instead. The marker is idempotent — if `## ⚠ STALE` already exists, it won't add a duplicate.
+
+**Pass conditions:** Always runs (stop hooks don't block). If there are no uncommitted changes, it exits silently.
+
+**Wiring:**
+
+```json
+{
+  "hooks": {
+    "Stop": [
+      {
+        "matcher": "",
+        "command": "python3 hooks/hook-stop-autocommit.py"
+      }
+    ]
+  }
+}
+```
+
+
 ## Wiring hooks into your project
 
 Add hooks to `.claude/settings.json` (or `.claude/settings.local.json` for personal, non-committed settings). Each hook needs a matcher pattern and the script path.
 
-### All four hooks
+### All five hooks
 
 ```json
 {
@@ -182,6 +217,12 @@ Add hooks to `.claude/settings.json` (or `.claude/settings.local.json` for perso
       {
         "matcher": "Write|Edit",
         "command": "bash hooks/hook-tier-gate.sh"
+      }
+    ],
+    "Stop": [
+      {
+        "matcher": "",
+        "command": "python3 hooks/hook-stop-autocommit.py"
       }
     ]
   }

@@ -16,8 +16,31 @@ allowed-tools:
   - Edit
   - Agent
   - AskUserQuestion
-  - WebSearch
 ---
+
+## Interactive Question Protocol
+
+These rules apply to EVERY AskUserQuestion call in this skill:
+
+1. **Text-before-ask:** Before every AskUserQuestion, output the question, all options,
+   and context as regular markdown. Then call AskUserQuestion. Options persist if the
+   user discusses rather than picks immediately.
+
+2. **Recommended-first:** Mark the recommended option with "(Recommended)" and list it
+   as option A. If no option is clearly better (depends on user intent), omit the marker.
+
+3. **Empty-answer guard:** If AskUserQuestion returns empty/blank: re-prompt once with
+   "I didn't catch a response — here are the options again:" and the same options.
+   If still empty: pause the skill — "Pausing — let me know when you're ready."
+   Do NOT auto-select any option.
+
+4. **Vague answer recovery:** If the user says "whatever you think" / "either is fine" /
+   "up to you": state "Going with [recommended] since no strong preference. Noted as
+   assumption." Proceed with recommended.
+
+5. **Topic sanitization:** Before constructing any file path with `<topic>`, sanitize to
+   lowercase alphanumeric + hyphens only (`[a-z0-9-]`). Strip `/`, `..`, spaces, and
+   special characters. This prevents path traversal in scratch/landscape file writes.
 
 ## OUTPUT SILENCE -- HARD RULE
 
@@ -25,19 +48,27 @@ Between tool calls, emit ZERO text to the chat. No progress updates, no "checkin
 no intermediate results. The ONLY user-visible output is the single formatted block
 at the end of each phase and the final design doc or brief presentation.
 
+**Exception:** Text-before-ask output immediately preceding an AskUserQuestion call is permitted (see Interactive Question Protocol above).
+
 ## Mode Selection
 
 Parse the invocation argument:
 
 - `/define discover` -- full problem discovery (Phase 1-6)
 - `/define refine` -- lightweight sanity check (Phase R)
-- `/define` (no argument) -- ask the user:
+- `/define` (no argument) -- output the modes as markdown text before asking:
 
-  > What kind of thinking do you need?
-  > A) Full problem discovery -- reframe what we're building, surface real pain, explore approaches (10-15 min)
-  > B) Quick sanity check -- forcing questions to sharpen a feature before planning (3-5 min)
+  Output:
+  > **What kind of thinking do you need?**
+  >
+  > If the task is a new feature, big idea, or unclear scope, recommend discover.
+  > If it's a bugfix, small feature, or well-understood change, recommend refine.
+  > Mark the contextually appropriate option "(Recommended)".
+  >
+  > - **A) Full problem discovery** -- reframe what we're building, surface real pain, explore approaches (10-15 min)
+  > - **B) Quick sanity check** -- forcing questions to sharpen a feature before planning (3-5 min)
 
-  A routes to discover. B routes to refine.
+  Then call AskUserQuestion with the same options. A routes to discover. B routes to refine.
 
 ---
 
@@ -54,19 +85,51 @@ Parse the invocation argument:
    ```
    If design docs exist, list them: "Prior designs: [titles + dates]"
 
-5. Ask via AskUserQuestion:
+5. Output the following as markdown text before asking. If context suggests one mode
+   (e.g., mentions customers/revenue → Product; mentions "fun"/"hack" → Builder),
+   mark that option "(Recommended)". If ambiguous, omit the marker.
 
-   > Before we dig in -- what's your goal with this?
+   > **Before we dig in -- what's your goal with this?**
    >
-   > - A) Building a product (startup, internal tool, something with real users)
-   > - B) Side project (hackathon, open source, learning, having fun)
+   > - **A) Building a product** -- startup, internal tool, something with real users
+   > - **B) Side project** -- hackathon, open source, learning, having fun
 
+   Then call AskUserQuestion with the same options.
    A routes to **Product mode** (Phase 2A). B routes to **Builder mode** (Phase 2B).
 
 6. For product mode only, assess stage:
    - Pre-product (idea, no users)
    - Has users (not yet paying)
    - Has paying customers
+
+---
+
+## Phase 1.5: Governance Context (discover mode only)
+
+Pull relevant prior decisions and lessons so problem framing doesn't rediscover solved problems or propose rejected approaches.
+
+1. Write a temp file summarizing the user's request from Phase 1:
+   ```
+   # Problem: <user's stated problem/goal>
+   ## Area
+   <relevant codebase areas identified in Phase 1 step 3>
+   ```
+
+2. Run enrichment:
+   ```bash
+   python3.11 scripts/enrich_context.py --proposal <temp summary file> --scope define
+   ```
+
+3. **Quality gate:** Parse the JSON output. If both `lessons` and `decisions` arrays are empty, skip — no governance context to surface.
+
+4. If enrichment returned results, retain as governance context for use in later phases. **Scoping:** Prefer decisions over lessons. Focus on strategic/high-level items (rejected approaches, architectural choices, scope decisions) rather than implementation-level details.
+
+5. **How to use during later phases:**
+   - During Phase 2A/2B forcing questions: if a question touches an area where a prior decision exists, surface it: "Note: Prior decision D{N} addressed {topic} — {one-line summary}."
+   - During Phase 3 (Premise Challenge): include relevant decisions as evidence for or against premises being challenged.
+   - Do NOT dump all governance context at once — surface items when they are relevant to the specific question or premise under discussion.
+
+6. If `enrich_context.py` does not exist or errors, continue without governance context. This step is additive.
 
 ---
 
@@ -120,8 +183,10 @@ These examples show the difference between soft exploration and rigorous diagnos
 
 ### The Six Forcing Questions
 
-Ask ONE AT A TIME via AskUserQuestion. Push on each until the answer is specific and
-evidence-based. Smart-route based on product stage:
+Ask ONE AT A TIME via AskUserQuestion. Prefix each question with `[Q N/M]` where N is
+the current question number and M is the total questions for this stage (from the
+smart-route table below). Push on each until the answer is specific and evidence-based.
+Smart-route based on product stage:
 
 - Pre-product: Q1, Q2, Q3
 - Has users: Q2, Q4, Q5
@@ -156,6 +221,17 @@ promoted? What gets them fired?"
 Push until you hear: a name, a role, a specific consequence. Red flags: category-level
 answers like "Healthcare enterprises" or "Marketing teams." You can't email a category.
 
+#### Q3.5: Pre-Mortem
+"Imagine we built this and it failed. Not a little -- spectacularly. What went wrong?"
+
+Push until you hear: specific failure modes (market miss, wrong user, adoption cliff,
+technical dead-end), not vague "people didn't adopt it." Red flags: only technical
+failures listed -- market and behavioral failures are usually deadlier.
+
+**Scope:** Product mode, pre-product and has-users stages only. Skip for paying-customers
+stage (they already have real failure data). Skip for Builder mode (pre-mortem kills
+creative energy at the wrong moment).
+
 #### Q4: Narrowest Wedge
 "What's the smallest possible version of this that someone would pay real money
 for -- this week, not after you build the platform?"
@@ -189,6 +265,10 @@ it die when your champion leaves?"
 
 **Smart-skip:** If earlier answers already cover a later question, skip it.
 
+**Incremental saves:** After each answered question, append the Q&A pair to
+`tasks/<topic>-design-scratch.md` (create if needed). This preserves progress if the
+session is interrupted.
+
 **Escape hatch:** If the user says "just do it" or expresses impatience:
 - First time: "The hard questions are the value. Let me ask two more." Consult
   the stage routing table, ask the 2 most critical remaining questions.
@@ -206,7 +286,8 @@ of their idea. Suggest things they might not have thought of.
 
 ### Questions (generative, not interrogative)
 
-Ask ONE AT A TIME via AskUserQuestion:
+Ask ONE AT A TIME via AskUserQuestion. Prefix each question with `[Q N/5]` where N is
+the current question number (adjust M downward if smart-skipping):
 
 - "What's the coolest version of this? What would make it genuinely delightful?"
 - "Who would you show this to? What would make them say 'whoa'?"
@@ -263,20 +344,30 @@ When searching, use **generalized category terms** -- never the user's specific 
 name, proprietary concept, or stealth idea. For example, search "task management app
 landscape" not "SuperTodo AI-powered task killer."
 
-If WebSearch is unavailable, skip this phase and note: "Search unavailable -- proceeding
-with in-distribution knowledge only."
+Use `web_search.py` for research. Run searches via Bash with env var injection:
 
-**Product mode:** WebSearch for:
+```bash
+YOU_COM_API_KEY="$YOU_COM_API_KEY" /opt/homebrew/bin/python3.11 scripts/web_search.py search "query here" --num 5
+```
+
+If `YOU_COM_API_KEY` is not set or search fails, fall back to Claude's built-in WebSearch tool:
+```
+WebSearch("query here")
+```
+If WebSearch is also unavailable, note: "Search unavailable -- proceeding with in-distribution knowledge only."
+
+**Product mode:** Search for:
 - "[problem space] startup approach {current year}"
 - "[problem space] common mistakes"
 - "why [incumbent solution] fails" OR "why [incumbent solution] works"
 
-**Builder mode:** WebSearch for:
+**Builder mode:** Search for:
 - "[thing being built] existing solutions"
 - "[thing being built] open source alternatives"
 - "best [thing category] {current year}"
 
-Read the top 2-3 results. Run the three-layer synthesis:
+Parse the JSON results (`.results[].title`, `.results[].snippet`, `.results[].url`).
+Run the three-layer synthesis:
 - **[Layer 1]** What does everyone already know about this space?
 - **[Layer 2]** What are the search results and current discourse saying?
 - **[Layer 3]** Given what WE learned in Phase 2A/2B -- is there a reason the conventional approach is wrong?
@@ -291,6 +382,9 @@ on it." Proceed to Phase 3.
 **Important:** This search feeds Phase 3 (Premise Challenge). If you found reasons the
 conventional approach fails, those become premises to challenge. If conventional wisdom
 is solid, that raises the bar for any premise that contradicts it.
+
+**Landscape write:** Write research findings to `tasks/<topic>-landscape.md` so
+downstream skills (/elevate, /design-consultation) can reuse without repeating research.
 
 ---
 
@@ -353,7 +447,7 @@ Run via Bash:
 ```bash
 TMPFILE=$(mktemp /tmp/define-summary-XXXXXX.md)
 # Write the structured summary to $TMPFILE
-python3 scripts/debate.py review \
+/opt/homebrew/bin/python3.11 scripts/debate.py review \
   --persona pm \
   --prompt "<mode-specific prompt above>" \
   --input "$TMPFILE"
@@ -393,7 +487,19 @@ Rules:
 
 **RECOMMENDATION:** Choose [X] because [one-line reason].
 
-Present via AskUserQuestion. Do NOT proceed without user approval.
+Output approaches as a markdown table before asking. Mark the recommended approach
+with "(Recommended)". Example format:
+
+| | Approach A (Recommended) | Approach B | Approach C |
+|---|---|---|---|
+| Summary | ... | ... | ... |
+| Effort | S | M | L |
+| Risk | Low | Med | High |
+| Pros | ... | ... | ... |
+| Cons | ... | ... | ... |
+| Reuses | ... | ... | ... |
+
+Then call AskUserQuestion with the approach options. Do NOT proceed without user approval.
 
 ---
 
@@ -514,9 +620,11 @@ Run a multi-persona review panel on the design doc. The panel provides independe
 perspectives from different reviewer archetypes — anonymized and position-randomized.
 
 ```bash
-python3 scripts/debate.py review-panel \
+/opt/homebrew/bin/python3.11 scripts/debate.py review-panel \
   --personas architect,security,pm \
-  --prompt "Read this design document and review on 5 dimensions: Completeness, Consistency, Clarity, Scope (YAGNI?), Feasibility. For each dimension: PASS or list specific issues with fixes. Return a quality score (1-10)." \
+  --enable-tools \
+  --allowed-tools check_code_presence,read_config_value \
+  --prompt "Read this design document and review on 5 dimensions: Completeness, Consistency, Clarity, Scope (YAGNI?), Feasibility. For each dimension: PASS or list specific issues with fixes. Return a quality score (1-10). You have access to read-only verifier tools (check_code_presence, read_config_value) to fact-check claims about the current system." \
   --input <design-doc-path>
 ```
 
@@ -535,17 +643,24 @@ Report: "Doc survived N rounds of review. M issues caught and fixed. Quality: X/
 
 ## Phase 6: Handoff
 
-Present the design doc to the user via AskUserQuestion:
-- A) Approve -- mark Status: APPROVED, proceed
-- B) Revise -- specify sections to change (loop back)
-- C) Start over -- return to Phase 2
+Output the following as markdown text, then call AskUserQuestion with the same options:
 
-Once approved, use AskUserQuestion:
+> **Design doc ready for review.**
+>
+> - **A) Approve** -- mark Status: APPROVED, proceed
+> - **B) Revise** -- specify sections to change (loop back)
+> - **C) Start over** -- return to Phase 2
 
-> Design doc written to `tasks/<topic>-design.md`. What's next?
-> A) `/elevate` -- stress-test scope and ambition
-> B) `/challenge` -- gate whether to build this
-> C) `/plan` -- go straight to planning
+Once approved, output the next-step options as markdown text. Mark the contextually
+appropriate option "(Recommended)" -- if the design has scope uncertainty, recommend
+/challenge; if scope is clear and ambitious, recommend /elevate; if straightforward,
+recommend /plan. Then call AskUserQuestion:
+
+> **Design doc written to `tasks/<topic>-design.md`. What's next?**
+>
+> - **A) `/elevate`** -- stress-test scope and ambition
+> - **B) `/challenge`** -- gate whether to build this
+> - **C) `/plan`** -- go straight to planning
 
 Report status: **DONE** with evidence (file path, quality score).
 
@@ -563,7 +678,9 @@ Report status: **DONE** with evidence (file path, quality score).
    - **Docs, config, trivial refactor** -- same: skip questions, write brief.
    - **New feature or non-trivial change** -- proceed to forcing questions.
 
-3. Ask forcing questions ONE AT A TIME via AskUserQuestion:
+3. Ask forcing questions ONE AT A TIME via AskUserQuestion. Prefix each question with
+   `[Q N/M]` where N is the current question number and M is the total (adjust M
+   downward if smart-skipping):
 
    - "What outcome are you after?" (the goal, not the solution)
    - "What's the current workaround? What does it cost?" (tests urgency)
@@ -599,11 +716,14 @@ Generated by /define refine on {date}
 {the MVP -- smallest thing that validates the approach}
 ```
 
-6. Handoff via AskUserQuestion:
+6. Output the next-step options as markdown text. If the task introduces new
+   abstractions or scope expansion, mark /challenge "(Recommended)". If
+   straightforward, mark /plan "(Recommended)". Then call AskUserQuestion:
 
-> Brief written to `tasks/<topic>-think.md`. What's next?
-> A) `/challenge` -- gate scope (recommended if new abstractions)
-> B) `/plan` -- go straight to planning
+> **Brief written to `tasks/<topic>-think.md`. What's next?**
+>
+> - **A) `/challenge`** -- gate scope (recommended if new abstractions)
+> - **B) `/plan`** -- go straight to planning
 
 Report status: **DONE** with evidence (file path).
 

@@ -1,18 +1,16 @@
 #!/bin/bash
-# PreToolUse hook: Block git commit if tests fail
+# PreToolUse hook: Block git commit if pytest fails
 
 INPUT=$(cat)
-PROJECT_ROOT="$(git rev-parse --show-toplevel 2>/dev/null || echo ".")"
-
-COMMAND=$(printf '%s' "$INPUT" | python3 -c "import sys,json; d=json.load(sys.stdin); print(d.get('tool_input',{}).get('command',''))" 2>/dev/null)
+COMMAND=$(printf '%s' "$INPUT" | /opt/homebrew/bin/python3.11 -c "import sys,json; d=json.load(sys.stdin); print(d.get('tool_input',{}).get('command',''))" 2>/dev/null)
 
 case "$COMMAND" in
   git\ commit*)
     echo "Running tests before commit..."
-    cd "$PROJECT_ROOT"
+    cd "$(git rev-parse --show-toplevel)"
     bash tests/run_all.sh
     if [ $? -ne 0 ]; then
-      echo "BLOCKED: tests failed — fix tests before committing"
+      echo "BLOCKED: pytest failed — fix tests before committing"
       exit 2
     fi
     ;;

@@ -14,32 +14,38 @@ Auto-generate the plan artifact that `hook-plan-gate.sh` requires for protected 
 
 Ask the user for a topic name if not provided as an argument.
 
-Check for a `/think` brief:
+Check for a `/define` design doc or brief:
 ```bash
-test -f tasks/<topic>-think.md && echo "found" || echo "none"
+test -f tasks/<topic>-design.md && echo "design doc found" || test -f tasks/<topic>-think.md && echo "brief found" || echo "none"
 ```
 
-If found, read it.
+If found, read it (design doc takes precedence over brief).
 
-If not found, ask the user: "No think brief found. What's the scope of this change? What files will you modify?"
+If not found, ask the user: "No design doc or brief found. What's the scope of this change? What files will you modify? Consider running `/define refine` first."
 
-### Step 1b: Challenge artifact check
+### Step 1b: Challenge gate
 
 Check for a `/challenge` artifact:
 ```bash
 test -f tasks/<topic>-challenge.md && echo "found" || echo "none"
 ```
 
-**If found:** Check staleness — if the file is older than 7 days, warn: "Challenge artifact is >7 days old. Consider re-running `/challenge <topic>` for fresh evaluation." This is advisory, not blocking.
+**If found — validate:**
 
-Read the challenge artifact. If the recommendation was "simplify" or "reject", note it to the user: "Challenge recommended `<recommendation>`. Proceed with that in mind."
+1. **Slug match:** Verify `topic_slug` in frontmatter matches the plan topic exactly.
+2. **Freshness:** Check the `date` field in frontmatter. Default freshness window is 7 days. If older, warn: "Challenge artifact is >7 days old. Consider re-running `/challenge <topic>`." This is advisory, not blocking.
+3. **Required sections:** Verify the artifact contains: Proposal Summary, Challenger Findings, Recommendation, Simpler Alternative, Override.
+4. **Recommendation:** Read and honor:
+   - `proceed` → continue planning
+   - `simplify` → plan must implement the Simpler Alternative section, not the original scope
+   - `pause` → hard stop until evidence/prerequisites addressed
+   - `reject` → hard stop unless explicitly overridden (see override policy in `.claude/rules/reference/review-protocol.md`)
 
-**If not found + `--skip-challenge` argument:** Continue with a note: "Challenge gate skipped (`--skip-challenge`)." Log this in the plan frontmatter as `challenge_skipped: true`.
+Note the recommendation to the user: "Challenge recommended `<recommendation>`."
 
-**If not found + no skip:** Ask the user: "No challenge artifact found. Is this a bugfix, test addition, docs update, or trivial refactor? (y → skip challenge, n → run `/challenge <topic>` first)"
+**If not found + `--skip-challenge`:** Continue with a note: "Challenge gate skipped (`--skip-challenge`)." Log `challenge_skipped: true` in plan frontmatter. Honor `/challenge` bypass rules: bugfixes, test-only, docs, trivial, reduction refactors.
 
-If yes: continue, log `challenge_skipped: true` in plan frontmatter.
-If no: stop and tell user to run `/challenge <topic>` first.
+**If not found + no skip:** Ask: "No challenge artifact found. Is this a bugfix, test addition, docs update, or trivial refactor? (y → skip challenge, n → run `/challenge <topic>` first)"
 
 ### Step 2: Identify files and classify tier
 
@@ -126,7 +132,7 @@ Build the plan content:
 ---
 scope: "<from analysis — one line>"
 surfaces_affected: "<comma-separated files to touch>"
-verification_commands: "<how to verify — e.g., 'python3 -m pytest tests/test_foo.py'>"
+verification_commands: "<how to verify — e.g., 'python3.11 -m pytest tests/test_foo.py'>"
 rollback: "<how to undo — e.g., 'git revert <sha>'>"
 review_tier: "<Tier 1|Tier 1.5|Tier 2 — from tier_classify.py>"
 verification_evidence: "PENDING"

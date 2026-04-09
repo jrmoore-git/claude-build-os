@@ -1,36 +1,29 @@
 #!/bin/bash
-# PreToolUse hook: Block when >=5 decisions are unsynced to PRD.
+# PreToolUse hook: Block when ≥5 decisions are unsynced to PRD.
 # Also warns when decisions.md staged without PRD, and blocks new PRD without symlink update.
 #
 # Count-based trigger: counts "### D" entries in tasks/decisions.md added AFTER
-# the PRD's last git commit. Blocks at >=5, warns at >=3.
-#
-# Configure PRD_FILE to match your project's PRD filename.
+# the PRD's last git commit. Blocks at ≥5, warns at ≥3.
 
 INPUT=$(cat)
-PROJECT_ROOT="$(git rev-parse --show-toplevel 2>/dev/null || echo ".")"
-
-# --- CONFIGURE THESE FOR YOUR PROJECT ---
-PRD_FILE="docs/PRD.md"  # Path to your PRD file (relative to project root)
-# -----------------------------------------
-
-COMMAND=$(printf '%s' "$INPUT" | python3 -c "import sys,json; d=json.load(sys.stdin); print(d.get('tool_input',{}).get('command',''))" 2>/dev/null)
+COMMAND=$(printf '%s' "$INPUT" | /opt/homebrew/bin/python3.11 -c "import sys,json; d=json.load(sys.stdin); print(d.get('tool_input',{}).get('command',''))" 2>/dev/null)
 
 case "$COMMAND" in
   git\ commit*)
-    STAGED=$(cd "$PROJECT_ROOT" && git diff --cached --name-only 2>/dev/null)
+    PROJECT="$(git rev-parse --show-toplevel)"
+    STAGED=$(cd "$PROJECT" && git diff --cached --name-only 2>/dev/null)
 
     # --- Count-based drift check ---
     # Find the PRD's last commit date, count decisions added after it
-    DRIFT_COUNT=$(python3 -c "
-import subprocess, re, sys
+    DRIFT_COUNT=$(PLAN_GATE_PROJECT="$PROJECT" /opt/homebrew/bin/python3.11 -c "
+import os, subprocess, re, sys
+from datetime import datetime
 
-project_root = '$PROJECT_ROOT'
-prd_file = '$PRD_FILE'
+project = os.environ['PLAN_GATE_PROJECT']
 
 # Last commit date for the PRD file
 result = subprocess.run(
-    ['git', '-C', project_root, 'log', '-1', '--format=%aI', '--', prd_file],
+    ['git', '-C', project, 'log', '-1', '--format=%aI', '--', 'docs/project-prd.md'],
     capture_output=True, text=True
 )
 prd_date_str = result.stdout.strip()
@@ -38,11 +31,11 @@ if not prd_date_str:
     print('0')  # PRD never committed — skip check
     sys.exit(0)
 
-# Parse PRD date (just the date part)
+# Parse PRD date (just the date part, ignore time for simplicity)
 prd_date = prd_date_str[:10]  # YYYY-MM-DD
 
 # Count decision entries with dates AFTER the PRD's last commit date
-decisions_path = project_root + '/tasks/decisions.md'
+decisions_path = os.path.join(project, 'tasks/decisions.md')
 try:
     content = open(decisions_path).read()
 except FileNotFoundError:
@@ -69,21 +62,21 @@ print(unsynced)
       echo "WARNING: $DRIFT_COUNT decisions are newer than the PRD. Consider a PRD sync pass soon."
     fi
 
-    # --- Warn if decisions staged without PRD ---
+    # --- Original: warn if decisions staged without PRD ---
     DECISIONS_STAGED=$(printf '%s' "$STAGED" | grep -c '^tasks/decisions\.md$')
-    PRD_STAGED=$(printf '%s' "$STAGED" | grep -c "$(basename "$PRD_FILE")$")
+    PRD_STAGED=$(printf '%s' "$STAGED" | grep -c 'PRD.*\.md$\|project-prd\.md$')
     if [ "$DECISIONS_STAGED" -gt 0 ] && [ "$PRD_STAGED" -eq 0 ]; then
       echo "WARNING: tasks/decisions.md staged but no PRD file staged. Sync if decision affects the spec."
     fi
 
-    # --- Block new PRD without symlink update ---
-    NEW_PRD=$(printf '%s' "$STAGED" | grep "^docs/.*PRD.*\.md" | tail -1)
+    # --- Original: block new PRD without symlink update ---
+    NEW_PRD=$(printf '%s' "$STAGED" | grep '^docs/.*PRD.*\.md' | tail -1)
     if [ -n "$NEW_PRD" ]; then
-      CURRENT_TARGET=$(readlink "$PROJECT_ROOT/docs/project-prd.md" 2>/dev/null | xargs basename 2>/dev/null)
+      CURRENT_TARGET=$(readlink "$PROJECT/docs/project-prd.md" 2>/dev/null | xargs basename 2>/dev/null)
       NEW_PRD_BASE=$(basename "$NEW_PRD")
       if [ "$CURRENT_TARGET" != "$NEW_PRD_BASE" ]; then
         echo "ERROR: New PRD staged ($NEW_PRD_BASE) but docs/project-prd.md still points to $CURRENT_TARGET"
-        echo "Fix: cd $PROJECT_ROOT/docs && ln -sf $NEW_PRD_BASE project-prd.md && git add docs/project-prd.md"
+        echo "Fix: cd $PROJECT/docs && ln -sf $NEW_PRD_BASE project-prd.md && git add docs/project-prd.md"
         exit 1
       fi
     fi

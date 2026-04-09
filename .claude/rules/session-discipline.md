@@ -14,8 +14,8 @@ description: Session management, documentation-first, context budgeting
 |---|---|
 | Bug, gotcha, platform surprise | tasks/lessons.md |
 | How Claude Code should behave | .claude/rules/*.md |
-| Build specs / PRD discrepancies | Build plan (flag to user if PRD) |
-| Phase status | tasks/todo.md |
+| Build specs / PRD discrepancies | Build plan (flag to owner if PRD) |
+| Phase status | tasks/handoff.md |
 | Decision with rationale | tasks/decisions.md |
 | Session summary | tasks/session-log.md |
 
@@ -27,41 +27,23 @@ When context reaches ~60%, write to `tasks/session-log.md` FIRST:
 - NOT Finished: [what remains, blockers]
 - Next Session Should: [first thing to do, files to read]
 
-Priority when context is low: 1. Session summary -> 2. Phase review -> 3. Implementation
+Priority when context is low: 1. Session summary → 2. Phase review → 3. Implementation
 
 ## Standing Rules
 - Do not ask for decisions already answered in the PRD.
 - When you need credentials or OAuth clicks, STOP and say exactly what you need from the user. Don't guess or proceed without them.
-- Consult `tasks/lessons.md` when working in a relevant area -- not mandatory every session, but check when the task touches a domain with known gotchas.
+- Consult `tasks/lessons.md` when working in a relevant area — not mandatory every session, but check when the task touches a domain with known gotchas.
 
 ## Plan Mode
 - Enter plan mode for ANY non-trivial task (3+ steps or architectural decisions)
 - If something goes sideways, STOP and re-plan immediately
-- Decompose work into focused tracks -- context window limits kill long sessions
+- Decompose work into focused tracks — context window limits kill long sessions
 
 ## Plan Gate (Protected Paths)
 
-A commit-time hook (`scripts/hook-plan-gate.sh`) enforces plan-before-code discipline on protected paths. Config: `config/protected-paths.json`.
+Enforced by `scripts/hook-plan-gate.sh`. Protected paths require a `tasks/<topic>-plan.md` with valid YAML frontmatter (`scope`, `surfaces_affected`, `verification_commands`, `rollback`, `review_tier`, `verification_evidence`) before commit. Config: `config/protected-paths.json`. `[TRIVIAL]` blocked for protected paths; `[EMERGENCY]` allowed with warning.
 
-**Protected paths** (require a plan artifact before commit): `skills/**/*.md`, `scripts/*_tool.py`, `scripts/*_pipeline.py`, `.claude/rules/*.md`.
-
-**Exempt paths** (always pass): `tasks/*`, `docs/*`, `tests/*`, `config/*`, `stores/*`.
-
-**Plan artifact format** -- create `tasks/<topic>-plan.md` with YAML frontmatter:
-```yaml
----
-scope: "What this change does"
-surfaces_affected: "What systems/files are touched"
-verification_commands: "How to verify correctness"
-rollback: "How to undo"
-review_tier: "Tier 1|Tier 1.5|Tier 2"
-verification_evidence: "Results of verification (must not be PENDING)"
----
-```
-
-**Bypass rules:**
-- `[TRIVIAL]` -- **BLOCKED** for protected paths. LLMs misclassify complexity; this is the root cause being fixed.
-- `[EMERGENCY]` -- **ALLOWED** with stderr warning. Audited in weekly review.
+**Review requirement:** No commit without the appropriate review tier. See `.claude/rules/reference/review-protocol.md` for the 3-stage chain (`/challenge` → `/debate` → `/review`) and tier classification.
 
 ## Verification
 - Never mark a task complete without proving it works
@@ -70,20 +52,31 @@ verification_evidence: "Results of verification (must not be PENDING)"
 - **Sanity-check data volumes, not just success codes.** A pipeline can return valid JSON with no errors and still be wrong. If the output count is inconsistent with what you know should exist, stop and investigate before proceeding.
 
 ## Context Budget
-- Use `/compact` at 50% context usage -- don't wait for automatic compression
+- Use `/compact` at 50% context usage — don't wait for automatic compression
 - Every LLM call must log the actual model that responded, not the model that was requested (fallback detection)
+- **Before compaction:** write critical state to disk (current-state.md, session-log) so it survives even if compaction is aggressive
+- **What survives compaction** is controlled by the `## Compact Instructions` section in CLAUDE.md — update it if your session has unusual context needs
+
+## Presenting Options
+
+When presenting multiple approaches, alternatives, or options for the user to choose from, output them as **regular markdown text** in the conversation BEFORE using AskUserQuestion. The AskUserQuestion widget disappears when the user wants to discuss rather than pick immediately — the options must remain visible as reference material during the conversation.
+
+**Anti-pattern:** Putting all option details only inside the AskUserQuestion tool call.
+**Correct pattern:** Write numbered options as text → then AskUserQuestion for the selection.
 
 ## Three-Strikes Escalation
 
-If the same behavior has been corrected three times at the same level, escalate immediately. Promotion ladder: lesson -> rule -> hook -> architecture. Do not keep rewriting advisory text for a behavior that needs structural enforcement.
+If the same behavior has been corrected three times at the same level, escalate immediately. Promotion ladder: lesson → rule → hook → architecture. Do not keep rewriting advisory text for a behavior that needs structural enforcement.
 
 ## Lesson Promotion Discipline
 
 `tasks/lessons.md` is a **lean queue** (target: <=30 entries). Check for duplicates before adding. Promote recurring lessons to `.claude/rules/`. Triage at 30+ entries: archive one-offs and already-promoted items to `tasks/lessons-archived.md`.
 
+**Lesson closure rule:** When a commit fixes a lesson, the same commit must update the lesson's status in `tasks/lessons.md` to Resolved (code fix shipped) or Promoted (rule/hook/architecture). A lesson left Active after its fix ships poisons future sessions — `/recall` surfaces it as open work, other sessions waste time re-investigating.
+
 ## Large-Task Execution
 
-The context window is expensive RAM; the filesystem is free storage. For complex multi-track work, write the plan to disk and execute against the file, not the conversation. Write plans, reviews, and state to files -- read selectively. If a skill runs in a loop (N items x M calls), process in batches to avoid quadratic context growth. Anti-pattern: loading 312K tokens "just in case" when 50K suffices.
+The context window is expensive RAM; the filesystem is free storage. For complex multi-track work, write the plan to disk and execute against the file, not the conversation. Write plans, reviews, and state to files — read selectively. If a skill runs in a loop (N items × M calls), process in batches to avoid quadratic context growth. Anti-pattern: loading 312K tokens "just in case" when 50K suffices.
 
 ## Commit Doc Update Rule (HARD RULE)
 

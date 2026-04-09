@@ -73,6 +73,18 @@ Agent teams remain experimental. Use subagents for production-critical work; use
 
 Claude Code also supports custom subagent definitions in `.claude/agents/` — YAML files that restrict tools, override models, and set isolation boundaries. Use these to create specialized agents (e.g., a read-only researcher, a test runner limited to Bash) without cluttering main context. See [Platform Features](../docs/platform-features.md) for the full reference.
 
+### Built-in subagent types
+
+Claude Code ships with three built-in subagent types that the model can use via the Agent tool without any custom configuration:
+
+- **Explore** — Read-only, uses a faster model (Haiku). Searches code, reads files, answers codebase questions. Cannot write files. Good for parallel research queries.
+- **Plan** — Read-only, used during plan mode. Researches the codebase to inform planning decisions.
+- **general-purpose** — Full tool access. Handles complex, multi-step tasks autonomously. This is the default when no specialized type is specified.
+
+Understanding these matters because they're what Claude delegates to by default. When you see Claude "launching an agent to research X," it's spawning an Explore subagent. When it "launches an agent to implement Y," it's spawning a general-purpose subagent. Custom agents in `.claude/agents/` extend this set with project-specific specializations.
+
+Read-only subagents (Explore) are cheap and safe to fan out widely — 5-10 parallel research queries are fine. Write-capable subagents (general-purpose) need worktree isolation when running in parallel to prevent file collisions.
+
 ### Decompose by output boundary, not role boundary
 
 The primary failure mode in parallel agent work is not bad code. It is incompatible assumptions at boundaries.
@@ -104,14 +116,24 @@ This prevents the most expensive class of failure: multiple agents each producin
 
 ### Spawn prompts must include full context
 
-Teammates do not inherit the lead's conversation history. Whatever they need must be included in the spawn prompt.
+Subagents and teammates do not inherit the lead's conversation history. Whatever they need must be included in the spawn prompt. This is the single most common cause of subagent failure — the lead knows the full context but the spawned agent starts from zero.
 
 Minimum spawn prompt contents:
-- Task scope
-- File ownership boundary
+- Task scope — what to do and what *not* to do
+- File ownership boundary — which files this agent may edit
 - Interface contracts relevant to that agent
-- Acceptance criteria
+- Acceptance criteria — how to know when done
 - Pointer to the relevant PRD or build-plan section
+
+**Write the prompt like a briefing for a smart colleague who just walked into the room.** They haven't seen the conversation, don't know what you've tried, don't know why this task matters. Include enough context that they can make judgment calls rather than just following narrow instructions.
+
+**Anti-patterns:**
+- "Based on your findings, fix the bug" — pushes synthesis onto the agent instead of doing it yourself
+- "Look at the code and make improvements" — too vague, no acceptance criteria
+- Referencing "the file we discussed" — the agent has no conversation history
+- Using absolute file paths — bypasses worktree isolation (use relative paths)
+
+**Good pattern:** Include specific file paths (relative), what you already know about the problem, what you've ruled out, and what the agent should produce as output.
 
 ### Token cost is not optional context
 
@@ -144,6 +166,14 @@ The convergence review examines:
 
 Run at least one smoke test against the integrated system before closing.
 
+### Parallel review as a design option
+
+For projects using cross-model review via `debate.py`, the review pipeline runs three model families (Gemini, GPT, Claude) sequentially through adversarial lenses — each assigned a persona that matches its strengths (see `config/debate-models.json`). This is the recommended approach for high-stakes reviews because cross-model independence produces genuinely different blind spots.
+
+An alternative for lower-stakes or time-sensitive reviews: spawn multiple read-only Explore subagents in parallel, each reviewing the diff through a different lens (architecture, security, PM). The lead then synthesizes findings. This trades cross-model diversity for wall-clock speed — all reviews run simultaneously instead of sequentially. The tradeoff: subagents from the same model family may share blind spots that cross-model review would catch.
+
+Use cross-model `debate.py` for architectural decisions and security-sensitive changes. Consider parallel subagent review for routine code review where speed matters more than adversarial depth.
+
 ### Orchestration documents
 
 For complex builds, write the whole orchestration plan to disk and point Claude at it. A long orchestration document outperforms a long conversation because it externalizes scope, dependencies, and verification criteria without bloating the live context window.
@@ -152,7 +182,7 @@ One of our highest-leverage patterns was exactly this: write the orchestration d
 
 ---
 
-## 3. Git Worktrees for Parallel Sessions
+## 3. Git Worktrees and Isolation
 
 If multiple Claude sessions need to work on the same repo simultaneously, use git worktrees instead of letting them fight over one checkout.
 
@@ -162,6 +192,22 @@ git worktree add ../feature-api feature-api
 ```
 
 Each session gets its own branch and working directory while preserving one shared repository history. This prevents merge conflicts from concurrent file edits and lets each agent work with a clean working tree.
+
+### Worktree isolation for subagents
+
+When dispatching write-capable subagents in parallel, use `isolation: "worktree"` on the Agent tool. This gives each subagent its own git checkout automatically — no manual `git worktree add` needed. The worktree is cleaned up if the agent makes no changes; if changes are made, the worktree path and branch are returned in the result for you to merge.
+
+**When to use worktree isolation:**
+- Any parallel subagent that writes files (Edit, Write tools)
+- Any agent modifying code that other parallel agents also touch
+
+**When to skip it:**
+- Read-only agents (Explore type, research tasks) — no collision risk
+- Single sequential agents — no parallelism means no conflicts
+
+**Common mistake:** Using absolute paths in subagent prompts. Absolute paths like `/home/user/myproject/src/foo.py` point to the main checkout and bypass the worktree entirely. Always use relative paths (`src/foo.py`) so the agent operates within its isolated copy.
+
+The Build OS enforces this with `hook-agent-isolation.py` — after a parallel plan is declared (decompose gate flag with `plan_submitted: true`), it blocks write-capable Agent dispatches that lack `isolation: "worktree"`.
 
 ---
 

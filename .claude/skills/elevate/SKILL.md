@@ -17,14 +17,39 @@ allowed-tools:
   - Bash
   - Agent
   - AskUserQuestion
-  - WebSearch
 ---
+
+## Interactive Question Protocol
+
+These rules apply to EVERY AskUserQuestion call in this skill:
+
+1. **Text-before-ask:** Before every AskUserQuestion, output the question, all options,
+   and context as regular markdown. Then call AskUserQuestion. Options persist if the
+   user discusses rather than picks immediately.
+
+2. **Recommended-first:** Mark the recommended option with "(Recommended)" and list it
+   as option A. If no option is clearly better (depends on user intent), omit the marker.
+
+3. **Empty-answer guard:** If AskUserQuestion returns empty/blank: re-prompt once with
+   "I didn't catch a response — here are the options again:" and the same options.
+   If still empty: pause the skill — "Pausing — let me know when you're ready."
+   Do NOT auto-select any option.
+
+4. **Vague answer recovery:** If the user says "whatever you think" / "either is fine" /
+   "up to you": state "Going with [recommended] since no strong preference. Noted as
+   assumption." Proceed with recommended.
+
+5. **Topic sanitization:** Before constructing any file path with `<topic>`, sanitize to
+   lowercase alphanumeric + hyphens only (`[a-z0-9-]`). Strip `/`, `..`, spaces, and
+   special characters. This prevents path traversal in scratch/landscape file writes.
 
 ## OUTPUT SILENCE -- HARD RULE
 
 Between tool calls, emit ZERO text to the chat. No progress updates, no "checking...",
 no intermediate results. The ONLY user-visible output is structured review findings
 and AskUserQuestion calls.
+
+**Exception:** Text-before-ask output immediately preceding an AskUserQuestion call is permitted (see Interactive Question Protocol above).
 
 ---
 
@@ -151,13 +176,29 @@ or poorly designed -- these are anti-patterns to avoid repeating.
 Report findings before proceeding to Step 0.
 
 ### Landscape Check
-Before challenging scope, understand the landscape. WebSearch for:
+
+**Reuse existing research:** Before running web search, check if `tasks/<topic>-landscape.md`
+exists (written by /define). If it exists, read it and use those findings instead of
+repeating the search. State: "Found landscape research from /define -- using existing
+findings." Skip the web_search.py calls below and proceed to the three-layer synthesis
+using the landscape file content.
+
+Before challenging scope, understand the landscape. Use `web_search.py` for research:
+
+```bash
+YOU_COM_API_KEY="$YOU_COM_API_KEY" /opt/homebrew/bin/python3.11 scripts/web_search.py search "query here" --num 5
+```
+
+Search for:
 - "[product category] landscape {current year}"
 - "[key feature] alternatives"
 - "why [incumbent/conventional approach] [succeeds/fails]"
 
-If WebSearch is unavailable, skip this check and note: "Search unavailable -- proceeding
-with in-distribution knowledge only."
+If `YOU_COM_API_KEY` is not set or search fails, fall back to Claude's built-in WebSearch tool:
+```
+WebSearch("query here")
+```
+If WebSearch is also unavailable, note: "Search unavailable -- proceeding with in-distribution knowledge only."
 
 Run the three-layer synthesis:
 - **[Layer 1]** What's the tried-and-true approach in this space?
@@ -176,13 +217,18 @@ If a design doc exists (from `/define discover`), read it. Use it as source of t
 for the problem statement, constraints, and chosen approach. If it has a `Supersedes:`
 field, note this is a revised design.
 
-**If no design doc found**, offer the prerequisite via AskUserQuestion:
+**After reading the design doc:** Display extracted key values as a summary (problem
+statement, constraints, chosen approach, rejected alternatives). State: "Pre-filled
+from design doc -- object now or I'll proceed with these." Give the user 1 chance to
+correct before moving on. If the user says nothing or confirms, proceed.
+
+**If no design doc found**, output the following as markdown text, then offer via AskUserQuestion:
 
 > No design doc found. `/define discover` produces a structured problem statement,
 > premise challenge, and explored alternatives -- it gives this review sharper input.
 > Takes about 10-15 minutes.
 >
-> A) Run /define discover now (we'll pick up the review right after)
+> A) Run /define discover now (Recommended) -- we'll pick up the review right after
 > B) Skip -- proceed with standard review
 
 If A: read `.claude/skills/define/SKILL.md` and follow the discover mode inline,
@@ -202,15 +248,18 @@ Read the plan file that the user pointed this review at.
 ## Step 0: Scope Challenge + Mode Selection
 
 ### 0A. Premise Challenge
+Prefix output with `[Step 0: 1/5]`.
 1. Is this the right problem to solve? Could a different framing yield a simpler or more impactful solution?
 2. What is the actual user/business outcome? Is the plan the most direct path?
 3. What would happen if we did nothing? Real pain or hypothetical?
 
 ### 0B. Existing Code Leverage
+Prefix output with `[Step 0: 2/5]`.
 1. What existing code already partially or fully solves each sub-problem?
 2. Is this plan rebuilding anything that already exists? If yes, justify.
 
 ### 0C. Dream State Mapping
+Prefix output with `[Step 0: 3/5]`.
 ```
   CURRENT STATE                  THIS PLAN                  12-MONTH IDEAL
   [describe]          --->       [describe delta]    --->    [describe target]
@@ -236,6 +285,7 @@ Rules:
 - Do NOT proceed to mode selection without user approval of the approach.
 
 ### 0D. Mode-Specific Analysis
+Prefix output with `[Step 0: 4/5]`.
 
 **SCOPE EXPANSION:**
 1. 10x check: what's 10x more ambitious for 2x the effort? Describe concretely.
@@ -296,6 +346,7 @@ Mode: {EXPANSION / SELECTIVE EXPANSION}
 ```
 
 ### 0E. Temporal Interrogation (EXPANSION, SELECTIVE EXPANSION, and HOLD modes)
+Prefix output with `[Step 0: 5/5]`.
 Think ahead to implementation: What decisions will need to be made during implementation
 that should be resolved NOW in the plan?
 ```
@@ -311,7 +362,14 @@ Surface these as questions for the user NOW, not as "figure it out later."
 
 ## Review Sections (10 sections, after scope and mode are agreed)
 
+**Smart-skip rule:** If an earlier section already addressed a concern that would arise
+in a later section, skip it. State: "Already covered in Section N -- skipping."
+
+**Incremental saves:** After completing each section, append findings to
+`tasks/<topic>-elevate-scratch.md`. This preserves progress if the session is interrupted.
+
 ### Section 1: Architecture Review
+Prefix output with `[Section 1/11]`.
 - System design, component boundaries, dependency graph (ASCII diagram)
 - Data flow: happy path, nil path, empty path, error path
 - State machines (ASCII diagram with invalid transitions)
@@ -328,6 +386,7 @@ Required: ASCII system architecture diagram.
 **STOP.** AskUserQuestion once per issue. Recommend + WHY. If obvious fix, state it and move on.
 
 ### Section 2: Error & Rescue Map
+Prefix output with `[Section 2/11]`.
 For every new method/service/codepath that can fail:
 ```
   METHOD/CODEPATH          | WHAT CAN GO WRONG           | EXCEPTION CLASS
@@ -346,6 +405,7 @@ For every new method/service/codepath that can fail:
 **STOP.** AskUserQuestion once per issue.
 
 ### Section 3: Security & Threat Model
+Prefix output with `[Section 3/11]`.
 - Attack surface expansion, input validation, authorization
 - Secrets management, dependency risk, data classification
 - Injection vectors: SQL, command, template, prompt injection
@@ -355,6 +415,7 @@ For every new method/service/codepath that can fail:
 **STOP.** AskUserQuestion once per issue.
 
 ### Section 4: Data Flow & Interaction Edge Cases
+Prefix output with `[Section 4/11]`.
 Data flow tracing (ASCII diagram):
 ```
   INPUT --> VALIDATION --> TRANSFORM --> PERSIST --> OUTPUT
@@ -376,14 +437,16 @@ Interaction edge cases:
 **STOP.** AskUserQuestion once per issue.
 
 ### Section 5: Code Quality Review
+Prefix output with `[Section 5/11]`.
 - Organization, DRY violations, naming quality
 - Error handling patterns (cross-ref Section 2)
 - Missing edge cases, over-engineering, under-engineering
 - Cyclomatic complexity: flag methods branching >5 times
 
-**STOP.** AskUserQuestion once per issue.
+**STOP.** Batch all issues in this section into one AskUserQuestion per the batching rules.
 
 ### Section 6: Test Review
+Prefix output with `[Section 6/11]`.
 Diagram every new thing the plan introduces:
 ```
   NEW UX FLOWS: [list]
@@ -398,17 +461,19 @@ For each: test type, happy path test, failure path test, edge case test.
 Test ambition: what test makes you confident shipping at 2am on a Friday?
 What would a hostile QA engineer write? What's the chaos test?
 
-**STOP.** AskUserQuestion once per issue.
+**STOP.** Batch all issues in this section into one AskUserQuestion per the batching rules.
 
 ### Section 7: Performance Review
+Prefix output with `[Section 7/11]`.
 - N+1 queries, memory usage, database indexes
 - Caching opportunities, background job sizing
 - Top 3 slowest new codepaths with estimated p99 latency
 - Connection pool pressure
 
-**STOP.** AskUserQuestion once per issue.
+**STOP.** Batch all issues in this section into one AskUserQuestion per the batching rules.
 
 ### Section 8: Observability & Debuggability
+Prefix output with `[Section 8/11]`.
 - Logging at entry/exit/branch, metrics, tracing
 - Alerting, dashboards for day 1
 - Debuggability: reconstruct a bug from logs alone 3 weeks post-ship?
@@ -416,9 +481,10 @@ What would a hostile QA engineer write? What's the chaos test?
 
 EXPANSION/SELECTIVE addition: what observability makes this a joy to operate?
 
-**STOP.** AskUserQuestion once per issue.
+**STOP.** Batch all issues in this section into one AskUserQuestion per the batching rules.
 
 ### Section 9: Deployment & Rollout
+Prefix output with `[Section 9/11]`.
 - Migration safety, feature flags, rollout order
 - Rollback plan (explicit step-by-step)
 - Deploy-time risk (old + new code simultaneously)
@@ -429,6 +495,7 @@ EXPANSION/SELECTIVE addition: what deploy infra makes shipping routine?
 **STOP.** AskUserQuestion once per issue.
 
 ### Section 10: Long-Term Trajectory
+Prefix output with `[Section 10/11]`.
 - Technical debt introduced, path dependency
 - Knowledge concentration, documentation sufficiency
 - Reversibility (1-5 scale)
@@ -437,9 +504,10 @@ EXPANSION/SELECTIVE addition: what deploy infra makes shipping routine?
 EXPANSION/SELECTIVE additions: what comes after this? Platform potential?
 SELECTIVE only: retrospective on cherry-pick decisions.
 
-**STOP.** AskUserQuestion once per issue.
+**STOP.** Batch all issues in this section into one AskUserQuestion per the batching rules.
 
 ### Section 11: Design & UX Review (skip if no UI scope detected)
+Prefix output with `[Section 11/11]`.
 The PM calling in the designer. Not a pixel-level audit -- that's /plan-design-review
 and /design-review. This is ensuring the plan has design intentionality.
 
@@ -464,24 +532,24 @@ Required ASCII diagram: user flow showing screens/states and transitions.
 
 If significant UI scope: recommend running `/plan-design-review` before implementation.
 
-**STOP.** AskUserQuestion once per issue.
+**STOP.** Batch all issues in this section into one AskUserQuestion per the batching rules.
 
 ---
 
 ## Independent Review (optional)
 
-After all sections complete, offer via AskUserQuestion:
+After all sections complete, output the following as markdown text, then offer via AskUserQuestion:
 
-> All review sections complete. Want an independent review? A separate reviewer gives a
-> brutally honest challenge -- logical gaps, feasibility risks, blind spots hard to catch
-> from inside the review. Takes about 1-2 minutes.
+> All review sections complete. Want an independent review? A different model
+> gives a brutally honest independent challenge -- logical gaps, feasibility
+> risks, blind spots hard to catch from inside the review. Takes about 30 seconds.
 >
-> A) Get the independent review (recommended)
+> A) Get the independent review (Recommended)
 > B) Skip -- proceed to outputs
 
 If B: skip.
 
-If A: write the full plan content to a temp file, then run:
+If A: Write the plan content to a temp file, then call debate.py review:
 
 ```bash
 TMPFILE=$(mktemp /tmp/elevate-plan-XXXXXX.md)
@@ -489,24 +557,25 @@ cat > "$TMPFILE" << 'PLAN_EOF'
 <plan content -- truncate to 30KB if needed>
 PLAN_EOF
 
-python3 scripts/debate.py review \
+/opt/homebrew/bin/python3.11 scripts/debate.py review \
   --persona staff \
   --prompt "You are a brutally honest technical reviewer examining a development plan that has already been through a multi-section review. Find what it missed: logical gaps, overcomplexity (is there a fundamentally simpler approach?), feasibility risks taken for granted, missing dependencies, strategic miscalibration (is this the right thing to build?). Be direct. Be terse. No compliments. Just the problems." \
   --input "$TMPFILE"
 rm -f "$TMPFILE"
 ```
 
-**If exit 0:** Present review findings verbatim. Note disagreements:
+If exit 0: present findings verbatim. Note disagreement points:
 ```
 REVIEWER DISAGREEMENT:
   [Topic]: Review said X. Independent reviewer says Y. [Your assessment.]
 ```
 
-For each substantive disagreement, ask via AskUserQuestion whether to add to tasks/.
-
-**If exit non-zero:** Fall back to Agent tool subagent with the same prompt. Label output:
+If exit non-zero (LiteLLM unavailable): fall back to Agent tool subagent with same
+prompt, but label honestly:
 "⚠️ Independent review unavailable (cross-model backend down). Running same-model
 cold read. Treat with appropriate skepticism."
+
+For each substantive disagreement, ask via AskUserQuestion whether to add to tasks/.
 
 ---
 
@@ -604,17 +673,24 @@ If any AskUserQuestion goes unanswered, list here. Never silently default.
 3. RECOMMENDATION: Choose [X] because [one-line reason].
 4. Lettered options: A) ... B) ... C) ...
 
-One issue = one AskUserQuestion. Never batch.
+### Batching Rules
+
+- **HIGH-STAKES (Sections 1, 2, 3, 4, 9):** One issue = one AskUserQuestion. Never batch.
+- **LOW-STAKES (Sections 5, 6, 7, 8, 10, 11):** Batch all issues in that section into
+  ONE AskUserQuestion with a numbered list and per-item recommendation. Example format:
+  "1. [Issue] -- Recommendation: [X]\n2. [Issue] -- Recommendation: [Y]\nReply with
+  numbers to override, or 'ok' to accept all."
+
 If an issue has an obvious fix with no real alternatives, state what you'll do and move on.
 
 ---
 
 ## Handoff
 
-After the completion summary, use AskUserQuestion:
+After the completion summary, output the following as markdown text, then use AskUserQuestion:
 
 > Review complete. What's next?
-> A) `/challenge` -- gate whether to proceed with this scope
+> A) `/challenge` (Recommended) -- gate whether to proceed with this scope
 > B) `/plan` -- go straight to planning
 
 ---

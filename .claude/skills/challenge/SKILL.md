@@ -1,108 +1,169 @@
 ---
 name: challenge
-description: "Principal engineer asking 'should we build this?' Cross-model gate before /plan. Prevents scope creep and unnecessary abstractions."
+description: "Cross-model challenge that pressure-tests whether proposed work is necessary and appropriately scoped before /plan."
 user-invocable: true
 ---
 
 # /challenge — Should We Build This?
 
-Cross-model gate that evaluates whether proposed work is necessary and appropriately scoped. Run before `/plan` for any non-trivial change.
+Question the premise, scope, and complexity of proposed work before committing to a plan. Runs a cross-model challenge via `debate.py` when available, produces durable artifacts on disk, and acts as a gate that `/plan` relies on.
+
+## When to run
+
+Run `/challenge` before `/plan` for any non-trivial change, especially when the proposal introduces:
+
+- New abstractions: class, module, service, wrapper, adapter, plugin
+- New dependencies: package, API, service, vendor integration
+- New infrastructure: config, feature flag, schema, migration, routing
+- Generalization: "reusable," "generic," "extensible," "future-proof"
+- Scope expansion beyond the ask: cleanup, migration, speculative refactor
+
+Line count and file count are not triggers. New concepts and irreversible scope are.
+
+## Bypass rules
+
+Skip `/challenge` entirely for:
+
+- Bugfixes that restore intended behavior without adding new behavior
+- Test-only changes
+- Documentation or copy changes
+- Refactors that reduce abstractions more than they add
+- Tasks classified as `[TRIVIAL]` (2 or fewer files, no new abstraction/dependency, describable in one sentence)
+
+If uncertain, do not bypass.
+
+Log all bypasses: `[CHALLENGE-SKIPPED] <date> <topic> reason: <classification>`
 
 ## Procedure
 
-### Step 1: Get topic
+### Step 1: Resolve the topic
 
-If the user provided a topic as an argument, use it. Otherwise ask: "What's the topic name for this challenge? (e.g., `review-skill-restructure`)"
+If the user supplied a topic, use it. Otherwise infer:
 
-### Step 2: Check for prior work
+1. Most recent `tasks/*-design.md` or `tasks/*-think.md`
+2. Most recent `tasks/*-elevate.md`
+3. Current git branch name with common prefixes stripped
 
-Check for a `/think` brief:
-```bash
-test -f tasks/<topic>-think.md && echo "found" || echo "none"
-```
+Only ask if all inference fails.
 
-If found, read it — this provides problem context.
+Convert the topic to a slug: lowercase, alphanumeric and hyphens only, matching `^[a-z0-9]+(-[a-z0-9]+)*$`. Reject slugs containing `/`, `\`, `..`, spaces, or absolute paths.
 
-### Step 3: Ensure proposal exists
+**Shell safety:** Never interpolate user-provided topic text into shell commands. Pass file paths as direct arguments, never through string interpolation.
 
-Check for `tasks/<topic>-proposal.md`:
-```bash
-test -f tasks/<topic>-proposal.md && echo "found" || echo "none"
-```
+### Step 2: Check for prior context
+
+Look for prior `/define` output:
+- `tasks/<slug>-design.md`
+- `tasks/<slug>-think.md`
+
+If found, read for problem framing, constraints, and prior decisions.
+
+### Step 3: Ensure a proposal exists
+
+Check for `tasks/<slug>-proposal.md`.
 
 If missing:
-- If a think brief exists, synthesize a brief proposal (1-2 paragraphs) covering: what problem, why now, proposed approach.
-- If no think brief either, ask the user: "Describe what you want to build and why."
-- Write to `tasks/<topic>-proposal.md`.
+- If prior context exists from Step 2, synthesize a short proposal from it.
+- Otherwise ask the user to describe: what they want to build, why it matters, the proposed approach, and what they are not building.
 
-### Step 4: Enrich context
+Write to `tasks/<slug>-proposal.md`.
 
-Pull relevant lessons and decisions:
-```bash
-python3 scripts/enrich_context.py --proposal tasks/<topic>-proposal.md
-```
+If the proposal is vague or high-risk, use the optional template covering: problem/user, evidence, cheapest test, non-goals, simplest version, new concepts, deletion cost, real vs speculative need.
 
-If enrichment returns results, create a temp file with the proposal + a `## Prior Context` section appended. Use the temp file as input to the challenge. Original proposal stays untouched.
+### Step 4: Enrich context (optional)
 
-### Step 5: Run cross-model challenge
+If `scripts/enrich_context.py` exists, run it to pull relevant decisions and lessons. If the script is missing, errors, or returns nothing, continue with the raw proposal. Do not mutate `tasks/<slug>-proposal.md`. If enrichment succeeds, append a `## Prior Context` section to a working copy used as debate input.
 
-Select personas based on the proposal content:
-- **Base personas (always):** architect, security, pm
-- **Add `product` IF** the proposal introduces a new user-facing feature or changes user workflow (NOT for refactors, infrastructure, or backend-only changes)
-- **Add `design` IF** the proposal touches frontend files (CSS, UI components) (NOT for backend-only changes)
+### Step 5: Determine review mode
+
+**Local-only mode:** User explicitly requests it, or proposal contains secrets. Skip multi-model review. Proceed to Step 6, then Step 8. Mark artifact `review_backend: local-only`. This is an operator choice, not degraded.
+
+**Standard mode:** `debate.py` is available. Proceed to Step 6, then Step 7, then Step 9.
+
+**Degraded fallback:** `debate.py` unavailable or fails. Classify proposal risk from content:
+- **Tier 1 (fail closed):** Security, auth, schema, infrastructure, unclear risk. Stop and report.
+- **Tier 2/3 (degrade allowed):** Bounded features, local refactors, clear rollback. Proceed to Step 6, then Step 8 with `[DEGRADED]` banner.
+
+When risk cannot be classified confidently, default to Tier 1.
+
+### Step 6: Select personas
+
+Always: **architect**, **security**, **pm**.
+
+Add dynamically based on proposal content:
+- **product** if the proposal changes user-facing behavior or workflows
+- **design** if the proposal affects UI or frontend experience
+
+### Step 7: Run cross-model challenge
 
 ```bash
 python3 scripts/debate.py challenge \
-  --proposal <enriched or original proposal> \
+  --proposal <enriched or raw proposal> \
   --personas architect,security,pm[,product][,design] \
-  --output tasks/<topic>-challenge.md
+  --output tasks/<slug>-findings.md
 ```
 
-Parse JSON stdout. If status is `"ok"` or `"partial"`, continue to Step 6. If all challengers failed, fall through to Step 5b.
+Write raw output to `tasks/<slug>-findings.md`. Do not write to `-challenge.md` — that is synthesized in Step 9.
 
-### Step 5b: Degraded fallback
+**Minimum coverage:** At least 2 responders must return usable findings. If fewer than 2: Tier 1 stops, Tier 2/3 degrades to Step 8.
 
-If `debate.py` fails entirely (connection error, timeout, all models down):
+If `debate.py` fails entirely, apply fallback from Step 5.
 
-Self-challenge with these 4 questions:
-1. What problem are we solving? What evidence exists that it matters?
-2. What's the simplest version that tests the hypothesis?
-3. What should we explicitly NOT build?
-4. What is the cheapest test of whether this works?
+### Step 8: Single-model review
 
-Write answers to `tasks/<topic>-challenge.md` with frontmatter. Include a `MATERIAL` tag on any substantive concern so `artifact_check.py` recognizes this as a valid challenge artifact:
-```yaml
----
-debate_id: <topic>
-created: <ISO datetime>
-phase: challenge
-status: degraded
-producer: claude-opus
-note: "Cross-model debate unavailable. Single-model self-challenge."
----
-```
+Runs for local-only mode or degraded fallback. Review the proposal skeptically through Step 6 personas. Focus on: whether the problem is real, whether the approach is oversized, simpler alternatives, non-goals, deletion cost, evidence gaps.
 
-### Step 6: Synthesize recommendation
+Write findings to `tasks/<slug>-findings.md`. If degraded (not local-only), mark with `[DEGRADED: single-model fallback]`.
 
-Read `tasks/<topic>-challenge.md`. Based on the findings, recommend one of:
+### Step 9: Synthesize the challenge artifact
 
-- **proceed** — No material objections. Go to `/plan`.
-- **simplify** — Valid idea, but scope needs reduction. State what to cut.
-- **pause** — Needs more information or prerequisites. State what's missing.
-- **reject** — Cost exceeds benefit or conflicts with existing architecture. State why.
+Read the proposal, prior context, enrichment, and findings. Write `tasks/<slug>-challenge.md` following the structure in `templates/challenge-artifact.md`.
+
+Artifact roles must stay separate:
+- `-proposal.md` = input
+- `-findings.md` = raw challenge output
+- `-challenge.md` = synthesized gate artifact for `/plan`
+
+### Step 10: Report result
 
 Display:
-```
+
+```text
 ## Challenge Result: <PROCEED|SIMPLIFY|PAUSE|REJECT>
 
 <1-3 sentence summary>
 
-Artifacts: tasks/<topic>-challenge.md
-Next: /plan <topic>
+Artifacts:
+- tasks/<slug>-challenge.md
+- tasks/<slug>-findings.md
+
+Next:
+- /plan <topic>     (if proceed)
+- revise scope, then /plan <topic>   (if simplify)
+- address findings first   (if pause/reject)
 ```
 
-### Step 7: Handoff
+## Recommendation guidance
 
-- If **proceed**: "Run `/plan <topic>` to generate the build plan."
-- If **simplify**: "Revise your approach, then `/plan <topic>`."
-- If **pause** or **reject**: "Address the concerns above before proceeding."
+- **proceed** — no material objections from any persona
+- **simplify** — valid idea, oversized approach; plan the simpler alternative
+- **pause** — missing evidence or unresolved prerequisite
+- **reject** — should not be built as proposed
+
+If findings conflict across personas, surface the tension explicitly.
+
+## Complexity score
+
+Derive from concepts and reversibility, not line count:
+- **low** — existing patterns, little new surface
+- **medium** — one new concept with clear justification
+- **high** — multiple new concepts, high deletion cost, speculative need
+
+## Rules
+
+- Write artifacts to disk, not just conversation.
+- Be skeptical by default — challenge the premise before endorsing.
+- Prefer the smallest reversible step.
+- Do not embed operational shell recipes; scripts own execution details.
+- Preserve the distinction between local-only (operator choice) and degraded (backend failure).
+- If risk or coverage is unclear, choose the safer path.

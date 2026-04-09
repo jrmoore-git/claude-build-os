@@ -5,7 +5,7 @@
 TMPFILE=$(mktemp /tmp/hook-ruff-check-XXXXXX.json)
 cat > "$TMPFILE"
 
-FILE=$(python3 -c "
+FILE=$(/opt/homebrew/bin/python3.11 -c "
 import sys, json
 with open(sys.argv[1]) as f:
     data = json.load(f)
@@ -23,8 +23,7 @@ esac
 
 [ -f "$FILE" ] || exit 0
 
-# Requires ruff to be installed (pip install ruff)
-RESULT=$(ruff check --select C901,E501 --line-length 120 "$FILE" 2>&1)
+RESULT=$(/opt/homebrew/bin/ruff check --select C901,E501 --line-length 120 "$FILE" 2>&1)
 
 if [ -n "$RESULT" ]; then
     echo "ruff: $FILE"

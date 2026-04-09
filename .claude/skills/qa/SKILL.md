@@ -6,7 +6,7 @@ user-invocable: true
 
 # /qa — Quality Assurance Check
 
-Domain-specific validation beyond automated tests. Produces a go/no-go report.
+Domain-specific validation beyond `tests/run_all.sh`. Produces a go/no-go report.
 
 ## Procedure
 
@@ -84,8 +84,8 @@ Write `tasks/<topic>-qa.md`:
 topic: <topic>
 qa_result: <go|no-go>
 git_head: <current short SHA>
-producer: claude-opus
-created_at: <ISO datetime>
+producer: claude-opus-4-6
+created_at: <ISO datetime in Pacific>
 ---
 ```
 

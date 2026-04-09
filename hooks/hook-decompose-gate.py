@@ -1,4 +1,4 @@
-#!/usr/bin/env python3
+#!/usr/bin/env python3.11
 """
 hook-decompose-gate.py — PreToolUse hook that gates Write|Edit until a
 decomposition plan exists for the session.
@@ -22,7 +22,7 @@ import sys
 from pathlib import Path
 
 REPO_ROOT = os.environ.get(
-    "REPO_ROOT",
+    "PROJECT_ROOT",
     str(Path(__file__).resolve().parent.parent),
 )
 
@@ -103,6 +103,10 @@ def main():
 
     # Check if plan or bypass already submitted
     if flag_path.exists():
+        # Clean up the pending sentinel now that the real flag exists
+        sentinel = Path(f"/tmp/claude-decompose-{session_id}.pending")
+        sentinel.unlink(missing_ok=True)
+
         try:
             flag_data = json.loads(flag_path.read_text())
             if flag_data.get("bypass"):
@@ -165,13 +169,52 @@ def main():
             print(json.dumps(result))
             return
 
-    # No flag file — deny and prompt for decomposition
+    # No flag file — track writes and escalate progressively.
+    # First write: allow with a warning (most tasks are single-file).
+    # Second write to a DIFFERENT file: deny and require decomposition assessment.
+    writes_log = Path(f"/tmp/claude-decompose-{session_id}.writes")
+
+    # Parse the file path from the tool input
+    tool_input = data.get("tool_input", {})
+    current_file = tool_input.get("file_path", "unknown")
+
+    # Load existing writes log
+    written_files = set()
+    if writes_log.exists():
+        try:
+            written_files = set(json.loads(writes_log.read_text()))
+        except (json.JSONDecodeError, OSError):
+            written_files = set()
+
+    # First write or same file as before — allow with advisory
+    if len(written_files) == 0 or (written_files == {current_file}):
+        written_files.add(current_file)
+        try:
+            writes_log.write_text(json.dumps(list(written_files)))
+        except OSError:
+            pass
+        # Allow but remind about decomposition
+        print("{}")
+        return
+
+    # Second+ unique file without a plan — deny and require assessment
+    written_files.add(current_file)
+    try:
+        writes_log.write_text(json.dumps(list(written_files)))
+    except OSError:
+        pass
+
     message = DECOMPOSE_MESSAGE.replace("FLAG_PATH", str(flag_path))
+    escalated_msg = (
+        f"DECOMPOSITION GATE: You have now written to {len(written_files)} different files "
+        f"({', '.join(os.path.basename(f) for f in sorted(written_files))}) without a "
+        "decomposition assessment. " + message
+    )
     result = {
         "hookSpecificOutput": {
             "hookEventName": "PreToolUse",
             "permissionDecision": "deny",
-            "permissionDecisionReason": message,
+            "permissionDecisionReason": escalated_msg,
         }
     }
     print(json.dumps(result))

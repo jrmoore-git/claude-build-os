@@ -6,7 +6,7 @@ You need this doc when you're building a **production system or autonomous agent
 
 This doc covers: audit protocol, degradation testing, cross-model debate, failure classes, proxy-layer budgets, instruction placement, the Safety Rules block pattern, and institutional memory lifecycle.
 
-For governance tiers, the enforcement ladder, the session loop, review personas, and contract tests, see the [Build OS](the-build-os.md). For agent teams, parallel work, and orchestration, see the [Team Playbook](team-playbook.md).
+For governance tiers, the enforcement ladder, the session loop, cross-model review personas, and contract tests, see the [Build OS](the-build-os.md). For agent teams, parallel work, and orchestration, see the [Team Playbook](team-playbook.md).
 
 ---
 
@@ -158,10 +158,27 @@ For architecture decisions where single-pass LLM review misses things, use genui
 
 ### Protocol
 
+The standard pipeline is: **challenge → judge → refine.**
+
 1. **Author writes proposal** — the primary model produces the initial artifact, written to disk
-2. **Challengers review** — send to different models (e.g., GPT, Gemini) with adversarial system prompts requiring them to find flaws
-3. **Author responds** — concede, rebut, or compromise on each challenge, with evidence
-4. **Final verdict** (architecture decisions) — challengers approve or reject the resolution
+2. **Challengers review** — three model families (Gemini as architect/staff, GPT as security, Claude as PM) review through adversarial lenses. Claude serves as PM rather than code reviewer to avoid self-review bias (Claude typically authors the code).
+3. **Judge evaluates** — an independent model (GPT by default, different family from the author) scores each challenge and determines which findings are material
+4. **Refinement** — all three model families rotate through refining the spec to incorporate accepted findings
+
+All events are logged to `stores/debate-log.jsonl`. Model-to-persona assignments are configured in `config/debate-models.json`.
+
+### Verifier tools
+
+Challengers can be given read-only tools via `--enable-tools` to verify claims against the codebase instead of speculating. Available tools: `check_function_exists`, `check_test_coverage`, `count_records`, `get_recent_costs`. This converts speculative findings into evidenced ones.
+
+### Evidence tagging
+
+Quantitative claims (cost, frequency, token count, latency) must be tagged with their evidence basis:
+- **EVIDENCED** — cite specific data from the proposal, code, or tool output
+- **ESTIMATED** — state assumptions explicitly
+- **SPECULATIVE** — no data available, needs verification before driving a recommendation
+
+Speculative claims alone cannot drive a material verdict on quantitative grounds. This prevents challengers from inventing cost math or failure rates to support their position.
 
 ### Challenge format
 
@@ -169,6 +186,18 @@ Each challenge must include:
 - A type tag: `[RISK]`, `[ASSUMPTION]`, `[ALTERNATIVE]`, `[OVER-ENGINEERED]`, `[UNDER-ENGINEERED]`
 - A materiality label: `[MATERIAL]` (changes the decision) or `[ADVISORY]` (valid but doesn't change the decision)
 - Specific evidence or reasoning
+- For quantitative claims: an evidence basis tag (EVIDENCED, ESTIMATED, or SPECULATIVE)
+
+Challengers must also evaluate **both directions of risk** — the risk of the proposed change AND the risk of not changing. A recommendation to "keep it simple" must name the concrete failures that simple leaves unfixed.
+
+### Proposal quality
+
+Proposals must include concrete grounding to prevent challengers from fabricating numbers:
+- **Current System Failures** — 3+ concrete examples, not hypothetical
+- **Operational Context** — real numbers from the running system (costs, frequencies, error rates)
+- **Baseline Performance** — how the current system performs on the dimension being changed
+
+The `/challenge` skill enforces a structured template with these sections. `debate.py` warns when they are missing.
 
 ### When to use
 - PRD changes and architecture decisions

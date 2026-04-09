@@ -2,6 +2,8 @@
 
 Concrete examples of the Build OS framework's enforcement mechanisms. These supplement the [enforcement ladder](../docs/the-build-os.md#part-v-the-enforcement-ladder) with copy-ready artifacts.
 
+> **Note:** These are **starter examples** for new projects — not the hooks that ship in `hooks/`. The Build OS ships sixteen production hooks in [`hooks/`](../hooks/) (see the [Hooks Reference](../docs/hooks.md)). The examples below are simplified versions you can copy and adapt.
+
 ## What's here
 
 ### `enforcement-ladder.md` — One policy, four levels

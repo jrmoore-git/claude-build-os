@@ -1,8 +1,9 @@
 ---
 name: wrap-session
-description: "End-of-session wrap-up. Checks doc hygiene, writes docs/current-state.md and tasks/handoff.md, appends to tasks/session-log.md, and commits everything."
+description: "End-of-session wrap-up. Use when the user says 'wrap up', 'end session', 'wrap it up', or 'close out'. Checks doc hygiene, writes docs/current-state.md and tasks/handoff.md, appends to tasks/session-log.md, and commits everything."
 metadata:
   {
+    "emoji": "📦",
     "requires": { "bins": ["git"] },
   }
 ---
@@ -30,11 +31,11 @@ git diff HEAD --name-only 2>/dev/null; git status --short
 
 Check specifically:
 
-- `tasks/lessons.md` — if new patterns were learned this session but this file was NOT modified, warn: "lessons.md not updated — [what should be added]"
-- `tasks/decisions.md` — if architectural decisions were made this session but this file was NOT modified, warn: "decisions.md not updated — [what should be added]"
+- `tasks/lessons.md` — if new patterns were learned this session but this file was NOT modified, warn: "⚠ lessons.md not updated — [what should be added]"
+- `tasks/decisions.md` — if architectural decisions were made this session but this file was NOT modified, warn: "⚠ decisions.md not updated — [what should be added]"
 
-Report: "lessons.md updated" or "lessons.md NOT updated"
-Report: "decisions.md updated" or "decisions.md NOT updated"
+Report: "✓ lessons.md updated" or "⚠ lessons.md NOT updated"
+Report: "✓ decisions.md updated" or "⚠ decisions.md NOT updated"
 
 ### Step 2 — Gather change summary
 
@@ -54,7 +55,7 @@ head -60 tasks/todo.md 2>/dev/null || true
 ```
 
 Identify:
-- **Blockers:** what is explicitly blocked (waiting on user, external dependency, deferred)
+- **Blockers:** what is explicitly blocked (waiting on the user, external dependency, deferred)
 - **Next action:** the single most important thing to do at the start of the next session
 
 ### Step 4 — Write docs/current-state.md
@@ -105,7 +106,7 @@ Overwrite `tasks/handoff.md` with:
 [git diff HEAD --name-only output, trimmed to relevant files]
 
 ## Doc Hygiene Warnings
-[any warnings from Step 1, or "None"]
+[any ⚠ warnings from Step 1, or "None"]
 ```
 
 ### Step 6 — Append to tasks/session-log.md
@@ -130,6 +131,19 @@ Append to `tasks/session-log.md` (do not overwrite — append after the last `--
 
 ```
 
+### Step 6b — BuildOS sync check
+
+Check if any framework files diverged from the BuildOS repo this session:
+
+```bash
+bash scripts/buildos-sync.sh --dry-run 2>/dev/null | grep -E 'CHANGED|NEW|Summary'
+```
+
+If any files are CHANGED or NEW, report:
+"⚠ BuildOS out of sync — N framework files changed. Run `bash scripts/buildos-sync.sh --push` to update."
+
+If all unchanged or the script doesn't exist, skip silently.
+
 ### Step 7 — Commit
 
 Stage and commit all wrap docs:
@@ -142,7 +156,7 @@ git commit -m "Session wrap YYYY-MM-DD: [one-line summary]
 
 No doc updates beyond session-log, handoff, and current-state.
 
-Co-Authored-By: Claude <noreply@anthropic.com>"
+Co-Authored-By: Claude Sonnet 4.6 <noreply@anthropic.com>"
 ```
 
 Report the commit hash and: "Session wrapped. Next: [next action from Step 3]."

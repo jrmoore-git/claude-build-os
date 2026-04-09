@@ -1,4 +1,4 @@
-#!/usr/bin/env python3
+#!/usr/bin/env python3.11
 """
 enrich_context.py — Pull relevant lessons/decisions into debate proposals.
 
@@ -6,7 +6,7 @@ Extracts keywords from a proposal, searches governance files via recall_search.p
 and returns structured JSON for challengers to consume.
 
 Usage:
-    python3 scripts/enrich_context.py --proposal tasks/<topic>-proposal.md [--top-k 5]
+    python3.11 scripts/enrich_context.py --proposal tasks/<topic>-proposal.md [--top-k 5]
 """
 import argparse
 import json
@@ -15,22 +15,13 @@ import re
 import subprocess
 import sys
 
-
-def _detect_project_root():
-    """Detect project root via git."""
-    try:
-        result = subprocess.run(
-            ["git", "rev-parse", "--show-toplevel"],
-            capture_output=True, text=True, timeout=5)
-        if result.returncode == 0:
-            return result.stdout.strip()
-    except (subprocess.TimeoutExpired, FileNotFoundError):
-        pass
-    return os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-
-
-PROJECT_ROOT = _detect_project_root()
-PYTHON = sys.executable
+try:
+    PROJECT_ROOT = subprocess.check_output(
+        ["git", "rev-parse", "--show-toplevel"], text=True, stderr=subprocess.DEVNULL
+    ).strip()
+except (subprocess.CalledProcessError, FileNotFoundError):
+    PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+PYTHON = "/opt/homebrew/bin/python3.11"
 RECALL = os.path.join(PROJECT_ROOT, "scripts/recall_search.py")
 
 
@@ -110,6 +101,9 @@ def main():
     parser = argparse.ArgumentParser(description="Enrich proposal with prior context")
     parser.add_argument("--proposal", required=True, help="Path to proposal file")
     parser.add_argument("--top-k", type=int, default=5, help="Max results per source")
+    parser.add_argument("--scope", default="all",
+        choices=["review", "define", "challenge", "debate", "all"],
+        help="Filter results by skill context (review=decisions only, define=decisions>lessons)")
     args = parser.parse_args()
 
     proposal_path = args.proposal
@@ -127,8 +121,17 @@ def main():
         print(json.dumps({"keywords": [], "lessons": [], "decisions": []}))
         sys.exit(0)
 
-    lessons = search_governance(keywords, "lessons", args.top_k)
+    scope = args.scope
     decisions = search_governance(keywords, "decisions", args.top_k)
+
+    if scope == "review":
+        lessons = []
+    elif scope == "define":
+        lessons_k = min(2, args.top_k)
+        lessons = search_governance(keywords, "lessons", lessons_k)
+    else:
+        # challenge, debate, all — search both with full top_k
+        lessons = search_governance(keywords, "lessons", args.top_k)
 
     output = {
         "keywords": keywords,

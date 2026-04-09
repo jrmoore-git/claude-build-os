@@ -45,16 +45,21 @@ Based on the checks, determine which stage the user is in:
 | Review exists, status=passed | Ready to ship | "Run `/ship` to deploy." |
 | Review exists, status=revise | Findings to address | "N open findings. Address them, then `/review` again." |
 | Review exists, status=degraded | Degraded review | "Review completed with degraded status (debate unavailable). `/ship` to deploy or `/review` to retry." |
-| Recent deploy (deploy script ran today) | Post-ship | "Last deploy succeeded. Start next task." |
+| Recent deploy (deploy_all.sh ran today) | Post-ship | "Last deploy succeeded. Start next task." |
 
 ### Step 3: Project health
 
-Run the verification script if available:
+Run the verification script:
 ```bash
 bash scripts/verify-state.sh 2>/dev/null
 ```
 
-Display a one-line summary per check (pass/fail). If the script doesn't exist or fails, say "Health check unavailable."
+Read the output:
+```bash
+cat /tmp/verify-state-output.json
+```
+
+Display a one-line summary per check (pass/fail). If the file doesn't exist or the script fails, say "Health check unavailable."
 
 ### Step 4: Safe to stop?
 
@@ -71,7 +76,12 @@ Tier: <tier if changes detected>
 Action: <recommended next action>
 
 ## Health
-<check results or "Health check unavailable">
+Gateway:  ✅ / ❌
+LiteLLM:  ✅ / ❌
+MCP:      ✅ / ❌
+Auth:     ✅ / ❌
+Tests:    ✅ / ❌
+<other checks from verify-state>
 
 ## Safe to Stop
 <yes/no + reason>

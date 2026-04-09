@@ -33,6 +33,8 @@ If you only read one section, read the governance tiers. Everything else follows
 
 ## Part I. Philosophy
 
+For the narrative version of these ideas — with real examples and extended reasoning — see [Why Build OS Exists](why-build-os.md).
+
 ### 1. Governance beats prompting
 
 Most AI coding guidance focuses on better prompts. That matters, but it stops being the main event once Claude participates in real work. The hard problems are architecture, memory, verification, and enforcement.
@@ -173,6 +175,7 @@ project-root/
 ├── CLAUDE.md                    # Always-loaded operating rules. Keep short.
 ├── .claude/
 │   ├── settings.json            # Hook config (Tier 2+)
+│   ├── agents/                  # Custom subagent definitions (YAML)
 │   ├── skills/                  # Slash commands — session operations (SKILL.md format)
 │   └── rules/                   # Conditional rules, loaded when relevant
 ├── docs/
@@ -264,19 +267,33 @@ These are the operations that turn raw information into structured knowledge. Th
 |---|---|---|
 | **Plan** | Research the system, write a plan to disk, verify before executing | Before non-trivial work |
 | **Execute** | Implement against the plan, not against conversation | After plan is verified |
-| **Verify** | Prove it works — tests, logs, evidence, negative cases | Before declaring done |
-| **Review** | Staged persona review for meaningful changes | Before committing |
+| **Review** | Cross-model review through three lenses (Architecture, Security, PM) | Before committing |
+| **Ship** | Pre-flight gates (tests, review, verify, QA, docs, git, BuildOS sync) → deploy → post-deploy smoke | When ready to deploy |
 | **Handoff** | Write what the next session needs to know | Before closing |
 | **Sync** | Update PRD, decisions, lessons, rules after approved changes | After review |
+| **Govern** | Scan lessons, decisions, and rules for staleness and promotion candidates | After major sessions or quarterly |
+| **Doc-sync** | Cross-reference the git diff against all project docs for accuracy | After shipping changes |
+
+### Automation operations
+
+These skills chain or augment the core operations:
+
+| Operation | What it does | When to run |
+|---|---|---|
+| **Autoplan** | Auto-detect pipeline tier and chain skills with auto-decisions | When the tier is obvious and you want to skip manual routing |
+| **Governance** | Scan governance files for staleness, duplicates, promotion candidates, cross-reference integrity | Quarterly audit or when counts approach limits |
+| **Doc-sync** | Cross-reference the git diff against all project docs, polish CHANGELOG voice, check consistency | After code is committed, before declaring done |
 
 ### Session loop
 
 1. **Recall** — load handoff, current-state, relevant lessons and decisions
 2. **Plan** — research, then write plan to disk
 3. **Execute** — implement against the plan
-4. **Verify** — tests, evidence, negative cases
-5. **Document** — update decisions, lessons, handoff
-6. **Sync** — update PRD and rules if behavior changed
+4. **Review** — cross-model review (three lenses: Architecture, Security, PM)
+5. **Ship** — pre-flight gates (tests, verify, QA, docs, git, BuildOS sync) → deploy
+6. **Document** — update decisions, lessons, handoff
+7. **Sync** — update PRD and rules if behavior changed
+8. **Govern** — (periodic) scan governance health, promote or archive as needed
 
 After significant meetings, design sessions, or external conversations where decisions were made, capture them to decisions.md and lessons.md. These are the most common source of institutional knowledge that never makes it to disk.
 
@@ -380,10 +397,13 @@ The test: does this change affect how the system behaves? If yes → full review
 
 ### Review order
 
-For full reviews, run staged personas in this order:
-1. **Architect** — structural issues, boundary violations, unnecessary complexity
-2. **Staff Engineer + Security** — implementation quality, auth weaknesses, injection risks
-3. **Product / UX** — does it solve the right problem simply enough?
+Cross-model review runs three independent lenses in parallel, each assigned to a different model family:
+
+1. **Architecture (Gemini)** — structural issues, boundary violations, unnecessary complexity
+2. **Security (GPT)** — auth weaknesses, injection risks, trust boundary violations
+3. **PM (Claude)** — does it match the spec? Does it solve the right problem simply enough?
+
+Model-to-persona assignments are configured in `config/debate-models.json`. Claude serves as PM reviewer (not architecture/staff) to avoid self-review bias — Claude typically authors the code, so having it judge code quality produces sycophantic results. Product reasoning is less prone to this bias.
 
 Security has blocking veto on dependency changes, auth changes, and external code.
 
@@ -456,9 +476,9 @@ Run `/setup` in Claude Code. It will:
 
 1. Ask about your project — what you're building, who it's for, what's the risk
 2. Pick a governance tier based on blast radius
-3. Create only the files needed for your tier — CLAUDE.md, tasks/, and starter `.claude/skills/` commands
-4. Customize CLAUDE.md for your project
-5. Create starter content — a first decision, an initial PRD skeleton
+3. Create only the files needed for your tier — CLAUDE.md for Tier 0; adds PRD, decisions, lessons, handoff for Tier 1; adds contract tests, review protocol, security rules, and hook config for Tier 2
+4. Create starter content — a first decision, an initial PRD skeleton (Tier 1+)
+5. Point you to copy `.claude/skills/` from this repo for session operations
 
 Alternatively, run `/init` in Claude Code to generate a starter CLAUDE.md from your existing codebase, then layer governance files on top.
 

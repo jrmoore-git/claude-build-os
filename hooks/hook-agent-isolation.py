@@ -1,4 +1,4 @@
-#!/usr/bin/env python3
+#!/usr/bin/env python3.11
 """
 hook-agent-isolation.py — PreToolUse hook that enforces worktree isolation
 on write-capable Agent dispatches when a parallel plan is active.
@@ -7,12 +7,16 @@ When session flag is plan_submitted: true, blocks Agent calls that:
 - Have a write-capable subagent_type (general-purpose or unspecified)
 - Do NOT specify isolation: "worktree"
 
+Also warns (non-blocking) when worktree agents receive absolute repo paths
+in their prompts, which bypasses isolation entirely (L23).
+
 Read-only subagent types are exempt (Explore, Plan, claude-code-guide, statusline-setup).
 If no flag file or flag is bypass: allow everything.
 """
 
 import json
 import os
+import re
 import sys
 from pathlib import Path
 
@@ -23,6 +27,11 @@ READ_ONLY_TYPES = frozenset({
     "statusline-setup",
 })
 
+REPO_ROOT = os.environ.get(
+    "PROJECT_ROOT",
+    os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+)
+
 DENY_MESSAGE = (
     "AGENT ISOLATION GATE: Your session plan declared parallel decomposition "
     "(plan_submitted: true), but this Agent dispatch does not specify "
@@ -30,6 +39,17 @@ DENY_MESSAGE = (
     "isolation to prevent file collisions and index.lock contention. "
     "Fix: add `isolation: \"worktree\"` to this Agent call, "
     "or use a read-only subagent_type (Explore, Plan, claude-code-guide)."
+)
+
+ABS_PATH_MESSAGE = (
+    "WORKTREE PATH WARNING: This worktree agent's prompt contains absolute "
+    "paths to the main checkout ({repo_root}/...). Absolute paths bypass "
+    "worktree isolation — the agent will write to the MAIN checkout, not its "
+    "worktree copy. Use relative paths instead:\n"
+    "  Wrong: {repo_root}/primitives/synthesis.py\n"
+    "  Right: primitives/synthesis.py\n"
+    "Found {count} absolute repo path(s) in the prompt. "
+    "Rewrite the prompt with relative paths."
 )
 
 
@@ -105,6 +125,23 @@ def main():
 
     # Write-capable agent must have worktree isolation
     if isolation == "worktree":
+        # Check for absolute repo paths in the prompt (L23)
+        prompt = tool_input.get("prompt", "")
+        abs_path_pattern = re.escape(REPO_ROOT) + r"/\S+"
+        abs_matches = re.findall(abs_path_pattern, prompt)
+        if abs_matches:
+            result = {
+                "hookSpecificOutput": {
+                    "hookEventName": "PreToolUse",
+                    "permissionDecision": "deny",
+                    "permissionDecisionReason": ABS_PATH_MESSAGE.format(
+                        repo_root=REPO_ROOT,
+                        count=len(abs_matches),
+                    ),
+                }
+            }
+            print(json.dumps(result))
+            return
         print("{}")
         return
 

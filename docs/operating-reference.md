@@ -17,7 +17,7 @@ Every correction, decision, or process change must be persisted to the correct d
 | Bug, gotcha, platform surprise | `tasks/lessons.md` |
 | How Claude Code should behave | `.claude/rules/*.md` |
 | Build specs / PRD discrepancies | Build plan (flag to user if PRD) |
-| Phase status | `tasks/todo.md` |
+| Phase status | `tasks/handoff.md` |
 | Decision with rationale | `tasks/decisions.md` |
 | Session summary | `tasks/session-log.md` |
 

@@ -10,16 +10,16 @@
 #   - On first Tier 1 file edit in a session, BLOCKS unless debate artifacts exist
 #   - On first Tier 1.5 file edit, WARNS (advisory, not blocking)
 #   - Tracks "already classified" via a session marker file to avoid re-firing every edit
+#   - [TRIVIAL] files (CLAUDE.md comments, typo fixes) are never Tier 1
 
 INPUT=$(cat)
-PROJECT=$(git rev-parse --show-toplevel 2>/dev/null || pwd)
 
-RESULT=$(python3 -c "
+RESULT=$(PLAN_GATE_PROJECT="$(git rev-parse --show-toplevel)" /opt/homebrew/bin/python3.11 -c "
 import sys, json, os, re, subprocess, time
 
-PROJECT = '$PROJECT'
+PROJECT = os.environ.get('PLAN_GATE_PROJECT', '.')
 TASKS = os.path.join(PROJECT, 'tasks')
-MARKER_DIR = '/tmp/build-os-tier-gate'
+MARKER_DIR = '/tmp/tier-gate'
 os.makedirs(MARKER_DIR, exist_ok=True)
 
 try:
@@ -43,7 +43,7 @@ if rel.startswith(PROJECT + '/'):
 # ── Tier classification via tier_classify.py ──────────────────────────────
 try:
     result = subprocess.run(
-        [sys.executable, os.path.join(PROJECT, 'scripts/tier_classify.py'), rel],
+        ['/opt/homebrew/bin/python3.11', os.path.join(PROJECT, 'scripts/tier_classify.py'), rel],
         capture_output=True, text=True, timeout=5
     )
     tier_data = json.loads(result.stdout)
@@ -58,6 +58,8 @@ if raw_tier == 'exempt' or raw_tier == 2:
 tier = 15 if raw_tier == 1.5 else int(raw_tier)
 
 # ── Session dedup — don't fire on every single edit ──────────────────────
+# Use a marker keyed on tier level. If we already passed this tier's gate
+# in this session, allow. Marker expires after 4 hours.
 marker_file = os.path.join(MARKER_DIR, f'tier{tier}_passed')
 if os.path.exists(marker_file):
     age = time.time() - os.path.getmtime(marker_file)
@@ -67,6 +69,7 @@ if os.path.exists(marker_file):
 
 # ── Check for valid debate artifacts (Tier 1 only) ───────────────────────
 if tier == 1:
+    # Session start marker: created on first Tier 1 check, used as baseline
     session_marker = os.path.join(MARKER_DIR, 'session_start')
     if not os.path.exists(session_marker):
         with open(session_marker, 'w') as sm:
@@ -75,38 +78,41 @@ if tier == 1:
     else:
         session_start = os.path.getmtime(session_marker)
 
+    # Require an artifact created AFTER this session started
+    # (old debates for different topics don't count)
     found_artifact = False
-    if os.path.isdir(TASKS):
-        for f in os.listdir(TASKS):
-            path = os.path.join(TASKS, f)
+    for f in os.listdir(TASKS):
+        path = os.path.join(TASKS, f)
+        try:
+            mtime = os.path.getmtime(path)
+        except OSError:
+            continue
+        if mtime < session_start:
+            continue  # pre-session artifact — doesn't count
+
+        if f.endswith('-challenge.md'):
             try:
-                mtime = os.path.getmtime(path)
+                content = open(path).read()
             except OSError:
                 continue
-            if mtime < session_start:
-                continue
-
-            if f.endswith('-challenge.md'):
-                try:
-                    content = open(path).read()
-                except OSError:
-                    continue
-                has_frontmatter = bool(re.match(r'^---\n.*?debate_id:', content, re.DOTALL))
-                has_material = bool(re.search(r'MATERIAL', content))
-                if has_frontmatter and has_material:
-                    found_artifact = True
-                    break
-
-            if f.endswith('-judgment.md') or f.endswith('-resolution.md'):
+            has_frontmatter = bool(re.match(r'^---\n.*?debate_id:', content, re.DOTALL))
+            has_material = bool(re.search(r'MATERIAL', content))
+            if has_frontmatter and has_material:
                 found_artifact = True
                 break
 
+        if f.endswith('-judgment.md') or f.endswith('-resolution.md'):
+            found_artifact = True
+            break
+
     if found_artifact:
+        # Artifact exists for this session — mark as passed and allow
         with open(marker_file, 'w') as mf:
             mf.write(f'artifact_found:{rel}')
         print('ALLOW')
         sys.exit(0)
 
+    # No artifact — BLOCK
     print(f'BLOCK_TIER1:{rel}')
     sys.exit(0)
 
@@ -123,7 +129,7 @@ print('ALLOW')
 case "$RESULT" in
   BLOCK_TIER1:*)
     FILE="${RESULT#BLOCK_TIER1:}"
-    printf '{"hookSpecificOutput":{"hookEventName":"PreToolUse","permissionDecision":"block","permissionDecisionReason":"BLOCKED: %s is a Tier 1 file (PRD/schema/trust boundary). Cross-model debate required BEFORE editing. Write a proposal to tasks/<topic>-proposal.md, then run: python3 scripts/debate.py challenge --proposal tasks/<topic>-proposal.md --personas architect,security,pm --output tasks/<topic>-challenge.md"}}\n' "$FILE"
+    printf '{"hookSpecificOutput":{"hookEventName":"PreToolUse","permissionDecision":"block","permissionDecisionReason":"BLOCKED: %s is a Tier 1 file (PRD/schema/trust boundary). Cross-model debate required BEFORE editing. Write a proposal to tasks/<topic>-proposal.md, then run: python3.11 scripts/debate.py challenge --proposal tasks/<topic>-proposal.md --models gpt-5.4,gemini-3.1-pro --output tasks/<topic>-challenge.md. See .claude/rules/review-protocol.md."}}\n' "$FILE"
     exit 2
     ;;
   WARN_TIER15:*)
