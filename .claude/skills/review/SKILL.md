@@ -34,6 +34,12 @@ Three models review your diff through independent lenses. If a debate spec exist
 
 ## Procedure
 
+### Step 0: Security posture
+
+Ask: "Security posture? (1=move-fast, 2=speed-with-guardrails, 3=balanced, 4=production-grade, 5=critical). Default: 3"
+
+Store as `POSTURE` (default 3). Pass `--security-posture $POSTURE` to `debate.py` commands.
+
 ### Step 1: Detect changes
 
 ```bash
@@ -131,7 +137,7 @@ Write the diff (and spec if exists) to a temp file, then run:
      related but distinct prompt sets — they do not need to match verbatim. -->
 
 ```bash
-python3.11 scripts/debate.py challenge \
+python3.11 scripts/debate.py --security-posture $POSTURE challenge \
   --proposal <temp file with diff + spec context> \
   --personas architect,security,pm \
   --enable-tools \

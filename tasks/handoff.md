@@ -1,26 +1,26 @@
 # Handoff — 2026-04-09
 
 ## Session Focus
-Updated README to document the separation of recall (session bootstrap) and debate context enrichment.
+Squashed 106-commit git history into 8 logical commits and tightened commit discipline rules.
 
 ## Decided
-- None — this was a documentation update, no architectural decisions.
+- 8 logical boundary commits chosen to represent the project's evolution (initial framework → debate pipeline → parallelization → debate v3.1 → clone-and-go → audit → docs → sync)
+- Commit discipline: target 1-4 commits per session, batch related changes
 
 ## Implemented
-- README: Expanded Semantic Search section to explain both `/recall` and `enrich_context.py` as separate concerns sharing `recall_search.py`
-- README: Added key scripts table after setup instructions
-- README: Clarified Session role in skills table re: recall vs enrichment separation
+- History squash: 106 → 8 commits using git commit-tree (zero working directory contamination)
+- Commit discipline rules added to session-discipline.md
+- Force pushed to GitHub, backup at backup-pre-squash branch
 
 ## NOT Finished
 - Nothing outstanding from this session
 
 ## Next Session Should
 1. Continue debate system improvements per 2026-04-08 priority analysis (items 3-5 first)
-2. Consider whether `docs/how-it-works.md` also needs the recall/enrichment separation documented
+2. Delete backup-pre-squash branch after confirming squashed history is stable
 
 ## Key Files Changed
-README.md
-stores/debate-log.jsonl
+.claude/rules/session-discipline.md
 
 ## Doc Hygiene Warnings
 None

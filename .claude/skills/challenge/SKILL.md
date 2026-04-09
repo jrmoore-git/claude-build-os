@@ -36,7 +36,7 @@ Log all bypasses: `[CHALLENGE-SKIPPED] <date> <topic> reason: <classification>`
 
 ## Procedure
 
-### Step 1: Resolve the topic
+### Step 1: Resolve the topic and security posture
 
 If the user supplied a topic, use it. Otherwise infer:
 
@@ -47,6 +47,10 @@ If the user supplied a topic, use it. Otherwise infer:
 Only ask if all inference fails.
 
 Convert the topic to a slug: lowercase, alphanumeric and hyphens only, matching `^[a-z0-9]+(-[a-z0-9]+)*$`. Reject slugs containing `/`, `\`, `..`, spaces, or absolute paths.
+
+Ask: "Security posture? (1=move-fast, 2=speed-with-guardrails, 3=balanced, 4=production-grade, 5=critical). Default: 3"
+
+Store the answer as `POSTURE` (default 3). Pass `--security-posture $POSTURE` to all `debate.py` commands.
 
 **Shell safety:** Never interpolate user-provided topic text into shell commands. Pass file paths as direct arguments, never through string interpolation.
 
@@ -129,7 +133,7 @@ Add dynamically based on proposal content:
 ### Step 7: Run cross-model challenge
 
 ```bash
-python3.11 scripts/debate.py challenge \
+python3.11 scripts/debate.py --security-posture $POSTURE challenge \
   --proposal <enriched or raw proposal> \
   --personas architect,security,pm[,product][,design] \
   --enable-tools \

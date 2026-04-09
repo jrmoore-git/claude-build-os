@@ -11,6 +11,8 @@ Subcommands:
     check-models  Compare LiteLLM available models against config
     compare       Compare two review methods on the same document
     verdict       Send resolution back to challengers for final verdict (legacy)
+    outcome-update  Record an outcome for a debate recommendation
+    stats         Aggregate stats from debate log
 
 Standard pipeline:
     1. challenge → find issues (adversarial, multi-model)
@@ -45,17 +47,26 @@ Environment:
     LITELLM_MASTER_KEY   API key for LiteLLM (required)
 """
 import argparse
+import concurrent.futures
 import json
 import os
 import re
 import string
 import subprocess
 import sys
+import threading
+import traceback
 import urllib.error
 import urllib.request
-from datetime import datetime, timezone, timedelta
+from datetime import datetime
+from pathlib import Path
+from zoneinfo import ZoneInfo
 
-from llm_client import llm_call, LLMError
+from llm_client import llm_call, llm_call_raw, LLMError
+
+# Project timezone for all timestamps in debate artifacts and logs.
+# See platform.md: stdlib zoneinfo, IANA name "America/Los_Angeles".
+PROJECT_TZ = ZoneInfo("America/Los_Angeles")
 
 # ── Project root & .env loading ──────────────────────────────────────────────
 
@@ -348,6 +359,66 @@ Output format:
 - Overall: [APPROVE proposal as-is / REVISE with accepted changes / ESCALATE to human / \
 SPIKE (test first) if any blocking spikes]"""
 
+# ── Security posture scale ────────────────────────────────────────────────────
+# Controls how much weight security findings get relative to PM/speed concerns.
+# Injected into challenger and judge prompts when --security-posture is set.
+SECURITY_POSTURE_LABELS = {
+    1: "move-fast",
+    2: "speed-with-guardrails",
+    3: "balanced",
+    4: "production-grade",
+    5: "critical-infrastructure",
+}
+
+SECURITY_POSTURE_CHALLENGER_MODIFIER = {
+    1: """
+SECURITY POSTURE: MOVE-FAST (level 1/5). The user prioritizes speed and is
+willing to accept breakage. Security findings are ADVISORY only — they cannot
+be MATERIAL unless they involve data loss, credential exposure, or legal liability.
+Focus your review on: does this actually work? Is the evidence real? Will it
+make things faster? Do NOT add security controls, compliance gates, or risk
+mitigation unless the proposal already contains them.""",
+    2: """
+SECURITY POSTURE: SPEED-WITH-GUARDRAILS (level 2/5). Security findings are
+ADVISORY unless they involve data loss, credential exposure, or production
+outage risk. Focus on whether the proposal works and ships fast. Flag security
+gaps but do not block on them.""",
+    3: "",  # default — no modifier
+    4: """
+SECURITY POSTURE: PRODUCTION-GRADE (level 4/5). Security findings follow normal
+MATERIAL/ADVISORY classification. Credential handling, injection vectors, and
+data exfiltration are valid MATERIAL concerns.""",
+    5: """
+SECURITY POSTURE: CRITICAL-INFRASTRUCTURE (level 5/5). Security has blocking
+veto power. Any unaddressed security finding can justify REJECT. Apply the
+full security review checklist.""",
+}
+
+SECURITY_POSTURE_JUDGE_MODIFIER = {
+    1: """
+SECURITY POSTURE OVERRIDE: Security posture is MOVE-FAST (1/5). PM is the
+final arbiter, not security. Security-only challenges (trust boundaries,
+credential rotation, egress policies, compliance) must be DISMISSED unless
+they involve direct data loss, credential exposure to external parties, or
+legal liability. The user has explicitly accepted speed-over-safety tradeoffs.
+Do NOT accept challenges that add security controls, gates, or approval steps.""",
+    2: """
+SECURITY POSTURE OVERRIDE: Security posture is SPEED-WITH-GUARDRAILS (2/5).
+Security-only challenges should be DISMISSED unless they involve data loss,
+credential exposure, or production outage. PM concerns (adoption, user value,
+speed) outweigh security concerns at this posture level.""",
+    3: "",  # default — no modifier
+    4: """
+SECURITY POSTURE NOTE: Security posture is PRODUCTION-GRADE (4/5). Security
+findings follow normal evaluation. Credential handling and injection vectors
+are valid MATERIAL concerns.""",
+    5: """
+SECURITY POSTURE NOTE: Security posture is CRITICAL-INFRASTRUCTURE (5/5).
+Security findings receive maximum weight. Any unaddressed security concern
+with evidence grade A or B should be ACCEPTED.""",
+}
+
+
 CHALLENGER_LABELS = list(string.ascii_uppercase)  # A, B, C, ...
 
 
@@ -437,8 +508,8 @@ VALID_PERSONAS = {"architect", "staff", "security", "pm"}
 def _load_config(config_path=None):
     """Load debate model config from JSON file, fall back to hardcoded defaults.
 
-    Returns dict with keys: persona_model_map, judge_default, refine_rotation,
-    single_review_default, version.
+    Returns dict with keys: persona_model_map, judge_default, compare_default,
+    refine_rotation, single_review_default, verifier_default, version.
     """
     if config_path is None:
         config_path = os.path.join(PROJECT_ROOT, "config", "debate-models.json")
@@ -446,6 +517,10 @@ def _load_config(config_path=None):
     defaults = {
         "persona_model_map": dict(_DEFAULT_PERSONA_MODEL_MAP),
         "judge_default": _DEFAULT_JUDGE,
+        # compare_default is intentionally lighter-weight than judge_default —
+        # compare is a side-by-side scoring tool, not the truth arbiter, so a
+        # cheaper/faster model is the right tradeoff.
+        "compare_default": "gemini-3.1-pro",
         "refine_rotation": list(_DEFAULT_REFINE_ROTATION),
         "single_review_default": "gpt-5.4",
         "verifier_default": "claude-sonnet-4-6",
@@ -476,6 +551,7 @@ def _load_config(config_path=None):
         "persona_model_map": {k: v for k, v in pmap.items() if k in VALID_PERSONAS}
                               or defaults["persona_model_map"],
         "judge_default": config.get("judge_default", defaults["judge_default"]),
+        "compare_default": config.get("compare_default", defaults["compare_default"]),
         "refine_rotation": config.get("refine_rotation", defaults["refine_rotation"]),
         "single_review_default": config.get("single_review_default",
                                             defaults["single_review_default"]),
@@ -628,11 +704,149 @@ Output format:
 
 # ── LiteLLM client ──────────────────────────────────────────────────────────
 
+# Per-model token pricing (USD per 1M tokens). Updated 2026-04.
+# Keys are prefix-matched against the model string.
+_TOKEN_PRICING = {
+    "claude-opus-4": {"input": 15.0, "output": 75.0},
+    "claude-sonnet-4": {"input": 3.0, "output": 15.0},
+    "claude-haiku-4": {"input": 0.80, "output": 4.0},
+    "gpt-5.4": {"input": 2.50, "output": 10.0},
+    "gpt-4.1": {"input": 2.0, "output": 8.0},
+    "gemini-3.1-pro": {"input": 1.25, "output": 10.0},
+    "gemini-2.5-pro": {"input": 1.25, "output": 10.0},
+    "gemini-2.5-flash": {"input": 0.15, "output": 0.60},
+}
 
-def _call_litellm(model, system_prompt, user_content, litellm_url, api_key):
-    """Call LiteLLM chat completions. Returns response text or raises LLMError."""
-    return llm_call(system_prompt, user_content, model=model, temperature=0.7,
-                    timeout=300, base_url=litellm_url, api_key=api_key)
+
+def _estimate_cost(model, usage):
+    """Estimate USD cost from model name and usage dict.
+
+    Returns 0.0 if pricing is unknown or usage is empty.
+    """
+    if not usage:
+        return 0.0
+    pricing = None
+    for prefix, rates in _TOKEN_PRICING.items():
+        if model.startswith(prefix):
+            pricing = rates
+            break
+    if not pricing:
+        return 0.0
+    prompt_tokens = usage.get("prompt_tokens", 0) or 0
+    completion_tokens = usage.get("completion_tokens", 0) or 0
+    cost = (prompt_tokens * pricing["input"] + completion_tokens * pricing["output"]) / 1_000_000
+    return round(cost, 6)
+
+
+# Session-level cost accumulator. Reset per process invocation.
+# Protected by _session_costs_lock because cmd_challenge (and any external
+# code using ThreadPoolExecutor) calls _track_cost from multiple threads.
+_session_costs = {"total_usd": 0.0, "calls": 0, "by_model": {}}
+_session_costs_lock = threading.Lock()
+
+
+def _track_cost(model, usage, cost_usd):
+    """Accumulate a single call's cost into the session totals."""
+    with _session_costs_lock:
+        _session_costs["total_usd"] += cost_usd
+        _session_costs["calls"] += 1
+        entry = _session_costs["by_model"].setdefault(model, {
+            "cost_usd": 0.0, "calls": 0, "prompt_tokens": 0, "completion_tokens": 0,
+        })
+        entry["cost_usd"] += cost_usd
+        entry["calls"] += 1
+        entry["prompt_tokens"] += (usage.get("prompt_tokens", 0) or 0)
+        entry["completion_tokens"] += (usage.get("completion_tokens", 0) or 0)
+
+
+def get_session_costs():
+    """Return a copy of the session cost accumulator."""
+    with _session_costs_lock:
+        return {
+            "total_usd": round(_session_costs["total_usd"], 6),
+            "calls": _session_costs["calls"],
+            "by_model": {
+                m: {k: round(v, 6) if isinstance(v, float) else v for k, v in d.items()}
+                for m, d in _session_costs["by_model"].items()
+            },
+        }
+
+
+def _cost_delta_since(snapshot):
+    """Return the cost difference between current session state and a snapshot.
+
+    Used to log per-event costs instead of cumulative snapshots.
+    """
+    current = get_session_costs()
+    delta_total = current["total_usd"] - snapshot.get("total_usd", 0)
+    delta_calls = current["calls"] - snapshot.get("calls", 0)
+    delta_models = {}
+    for model, info in current["by_model"].items():
+        prev = snapshot.get("by_model", {}).get(model, {})
+        d_cost = info["cost_usd"] - prev.get("cost_usd", 0)
+        d_calls = info["calls"] - prev.get("calls", 0)
+        d_prompt = info["prompt_tokens"] - prev.get("prompt_tokens", 0)
+        d_completion = info["completion_tokens"] - prev.get("completion_tokens", 0)
+        if d_calls > 0:
+            delta_models[model] = {
+                "cost_usd": round(d_cost, 6),
+                "calls": d_calls,
+                "prompt_tokens": d_prompt,
+                "completion_tokens": d_completion,
+            }
+    return {
+        "total_usd": round(delta_total, 6),
+        "calls": delta_calls,
+        "by_model": delta_models,
+    }
+
+
+def _call_litellm(model, system_prompt, user_content, litellm_url, api_key,
+                  temperature=None, max_tokens=None, timeout=None):
+    """Call LiteLLM chat completions. Returns response text or raises LLMError.
+
+    Tracks token usage and estimated cost per call.
+
+    Defaults pulled from LLM_CALL_DEFAULTS — caller can override per-call.
+    Temperature defaults to LLM_CALL_DEFAULTS["judge_temperature"] (0.7) since
+    most _call_litellm callers are judge/verdict/compare paths that benefit
+    from deterministic output. Challenger paths that need per-model temperature
+    must pass it explicitly (see _challenger_temperature helper).
+    """
+    if temperature is None:
+        temperature = LLM_CALL_DEFAULTS["judge_temperature"]
+    if max_tokens is None:
+        max_tokens = LLM_CALL_DEFAULTS["max_tokens"]
+    if timeout is None:
+        timeout = LLM_CALL_DEFAULTS["timeout"]
+    raw = llm_call_raw(system_prompt, user_content, model=model,
+                       temperature=temperature, max_tokens=max_tokens,
+                       timeout=timeout, base_url=litellm_url, api_key=api_key)
+    model_used = raw.get("model", model)
+    usage = raw.get("usage", {})
+    cost_usd = _estimate_cost(model_used, usage)
+    _track_cost(model_used, usage, cost_usd)
+    return raw["content"]
+
+
+def _track_tool_loop_cost(model, tool_result):
+    """Extract usage from an llm_tool_loop result and track cost."""
+    usage = tool_result.get("usage", {})
+    cost_usd = _estimate_cost(model, usage)
+    _track_cost(model, usage, cost_usd)
+    return cost_usd
+
+
+def _challenger_temperature(model):
+    """Return the temperature challenger calls should use for this model.
+
+    Per LLM_CALL_DEFAULTS["challenger_temperature_per_model"], with fallback
+    to challenger_temperature_default. Used by paths that explicitly want
+    challenger-mode behavior (adversarial diversity) instead of judge-mode
+    behavior (determinism).
+    """
+    per_model = LLM_CALL_DEFAULTS["challenger_temperature_per_model"]
+    return per_model.get(model, LLM_CALL_DEFAULTS["challenger_temperature_default"])
 
 
 # ── Frontmatter ──────────────────────────────────────────────────────────────
@@ -640,7 +854,7 @@ def _call_litellm(model, system_prompt, user_content, litellm_url, api_key):
 
 def _build_frontmatter(debate_id, mapping):
     """Build YAML frontmatter string with debate metadata."""
-    now = datetime.now(timezone(timedelta(hours=-7)))
+    now = datetime.now(PROJECT_TZ)
     lines = [
         "---",
         f"debate_id: {debate_id}",
@@ -734,12 +948,21 @@ def _validate_challenge(text):
 DEFAULT_LOG_PATH = "stores/debate-log.jsonl"
 
 
-def _log_debate_event(event, log_path=None):
-    """Append a debate event to the JSONL log file."""
+def _log_debate_event(event, log_path=None, cost_snapshot=None):
+    """Append a debate event to the JSONL log file.
+
+    If cost_snapshot is provided, logs the delta since that snapshot (per-event
+    cost). Otherwise logs the full cumulative session total. Per-event deltas
+    are preferred — they prevent double-counting in stats aggregation.
+    """
     path = log_path or DEFAULT_LOG_PATH
     os.makedirs(os.path.dirname(path), exist_ok=True)
-    now = datetime.now(timezone(timedelta(hours=-7)))
+    now = datetime.now(PROJECT_TZ)
     event["timestamp"] = now.strftime("%Y-%m-%dT%H:%M:%S%z")[:25]
+    if cost_snapshot is not None:
+        event["costs"] = _cost_delta_since(cost_snapshot)
+    else:
+        event["costs"] = get_session_costs()
     with open(path, "a") as f:
         f.write(json.dumps(event) + "\n")
 
@@ -749,6 +972,7 @@ def _log_debate_event(event, log_path=None):
 
 def cmd_challenge(args):
     """Round 2: send proposal to challenger models, write anonymized output."""
+    _cost_snapshot = get_session_costs()
     api_key = os.environ.get("LITELLM_MASTER_KEY")
     if not api_key:
         print("ERROR: LITELLM_MASTER_KEY not set", file=sys.stderr)
@@ -783,6 +1007,10 @@ def cmd_challenge(args):
             key = (model, p)
             if key not in seen:
                 prompt = custom_prompt or PERSONA_PROMPTS.get(p, ADVERSARIAL_SYSTEM_PROMPT)
+                posture = getattr(args, 'security_posture', 3)
+                posture_mod = SECURITY_POSTURE_CHALLENGER_MODIFIER.get(posture, "")
+                if posture_mod:
+                    prompt = prompt + posture_mod
                 challengers.append((model, prompt))
                 seen.add(key)
         # Duplicate-model warning
@@ -814,14 +1042,20 @@ def cmd_challenge(args):
         debate_id = debate_id[:-10]
 
     mapping = {}
-    results = {}
     all_warnings = []
     all_tool_calls = {}
 
-    for i, (model, sys_prompt) in enumerate(challengers):
+    # Build label→model mapping upfront (needed for output ordering)
+    for i, (model, _) in enumerate(challengers):
+        mapping[CHALLENGER_LABELS[i]] = model
+
+    def _run_challenger(i, model, sys_prompt):
+        """Run a single challenger. Returns (label, response, warnings, tool_log)."""
         label = CHALLENGER_LABELS[i]
-        mapping[label] = model
         print(f"Calling {label}...", file=sys.stderr)
+        # Challenger calls use per-model challenger temperature (intentional
+        # asymmetry vs judge mode — see LLM_CALL_DEFAULTS comment block).
+        challenger_temp = _challenger_temperature(model)
         try:
             if args.enable_tools:
                 import debate_tools
@@ -834,35 +1068,49 @@ def cmd_challenge(args):
                     tools=debate_tools.TOOL_DEFINITIONS,
                     tool_executor=debate_tools.execute_tool,
                     model=model,
-                    max_turns=20,
-                    max_tokens=4096,
-                    timeout=60,
+                    temperature=challenger_temp,
+                    max_turns=TOOL_LOOP_DEFAULTS["max_turns"],
+                    max_tokens=TOOL_LOOP_MAX_OUTPUT_TOKENS,
+                    timeout=TOOL_LOOP_TIMEOUT_SECONDS,
                     base_url=litellm_url,
                     api_key=api_key,
                     on_tool_call=lambda turn, name, targs, res: tool_log.append(
                         {"turn": turn, "tool": name}
                     ),
                 )
+                _track_tool_loop_cost(model, tool_result)
                 response = tool_result["content"]
                 if tool_result["turns"] > 20:
                     print(f"  {label}: hit max turns, used partial tool evidence ({len(tool_log)} calls)",
                           file=sys.stderr)
-                if tool_log:
-                    all_tool_calls[label] = tool_log
-                else:
+                if not tool_log:
                     print(f"WARNING: {label} ({model}) made 0 tool calls "
                           f"despite tools being enabled", file=sys.stderr)
             else:
-                response = _call_litellm(model, sys_prompt, proposal, litellm_url, api_key)
-            results[label] = response
+                response = _call_litellm(model, sys_prompt, proposal, litellm_url, api_key,
+                                         temperature=challenger_temp)
+                tool_log = []
             warnings = _validate_challenge(response)
-            if warnings:
-                all_warnings.extend([f"Challenger {label}: {w}" for w in warnings])
-        except (LLMError, urllib.error.HTTPError, urllib.error.URLError, TimeoutError, RuntimeError) as e:
+            return label, response, warnings, tool_log
+        except LLM_SAFE_EXCEPTIONS as e:
             msg = f"Challenger {label} ({model}): {e}"
             print(f"WARNING: {msg}", file=sys.stderr)
-            results[label] = f"[ERROR: {msg}]"
-            all_warnings.append(msg)
+            return label, f"[ERROR: {msg}]", [msg], []
+
+    # Run challengers in parallel — each hits an independent model API.
+    results = {}
+    with concurrent.futures.ThreadPoolExecutor(max_workers=len(challengers)) as pool:
+        futures = {
+            pool.submit(_run_challenger, i, model, sys_prompt): CHALLENGER_LABELS[i]
+            for i, (model, sys_prompt) in enumerate(challengers)
+        }
+        for fut in concurrent.futures.as_completed(futures):
+            label, response, warnings, tool_log = fut.result()
+            results[label] = response
+            if tool_log:
+                all_tool_calls[label] = tool_log
+            if warnings:
+                all_warnings.extend([f"Challenger {label}: {w}" for w in warnings])
 
     successful = sum(1 for v in results.values() if not v.startswith("[ERROR:"))
     if successful == 0:
@@ -913,12 +1161,13 @@ def cmd_challenge(args):
             }
             for label in mapping
         }
-    _log_debate_event(log_event)
+    _log_debate_event(log_event, cost_snapshot=_cost_snapshot)
     return 0
 
 
 def cmd_verdict(args):
     """Round 4: send resolution back to original challengers for final verdict."""
+    _cost_snapshot = get_session_costs()
     api_key = os.environ.get("LITELLM_MASTER_KEY")
     if not api_key:
         print("ERROR: LITELLM_MASTER_KEY not set", file=sys.stderr)
@@ -951,7 +1200,7 @@ def cmd_verdict(args):
         try:
             response = _call_litellm(model, system_prompt, resolution, litellm_url, api_key)
             results[label] = response
-        except (LLMError, urllib.error.HTTPError, urllib.error.URLError, TimeoutError, RuntimeError) as e:
+        except LLM_SAFE_EXCEPTIONS as e:
             msg = f"Challenger {label} ({model}): {e}"
             print(f"WARNING: {msg}", file=sys.stderr)
             results[label] = f"[ERROR: {msg}]"
@@ -991,7 +1240,7 @@ def cmd_verdict(args):
         "verdicts": successful,
         "warnings": all_warnings,
         "output": args.output,
-    })
+    }, cost_snapshot=_cost_snapshot)
     return 0
 
 
@@ -1064,17 +1313,22 @@ def _run_claim_verifier(challenge_text, proposal_text, litellm_url, api_key):
             tools=debate_tools.TOOL_DEFINITIONS,
             tool_executor=debate_tools.execute_tool,
             model=verifier_model,
-            max_turns=20,
-            max_tokens=4096,
-            timeout=60,
+            max_turns=TOOL_LOOP_DEFAULTS["max_turns"],
+            max_tokens=TOOL_LOOP_MAX_OUTPUT_TOKENS,
+            timeout=TOOL_LOOP_TIMEOUT_SECONDS,
             base_url=litellm_url,
             api_key=api_key,
             on_tool_call=lambda turn, name, targs, res: tool_log.append(
                 {"turn": turn, "tool": name}
             ),
         )
-    except (LLMError, Exception) as e:
+    except Exception as e:
+        # Best-effort enrichment path: claim verification is optional, must
+        # never crash the pipeline. Broad catch is intentional (see
+        # tasks/debate-py-bandaid-cleanup-challenge.md decision A.6/B.6).
+        # Logged via traceback so silent failures stay debuggable.
         print(f"WARNING: claim verifier failed — {e}", file=sys.stderr)
+        traceback.print_exc(file=sys.stderr)
         return None, None
 
     verification_text = result["content"]
@@ -1095,7 +1349,7 @@ def _run_claim_verifier(challenge_text, proposal_text, litellm_url, api_key):
     return verification_text, stats
 
 
-def _consolidate_challenges(challenge_body, model="claude-sonnet-4-6"):
+def _consolidate_challenges(challenge_body, litellm_url, api_key, model=None):
     """Merge overlapping findings from multiple challengers into deduplicated set.
 
     Returns (consolidated_body, stats_dict) or (original_body, None) if
@@ -1106,16 +1360,27 @@ def _consolidate_challenges(challenge_body, model="claude-sonnet-4-6"):
     if challenger_count < 2:
         return challenge_body, None
 
+    if model is None:
+        config = _load_config()
+        model = config.get("verifier_default", "claude-sonnet-4-6")
+
     print(f"Consolidating {challenger_count} challenger reviews...", file=sys.stderr)
     try:
-        response = llm_call(
-            system=CONSOLIDATION_SYSTEM_PROMPT,
-            user=f"Here are the raw challenges from {challenger_count} independent reviewers:\n\n{challenge_body}",
+        response = _call_litellm(
             model=model,
-            max_tokens=4000,
+            system_prompt=CONSOLIDATION_SYSTEM_PROMPT,
+            user_content=f"Here are the raw challenges from {challenger_count} independent reviewers:\n\n{challenge_body}",
+            litellm_url=litellm_url,
+            api_key=api_key,
+            max_tokens=LLM_CALL_DEFAULTS["consolidation_max_tokens"],
         )
-    except (LLMError, Exception) as e:
+    except Exception as e:
+        # Best-effort enrichment path: consolidation is optional. If it
+        # fails, fall back to raw multi-challenger output. Broad catch is
+        # intentional (see tasks/debate-py-bandaid-cleanup-challenge.md
+        # decision A.6/B.6). Logged via traceback for debugging.
         print(f"WARNING: consolidation failed ({e}) — proceeding with raw challenges", file=sys.stderr)
+        traceback.print_exc(file=sys.stderr)
         return challenge_body, None
 
     # Count findings for logging
@@ -1136,6 +1401,7 @@ def _consolidate_challenges(challenge_body, model="claude-sonnet-4-6"):
 
 def cmd_judge(args):
     """Independent judge: evaluate challenges without author self-resolution."""
+    _cost_snapshot = get_session_costs()
     api_key = os.environ.get("LITELLM_MASTER_KEY")
     if not api_key:
         print("ERROR: LITELLM_MASTER_KEY not set", file=sys.stderr)
@@ -1158,20 +1424,30 @@ def cmd_judge(args):
     config = _load_config()
     judge_model = args.model or config["judge_default"]
 
-    # Ensure judge is not the author model (avoid self-preference bias)
+    # author_models is a fact about the deployment (which model authored the
+    # proposal in the IDE), not a runtime configurable. Update here when the
+    # team switches their primary coding assistant. Per challenge synthesis
+    # 2026-04-09, do NOT route through config — false configurability would
+    # mask the deployment fact behind config indirection.
     author_models = {"claude-opus-4-6", "litellm/claude-opus-4-6"}
     if judge_model in author_models:
         print("WARNING: judge model matches author model — self-preference bias risk",
               file=sys.stderr)
 
     system_prompt = JUDGE_SYSTEM_PROMPT
+    posture = getattr(args, 'security_posture', 3)
+    posture_mod = SECURITY_POSTURE_JUDGE_MODIFIER.get(posture, "")
+    if posture_mod:
+        system_prompt = system_prompt + posture_mod
     if args.system_prompt:
         system_prompt = args.system_prompt.read()
 
     # Consolidate multi-challenger findings before judging (dedup + merge)
     consolidation_stats = None
     if not getattr(args, "no_consolidate", False):
-        consolidated_body, consolidation_stats = _consolidate_challenges(challenge_body)
+        consolidated_body, consolidation_stats = _consolidate_challenges(
+            challenge_body, litellm_url, api_key
+        )
     else:
         consolidated_body = challenge_body
 
@@ -1230,7 +1506,7 @@ def cmd_judge(args):
     try:
         response = _call_litellm(judge_model, system_prompt, user_content,
                                  litellm_url, api_key)
-    except (LLMError, urllib.error.HTTPError, urllib.error.URLError, TimeoutError, RuntimeError) as e:
+    except LLM_SAFE_EXCEPTIONS as e:
         print(f"ERROR: judge call failed — {e}", file=sys.stderr)
         return 2
 
@@ -1312,7 +1588,7 @@ def cmd_judge(args):
         log_event["verifier"] = verifier_stats
     if consolidation_stats:
         log_event["consolidation"] = consolidation_stats
-    _log_debate_event(log_event)
+    _log_debate_event(log_event, cost_snapshot=_cost_snapshot)
     return 0
 
 
@@ -1326,11 +1602,115 @@ def cmd_judge(args):
 # reproduction. 16384 covers ~12K tokens of revised doc + ~4K for notes; models
 # whose true cap is lower (Gemini 8K, Anthropic 8K default) will return less,
 # and the length-based detection in cmd_refine catches that case.
-REFINE_MAX_OUTPUT_TOKENS = 16384
+# TOOL_LOOP_DEFAULTS — single source of truth for every llm_tool_loop call site
+# in debate.py. This replaces the scattered pattern where each subcommand
+# specified its own timeout/max_tokens/max_turns as inline literals, which
+# caused Fix 1 (refine timeout raise) to ship without fixing challenge/verifier/
+# review-panel — all three call sites stayed at the known-broken defaults
+# (timeout=60, max_tokens=4096) despite a code comment literally saying "60s
+# is unworkable at 16K." See tasks/root-cause-queue.md entry #1 for the full
+# history.
+#
+# Any NEW call site that uses llm_tool_loop MUST pull from this dict. The test
+# in tests/test_tool_loop_config.py enforces this by scanning for inline
+# numeric literals at call sites. When in doubt, add a new key here rather
+# than specifying a literal at the call site.
+#
+# Rationale for each value:
+#   timeout=240  — Refine at 16K tokens takes 2-3 minutes; 60s was tight even
+#                  at 4K, unworkable at 16K. Opus with tools enabled on a
+#                  22KB+ input reliably timed out at 60s. 240s leaves headroom.
+#   max_tokens=16384 — matches refine's raised cap from Fix 1. Smaller caps
+#                  silently truncated challenger output.
+#   max_turns=20 — iteration cap inside the tool loop. Research phase overrides
+#                  to 40 for explore→inspect→refine cycles on code classification.
+TOOL_LOOP_DEFAULTS = {
+    "timeout": 240,
+    "max_tokens": 16384,
+    "max_turns": 20,
+}
 
-# Refine generation at 16K tokens takes 2-3 minutes at typical rates; 60s
-# (the challenge default) was tight even at 4K and is unworkable at 16K.
-REFINE_TIMEOUT_SECONDS = 240
+# Backwards-compat aliases for existing code that references these names.
+# New code should prefer TOOL_LOOP_DEFAULTS[...] directly.
+TOOL_LOOP_TIMEOUT_SECONDS = TOOL_LOOP_DEFAULTS["timeout"]
+TOOL_LOOP_MAX_OUTPUT_TOKENS = TOOL_LOOP_DEFAULTS["max_tokens"]
+
+# LLM_CALL_DEFAULTS — single source of truth for non-tool-loop llm_call sites
+# in debate.py. Parallel to TOOL_LOOP_DEFAULTS but for one-shot calls (judge,
+# compare, consolidation) instead of tool-using calls.
+#
+# Why this is separate from TOOL_LOOP_DEFAULTS:
+#   - Tool loops need longer ITERATION budgets because they make multiple API
+#     calls in series (one per turn).
+#   - One-shot calls don't iterate; they do need a generous per-call timeout
+#     since judge/refine inputs can be 20K+ tokens.
+#
+# Why per-role temperatures:
+#   - Judges run at 0.7 — slightly creative for verdict synthesis but
+#     deterministic enough that verdicts are reproducible round-to-round.
+#   - Challengers run at per-model temperatures: Claude/GPT at 0.0 for
+#     deterministic tool-using analysis, Gemini at 1.0 because Google
+#     explicitly says lower temperatures cause "looping or degraded
+#     performance" on Gemini 3 (Fix 4 commit ad44873).
+#   - These per-model challenger values MIRROR what
+#     llm_client._default_temperature_for_model has always returned for the
+#     tool-loop path. Pre-cleanup, the non-tool challenger path was buggy
+#     (flat 0.7 from _call_litellm) and inconsistent with the tool path.
+#     The cleanup unifies both paths to use this dict via _challenger_
+#     temperature(). If you change values here, also update llm_client.py
+#     to keep them aligned, or remove the duplication by making this dict
+#     the single source of truth.
+#   - The asymmetry between judge-mode and challenger-mode FOR THE SAME MODEL
+#     is INTENTIONAL — preserved during the 2026-04-09 cleanup. See
+#     tasks/debate-py-bandaid-cleanup-challenge.md decision #4 and the
+#     2026-04-09 cross-model code review (review-debate.md).
+#
+# Any NEW non-tool-loop call site MUST go through _call_litellm or pull from
+# this dict. The linter in tests/test_tool_loop_config.py enforces this.
+LLM_CALL_DEFAULTS = {
+    "timeout": 300,                 # one-shot calls; tool loops use 240
+    "max_tokens": 16384,            # match TOOL_LOOP_DEFAULTS for parity
+    "judge_temperature": 0.7,       # all judge models — slight creativity, reproducible
+    "challenger_temperature_default": 0.0,  # Claude/GPT — deterministic tool analysis
+    "challenger_temperature_per_model": {
+        "gemini-3.1-pro": 1.0,      # Fix 4 — Google explicitly requires 1.0 for Gemini 3
+    },
+    "consolidation_max_tokens": 4000,  # consolidation produces tight summaries
+}
+
+# LLM_SAFE_EXCEPTIONS — recoverable errors from LLM calls. Network, API,
+# parsing, and protocol-level failures from llm_client + urllib + the LLM
+# itself. Does NOT include KeyboardInterrupt or SystemExit (those inherit
+# from BaseException and escape upward as intended).
+#
+# Add new exception types here, NOT at call sites — see
+# tasks/root-cause-queue.md entry #3 and tasks/debate-py-bandaid-cleanup-
+# challenge.md item B'. The linter scans for inline tuple regressions.
+#
+# Two call sites legitimately use a broader `except Exception` instead of
+# this tuple: _run_claim_verifier (best-effort enrichment) and
+# _consolidate_challenges (best-effort consolidation). Both are documented
+# inline at their call sites and log via traceback.
+#
+# RuntimeError was previously included to catch errors from pull_github.py
+# and pull_jira.py (CZ v3 data layer). Those are now in cz_velocity.py
+# which defines its own broader exception tuple. Generic debate paths only
+# see LLMError and urllib errors.
+LLM_SAFE_EXCEPTIONS = (
+    LLMError,
+    urllib.error.HTTPError,
+    urllib.error.URLError,
+    TimeoutError,
+)
+
+# Refine-specific constants. These are NOT overrides of the shared defaults —
+# they are the same values, exposed under refine-specific names for code that
+# was written before TOOL_LOOP_DEFAULTS existed. If a future change needs
+# refine to legitimately diverge from the shared defaults (e.g., longer
+# timeout because refine generates longer output), the divergence MUST be
+# documented here with the reason, not silently introduced at the call site.
+REFINE_MAX_OUTPUT_TOKENS = TOOL_LOOP_DEFAULTS["max_tokens"]
+REFINE_TIMEOUT_SECONDS = TOOL_LOOP_DEFAULTS["timeout"]
 
 # A revised doc shorter than this fraction of its input is treated as
 # truncated: the round's notes are kept but current_doc is NOT advanced. This
@@ -1572,6 +1952,7 @@ def _parse_refine_response(text):
 
 def cmd_refine(args):
     """Iterative cross-model refinement: each model improves the document in turn."""
+    _cost_snapshot = get_session_costs()
     api_key = os.environ.get("LITELLM_MASTER_KEY")
     if not api_key:
         print("ERROR: LITELLM_MASTER_KEY not set", file=sys.stderr)
@@ -1646,7 +2027,7 @@ def cmd_refine(args):
                     tools=debate_tools.TOOL_DEFINITIONS,
                     tool_executor=debate_tools.execute_tool,
                     model=model,
-                    max_turns=20,
+                    max_turns=TOOL_LOOP_DEFAULTS["max_turns"],
                     max_tokens=REFINE_MAX_OUTPUT_TOKENS,
                     timeout=REFINE_TIMEOUT_SECONDS,
                     base_url=litellm_url,
@@ -1655,6 +2036,7 @@ def cmd_refine(args):
                         {"turn": turn, "tool": name}
                     ),
                 )
+                _track_tool_loop_cost(model, tool_result)
                 response = tool_result["content"]
                 all_refine_tool_calls[f"round_{round_num}"] = tool_log
                 if tool_log:
@@ -1731,7 +2113,7 @@ def cmd_refine(args):
             elif not revised:
                 print(f"WARNING: round {round_num} did not produce a revised document, "
                       "continuing with current version", file=sys.stderr)
-        except (LLMError, urllib.error.HTTPError, urllib.error.URLError, TimeoutError, RuntimeError) as e:
+        except LLM_SAFE_EXCEPTIONS as e:
             print(f"WARNING: round {round_num} ({model}) failed — {e}, "
                   "continuing with current version", file=sys.stderr)
             round_notes.append({
@@ -1741,7 +2123,7 @@ def cmd_refine(args):
             })
 
     # Build output
-    now = datetime.now(timezone(timedelta(hours=-7)))
+    now = datetime.now(PROJECT_TZ)
     sections = [
         "---",
         f"debate_id: {debate_id}",
@@ -1801,12 +2183,13 @@ def cmd_refine(args):
         if total_tool_calls == 0:
             print("WARNING: refiners made 0 tool calls despite tools being enabled",
                   file=sys.stderr)
-    _log_debate_event(refine_log)
+    _log_debate_event(refine_log, cost_snapshot=_cost_snapshot)
     return 0
 
 
 def cmd_compare(args):
     """Compare two review methods on the same original document."""
+    _cost_snapshot = get_session_costs()
     api_key = os.environ.get("LITELLM_MASTER_KEY")
     if not api_key:
         print("ERROR: LITELLM_MASTER_KEY not set", file=sys.stderr)
@@ -1822,7 +2205,11 @@ def cmd_compare(args):
         print("ERROR: all three input files must be non-empty", file=sys.stderr)
         return 1
 
-    judge_model = args.model or "gemini-3.1-pro"
+    # compare uses its own config key (intentionally lighter-weight than the
+    # adversarial judge — compare is a side-by-side scoring tool, not the
+    # truth arbiter). See tasks/debate-py-bandaid-cleanup-challenge.md A.2.
+    config = _load_config()
+    judge_model = args.model or config.get("compare_default", "gemini-3.1-pro")
 
     user_content = (
         "## ORIGINAL DOCUMENT\n\n"
@@ -1839,7 +2226,7 @@ def cmd_compare(args):
     try:
         response = _call_litellm(judge_model, COMPARE_JUDGE_PROMPT, user_content,
                                  litellm_url, api_key)
-    except (LLMError, urllib.error.HTTPError, urllib.error.URLError, TimeoutError, RuntimeError) as e:
+    except LLM_SAFE_EXCEPTIONS as e:
         print(f"ERROR: compare call failed — {e}", file=sys.stderr)
         return 2
 
@@ -1860,7 +2247,7 @@ def cmd_compare(args):
         debate_id = debate_id[:-8]
 
     # Build output
-    now = datetime.now(timezone(timedelta(hours=-7)))
+    now = datetime.now(PROJECT_TZ)
     output_text = (
         "---\n"
         f"debate_id: {debate_id}\n"
@@ -1892,7 +2279,7 @@ def cmd_compare(args):
         "verdict": verdict,
         "scores": scores,
         "output": args.output,
-    })
+    }, cost_snapshot=_cost_snapshot)
     return 0
 
 
@@ -1901,6 +2288,7 @@ def cmd_compare(args):
 
 def cmd_review(args):
     """Single-model review for inline skill use (e.g., /define, /elevate)."""
+    _cost_snapshot = get_session_costs()
     api_key = os.environ.get("LITELLM_MASTER_KEY")
     if not api_key:
         print("ERROR: LITELLM_MASTER_KEY not set", file=sys.stderr)
@@ -1943,7 +2331,7 @@ def cmd_review(args):
     print(f"Calling reviewer ({args.persona or 'explicit'})...", file=sys.stderr)
     try:
         response = _call_litellm(model, prompt, input_text, litellm_url, api_key)
-    except (LLMError, urllib.error.HTTPError, urllib.error.URLError, TimeoutError, RuntimeError) as e:
+    except LLM_SAFE_EXCEPTIONS as e:
         print(f"ERROR: review call failed — {e}", file=sys.stderr)
         return 1
 
@@ -1961,7 +2349,7 @@ def cmd_review(args):
         "input_file": args.input.name if hasattr(args.input, 'name') else "stdin",
         "success": True,
         "response_length": len(response),
-    })
+    }, cost_snapshot=_cost_snapshot)
     return 0
 
 
@@ -1969,6 +2357,7 @@ def cmd_review_panel(args):
     """Multi-persona panel review: 3 models review independently, anonymous labels."""
     import random
 
+    _cost_snapshot = get_session_costs()
     api_key = os.environ.get("LITELLM_MASTER_KEY")
     if not api_key:
         print("ERROR: LITELLM_MASTER_KEY not set", file=sys.stderr)
@@ -1998,6 +2387,12 @@ def cmd_review_panel(args):
         print("ERROR: specify --prompt or --prompt-file", file=sys.stderr)
         return 1
 
+    # Inject security posture modifier into review prompt
+    posture = getattr(args, 'security_posture', 3)
+    posture_mod = SECURITY_POSTURE_CHALLENGER_MODIFIER.get(posture, "")
+    if posture_mod:
+        prompt = prompt + posture_mod
+
     input_text = args.input.read()
     if not input_text.strip():
         print("ERROR: input file is empty", file=sys.stderr)
@@ -2026,6 +2421,10 @@ def cmd_review_panel(args):
     for p in personas:
         model = pmap[p]
         print(f"Calling {p}...", file=sys.stderr)
+        # Panel reviewers are challenger-mode (multi-persona adversarial),
+        # not judge-mode. Use per-model challenger temperature so Gemini gets
+        # 1.0 per Google's tool-calling guidance (Fix 4).
+        challenger_temp = _challenger_temperature(model)
         try:
             if tool_defs is not None:
                 from llm_client import llm_tool_loop
@@ -2036,15 +2435,17 @@ def cmd_review_panel(args):
                     tools=tool_defs,
                     tool_executor=tool_exec,
                     model=model,
-                    max_turns=20,
-                    max_tokens=4096,
-                    timeout=60,
+                    temperature=challenger_temp,
+                    max_turns=TOOL_LOOP_DEFAULTS["max_turns"],
+                    max_tokens=TOOL_LOOP_MAX_OUTPUT_TOKENS,
+                    timeout=TOOL_LOOP_TIMEOUT_SECONDS,
                     base_url=litellm_url,
                     api_key=api_key,
                     on_tool_call=lambda turn, name, targs, res: tool_log.append(
                         {"turn": turn, "tool": name}
                     ),
                 )
+                _track_tool_loop_cost(model, tool_result)
                 response = tool_result["content"]
                 if tool_result["turns"] > 20:
                     print(f"  {p}: hit max turns, used partial tool evidence ({len(tool_log)} calls)",
@@ -2055,13 +2456,14 @@ def cmd_review_panel(args):
                     print(f"WARNING: {p} ({model}) made 0 tool calls "
                           f"despite tools being enabled", file=sys.stderr)
             else:
-                response = _call_litellm(model, prompt, input_text, litellm_url, api_key)
+                response = _call_litellm(model, prompt, input_text, litellm_url, api_key,
+                                         temperature=challenger_temp)
             if response and response.strip():
                 reviews.append((p, model, response, True))
             else:
                 reviews.append((p, model, "Empty response", False))
                 print(f"WARNING: {p} returned empty response", file=sys.stderr)
-        except (LLMError, urllib.error.HTTPError, urllib.error.URLError, TimeoutError, RuntimeError) as e:
+        except LLM_SAFE_EXCEPTIONS as e:
             reviews.append((p, model, str(e), False))
             print(f"WARNING: {p} failed — {e}", file=sys.stderr)
 
@@ -2108,7 +2510,7 @@ def cmd_review_panel(args):
             }
             for p in personas
         }
-    _log_debate_event(log_entry)
+    _log_debate_event(log_entry, cost_snapshot=_cost_snapshot)
 
     # JSON status to stderr (stdout is the reviews)
     result = {
@@ -2140,7 +2542,7 @@ def cmd_check_models(args):
         resp = urllib.request.urlopen(req, timeout=10)
         body = json.loads(resp.read().decode())
         available = {m["id"] for m in body.get("data", [])}
-    except (LLMError, urllib.error.HTTPError, urllib.error.URLError, TimeoutError, RuntimeError) as e:
+    except LLM_SAFE_EXCEPTIONS as e:
         print(f"ERROR: cannot reach LiteLLM at {url} — {e}", file=sys.stderr)
         return 1
 
@@ -2177,7 +2579,8 @@ def cmd_check_models(args):
 
 def cmd_outcome_update(args):
     """Record an outcome for a debate recommendation (append-only)."""
-    now = datetime.now(timezone(timedelta(hours=-7)))
+    _cost_snapshot = get_session_costs()
+    now = datetime.now(PROJECT_TZ)
     outcome = {
         "recommendation_index": args.recommendation,
         "implementation_status": args.implementation_status,
@@ -2191,7 +2594,7 @@ def cmd_outcome_update(args):
         "phase": "outcome",
         "debate_id": args.debate_id,
         "outcome": outcome,
-    })
+    }, cost_snapshot=_cost_snapshot)
     print(json.dumps({"status": "ok", "debate_id": args.debate_id, "outcome": outcome}))
     return 0
 
@@ -2245,10 +2648,46 @@ def cmd_stats(args):
             v_model = verifier.get("model", "unknown")
             tool_calls_by_model[v_model] = tool_calls_by_model.get(v_model, 0) + verifier.get("tool_calls", 0)
 
+    # Cost aggregation from per-event deltas
+    total_cost = 0.0
+    cost_by_model = {}
+    tokens_by_model = {}
+    cost_by_date = {}
+    events_with_costs = 0
+    for ev in events:
+        sc = ev.get("costs") or ev.get("session_costs")  # fallback for pre-delta events
+        if not sc:
+            continue
+        events_with_costs += 1
+        for model, info in sc.get("by_model", {}).items():
+            cost_by_model[model] = cost_by_model.get(model, 0) + info.get("cost_usd", 0)
+            entry = tokens_by_model.setdefault(model, {"prompt": 0, "completion": 0})
+            entry["prompt"] += info.get("prompt_tokens", 0)
+            entry["completion"] += info.get("completion_tokens", 0)
+        total_cost += sc.get("total_usd", 0)
+        day = ev.get("timestamp", "")[:10]
+        if day:
+            cost_by_date[day] = cost_by_date.get(day, 0) + sc.get("total_usd", 0)
+
     print(f"Events analyzed: {len(events)}")
     print(f"\nPhase counts: {json.dumps(phases, indent=2)}")
     print(f"\nTool calls by model: {json.dumps(tool_calls_by_model, indent=2)}")
     print(f"\nEvidence grade totals: {json.dumps(grade_totals)}")
+
+    if events_with_costs > 0:
+        print(f"\n── Cost tracking ({events_with_costs}/{len(events)} events have cost data) ──")
+        print(f"Total estimated cost: ${total_cost:.4f}")
+        print("\nBy model:")
+        for model in sorted(cost_by_model, key=lambda m: -cost_by_model[m]):
+            toks = tokens_by_model.get(model, {})
+            print(f"  {model}: ${cost_by_model[model]:.4f}"
+                  f"  ({toks.get('prompt', 0):,} in / {toks.get('completion', 0):,} out)")
+        if cost_by_date:
+            print("\nBy date:")
+            for day in sorted(cost_by_date):
+                print(f"  {day}: ${cost_by_date[day]:.4f}")
+    else:
+        print("\nNo cost data yet (pre-tracking events).")
 
     if outcomes:
         statuses = {}
@@ -2269,6 +2708,11 @@ def main():
     parser = argparse.ArgumentParser(
         description="Cross-model debate automation for code reviews"
     )
+    parser.add_argument("--security-posture", type=int, default=3,
+                        choices=[1, 2, 3, 4, 5],
+                        help="Security weight (1=move-fast, 3=balanced, 5=critical). "
+                             "At 1-2, security findings are advisory; PM is final arbiter. "
+                             "At 4-5, security can block. Default: 3.")
     sub = parser.add_subparsers(dest="command")
 
     # challenge
@@ -2304,8 +2748,9 @@ def main():
                      help="Path to proposal markdown file")
     jg.add_argument("--challenge", required=True, type=argparse.FileType("r"),
                      help="Path to challenge file (with frontmatter mapping)")
-    jg.add_argument("--model", default="gpt-5.4",
-                     help="Judge model (default: gpt-5.4 — must differ from author)")
+    jg.add_argument("--model", default=None,
+                     help="Judge model (default: from config[\"judge_default\"], "
+                          "currently gpt-5.4 — must differ from author)")
     jg.add_argument("--rebuttal", type=argparse.FileType("r"), default=None,
                      help="Optional author rebuttal brief (context only, author does not decide)")
     jg.add_argument("--output", required=True,
@@ -2375,8 +2820,9 @@ def main():
                      help="Path to method A output")
     cp.add_argument("--method-b", required=True, type=argparse.FileType("r"),
                      help="Path to method B output")
-    cp.add_argument("--model", default="gemini-3.1-pro",
-                     help="Judge model (default: gemini-3.1-pro)")
+    cp.add_argument("--model", default=None,
+                     help="Judge model (default: from config[\"compare_default\"], "
+                          "currently gemini-3.1-pro)")
     cp.add_argument("--output", required=True,
                      help="Output path for comparison file")
 

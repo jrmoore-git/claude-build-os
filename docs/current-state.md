@@ -1,10 +1,15 @@
 # Current State — 2026-04-09
 
+## ⚠ STALE — auto-captured session ended without /wrap-session
+**Auto-capture date:** 2026-04-10 09:36 PT
+**Files changed this session:** 12 files in .claude, config, scripts, tests
+**WARNING:** The "Next Action" below may be outdated. Cross-check with `git log --oneline -10` and recent session-log entries.
+
+
 ## What Changed This Session
-- Synced 4 debate system files from downstream project: debate.py, llm_client.py, debate_tools.py, debate/SKILL.md
-- Key changes: refine truncation detection, recommendation slot preservation, per-model tool_choice/temperature, --verify-claims judge flag
-- Updated README with recall/debate separation docs (earlier in session)
-- Verified debate models reachable via check-models
+- Squashed 106-commit history into 8 logical commits using git commit-tree (tree objects preserved exactly)
+- Added commit discipline rules: batch logical changes, target 1-4 commits per session, test CI locally before push
+- Force pushed squashed history to GitHub (backup at backup-pre-squash branch)
 
 ## Current Blockers
 - None identified
@@ -13,6 +18,6 @@
 Continue with debate system improvements per 2026-04-08 priority analysis (items 3-5 first).
 
 ## Recent Commits
-637c6e8 [auto] Session work captured 2026-04-09 14:35 PT
-f226f33 Session wrap 2026-04-09: README recall/debate separation docs
-e9ba0f0 Session wrap 2026-04-08: debate impl priority analysis + sync verification
+93be34b Tighten commit discipline: batch logical changes, target 1-4 per session
+ab5727f Debate system sync: truncation detection, per-model routing, CI fix
+6b8ea31 Docs: recall/debate separation, debate impl priority analysis

@@ -10,9 +10,13 @@ Run the full adversarial pipeline on a proposal: challenge → judge → refine.
 
 ## Procedure
 
-### Step 1: Get topic
+### Step 1: Get topic and security posture
 
 If the user provided a topic as an argument, use it. Otherwise ask: "What's the topic name? (e.g., `review-skill-restructure`)"
+
+Ask: "Security posture? (1=move-fast, 2=speed-with-guardrails, 3=balanced, 4=production-grade, 5=critical). Default: 3"
+
+Store the answer as `POSTURE` (default 3). Pass `--security-posture $POSTURE` to all `debate.py` commands in this pipeline.
 
 ### Step 2: Require proposal
 
@@ -41,7 +45,7 @@ test -f tasks/<topic>-debate.md && echo "found" || echo "none"
 
 If missing, run:
 ```bash
-python3.11 scripts/debate.py challenge \
+python3.11 scripts/debate.py --security-posture $POSTURE challenge \
   --proposal <enriched or original proposal> \
   --personas architect,security,pm \
   --enable-tools \
@@ -60,7 +64,7 @@ test -f tasks/<topic>-judgment.md && echo "found" || echo "none"
 
 If missing, run:
 ```bash
-python3.11 scripts/debate.py judge \
+python3.11 scripts/debate.py --security-posture $POSTURE judge \
   --proposal tasks/<topic>-proposal.md \
   --challenge tasks/<topic>-debate.md \
   --model gpt-5.4 \

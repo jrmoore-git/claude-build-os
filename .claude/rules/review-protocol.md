@@ -68,7 +68,7 @@ Both `/challenge` and `/debate` invoke `debate.py`. The `/review` skill also use
 
 Models: Claude Opus 4.6 (architect), Gemini 3.1 Pro (staff + PM), GPT-5.4 (security + judge). Refinement rotates all three (gemini -> gpt -> claude). Before judging, multi-challenger findings are automatically consolidated (deduplicated and merged with corroboration notes). Use `--no-consolidate` to skip consolidation.
 
-**Security BLOCKING VETO on external code** is not subject to override.
+**Security BLOCKING VETO on external code** is not subject to override. For all other work, security weight is controlled by `--security-posture` (1-5). At posture 1-2, security findings are advisory; PM is the final arbiter. At 4-5, security can block. Default: 3 (balanced).
 
 ## Legacy Tier Classification
 
