@@ -17,7 +17,6 @@ SKIP_PATTERNS=(
   "hooks/pre-commit-banned-terms.sh"   # this file
   ".github/workflows/*"                # CI workflow (contains the pattern)
   ".env.example"                       # contains example API key placeholders
-  "tasks/_archive/*"                   # archived debate artifacts may contain meta-references
   "*.sample"
   ".git/*"
 )
