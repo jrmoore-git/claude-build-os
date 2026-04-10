@@ -1,23 +1,19 @@
-# Current State — 2026-04-09
-
-## ⚠ STALE — auto-captured session ended without /wrap-session
-**Auto-capture date:** 2026-04-10 09:36 PT
-**Files changed this session:** 12 files in .claude, config, scripts, tests
-**WARNING:** The "Next Action" below may be outdated. Cross-check with `git log --oneline -10` and recent session-log entries.
-
+# Current State — 2026-04-10
 
 ## What Changed This Session
-- Squashed 106-commit history into 8 logical commits using git commit-tree (tree objects preserved exactly)
-- Added commit discipline rules: batch logical changes, target 1-4 commits per session, test CI locally before push
-- Force pushed squashed history to GitHub (backup at backup-pre-squash branch)
+- Debate engine refactor synced from laptop (debate-py-bandaid-cleanup): parallel challengers, cost tracking, security posture flag, centralized defaults, timezone fix
+- 7 challenge/review artifacts landed in tasks/ documenting design decisions
+- D4 decision: --security-posture (1-5) — security advisory at 1-2, blocking at 4-5, PM arbiter at low posture
+- root-cause-queue.md landed (referenced by TOOL_LOOP_DEFAULTS and LLM_SAFE_EXCEPTIONS comments)
+- Session docs updated to reflect debate refactor (were stale — only described history squash)
 
 ## Current Blockers
 - None identified
 
 ## Next Action
-Continue with debate system improvements per 2026-04-08 priority analysis (items 3-5 first).
+Continue with debate system improvements per 2026-04-08 priority analysis (items 3-5 first). Delete backup-pre-squash branch after confirming squashed history is stable.
 
 ## Recent Commits
-93be34b Tighten commit discipline: batch logical changes, target 1-4 per session
-ab5727f Debate system sync: truncation detection, per-model routing, CI fix
-6b8ea31 Docs: recall/debate separation, debate impl priority analysis
+26a9968 [auto] Session work captured 2026-04-10 09:41 PT
+31d2d0b [auto] Session work captured 2026-04-10 09:36 PT
+8d75c5c Session wrap 2026-04-09: history squash (106→8) + commit discipline

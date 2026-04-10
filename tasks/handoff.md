@@ -1,26 +1,30 @@
-# Handoff — 2026-04-09
+# Handoff — 2026-04-10
 
 ## Session Focus
-Squashed 106-commit git history into 8 logical commits and tightened commit discipline rules.
+Evaluated and documented debate engine refactor synced from laptop (debate-py-bandaid-cleanup). Landed design artifacts and updated session docs.
 
 ## Decided
-- 8 logical boundary commits chosen to represent the project's evolution (initial framework → debate pipeline → parallelization → debate v3.1 → clone-and-go → audit → docs → sync)
-- Commit discipline: target 1-4 commits per session, batch related changes
+- D4 (from laptop): --security-posture flag (1-5). At 1-2, security findings are advisory; PM is final arbiter. Prompted by CZ velocity v3 over-rotation on security controls.
+- session-discipline.md trimming was intentional (confirmed with user)
+- tasks/_archive/* banned-terms skip removal was intentional cleanup
 
 ## Implemented
-- History squash: 106 → 8 commits using git commit-tree (zero working directory contamination)
-- Commit discipline rules added to session-discipline.md
-- Force pushed to GitHub, backup at backup-pre-squash branch
+- Verified debate engine refactor: parallel challengers, cost tracking, security posture, centralized defaults (TOOL_LOOP_DEFAULTS, LLM_CALL_DEFAULTS, LLM_SAFE_EXCEPTIONS), timezone fix
+- Landed 7 bandaid-cleanup artifacts (challenge, review, findings, proposal, plan, review-debate, review-debate-v2)
+- Landed decisions.md with D4, root-cause-queue.md, debate-log.jsonl with cost tracking
+- Updated current-state.md, handoff.md, session-log.md to reflect debate refactor
 
 ## NOT Finished
-- Nothing outstanding from this session
+- Delete backup-pre-squash branch after confirming squashed history is stable
 
 ## Next Session Should
 1. Continue debate system improvements per 2026-04-08 priority analysis (items 3-5 first)
-2. Delete backup-pre-squash branch after confirming squashed history is stable
+2. Delete backup-pre-squash branch
 
 ## Key Files Changed
-.claude/rules/session-discipline.md
+docs/current-state.md
+tasks/handoff.md
+tasks/session-log.md
 
 ## Doc Hygiene Warnings
 None
