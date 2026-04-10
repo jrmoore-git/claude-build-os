@@ -1,19 +1,25 @@
 # Current State — 2026-04-10
 
+## ⚠ STALE — auto-captured session ended without /wrap-session
+**Auto-capture date:** 2026-04-10 18:34 PT
+**Files changed this session:** 5 files in docs, tasks
+**WARNING:** The "Next Action" below may be outdated. Cross-check with `git log --oneline -10` and recent session-log entries.
+
+
 ## What Changed This Session
-- Debate engine refactor synced from laptop (debate-py-bandaid-cleanup): parallel challengers, cost tracking, security posture flag, centralized defaults, timezone fix
-- 7 challenge/review artifacts landed in tasks/ documenting design decisions
-- D4 decision: --security-posture (1-5) — security advisory at 1-2, blocking at 4-5, PM arbiter at low posture
-- root-cause-queue.md landed (referenced by TOOL_LOOP_DEFAULTS and LLM_SAFE_EXCEPTIONS comments)
-- Session docs updated to reflect debate refactor (were stale — only described history squash)
+- Built 3 new thinking modes in debate.py: explore (divergent options with fork-first synthesis), pressure-test (strategic counter-thesis), pre-mortem (prospective failure analysis)
+- All 3 are single-model — tested and proved multi-model doesn't add value for thinking modes (only for review/judging)
+- Externalized prompts to config/prompts/ (5 prompt files + 3 pre-flight files + 1 adaptive protocol). Loaded at runtime with fallback to hardcoded constants. Versioned.
+- Added --context flag to all thinking modes for injecting context
+- Built adaptive pre-flight discovery protocol (v4): GStack-style one-at-a-time questioning with push-until-specific, tested across 20+ simulated personas at 4.8-5.0/5
+- Evolved explore flow through 4 iterations to fork-first format: brainstorm → 3 bets → fork statement → 150-word descriptions → comparison table
+- Updated /debate skill as smart-routed entry point with pre-flight step
 
 ## Current Blockers
-- None identified
+- Explore flow scores 4.6/5 — narrow-market edge case drags span score. Fix identified (force one bet outside the market) but not yet applied.
 
 ## Next Action
-Continue with debate system improvements per 2026-04-08 priority analysis (items 3-5 first). Delete backup-pre-squash branch after confirming squashed history is stable.
+Apply the narrow-market fix to explore (force one bet outside persona's market). Consider whether "explore before work" and "inspect code before answering" behaviors need hook-level enforcement.
 
 ## Recent Commits
-26a9968 [auto] Session work captured 2026-04-10 09:41 PT
-31d2d0b [auto] Session work captured 2026-04-10 09:36 PT
-8d75c5c Session wrap 2026-04-09: history squash (106→8) + commit discipline
+513daad [auto] Session work captured 2026-04-10 18:28 PT

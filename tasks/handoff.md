@@ -1,30 +1,42 @@
 # Handoff — 2026-04-10
 
 ## Session Focus
-Evaluated and documented debate engine refactor synced from laptop (debate-py-bandaid-cleanup). Landed design artifacts and updated session docs.
+Redesigned the multi-model debate system from single adversarial mode to multi-mode thinking tool with adaptive pre-flight discovery.
 
 ## Decided
-- D4 (from laptop): --security-posture flag (1-5). At 1-2, security findings are advisory; PM is final arbiter. Prompted by CZ velocity v3 over-rotation on security controls.
-- session-discipline.md trimming was intentional (confirmed with user)
-- tasks/_archive/* banned-terms skip removal was intentional cleanup
+- D5: Thinking modes (explore, pressure-test, pre-mortem) are single-model — prompt design drives quality, not model diversity
+- D6: Explore presents 3 bets fork-first, not 1 committed direction — prevents novelty bias skipping the obvious answer
+- D7: Pre-flight uses GStack-style adaptive questioning, not batch questionnaires
 
 ## Implemented
-- Verified debate engine refactor: parallel challengers, cost tracking, security posture, centralized defaults (TOOL_LOOP_DEFAULTS, LLM_CALL_DEFAULTS, LLM_SAFE_EXCEPTIONS), timezone fix
-- Landed 7 bandaid-cleanup artifacts (challenge, review, findings, proposal, plan, review-debate, review-debate-v2)
-- Landed decisions.md with D4, root-cause-queue.md, debate-log.jsonl with cost tracking
-- Updated current-state.md, handoff.md, session-log.md to reflect debate refactor
+- 3 new debate.py subcommands: explore, pressure-test, pre-mortem
+- 5 prompt files + 3 pre-flight files + 1 adaptive protocol in config/prompts/
+- Prompt loader with fallback, --context flag, version tracking
+- Updated /debate skill with mode routing and pre-flight step
 
 ## NOT Finished
-- Delete backup-pre-squash branch after confirming squashed history is stable
+- Explore flow 4.6/5, not 4.7+ — narrow-market fix not applied
+- Pressure-test of overall design suggests: measure decision impact, don't over-invest in mode architecture
 
 ## Next Session Should
-1. Continue debate system improvements per 2026-04-08 priority analysis (items 3-5 first)
-2. Delete backup-pre-squash branch
+1. Apply narrow-market fix to explore prompt, validate to 4.7+
+2. Evaluate whether "explore before work" and "inspect code before answering" need hook-level enforcement
+3. Use the new system on a real decision (not simulated) and assess whether it changes the outcome
 
 ## Key Files Changed
-docs/current-state.md
-tasks/handoff.md
-tasks/session-log.md
+scripts/debate.py
+.claude/skills/debate/SKILL.md
+config/prompts/explore.md
+config/prompts/explore-diverge.md
+config/prompts/explore-synthesis.md
+config/prompts/pressure-test.md
+config/prompts/pre-mortem.md
+config/prompts/preflight-product.md
+config/prompts/preflight-solo-builder.md
+config/prompts/preflight-architecture.md
+config/prompts/preflight-adaptive.md
+tasks/decisions.md
+tasks/lessons.md
 
 ## Doc Hygiene Warnings
-None
+None — decisions.md and lessons.md updated this wrap.

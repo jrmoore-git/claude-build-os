@@ -124,6 +124,42 @@ def _load_dotenv():
 
 _load_dotenv()
 
+# ── Prompt loader ───────────────────────────────────────────────────────────
+
+PROMPTS_DIR = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
+                           "config", "prompts")
+
+
+def _load_prompt(filename, fallback_constant):
+    """Load a prompt from config/prompts/<filename>. Falls back to the
+    hardcoded constant if the file doesn't exist.
+
+    Returns (prompt_text, version). Version is None if not found in
+    frontmatter or if using the fallback constant.
+
+    Strips YAML frontmatter (--- delimited) before returning the prompt.
+    """
+    path = os.path.join(PROMPTS_DIR, filename)
+    if not os.path.isfile(path):
+        return fallback_constant, None
+    with open(path, "r") as f:
+        content = f.read()
+    # Strip YAML frontmatter
+    version = None
+    if content.startswith("---"):
+        end = content.find("---", 3)
+        if end != -1:
+            frontmatter = content[3:end]
+            for line in frontmatter.strip().splitlines():
+                if line.strip().startswith("version:"):
+                    try:
+                        version = int(line.split(":", 1)[1].strip())
+                    except (ValueError, IndexError):
+                        pass
+            content = content[end + 3:].lstrip("\n")
+    return content, version
+
+
 # ── Constants ────────────────────────────────────────────────────────────────
 
 DEFAULT_LITELLM_URL = "http://localhost:4000"
@@ -1937,6 +1973,204 @@ Output format:
 [2-4 sentences explaining what each method did well and where it fell short]"""
 
 
+# ── Thinking mode prompts (single-model) ────────────────────────────────────
+
+EXPLORE_SYSTEM_PROMPT = """\
+You are a strategic thinker proposing a direction for a product or \
+architectural decision. You will be given a question or problem statement.
+
+Your job is NOT to be comprehensive or balanced. Your job is to take a \
+STRONG POSITION on one specific direction and argue for it convincingly.
+
+Rules:
+- Propose ONE distinct approach. Not three options. Not a balanced analysis.
+- Be opinionated. Say "this is the right move because..." not "one option \
+might be..."
+- Be specific. Name the first thing to build, who the first user is, what \
+the first milestone looks like.
+- It is fine — encouraged, even — if your approach is unconventional or risky.
+- Do not hedge. Do not caveat everything. Make your case.
+- Keep it under 800 words.
+
+Output format:
+
+## Direction: [one-line name for your approach]
+
+## The Argument
+[Why this is the right direction. Be specific and concrete.]
+
+## First Move
+[What you'd build or do first. Be specific enough to start next week.]
+
+## Why This Beats the Alternatives
+[What's wrong with the obvious approaches that this avoids.]
+
+## Biggest Risk
+[The one thing most likely to kill this direction. Be honest.]"""
+
+EXPLORE_DIVERGE_PROMPT = """\
+You are a strategic thinker proposing a direction for a product or \
+architectural decision. You will be given a question or problem statement.
+
+PREVIOUS DIRECTIONS ALREADY PROPOSED (you must NOT repeat or lightly vary \
+any of these — propose something fundamentally different):
+
+{previous_directions}
+
+You MUST propose a FUNDAMENTALLY DIFFERENT direction. Not a variation on \
+any previous idea. A completely different product form, customer, business \
+model, or approach. If they said SaaS, try something else. If they targeted \
+developers, consider a different buyer.
+
+Rules:
+- Propose ONE distinct approach. Not three options. Not a balanced analysis.
+- Be opinionated. Say "this is the right move because..." not "one option \
+might be..."
+- Be specific. Name the first thing to build, who the first user is, what \
+the first milestone looks like.
+- It is fine — encouraged, even — if your approach is unconventional or risky.
+- Do not hedge. Do not caveat everything. Make your case.
+- Keep it under 800 words.
+
+Output format:
+
+## Direction: [one-line name for your approach]
+
+## The Argument
+[Why this is the right direction. Be specific and concrete.]
+
+## First Move
+[What you'd build or do first. Be specific enough to start next week.]
+
+## Why This Beats the Alternatives
+[What's wrong with the obvious approaches that this avoids.]
+
+## Biggest Risk
+[The one thing most likely to kill this direction. Be honest.]"""
+
+EXPLORE_SYNTHESIS_PROMPT = """\
+You are a strategic synthesizer. You have been given {n} independent \
+proposals for the same question. Each takes a different direction.
+
+Your job is NOT to pick a winner. Your job is to map the solution space \
+and help the decision-maker see clearly.
+
+Produce:
+
+## Solution Space Map
+For each direction, one line: the direction name, the core bet it makes, \
+and the customer it targets.
+
+## Convergence
+Where do multiple directions agree? These are higher-confidence signals.
+
+## Divergence
+Where do directions disagree fundamentally? These are the real strategic \
+choices — the forks in the road.
+
+## Strongest Ideas
+The 2-3 most compelling specific ideas across all directions, regardless \
+of which direction they came from. Say why each is strong.
+
+## Recommended Shortlist
+Which 2-3 directions are worth developing further? Why these and not the \
+others? Be honest about what you'd cut.
+
+Keep it under 600 words. Be direct."""
+
+PRESSURE_TEST_SYSTEM_PROMPT = """\
+You are a strategic advisor pressure-testing a thesis. You are NOT looking \
+for bugs, factual errors, or implementation gaps. You are evaluating whether \
+the core strategic direction is sound.
+
+Your job:
+
+1. **State the strongest counter-thesis.** Not "this has risks" — articulate \
+the best argument for why this direction is WRONG and a different direction \
+would be better. Name the alternative.
+
+2. **Identify the real strategic question.** Strip away the implementation \
+details. What is the actual decision being made here? Is the proposal \
+answering the right question?
+
+3. **Find the blind spots.** What second-order effects does the proposal \
+ignore? What market dynamics, competitive responses, or user behaviors \
+would invalidate the thesis?
+
+4. **Evaluate the timing.** Is this the right thing to do NOW, or is the \
+proposal solving a future problem with today's resources?
+
+5. **Give your honest verdict.** Not "revise" or "approve" — tell the \
+author: "If I were you, here's what I'd actually do and why."
+
+Rules:
+- Do NOT use type tags like RISK, ASSUMPTION, OVER-ENGINEERED. Write in \
+natural prose.
+- Do NOT catalog every possible concern. Focus on the 2-3 things that \
+actually matter for the decision.
+- Be direct. "This is wrong because..." is more useful than "One \
+consideration might be..."
+- Keep it under 800 words.
+
+Output format:
+
+## Counter-Thesis
+[The strongest argument against this direction]
+
+## The Real Question
+[What decision is actually being made here — reframed if needed]
+
+## Blind Spots
+[2-3 things the proposal doesn't see]
+
+## Timing
+[Is now the right time? Why or why not?]
+
+## My Honest Take
+[What you'd actually do if this were your decision]"""
+
+PREMORTEM_SYSTEM_PROMPT = """\
+You are a post-mortem analyst. A team is about to commit to the plan below. \
+Your job is prospective failure analysis.
+
+Assume this project has COMPLETELY FAILED 6 months from now. The team is \
+sitting in a room writing the post-mortem. You are writing that post-mortem.
+
+Rules:
+- Be specific. Name the failure mode, not a category. "The hosted API had \
+40% error rates because LiteLLM dropped connections under load and nobody \
+built retry logic" — not "infrastructure issues."
+- Name warning signs that are visible RIGHT NOW in the plan.
+- For each failure, say what would have prevented it.
+- Order by plausibility — most likely failure first.
+- 3-5 failure scenarios. No more.
+- Keep it under 800 words.
+
+Output format:
+
+## Post-Mortem: [project name]
+**Date:** [6 months from now]
+**Outcome:** Project failed.
+
+### Failure 1: [specific failure name]
+**What happened:** [concrete description]
+**Warning signs visible today:** [what the plan already shows]
+**What would have prevented it:** [specific action]
+
+### Failure 2: ...
+[repeat pattern]
+
+## The Pattern
+[One paragraph: what's the common thread across these failures? What \
+structural weakness do they reveal?]"""
+
+
+def _parse_explore_direction(text):
+    """Extract the direction name from an explore response."""
+    match = re.search(r"## Direction:\s*(.+)", text)
+    return match.group(1).strip() if match else "Unknown direction"
+
+
 def _parse_refine_response(text):
     """Parse a refinement response into (notes, revised_document).
 
@@ -2701,6 +2935,293 @@ def cmd_stats(args):
     return 0
 
 
+# ── Thinking mode subcommands (single-model) ────────────────────────────────
+
+
+def cmd_explore(args):
+    """Divergent exploration: single model generates N distinct directions,
+    then a synthesis pass maps the solution space."""
+    _cost_snapshot = get_session_costs()
+    api_key = os.environ.get("LITELLM_MASTER_KEY")
+    if not api_key:
+        print("ERROR: LITELLM_MASTER_KEY not set", file=sys.stderr)
+        return 1
+
+    litellm_url = os.environ.get("LITELLM_URL", DEFAULT_LITELLM_URL)
+    config = _load_config()
+
+    model = args.model or config.get("single_review_default", "gpt-5.4")
+    directions_count = args.directions
+    question = args.question
+    context = getattr(args, 'context', None) or ""
+    context_block = (f"\n## Market Context (use this to inform your thinking)\n\n"
+                     f"{context}\n") if context else ""
+
+    if not question.strip():
+        print("ERROR: question is empty", file=sys.stderr)
+        return 1
+
+    # Load prompts from files (fall back to hardcoded constants)
+    explore_prompt, explore_ver = _load_prompt("explore.md", EXPLORE_SYSTEM_PROMPT)
+    diverge_prompt_tpl, diverge_ver = _load_prompt("explore-diverge.md", EXPLORE_DIVERGE_PROMPT)
+    synth_prompt_tpl, synth_ver = _load_prompt("explore-synthesis.md", EXPLORE_SYNTHESIS_PROMPT)
+
+    # Inject context into prompts
+    explore_prompt = explore_prompt.replace("{context}", context_block)
+    user_content = question if not context else f"{question}\n{context_block}"
+
+    directions = []
+    direction_names = []
+
+    # Round 1: first direction (no divergence constraint)
+    print(f"Explore round 1/{directions_count} ({model})...", file=sys.stderr)
+    try:
+        resp = _call_litellm(model, explore_prompt, user_content,
+                             litellm_url, api_key,
+                             temperature=1.0)
+    except LLM_SAFE_EXCEPTIONS as e:
+        print(f"ERROR: explore round 1 failed — {e}", file=sys.stderr)
+        return 1
+    directions.append(resp)
+    direction_names.append(_parse_explore_direction(resp))
+
+    # Rounds 2..N: forced divergence
+    for i in range(2, directions_count + 1):
+        prev_summary = "\n".join(
+            f"{j}. {name}" for j, name in enumerate(direction_names, 1)
+        )
+        diverge_prompt = diverge_prompt_tpl.format(
+            previous_directions=prev_summary,
+            context=context_block,
+        )
+        print(f"Explore round {i}/{directions_count} ({model})...",
+              file=sys.stderr)
+        try:
+            resp = _call_litellm(model, diverge_prompt, user_content,
+                                 litellm_url, api_key,
+                                 temperature=1.0)
+        except LLM_SAFE_EXCEPTIONS as e:
+            print(f"WARNING: explore round {i} failed — {e}",
+                  file=sys.stderr)
+            continue
+        directions.append(resp)
+        direction_names.append(_parse_explore_direction(resp))
+
+    if len(directions) < 2:
+        print("ERROR: fewer than 2 directions generated", file=sys.stderr)
+        return 1
+
+    # Synthesis pass
+    synth_model = args.synth_model or model
+    combined = "\n\n---\n\n".join(
+        f"### Direction {i}\n\n{d}" for i, d in enumerate(directions, 1)
+    )
+    synth_prompt = synth_prompt_tpl.format(n=len(directions))
+    print(f"Synthesizing ({synth_model})...", file=sys.stderr)
+    try:
+        synthesis = _call_litellm(synth_model, synth_prompt, combined,
+                                  litellm_url, api_key)
+    except LLM_SAFE_EXCEPTIONS as e:
+        print(f"WARNING: synthesis failed — {e}", file=sys.stderr)
+        synthesis = ""
+
+    # Build output
+    now = datetime.now(PROJECT_TZ)
+    ver_str = f"prompt_versions: explore={explore_ver}, diverge={diverge_ver}, synthesis={synth_ver}"
+    output_lines = [
+        "---",
+        f"mode: explore",
+        f"created: {now.strftime('%Y-%m-%dT%H:%M:%S%z')[:25]}",
+        f"model: {model}",
+        f"directions: {len(directions)}",
+        ver_str,
+        "---",
+        f"# Explore: {question[:80]}",
+        "",
+    ]
+    for i, d in enumerate(directions, 1):
+        output_lines.append(f"## Direction {i}")
+        output_lines.append("")
+        output_lines.append(d)
+        output_lines.append("")
+        output_lines.append("---")
+        output_lines.append("")
+
+    if synthesis:
+        output_lines.append("## Synthesis")
+        output_lines.append("")
+        output_lines.append(synthesis)
+
+    output_text = "\n".join(output_lines)
+    with open(args.output, "w") as f:
+        f.write(output_text)
+
+    print(output_text)
+
+    _log_debate_event({
+        "phase": "explore",
+        "model": model,
+        "directions": len(directions),
+        "direction_names": direction_names,
+        "question": question[:200],
+        "success": True,
+    }, cost_snapshot=_cost_snapshot)
+
+    result = {
+        "status": "ok",
+        "directions": len(directions),
+        "direction_names": direction_names,
+        "model": model,
+    }
+    print(json.dumps(result), file=sys.stderr)
+    return 0
+
+
+def cmd_pressure_test(args):
+    """Strategic pressure-test: single model writes a counter-thesis and
+    honest take on a proposal."""
+    _cost_snapshot = get_session_costs()
+    api_key = os.environ.get("LITELLM_MASTER_KEY")
+    if not api_key:
+        print("ERROR: LITELLM_MASTER_KEY not set", file=sys.stderr)
+        return 1
+
+    litellm_url = os.environ.get("LITELLM_URL", DEFAULT_LITELLM_URL)
+    config = _load_config()
+
+    model = args.model or config.get("single_review_default", "gpt-5.4")
+    proposal_text = args.proposal.read()
+    context = getattr(args, 'context', None) or ""
+    context_block = (f"\n## Market Context (use this to inform your thinking)\n\n"
+                     f"{context}\n") if context else ""
+
+    if not proposal_text.strip():
+        print("ERROR: proposal file is empty", file=sys.stderr)
+        return 1
+
+    # Load prompt from file (fall back to hardcoded constant)
+    prompt, prompt_ver = _load_prompt("pressure-test.md", PRESSURE_TEST_SYSTEM_PROMPT)
+    prompt = prompt.replace("{context}", context_block)
+    user_content = proposal_text if not context else f"{proposal_text}\n{context_block}"
+
+    print(f"Pressure-testing ({model})...", file=sys.stderr)
+    try:
+        response = _call_litellm(model, prompt, user_content,
+                                 litellm_url, api_key,
+                                 temperature=0.8)
+    except LLM_SAFE_EXCEPTIONS as e:
+        print(f"ERROR: pressure-test failed — {e}", file=sys.stderr)
+        return 1
+
+    if not response or not response.strip():
+        print("ERROR: model returned empty response", file=sys.stderr)
+        return 1
+
+    # Build output
+    now = datetime.now(PROJECT_TZ)
+    output_lines = [
+        "---",
+        f"mode: pressure-test",
+        f"created: {now.strftime('%Y-%m-%dT%H:%M:%S%z')[:25]}",
+        f"model: {model}",
+        f"prompt_version: {prompt_ver}",
+        "---",
+        f"# Pressure-Test",
+        "",
+        response,
+    ]
+
+    output_text = "\n".join(output_lines)
+    with open(args.output, "w") as f:
+        f.write(output_text)
+
+    print(output_text)
+
+    _log_debate_event({
+        "phase": "pressure-test",
+        "model": model,
+        "input_file": args.proposal.name if hasattr(args.proposal, 'name') else "stdin",
+        "success": True,
+        "response_length": len(response),
+    }, cost_snapshot=_cost_snapshot)
+
+    result = {"status": "ok", "model": model}
+    print(json.dumps(result), file=sys.stderr)
+    return 0
+
+
+def cmd_premortem(args):
+    """Pre-mortem: single model assumes the plan failed and writes the
+    post-mortem from the future."""
+    _cost_snapshot = get_session_costs()
+    api_key = os.environ.get("LITELLM_MASTER_KEY")
+    if not api_key:
+        print("ERROR: LITELLM_MASTER_KEY not set", file=sys.stderr)
+        return 1
+
+    litellm_url = os.environ.get("LITELLM_URL", DEFAULT_LITELLM_URL)
+    config = _load_config()
+
+    model = args.model or config.get("single_review_default", "gpt-5.4")
+    plan_text = args.plan.read()
+    context = getattr(args, 'context', None) or ""
+    context_block = (f"\n## Market Context\n\n{context}\n") if context else ""
+
+    if not plan_text.strip():
+        print("ERROR: plan file is empty", file=sys.stderr)
+        return 1
+
+    # Load prompt from file (fall back to hardcoded constant)
+    prompt, prompt_ver = _load_prompt("pre-mortem.md", PREMORTEM_SYSTEM_PROMPT)
+    prompt = prompt.replace("{context}", context_block)
+    user_content = plan_text if not context else f"{plan_text}\n{context_block}"
+
+    print(f"Pre-mortem ({model})...", file=sys.stderr)
+    try:
+        response = _call_litellm(model, prompt, user_content,
+                                 litellm_url, api_key,
+                                 temperature=0.8)
+    except LLM_SAFE_EXCEPTIONS as e:
+        print(f"ERROR: pre-mortem failed — {e}", file=sys.stderr)
+        return 1
+
+    if not response or not response.strip():
+        print("ERROR: model returned empty response", file=sys.stderr)
+        return 1
+
+    # Build output
+    now = datetime.now(PROJECT_TZ)
+    output_lines = [
+        "---",
+        f"mode: pre-mortem",
+        f"created: {now.strftime('%Y-%m-%dT%H:%M:%S%z')[:25]}",
+        f"model: {model}",
+        f"prompt_version: {prompt_ver}",
+        "---",
+        f"# Pre-Mortem",
+        "",
+        response,
+    ]
+
+    output_text = "\n".join(output_lines)
+    with open(args.output, "w") as f:
+        f.write(output_text)
+
+    print(output_text)
+
+    _log_debate_event({
+        "phase": "pre-mortem",
+        "model": model,
+        "input_file": args.plan.name if hasattr(args.plan, 'name') else "stdin",
+        "success": True,
+        "response_length": len(response),
+    }, cost_snapshot=_cost_snapshot)
+
+    result = {"status": "ok", "model": model}
+    print(json.dumps(result), file=sys.stderr)
+    return 0
+
+
 # ── CLI ──────────────────────────────────────────────────────────────────────
 
 
@@ -2826,6 +3347,49 @@ def main():
     cp.add_argument("--output", required=True,
                      help="Output path for comparison file")
 
+    # explore (single-model divergent thinking)
+    ex = sub.add_parser("explore",
+                        help="Divergent exploration: generate N distinct directions "
+                             "for a question, then synthesize")
+    ex.add_argument("--question", required=True,
+                    help="The question or problem statement to explore")
+    ex.add_argument("--directions", type=int, default=3,
+                    help="Number of distinct directions to generate (default: 3)")
+    ex.add_argument("--model", default=None,
+                    help="Model for generation (default: from config)")
+    ex.add_argument("--synth-model", default=None,
+                    help="Model for synthesis pass (default: same as --model)")
+    ex.add_argument("--context", default=None,
+                    help="Market context to inject (competitors, trends, examples)")
+    ex.add_argument("--output", required=True,
+                    help="Output path for explore results")
+
+    # pressure-test (single-model strategic challenge)
+    pt = sub.add_parser("pressure-test",
+                        help="Strategic pressure-test: counter-thesis, blind spots, "
+                             "and honest take on a proposal")
+    pt.add_argument("--proposal", required=True, type=argparse.FileType("r"),
+                    help="Path to proposal or thesis to pressure-test")
+    pt.add_argument("--model", default=None,
+                    help="Model for pressure-test (default: from config)")
+    pt.add_argument("--context", default=None,
+                    help="Market context to inject (competitors, trends, examples)")
+    pt.add_argument("--output", required=True,
+                    help="Output path for pressure-test results")
+
+    # pre-mortem (single-model prospective failure analysis)
+    pm = sub.add_parser("pre-mortem",
+                        help="Pre-mortem: assume the plan failed, write the "
+                             "post-mortem from the future")
+    pm.add_argument("--plan", required=True, type=argparse.FileType("r"),
+                    help="Path to plan or decision to analyze")
+    pm.add_argument("--model", default=None,
+                    help="Model for pre-mortem (default: from config)")
+    pm.add_argument("--context", default=None,
+                    help="Market context to inject (competitors, trends, examples)")
+    pm.add_argument("--output", required=True,
+                    help="Output path for pre-mortem results")
+
     # outcome-update
     ou = sub.add_parser("outcome-update",
                         help="Record an outcome for a debate recommendation")
@@ -2872,6 +3436,12 @@ def main():
         return cmd_check_models(args)
     elif args.command == "compare":
         return cmd_compare(args)
+    elif args.command == "explore":
+        return cmd_explore(args)
+    elif args.command == "pressure-test":
+        return cmd_pressure_test(args)
+    elif args.command == "pre-mortem":
+        return cmd_premortem(args)
     elif args.command == "outcome-update":
         return cmd_outcome_update(args)
     elif args.command == "stats":

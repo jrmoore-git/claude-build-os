@@ -6,26 +6,26 @@ Settled architectural and product decisions. Each entry records what was decided
 
 ---
 
-### D1: Content cache deferred — research models use targeted reads not batch classify
-**Decision:** Proceed with Phase 2 research without populating data/v3-raw/github/contents/ cache
-**Rationale:** 18 other tools work fine; classify_files_by_signals still matches path patterns; models can use get_file_contents and read_files_bulk for targeted reads. Building lazy-fetch would delay pipeline 1-2h.
-**Alternatives considered:** (a) Build lazy-fetch in classify (rejected: engineering time), (b) Hand-seed curated cache (rejected: picks winners before research)
-**Date:** 2026-04-09
-
-### D2: Brief thinned from 6 families to 4 directions per 3-model challenge convergence
-**Decision:** Reduce analytical families from 6 named + 5 methodological guidance items to 4 broad directions + 3 epistemological notes. Add explicit "choose 2-3 and go deep" instruction.
-**Rationale:** All 3 challengers flagged the original brief as too thick (de facto analysis plan). 2/3 flagged named proxy definitions as technique-level leakage. Thinning increases analyst diversity.
-**Alternatives considered:** Keep 6 families with weaker guidance (rejected: still a checklist), strip to 0 families (rejected: too little guidance for meaningful analysis)
-**Date:** 2026-04-09
-
-### D3: Per-stage skip replaces all-or-nothing repo skip in pull_github.py
-**Decision:** Each pull stage (commits, prs, pr_reviews, pr_comments, trees, contributors) checks its own output file. PRs loaded from disk when skipped (needed for downstream reviews/comments).
-**Rationale:** All-or-nothing skip had two failure modes: (a) original coarse skip trapped partial crashes, (b) fixed all-6-files check re-pulled completed stages on retry. Per-stage avoids both.
-**Alternatives considered:** (a) Coarse skip on commits only (rejected: perma-skip bug), (b) All-or-nothing on 6 files (rejected: wastes API on retry)
-**Date:** 2026-04-09
-
 ### D4: Security posture is a user choice via --security-posture flag, not a pipeline default
 **Decision:** Add `--security-posture` (1-5) to `debate.py`. At 1-2, security findings are advisory-only and PM is the final arbiter. At 4-5, security can block. Default: 3 (balanced). Skills ask the user before running.
-**Rationale:** The v3 velocity analysis spent significant pipeline capacity injecting security controls (egress policies, approval gates, credential rotation) into a speed-focused AI rollout recommendation. The user called this "a big waste" — the goal was going faster, not going safely. Security was over-rotating as the de facto final arbiter when PM should have been.
+**Rationale:** A velocity-focused analysis spent significant pipeline capacity injecting security controls (egress policies, approval gates, credential rotation) into a speed-focused recommendation. Security was over-rotating as the de facto final arbiter when PM should have been.
 **Alternatives considered:** (a) Remove security persona entirely at low posture (rejected: still useful for advisory), (b) Hard-code posture per topic type (rejected: user should decide), (c) No change — always balanced (rejected: proven to waste pipeline capacity on wrong priorities)
+**Date:** 2026-04-10
+
+### D5: Thinking modes are single-model, not multi-model — prompt design drives quality, not model diversity
+**Decision:** explore, pressure-test, and pre-mortem use single-model calls. Multi-model reserved for validate and refine only.
+**Rationale:** Tested 3 different models vs 1 model prompted 3 times with forced divergence on a strategic decision. Single-model with divergence prompts produced more diverse output than multi-model. The value comes from prompt design, not model diversity. Multi-model still proven for review (cross-family error detection) and refinement (models improve on other families' output).
+**Alternatives considered:** (a) All modes multi-model (rejected: 3x cost, no quality gain for thinking modes), (b) All modes single-model (rejected: validate/refine genuinely benefit from cross-family diversity)
+**Date:** 2026-04-10
+
+### D6: Explore flow presents 3 bets with fork-first format, not 1 committed direction
+**Decision:** Explore generates 8-10 brainstorm options, clusters into exactly 3 bets that differ on 2+ dimensions (customer, product form, business model, distribution), presents the fork statement first, then 150-word descriptions and a comparison table. Human picks or redirects.
+**Rationale:** Previous flow picked "the most interesting" direction and developed it fully. This skipped the obvious-but-correct answer for novelty. Fork-first with 3 bets lets the human see the trade-off before the AI commits. Tested across 15 personas, 4.6/5 average.
+**Alternatives considered:** (a) Pick 1 and develop fully (rejected: skips obvious answers, no human steering), (b) Present all 8-10 brainstorm items (rejected: too many half-baked options to compare), (c) 2 bets (rejected: creates false binary, tested and confirmed)
+**Date:** 2026-04-10
+
+### D7: Pre-flight uses GStack-style adaptive questioning, not batch questionnaires
+**Decision:** Before running explore or pressure-test, the system conducts a 3-4 question discovery conversation. Questions are selected adaptively from a bank based on prior answers, one at a time, with push-until-specific. Not a fixed list dumped at once.
+**Rationale:** 5 questions dumped at once (v1) felt like a form and the user rejected it. Research shows 3+ upfront questions cause 20-40% abandonment in consumer flows, but GStack proved that one-at-a-time with push-until-specific works for high-stakes discovery. Tested across 20+ simulated personas at 4.8-5.0/5. Key rules: discovery rule (never state the insight), never do the math for them, viability doubt completion.
+**Alternatives considered:** (a) No pre-flight, generate then iterate (rejected: wrong frames anchor strategic output), (b) 5 questions as a batch (rejected: user rejected it), (c) 1 question only (rejected: insufficient to break deep anchors per testing)
 **Date:** 2026-04-10
