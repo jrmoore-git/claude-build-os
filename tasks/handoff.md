@@ -1,28 +1,27 @@
 # Handoff — 2026-04-10
 
 ## Session Focus
-Evaluated "nudge" concept from debate session and implemented it as a smart routing upgrade to `/status`.
+Refined and shipped Fix 2 for "explore before acting" complaints — consolidated scattered guidance into one CLAUDE.md rule.
 
 ## Decided
-- D8: Upgrade `/status` with smart routing instead of creating `/next` — one command answering "what should I do?" is better than two
+- D9: Add "Inspect before acting" rule to CLAUDE.md as consolidated behavioral directive (Fix 2 from explore-gate refinement)
 
 ## Implemented
-- `/status` SKILL.md rewritten with 13-condition priority-ordered routing table
-- Contextual overlays for question/strategy inputs
-- Artifact gap detection (proposal without debate, design without challenge)
-- Scope expansion detection (new abstractions trigger `/challenge` suggestion)
-- Context pressure detection (55%+ triggers `/wrap-session` suggestion)
+- CLAUDE.md: renamed "Retrieve before planning" → "Inspect before acting" with 3 concrete behavioral rules
+- Ran /refine on explore-gate proposal — 6 rounds across gemini/gpt/claude, all completed
 
 ## NOT Finished
-- Not yet tested in a live session — routing logic is untested beyond reading the skill
+- Fix 1 (pre-edit hook) not built — refinement revealed it requires hook infrastructure that doesn't exist yet, larger scope than originally estimated
+- Explore-gate proposal and refined output saved in tasks/ for future reference
 
 ## Next Session Should
-1. Run `/status` and verify routing suggestions match the actual workflow state
-2. Continue with explore narrow-market fix (carried from prior session)
+1. Test "Inspect before acting" rule in a real coding session — does it change behavior?
+2. If rule proves insufficient, scope Fix 1 hook infrastructure as a separate task
 
 ## Key Files Changed
-.claude/skills/status/SKILL.md
-tasks/decisions.md
+CLAUDE.md
+tasks/explore-gate-proposal.md (new)
+tasks/explore-gate-refined.md (new)
 
 ## Doc Hygiene Warnings
 None

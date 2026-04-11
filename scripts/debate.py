@@ -1480,10 +1480,36 @@ def cmd_judge(args):
 
     # Consolidate multi-challenger findings before judging (dedup + merge)
     consolidation_stats = None
+    ma_used = False
     if not getattr(args, "no_consolidate", False):
-        consolidated_body, consolidation_stats = _consolidate_challenges(
-            challenge_body, litellm_url, api_key
-        )
+        # Try Managed Agent consolidation if requested
+        if getattr(args, "use_ma_consolidation", False):
+            ma_api_key = os.environ.get("MA_API_KEY")
+            if ma_api_key:
+                try:
+                    from managed_agent import run_consolidation, MA_SAFE_EXCEPTIONS
+                    print("Attempting MA consolidation...", file=sys.stderr)
+                    consolidated_body, consolidation_stats = run_consolidation(
+                        challenge_body=challenge_body,
+                        system_prompt=CONSOLIDATION_SYSTEM_PROMPT,
+                        debate_id=debate_id,
+                        api_key=ma_api_key,
+                    )
+                    ma_used = True
+                    print("  MA consolidation succeeded", file=sys.stderr)
+                except (MA_SAFE_EXCEPTIONS, ValueError, RuntimeError) as e:
+                    print(f"WARNING: MA consolidation failed ({e}) — "
+                          "falling back to local", file=sys.stderr)
+                    traceback.print_exc(file=sys.stderr)
+            else:
+                print("WARNING: --use-ma-consolidation set but MA_API_KEY not found — "
+                      "falling back to local", file=sys.stderr)
+
+        # Local fallback (or default path)
+        if not ma_used:
+            consolidated_body, consolidation_stats = _consolidate_challenges(
+                challenge_body, litellm_url, api_key
+            )
     else:
         consolidated_body = challenge_body
 
@@ -1565,9 +1591,11 @@ def cmd_judge(args):
     consolidation_note = ""
     if consolidation_stats:
         cs = consolidation_stats
+        source_label = cs.get("source", "local")
+        via_label = f"{cs['model']} via {source_label}" if "source" in cs else cs["model"]
         consolidation_note = (
-            f"Consolidation: {cs['raw_findings']} raw → {cs['consolidated_findings']} "
-            f"unique findings (from {cs['challengers']} challengers, via {cs['model']})\n\n"
+            f"Consolidation: {cs.get('raw_findings', '?')} raw → {cs['consolidated_findings']} "
+            f"unique findings (from {cs.get('challengers', '?')} challengers, via {via_label})\n\n"
         )
     output_text = (
         f"{frontmatter}\n"
@@ -3078,8 +3106,11 @@ def cmd_explore(args):
 
 
 def cmd_pressure_test(args):
-    """Strategic pressure-test: single model writes a counter-thesis and
-    honest take on a proposal."""
+    """Single-model strategic thinking. Two frames:
+    - challenge (default): counter-thesis and honest take on a proposal
+    - premortem: assume the plan failed, write the post-mortem from the future
+    """
+    frame = getattr(args, 'frame', 'challenge')
     _cost_snapshot = get_session_costs()
     api_key = os.environ.get("LITELLM_MASTER_KEY")
     if not api_key:
@@ -3090,27 +3121,35 @@ def cmd_pressure_test(args):
     config = _load_config()
 
     model = args.model or config.get("single_review_default", "gpt-5.4")
-    proposal_text = args.proposal.read()
+    input_text = args.proposal.read()
     context = getattr(args, 'context', None) or ""
     context_block = (f"\n## Market Context (use this to inform your thinking)\n\n"
                      f"{context}\n") if context else ""
 
-    if not proposal_text.strip():
-        print("ERROR: proposal file is empty", file=sys.stderr)
+    if not input_text.strip():
+        print("ERROR: input file is empty", file=sys.stderr)
         return 1
 
-    # Load prompt from file (fall back to hardcoded constant)
-    prompt, prompt_ver = _load_prompt("pressure-test.md", PRESSURE_TEST_SYSTEM_PROMPT)
-    prompt = prompt.replace("{context}", context_block)
-    user_content = proposal_text if not context else f"{proposal_text}\n{context_block}"
+    # Select prompt based on frame
+    if frame == "premortem":
+        prompt, prompt_ver = _load_prompt("pre-mortem.md", PREMORTEM_SYSTEM_PROMPT)
+        label = "Pre-Mortem"
+        phase = "pre-mortem"
+    else:
+        prompt, prompt_ver = _load_prompt("pressure-test.md", PRESSURE_TEST_SYSTEM_PROMPT)
+        label = "Pressure-Test"
+        phase = "pressure-test"
 
-    print(f"Pressure-testing ({model})...", file=sys.stderr)
+    prompt = prompt.replace("{context}", context_block)
+    user_content = input_text if not context else f"{input_text}\n{context_block}"
+
+    print(f"{label} ({model})...", file=sys.stderr)
     try:
         response = _call_litellm(model, prompt, user_content,
                                  litellm_url, api_key,
                                  temperature=0.8)
     except LLM_SAFE_EXCEPTIONS as e:
-        print(f"ERROR: pressure-test failed — {e}", file=sys.stderr)
+        print(f"ERROR: {phase} failed — {e}", file=sys.stderr)
         return 1
 
     if not response or not response.strip():
@@ -3121,12 +3160,12 @@ def cmd_pressure_test(args):
     now = datetime.now(PROJECT_TZ)
     output_lines = [
         "---",
-        f"mode: pressure-test",
+        f"mode: {phase}",
         f"created: {now.strftime('%Y-%m-%dT%H:%M:%S%z')[:25]}",
         f"model: {model}",
         f"prompt_version: {prompt_ver}",
         "---",
-        f"# Pressure-Test",
+        f"# {label}",
         "",
         response,
     ]
@@ -3138,7 +3177,7 @@ def cmd_pressure_test(args):
     print(output_text)
 
     _log_debate_event({
-        "phase": "pressure-test",
+        "phase": phase,
         "model": model,
         "input_file": args.proposal.name if hasattr(args.proposal, 'name') else "stdin",
         "success": True,
@@ -3151,75 +3190,12 @@ def cmd_pressure_test(args):
 
 
 def cmd_premortem(args):
-    """Pre-mortem: single model assumes the plan failed and writes the
-    post-mortem from the future."""
-    _cost_snapshot = get_session_costs()
-    api_key = os.environ.get("LITELLM_MASTER_KEY")
-    if not api_key:
-        print("ERROR: LITELLM_MASTER_KEY not set", file=sys.stderr)
-        return 1
-
-    litellm_url = os.environ.get("LITELLM_URL", DEFAULT_LITELLM_URL)
-    config = _load_config()
-
-    model = args.model or config.get("single_review_default", "gpt-5.4")
-    plan_text = args.plan.read()
-    context = getattr(args, 'context', None) or ""
-    context_block = (f"\n## Market Context\n\n{context}\n") if context else ""
-
-    if not plan_text.strip():
-        print("ERROR: plan file is empty", file=sys.stderr)
-        return 1
-
-    # Load prompt from file (fall back to hardcoded constant)
-    prompt, prompt_ver = _load_prompt("pre-mortem.md", PREMORTEM_SYSTEM_PROMPT)
-    prompt = prompt.replace("{context}", context_block)
-    user_content = plan_text if not context else f"{plan_text}\n{context_block}"
-
-    print(f"Pre-mortem ({model})...", file=sys.stderr)
-    try:
-        response = _call_litellm(model, prompt, user_content,
-                                 litellm_url, api_key,
-                                 temperature=0.8)
-    except LLM_SAFE_EXCEPTIONS as e:
-        print(f"ERROR: pre-mortem failed — {e}", file=sys.stderr)
-        return 1
-
-    if not response or not response.strip():
-        print("ERROR: model returned empty response", file=sys.stderr)
-        return 1
-
-    # Build output
-    now = datetime.now(PROJECT_TZ)
-    output_lines = [
-        "---",
-        f"mode: pre-mortem",
-        f"created: {now.strftime('%Y-%m-%dT%H:%M:%S%z')[:25]}",
-        f"model: {model}",
-        f"prompt_version: {prompt_ver}",
-        "---",
-        f"# Pre-Mortem",
-        "",
-        response,
-    ]
-
-    output_text = "\n".join(output_lines)
-    with open(args.output, "w") as f:
-        f.write(output_text)
-
-    print(output_text)
-
-    _log_debate_event({
-        "phase": "pre-mortem",
-        "model": model,
-        "input_file": args.plan.name if hasattr(args.plan, 'name') else "stdin",
-        "success": True,
-        "response_length": len(response),
-    }, cost_snapshot=_cost_snapshot)
-
-    result = {"status": "ok", "model": model}
-    print(json.dumps(result), file=sys.stderr)
-    return 0
+    """Backwards-compat shim: delegates to pressure-test --frame premortem."""
+    args.frame = "premortem"
+    # Map --plan to --proposal for unified interface
+    if hasattr(args, 'plan') and not hasattr(args, 'proposal'):
+        args.proposal = args.plan
+    return cmd_pressure_test(args)
 
 
 # ── CLI ──────────────────────────────────────────────────────────────────────
@@ -3282,6 +3258,8 @@ def main():
                      help="Run a scoped claim verifier (Claude) before judgment")
     jg.add_argument("--no-consolidate", action="store_true", default=False,
                      help="Skip automatic challenge consolidation (dedup/merge)")
+    jg.add_argument("--use-ma-consolidation", action="store_true", default=False,
+                     help="Offload consolidation to Managed Agents (requires MA_API_KEY)")
 
     # refine
     rf = sub.add_parser("refine", help="Iterative cross-model refinement")
@@ -3364,12 +3342,16 @@ def main():
     ex.add_argument("--output", required=True,
                     help="Output path for explore results")
 
-    # pressure-test (single-model strategic challenge)
+    # pressure-test (single-model strategic thinking — challenge or premortem frame)
     pt = sub.add_parser("pressure-test",
                         help="Strategic pressure-test: counter-thesis, blind spots, "
-                             "and honest take on a proposal")
+                             "and honest take on a proposal. Use --frame premortem "
+                             "for prospective failure analysis.")
     pt.add_argument("--proposal", required=True, type=argparse.FileType("r"),
                     help="Path to proposal or thesis to pressure-test")
+    pt.add_argument("--frame", choices=["challenge", "premortem"], default="challenge",
+                    help="Thinking frame: challenge (counter-thesis) or premortem "
+                         "(assume it failed, write the post-mortem)")
     pt.add_argument("--model", default=None,
                     help="Model for pressure-test (default: from config)")
     pt.add_argument("--context", default=None,

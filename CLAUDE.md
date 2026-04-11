@@ -37,9 +37,13 @@ Avoid over-engineering. Only make changes that are directly requested or clearly
 LLMs classify, summarize, and draft. Deterministic code performs state transitions, API calls, and data mutations.
 If the LLM can cause irreversible state changes, it must not be the actor.
 
-### Retrieve before planning
-<!-- Why: Loading everything into context creates drift, not safety. -->
+### Inspect before acting
+<!-- Why: The model defaults to training knowledge over available tools, especially under context pressure. -->
+<!-- Why: Editing code you haven't read produces confident-looking but wrong changes. -->
 Read handoff.md and current-state.md before starting work. Read relevant lessons and decisions before touching risky areas. Don't load everything — load what's relevant.
+- Before editing a file: read it and its immediate context (tests, callers, related modules).
+- Before answering "can we do X" or "does this support Y": Grep/Read the relevant code first. Answer from what you found, not from memory. If you didn't inspect the code, say so explicitly instead of implying certainty.
+- Never say "I don't think this supports..." or "this probably doesn't..." without checking.
 
 ### Challenge before planning, plan before building
 <!-- Why: Most expensive mistakes happen before code — wrong scope, wrong abstraction, wrong priority. -->
