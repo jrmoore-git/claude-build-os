@@ -144,7 +144,22 @@ If any files are CHANGED or NEW, report:
 
 If all unchanged or the script doesn't exist, skip silently.
 
-### Step 7 — Commit
+### Step 7 — Clean up worktrees
+
+Prune stale agent worktrees that have no unique work:
+
+```bash
+git worktree list
+```
+
+For each worktree:
+- If it has **0 commits ahead of main** and **no uncommitted changes**: remove it with `git worktree remove <path>` and delete the branch with `git branch -D <branch>`.
+- If it has **uncommitted changes**: warn "⚠ worktree <name> has uncommitted work — triage before removing."
+- If it has **commits ahead of main**: warn "⚠ worktree <name> has N unmerged commits — triage before removing."
+
+Only auto-remove worktrees that are clean and fully merged. Report what was cleaned and what was left.
+
+### Step 8 — Commit
 
 Stage and commit all wrap docs:
 
