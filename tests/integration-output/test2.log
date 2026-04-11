@@ -1,0 +1,31 @@
+Pre-flight: checking model availability...
+Pre-flight: models OK
+
+Pre-flight: running unit tests...
+..........................................                               [100%]
+42 passed in 1.06s
+Pre-flight: unit tests PASS
+
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  TEST 2: Explore: divergent directions + synthesis
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  Running explore with 3 directions + market context...
+./tests/run_integration.sh: line 177: $2: unbound variable
+  [FAIL] Test 2 (explore): explore command failed
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  INTEGRATION TEST SUMMARY
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  PASS: 0
+  FAIL: 1
+  SKIP: 0
+
+  Results: tests/integration-output/results.log
+  Output:  tests/integration-output/
+
+  Debate log entries today: 20
+
+  Some tests FAILED — check output files for details.

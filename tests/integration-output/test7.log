@@ -1,0 +1,48 @@
+Pre-flight: checking model availability...
+Pre-flight: models OK
+
+Pre-flight: running unit tests...
+..........................................                               [100%]
+42 passed in 1.03s
+Pre-flight: unit tests PASS
+
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  TEST 7: Managed Agents: MA consolidation + fallback
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  Step 1/3: challenge (architect, security, pm)...
+Calling A...
+Calling B...
+Calling C...
+{"status": "ok", "challengers": 3, "successful_responders": 3, "mapping": {"A": "claude-opus-4-6", "B": "gpt-5.4", "C": "gemini-3.1-pro"}, "minimum_coverage_met": true, "warnings": ["Challenger C: Missing type tag in: Correctly identifies the catastrophic risk of the current sy...", "Challenger C: Missing type tag in: Excellent discipline in infrastructure choices by sticking t...", "Challenger C: Missing type tag in: Explicitly naming non-goals keeps the scope tightly focused ...", "Challenger B: Missing type tag in: [EVIDENCED] [ADVISORY]: The proposal\u2019s performance and cost ...", "Challenger A: Missing type tag in: **The problem diagnosis is excellent.** Three concrete, date...", "Challenger A: Missing type tag in: **SQLite as queue backend is the right call** at this scale....", "Challenger A: Missing type tag in: **The human review gate is the single most important improve..."]}
+  Step 2a/3: SKIP — MA_API_KEY not set (testing fallback path)...
+  Running judge with --use-ma-consolidation (expect fallback)...
+WARNING: --use-ma-consolidation set but MA_API_KEY not found — falling back to local
+Consolidating 3 challenger reviews...
+  Consolidated: 25 raw → 14 unique findings
+Calling judge (gpt-5.4)...
+{"status": "ok", "judge": "gpt-5.4", "accepted": 5, "dismissed": 0, "escalated": 1, "spiked": 0, "blocking_spikes": 0, "needs_human": true, "needs_test": false, "consolidation": {"raw_findings": 25, "consolidated_findings": 14, "challengers": 3, "model": "claude-sonnet-4-6", "source": "local", "ma_fallback": true}}
+    Correctly fell back to local when MA_API_KEY missing
+    OK: fallback judgment (113 lines)
+  Step 3/3: judge with --no-consolidate (comparison baseline)...
+Calling judge (gpt-5.4)...
+{"status": "ok", "judge": "gpt-5.4", "accepted": 7, "dismissed": 1, "escalated": 0, "spiked": 0, "blocking_spikes": 0, "needs_human": false, "needs_test": false}
+    OK: challenge (93 lines)
+    OK: no-consolidate judgment (101 lines)
+  [PASS] Test 7 (managed-agents): MA path: fallback-correct, no-consolidate: OK
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  INTEGRATION TEST SUMMARY
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  PASS: 1
+  FAIL: 0
+  SKIP: 0
+
+  Results: tests/integration-output/results.log
+  Output:  tests/integration-output/
+
+  Debate log entries today: 20
+
+  All tests PASSED.

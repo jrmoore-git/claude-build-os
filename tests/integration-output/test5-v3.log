@@ -1,0 +1,41 @@
+Pre-flight: checking model availability...
+Pre-flight: models OK
+
+Pre-flight: running unit tests...
+..........................................                               [100%]
+42 passed in 1.02s
+Pre-flight: unit tests PASS
+
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  TEST 5: Review-panel: 4-persona panel on auth migration
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  Running review-panel (4 personas)...
+
+**[ADVISORY] Deny-List State Management**
+Relying on a Redis set for a deny-list shifts the operational burden from PostgreSQL to Redis. The deny-list must store the signature of revoked tokens until their natural expiry (up to 15 minutes). While 15 minutes bounds the memory size, a Redis failure or eviction could cause revoked tokens to become valid again.
+*Recommendation:* Ensure the Redis cluster has persistence enabled or that you fail closed (which risks availability) if the deny-list becomes unreachable. 
+
+**[ADVISORY] Database Load Reduction Might Be Overstated**
+While access token validation becomes stateless, you are replacing the PostgreSQL `sessions` table with a PostgreSQL `refresh_tokens` table. Since access tokens expire every 15 minutes, 10k concurrent users will still generate approximately 11 database writes per second (10k / 15 mins) just for refresh token rotation. While likely an improvement over validating *every* request, write contention must still be modeled for the refresh token table.
+
+---
+
+    OK: review-panel output (266 lines)
+  [PASS] Test 5 (review-panel): 4 personas responded
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  INTEGRATION TEST SUMMARY
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  PASS: 1
+  FAIL: 0
+  SKIP: 0
+
+  Results: tests/integration-output/results.log
+  Output:  tests/integration-output/
+
+  Debate log entries today: 20
+
+  All tests PASSED.

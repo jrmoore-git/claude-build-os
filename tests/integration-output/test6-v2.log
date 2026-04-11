@@ -1,0 +1,61 @@
+Pre-flight: checking model availability...
+Pre-flight: models OK
+
+Pre-flight: running unit tests...
+..........................................                               [100%]
+42 passed in 1.02s
+Pre-flight: unit tests PASS
+
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  TEST 6: Conviction gate + premortem pressure-test
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  Step 1/2: conviction gate validation...
+    Gate exit code: 1
+{
+    "status": "fail",
+    "rec_count": 4,
+    "failures": [
+        {
+            "rec_index": 1,
+            "field": "Horizon",
+            "reason": "value \"this quarter\n-\" not in enum [this quarter, next quarter, ongoing, blocking-dependent]"
+        },
+        {
+            "rec_index": 2,
+            "field": "Horizon",
+            "reason": "value \"next quarter\n-\" not in enum [this quarter, next quarter, ongoing, blocking-dependent]"
+        },
+        {
+            "rec_index": 2,
+            "field": "Why-now",
+            "reason": "contains no numeric threshold or named metric (matched vagueness phrase: \"tbd\")"
+        },
+        {
+    Gate correctly rejected (exit 1) — checking details...
+    Gate caught expected issues
+
+  Step 2/2: pressure-test (premortem frame)...
+## The Structural Pattern
+These failures share one assumption: that obvious local frictions are the system constraint, and that automation will reliably convert saved minutes into higher sprint velocity. The plan repeatedly skips baseline measurement, rollout guardrails, and ownership details, replacing diagnosis with implementation. That makes this partly an execution problem, but deeper down it is a sequencing problem: the team is trying to automate before instrumenting, and trying to scale throughput before proving where the bottleneck actually is. This pattern should change the plan: add measurement first, phase risky automation behind hard eligibility rules, and delay any “auto-approve/auto-merge/deploy-on-merge” steps until audited pilots succeed.
+
+## The One Test
+Run a **2-week instrumented flow study on every PR and story** before building anything. Specifically: tag 50 recent and 50 live work items; measure time in coding, waiting for review, review iterations, CI runtime, flaky reruns, deploy prep, deployment, and post-merge rework; classify incidents and delays by cause. In parallel, do one constrained pilot: deterministic auto-merge only for docs/format-only PRs in a single repo with 100% human audit afterward. This one test would show whether review/CI/deploy are truly the dominant constraints and whether low-risk automation is safe enough to scale.
+    OK: premortem output (42 lines)
+  [PASS] Test 6 (conviction-gate): gate validated + premortem generated
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  INTEGRATION TEST SUMMARY
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  PASS: 1
+  FAIL: 0
+  SKIP: 0
+
+  Results: tests/integration-output/results.log
+  Output:  tests/integration-output/
+
+  Debate log entries today: 20
+
+  All tests PASSED.

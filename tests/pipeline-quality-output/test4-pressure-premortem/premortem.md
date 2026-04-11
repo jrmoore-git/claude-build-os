@@ -1,0 +1,48 @@
+---
+mode: pre-mortem
+created: 2026-04-10T20:32:53-0700
+model: gpt-5.4
+prompt_version: 1
+---
+# Pre-Mortem
+
+1. **The retry system still violated the 99.9% within-1-hour SLA by design.**  
+   **Type:** Strategy failure  
+   **Concrete failure:** A meaningful share of transient failures were first retried at 15m, then 1h, then 4h; for outages lasting 20–60 minutes, many events were only delivered after the 1-hour mark or never within SLA. Customers still experienced “late” webhooks even though they were eventually delivered.  
+   **Warning sign visible today:** The proposed schedule is `30s, 2m, 15m, 1h, 4h, 24h`. With only 6 attempts and no explicit “must succeed or alert before 1 hour” policy, the plan itself allows many events to miss the SLA. You can calculate this now against the stated 99.9% within 1 hour commitment.  
+   **What would have prevented it:** Redesign the retry policy around the SLA: dense retries inside the first hour (for example 30s, 1m, 2m, 5m, 10m, 20m, 30m, 45m) plus aggressive alerting before the 1-hour boundary.  
+   **Would prevention have changed the plan?** Yes, but not killed it. It means the retry design must be driven by SLA math, not generic exponential backoff.
+
+2. **Sidekiq job loss or worker backlog caused the retry queue to become a write-only graveyard.**  
+   **Type:** Execution failure  
+   **Concrete failure:** Failed deliveries were written to `webhook_retry_queue`, but the background worker fell behind or jobs were dropped during deploys/Redis issues, so retries sat for hours. Incidents looked “fixed” because events were persisted, but customers still didn’t receive them.  
+   **Warning sign visible today:** The plan says “store failed deliveries in a table” and “background worker processes the queue every 30 seconds,” but it does not define lease/locking semantics, backlog SLOs, queue depth alarms, or a recovery path if Sidekiq is down. Given the last 3 incidents were webhook-related, lack of operational detail is already a red flag.  
+   **What would have prevented it:** Make the DB table the source of truth and poll it directly with `SELECT … FOR UPDATE SKIP LOCKED` workers; add metrics/alerts on queue depth, oldest retry age, and deliveries approaching 1 hour; require a load test and failure-mode test before rollout.  
+   **Would prevention have changed the plan?** Yes, but still viable. It means building an operationally complete queue, not just a table plus cron-like worker.
+
+3. **Retry storms during customer outages overloaded customer endpoints and got your IPs blocked.**  
+   **Type:** Execution failure  
+   **Concrete failure:** During a customer maintenance window or DNS/TLS incident, many failed events for one endpoint retried on the same schedule. When the endpoint recovered, the system blasted queued requests, causing 429s/5xxs, extending the outage and sometimes triggering WAF/rate-limit bans.  
+   **Warning sign visible today:** The plan has a global retry schedule but no mention of per-endpoint rate limiting, concurrency caps, jitter, circuit breakers, or endpoint health state. With 45 endpoints and known transient failures, this is testable now.  
+   **What would have prevented it:** Add per-endpoint token-bucket rate limiting, jitter on backoff, concurrency limits, and a circuit breaker that pauses retries during sustained failure and drains gradually after recovery.  
+   **Would prevention have changed the plan?** Yes, materially. Without endpoint-aware controls, the plan is too naive for production.
+
+4. **Duplicate webhook processing caused customer-side data corruption because idempotency was underspecified.**  
+   **Type:** Execution failure  
+   **Concrete failure:** Customers received the same logical event multiple times after timeouts where your system couldn’t tell whether the remote endpoint processed the request before the connection died. Some customers did not dedupe correctly because the “idempotency key in payload” was inconsistent, absent from some event types, or changed across retries.  
+   **Warning sign visible today:** The plan says “Idempotency key in webhook payload so receivers can dedupe,” but does not define the key’s source, stability, documentation, or whether all events already have immutable event IDs. This is a specification gap visible immediately.  
+   **What would have prevented it:** Declare a stable delivery contract now: every webhook carries an immutable `event_id`, retries reuse the exact same ID, docs require receiver-side dedupe, and internal tests verify byte-for-byte identity across retries except transport metadata.  
+   **Would prevention have changed the plan?** No. It sharpens the API contract but doesn’t invalidate the project.
+
+5. **The team shipped the “simplest version” and normalized manual recovery, failing silently at scale.**  
+   **Type:** Timing failure  
+   **Concrete failure:** Under pressure from recent incidents, the team chose file logging + manual resend as an interim solution. Volume grew, ops missed files, resend scripts were error-prone, and customers continued to discover gaps hours later. The stopgap consumed the team and delayed the real system until trust was already lost.  
+   **Warning sign visible today:** Current volume is ~8,000 deliveries/day with 2.1% failure rate — about 168 failed deliveries/day. That is already too many for dependable manual handling, especially with a 99.9% within-1-hour SLA.  
+   **What would have prevented it:** Explicitly reject the manual version for production SLA coverage; if a stopgap is needed, make it time-boxed to 1–2 weeks with automatic alerting and no claim of SLA improvement.  
+   **Would prevention have changed the plan?** Yes. It means don’t start with the “simplest version” as the operational path.
+
+## The Structural Pattern
+These failures share one assumption: that “adding retries” is enough, when the real problem is **delivery guarantees under an SLA**. The plan assumes persistence equals reliability, generic backoff equals SLA compliance, and idempotency can be hand-waved to receivers. Multiple scenarios come from missing control loops: no backlog/age monitoring, no endpoint-aware throttling, no precise delivery contract, no design tied to the 1-hour requirement. This is mostly a **sequencing problem**: the core bet is right, but the team is planning implementation in the wrong order — starting with mechanism (queue, worker, backoff) instead of guarantees (SLA, observability, endpoint protection, duplicate semantics). Change the plan; don’t kill the project.
+
+## The One Test
+Run a **1-week shadow retry simulation** next week using production traffic. Don’t send any real retries yet. Instead, for every failed webhook, record when retries *would* have happened under the proposed schedule and whether the customer endpoint would likely have recovered by then; separately replay a safe subset against a test endpoint that injects real failure modes (15m outage, 2h outage, DNS failure, TLS failure, 504-after-processing). Measure: projected % delivered within 1 hour, queue depth growth, duplicate rate, and per-endpoint burst size on recovery. If the simulated policy cannot show 99.9% within 1 hour and controlled recovery behavior, do not commit to the current plan.

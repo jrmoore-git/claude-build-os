@@ -1,0 +1,1 @@
+{"status": "ok", "judge": "gpt-5.4", "accepted": 7, "dismissed": 0, "escalated": 0, "spiked": 1, "blocking_spikes": 2, "needs_human": false, "needs_test": true, "consolidation": {"raw_findings": 24, "consolidated_findings": 16, "challengers": 3, "model": "claude-sonnet-4-6", "source": "local", "ma_fallback": false}}

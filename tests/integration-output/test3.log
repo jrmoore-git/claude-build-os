@@ -1,0 +1,36 @@
+Pre-flight: checking model availability...
+Pre-flight: models OK
+
+Pre-flight: running unit tests...
+..........................................                               [100%]
+42 passed in 1.03s
+Pre-flight: unit tests PASS
+
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  TEST 3: Pressure-test: counter-thesis on webhook retry
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  Running pressure-test (challenge frame)...
+But I would slightly change the scope: build the persistent retry queue and dead-letter handling, and make sure every delivery attempt is queryable in an internal or lightweight customer-facing log. That gives you both reliability improvement and operational visibility.
+
+I would not spend time right now on configurable retry schedules or ordering guarantees. I would spend a little extra to ensure this is framed as the first version of a delivery reliability layer, not a one-off queue.
+
+So: yes to the proposal, no to the manual resend stopgap, and add minimal delivery history because trust, not just retries, is the real product problem.
+    OK: pressure-test output (78 lines)
+  [PASS] Test 3 (pressure-test): counter-thesis generated
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  INTEGRATION TEST SUMMARY
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  PASS: 1
+  FAIL: 0
+  SKIP: 0
+
+  Results: tests/integration-output/results.log
+  Output:  tests/integration-output/
+
+  Debate log entries today: 20
+
+  All tests PASSED.

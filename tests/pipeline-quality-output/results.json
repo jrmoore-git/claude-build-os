@@ -1,0 +1,47 @@
+[
+  {
+    "test": 1,
+    "name": "full-pipeline-earlystop",
+    "status": "PASS",
+    "score": 10,
+    "max_score": 10,
+    "duration_s": 386,
+    "details": "challenge\u2192judge(verify)\u2192refine(early-stop)"
+  },
+  {
+    "test": 2,
+    "name": "review-panel-parallel",
+    "status": "PASS",
+    "score": 8,
+    "max_score": 8,
+    "duration_s": 62,
+    "details": "4-persona parallel review with tool use"
+  },
+  {
+    "test": 3,
+    "name": "explore-divergent",
+    "status": "PASS",
+    "score": 8,
+    "max_score": 8,
+    "duration_s": 96,
+    "details": "3 divergent directions + synthesis"
+  },
+  {
+    "test": 4,
+    "name": "pressure-premortem",
+    "status": "PASS",
+    "score": 10,
+    "max_score": 10,
+    "duration_s": 26,
+    "details": "pressure-test + pre-mortem parallel"
+  },
+  {
+    "test": 5,
+    "name": "cross-model-convergence",
+    "status": "PASS",
+    "score": 8,
+    "max_score": 8,
+    "duration_s": 89,
+    "details": "2 independent challenge runs, convergence measurement"
+  }
+]

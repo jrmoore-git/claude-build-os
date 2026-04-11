@@ -1,17 +1,24 @@
 # Current State — 2026-04-10
 
+## ⚠ STALE — auto-captured session ended without /wrap-session
+**Auto-capture date:** 2026-04-10 19:09 PT
+**Files changed this session:** 3 files in tasks
+**WARNING:** The "Next Action" below may be outdated. Cross-check with `git log --oneline -10` and recent session-log entries.
+
+
 ## What Changed This Session
-- Ran /refine on "explore before acting" proposal — 6-round cross-model refinement found reality gaps (no hook infrastructure exists, no audit_log to measure failures)
-- Added "Inspect before acting" rule to CLAUDE.md — consolidates 6+ scattered exploration guidance fragments into one directive
-- Tested rule with two subagents: both inspected code before answering/planning edits. Rule fires at low context pressure.
+- Synced multi-mode debate engine from laptop (debate.py +570 lines: explore, pressure-test, pre-mortem modes + adaptive pre-flight + prompt loader)
+- Scrubbed downstream project references from 5 tracking docs (session-log, current-state, handoff, decisions, lessons)
+- Folded pre-mortem into pressure-test as `--frame premortem` flag — 3 user-facing modes instead of 4, matching original design
+- `debate.py pre-mortem` subcommand kept as backwards-compat shim
 
 ## Current Blockers
 - None identified
 
 ## Next Action
-Observe whether "Inspect before acting" rule holds under real workload and high context pressure.
+Use the new debate modes on a real decision (not simulated) to verify they change outcomes.
 
 ## Recent Commits
-417eec6 Session wrap 2026-04-10: explore-gate refinement + D9 inspect-before-acting rule
-2bde682 [auto] Session work captured 2026-04-10 18:44 PT
-c2644e0 Session wrap 2026-04-10: /status smart routing upgrade + D8
+05a676c Fold pre-mortem into pressure-test as --frame flag
+05abc48 [auto] Session work captured 2026-04-10 18:58 PT
+c2cab36 Scrub downstream project refs from session-log, update debate-log

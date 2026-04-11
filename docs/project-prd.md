@@ -1,26 +1,45 @@
 # Product Requirements — [Project Name]
 
 ## 1. What we're building
-[One paragraph. What is this project and why does it exist?]
+[One paragraph. What is this project, what problem does it solve, and why does it exist?]
 
 ## 2. Who it's for
-[Target users. Be specific.]
+[Specific person, not a category. Role, title, what gets them promoted, what gets them fired. You can't email a category.]
 
 ## 3. Core requirements
-[Numbered list. Each requirement is a concrete, verifiable statement.]
+[Numbered list. Each requirement starts with "Users can..." or "The system...". Every requirement must be testable — if you can't write a test for it, rewrite it.]
 
 1. [Requirement]
 2. [Requirement]
 3. [Requirement]
 
-## 4. Out of scope
-[What this project explicitly does NOT do. Prevents scope creep.]
+## 4. Acceptance criteria
+[Given/When/Then or checklist format. These are the discrete checkboxes that prove each requirement works. Quantify where possible — "responds within 200ms" not "responds quickly".]
+
+- [ ] [Criterion]
+- [ ] [Criterion]
+- [ ] [Criterion]
+
+## 5. Constraints
+[Non-functional requirements the AI cannot infer from omission. Performance, security, scale, compatibility, accessibility. If you don't say "do not implement X", the AI may reasonably add it.]
+
+- [Constraint]
+- [Constraint]
+
+## 6. Out of scope
+[What this project explicitly does NOT do. Be specific — vague boundaries create scope creep. Include things the AI might reasonably try to add.]
 
 - [Not this]
 - [Not this]
 
-## 5. Technical decisions
-[Key technical choices. Link to decisions.md entries where relevant.]
+## 7. Technical decisions
+[Key technical choices already made. Link to decisions.md entries where relevant. Include framework, language, infrastructure choices that constrain implementation.]
 
-## 6. Success criteria
-[How do you know when this is done? Specific, measurable.]
+## 8. Success criteria
+[How do you know this shipped correctly? Specific, measurable, time-bound where applicable. "Hallucination rate < 2%" not "accurate". "Page load < 1s on 3G" not "fast".]
+
+## 9. Verification plan
+[How to prove each requirement works. Tests, screenshots, expected outputs, manual checks. Claude uses this to self-verify before declaring done.]
+
+- [Requirement 1]: [How to verify]
+- [Requirement 2]: [How to verify]

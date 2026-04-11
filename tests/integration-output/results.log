@@ -1,0 +1,14 @@
+=== Integration Test Run: 2026-04-10T19:51:11-07:00 ===
+
+  [PASS] Test 6 (conviction-gate): gate validated + premortem generated
+
+SUMMARY: PASS=1 FAIL=0 SKIP=0
+  [PASS] Test 2 (explore): 3 directions + synthesis generated
+
+SUMMARY: PASS=1 FAIL=0 SKIP=0
+  [PASS] Test 5 (review-panel): 4 personas responded
+
+SUMMARY: PASS=1 FAIL=0 SKIP=0
+  [PASS] Test 1 (full-pipeline): 3-stage pipeline completed
+
+SUMMARY: PASS=1 FAIL=0 SKIP=0

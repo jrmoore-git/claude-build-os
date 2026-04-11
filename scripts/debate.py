@@ -1479,15 +1479,98 @@ def cmd_judge(args):
         system_prompt = args.system_prompt.read()
 
     # Consolidate multi-challenger findings before judging (dedup + merge)
+    # and run claim verifier in parallel if both are requested — they read
+    # the same raw challenge text independently.
     consolidation_stats = None
     ma_used = False
-    if not getattr(args, "no_consolidate", False):
-        # Try Managed Agent consolidation if requested
+    ma_fallback = False
+    verifier_stats = None
+    verification_text = None
+    verify_requested = getattr(args, "verify_claims", False)
+    consolidate_requested = not getattr(args, "no_consolidate", False)
+
+    # Launch consolidation + verifier in parallel when both are needed
+    if consolidate_requested and verify_requested:
+        def _do_consolidation():
+            nonlocal ma_used, ma_fallback
+            if getattr(args, "use_ma_consolidation", False):
+                try:
+                    from managed_agent import MA_SAFE_EXCEPTIONS as _ma_exc
+                except Exception:
+                    _ma_exc = (ConnectionError, TimeoutError, OSError)
+
+                ma_api_key = os.environ.get("MA_API_KEY")
+                if ma_api_key:
+                    try:
+                        from managed_agent import run_consolidation
+                        print("Attempting MA consolidation...", file=sys.stderr)
+                        body, stats = run_consolidation(
+                            challenge_body=challenge_body,
+                            system_prompt=CONSOLIDATION_SYSTEM_PROMPT,
+                            debate_id=debate_id,
+                            api_key=ma_api_key,
+                        )
+                        ma_used = True
+                        print("  MA consolidation succeeded", file=sys.stderr)
+                        ma_usage = stats.get("usage", {})
+                        ma_model = stats.get("model", "unknown")
+                        ma_usage_compat = {
+                            "prompt_tokens": ma_usage.get("input_tokens", 0),
+                            "completion_tokens": ma_usage.get("output_tokens", 0),
+                        }
+                        _track_cost(ma_model, ma_usage_compat,
+                                    _estimate_cost(ma_model, ma_usage_compat))
+                        return body, stats
+                    except (_ma_exc, ValueError, RuntimeError, ImportError) as e:
+                        ma_fallback = True
+                        print(f"WARNING: MA consolidation failed ({type(e).__name__}) — "
+                              "falling back to local", file=sys.stderr)
+                else:
+                    ma_fallback = True
+                    print("WARNING: --use-ma-consolidation set but MA_API_KEY not found — "
+                          "falling back to local", file=sys.stderr)
+
+            # Local fallback (or default path)
+            body, stats = _consolidate_challenges(
+                challenge_body, litellm_url, api_key
+            )
+            if stats is not None:
+                stats["source"] = "local"
+                stats["ma_fallback"] = ma_fallback
+            return body, stats
+
+        def _do_verification():
+            verifier_config = _load_config()
+            verifier_model_name = verifier_config.get("verifier_default", "claude-sonnet-4-6")
+            print(f"Running claim verifier ({verifier_model_name})...", file=sys.stderr)
+            v_text, v_stats = _run_claim_verifier(
+                challenge_body, proposal, litellm_url, api_key
+            )
+            if v_stats:
+                print(f"  Verifier: {v_stats['claims_checked']} claims checked, "
+                      f"{v_stats['tool_calls']} tool calls", file=sys.stderr)
+            else:
+                print("  Verifier failed — proceeding without verification", file=sys.stderr)
+            return v_text, v_stats
+
+        with concurrent.futures.ThreadPoolExecutor(max_workers=2) as pool:
+            consolidation_fut = pool.submit(_do_consolidation)
+            verifier_fut = pool.submit(_do_verification)
+            consolidated_body, consolidation_stats = consolidation_fut.result()
+            verification_text, verifier_stats = verifier_fut.result()
+
+    elif consolidate_requested:
+        # Consolidation only (no verifier)
         if getattr(args, "use_ma_consolidation", False):
+            try:
+                from managed_agent import MA_SAFE_EXCEPTIONS as _ma_exc
+            except Exception:
+                _ma_exc = (ConnectionError, TimeoutError, OSError)
+
             ma_api_key = os.environ.get("MA_API_KEY")
             if ma_api_key:
                 try:
-                    from managed_agent import run_consolidation, MA_SAFE_EXCEPTIONS
+                    from managed_agent import run_consolidation
                     print("Attempting MA consolidation...", file=sys.stderr)
                     consolidated_body, consolidation_stats = run_consolidation(
                         challenge_body=challenge_body,
@@ -1497,21 +1580,46 @@ def cmd_judge(args):
                     )
                     ma_used = True
                     print("  MA consolidation succeeded", file=sys.stderr)
-                except (MA_SAFE_EXCEPTIONS, ValueError, RuntimeError) as e:
-                    print(f"WARNING: MA consolidation failed ({e}) — "
+                    ma_usage = consolidation_stats.get("usage", {})
+                    ma_model = consolidation_stats.get("model", "unknown")
+                    ma_usage_compat = {
+                        "prompt_tokens": ma_usage.get("input_tokens", 0),
+                        "completion_tokens": ma_usage.get("output_tokens", 0),
+                    }
+                    _track_cost(ma_model, ma_usage_compat,
+                                _estimate_cost(ma_model, ma_usage_compat))
+                except (_ma_exc, ValueError, RuntimeError, ImportError) as e:
+                    ma_fallback = True
+                    print(f"WARNING: MA consolidation failed ({type(e).__name__}) — "
                           "falling back to local", file=sys.stderr)
-                    traceback.print_exc(file=sys.stderr)
             else:
+                ma_fallback = True
                 print("WARNING: --use-ma-consolidation set but MA_API_KEY not found — "
                       "falling back to local", file=sys.stderr)
 
-        # Local fallback (or default path)
         if not ma_used:
             consolidated_body, consolidation_stats = _consolidate_challenges(
                 challenge_body, litellm_url, api_key
             )
+            if consolidation_stats is not None:
+                consolidation_stats["source"] = "local"
+                consolidation_stats["ma_fallback"] = ma_fallback
     else:
         consolidated_body = challenge_body
+
+    # Verifier-only path (no consolidation)
+    if verify_requested and not consolidate_requested:
+        verifier_config = _load_config()
+        verifier_model_name = verifier_config.get("verifier_default", "claude-sonnet-4-6")
+        print(f"Running claim verifier ({verifier_model_name})...", file=sys.stderr)
+        verification_text, verifier_stats = _run_claim_verifier(
+            challenge_body, proposal, litellm_url, api_key
+        )
+        if verifier_stats:
+            print(f"  Verifier: {verifier_stats['claims_checked']} claims checked, "
+                  f"{verifier_stats['tool_calls']} tool calls", file=sys.stderr)
+        else:
+            print("  Verifier failed — proceeding without verification", file=sys.stderr)
 
     if consolidation_stats:
         # Consolidated output is a unified list — no per-challenger sections to shuffle
@@ -1543,26 +1651,14 @@ def cmd_judge(args):
                 f"{rebuttal_text}\n"
             )
 
-    # Run claim verifier if requested (Option B: separate Claude verification pass)
-    verifier_stats = None
-    if getattr(args, "verify_claims", False):
-        verifier_config = _load_config()
-        verifier_model_name = verifier_config.get("verifier_default", "claude-sonnet-4-6")
-        print(f"Running claim verifier ({verifier_model_name})...", file=sys.stderr)
-        verification_text, verifier_stats = _run_claim_verifier(
-            challenge_body, proposal, litellm_url, api_key
+    # Append verification results if available
+    if verification_text and verifier_stats:
+        user_content += (
+            "\n---\n\n"
+            "## INDEPENDENT CLAIM VERIFICATION "
+            f"(tool-verified by {verifier_stats['model']})\n\n"
+            f"{verification_text}\n"
         )
-        if verification_text:
-            user_content += (
-                "\n---\n\n"
-                "## INDEPENDENT CLAIM VERIFICATION "
-                f"(tool-verified by {verifier_stats['model']})\n\n"
-                f"{verification_text}\n"
-            )
-            print(f"  Verifier: {verifier_stats['claims_checked']} claims checked, "
-                  f"{verifier_stats['tool_calls']} tool calls", file=sys.stderr)
-        else:
-            print("  Verifier failed — proceeding without verification", file=sys.stderr)
 
     print(f"Calling judge ({judge_model})...", file=sys.stderr)
     try:
@@ -1652,6 +1748,8 @@ def cmd_judge(args):
         log_event["verifier"] = verifier_stats
     if consolidation_stats:
         log_event["consolidation"] = consolidation_stats
+        log_event["consolidation_source"] = consolidation_stats.get("source", "unknown")
+        log_event["ma_fallback"] = consolidation_stats.get("ma_fallback", False)
     _log_debate_event(log_event, cost_snapshot=_cost_snapshot)
     return 0
 
@@ -2371,6 +2469,19 @@ def cmd_refine(args):
                 "slots_dropped": slots_dropped,
             })
             if revised and not truncated and not slots_dropped:
+                # Early-stop: if the revision is nearly identical to the input,
+                # further rounds won't add value. Only active with --early-stop
+                # and only after at least 2 rounds (so each model family gets
+                # at least one pass).
+                early_stop = getattr(args, "early_stop", False)
+                if early_stop and round_num >= 3 and len(current_doc) > 0:
+                    char_delta = abs(len(revised) - len(current_doc)) / len(current_doc)
+                    if char_delta < 0.05:
+                        current_doc = revised
+                        print(f"Early-stop: round {round_num} changed < 5% "
+                              f"({char_delta:.1%}). Stopping refinement.",
+                              file=sys.stderr)
+                        break
                 current_doc = revised
             elif not revised:
                 print(f"WARNING: round {round_num} did not produce a revised document, "
@@ -2678,19 +2789,15 @@ def cmd_review_panel(args):
                     return json.dumps({"error": f"tool not allowed: {name}"})
                 return _original_exec(name, targs)
 
-    # Call each persona's model
-    reviews = []  # list of (persona, model, response_or_error, success)
-    for p in personas:
-        model = pmap[p]
-        print(f"Calling {p}...", file=sys.stderr)
-        # Panel reviewers are challenger-mode (multi-persona adversarial),
-        # not judge-mode. Use per-model challenger temperature so Gemini gets
-        # 1.0 per Google's tool-calling guidance (Fix 4).
+    # Call each persona's model in parallel — each hits an independent model API.
+    def _run_reviewer(persona):
+        model = pmap[persona]
+        print(f"Calling {persona}...", file=sys.stderr)
         challenger_temp = _challenger_temperature(model)
+        tool_log = []
         try:
             if tool_defs is not None:
                 from llm_client import llm_tool_loop
-                tool_log = []
                 tool_result = llm_tool_loop(
                     system=prompt + TOOL_INJECTION_DEFENSE,
                     user=input_text,
@@ -2710,24 +2817,30 @@ def cmd_review_panel(args):
                 _track_tool_loop_cost(model, tool_result)
                 response = tool_result["content"]
                 if tool_result["turns"] > 20:
-                    print(f"  {p}: hit max turns, used partial tool evidence ({len(tool_log)} calls)",
+                    print(f"  {persona}: hit max turns, used partial tool evidence ({len(tool_log)} calls)",
                           file=sys.stderr)
                 if tool_log:
-                    all_tool_calls[p] = tool_log
+                    all_tool_calls[persona] = tool_log
                 else:
-                    print(f"WARNING: {p} ({model}) made 0 tool calls "
+                    print(f"WARNING: {persona} ({model}) made 0 tool calls "
                           f"despite tools being enabled", file=sys.stderr)
             else:
                 response = _call_litellm(model, prompt, input_text, litellm_url, api_key,
                                          temperature=challenger_temp)
             if response and response.strip():
-                reviews.append((p, model, response, True))
+                return (persona, model, response, True)
             else:
-                reviews.append((p, model, "Empty response", False))
-                print(f"WARNING: {p} returned empty response", file=sys.stderr)
+                print(f"WARNING: {persona} returned empty response", file=sys.stderr)
+                return (persona, model, "Empty response", False)
         except LLM_SAFE_EXCEPTIONS as e:
-            reviews.append((p, model, str(e), False))
-            print(f"WARNING: {p} failed — {e}", file=sys.stderr)
+            print(f"WARNING: {persona} failed — {e}", file=sys.stderr)
+            return (persona, model, str(e), False)
+
+    reviews = []
+    with concurrent.futures.ThreadPoolExecutor(max_workers=len(personas)) as pool:
+        futures = {pool.submit(_run_reviewer, p): p for p in personas}
+        for fut in concurrent.futures.as_completed(futures):
+            reviews.append(fut.result())
 
     successful = [r for r in reviews if r[3]]
     if not successful:
@@ -3275,6 +3388,8 @@ def main():
                      help="Output path for refined document")
     rf.add_argument("--enable-tools", action="store_true", default=False,
                      help="Give refiners read-only verifier tools for feasibility checks")
+    rf.add_argument("--early-stop", action="store_true", default=False,
+                     help="Stop early when a round makes minimal changes (< 5%% character delta)")
 
     # review (single-model)
     rv = sub.add_parser("review",

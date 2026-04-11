@@ -1,0 +1,51 @@
+Pre-flight: checking model availability...
+Pre-flight: models OK
+
+Pre-flight: running unit tests...
+..........................................                               [100%]
+42 passed in 1.05s
+Pre-flight: unit tests PASS
+
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  TEST 6: Conviction gate + premortem pressure-test
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  Step 1/2: conviction gate validation...
+{
+    "status": "fail",
+    "rec_count": 0,
+    "failures": [
+        {
+            "rec_index": 0,
+            "field": "Section",
+            "reason": "Recommendations section contains no numbered items"
+        }
+    ]
+}
+    Gate correctly rejected (exit 1) — checking details...
+    Gate failed but didn't report expected issues
+
+  Step 2/2: pressure-test (premortem frame)...
+## The Structural Pattern
+These failures share one assumption: that obvious friction points are the true bottlenecks, and that automation itself creates velocity even without measurement, guardrails, or sequencing. Multiple scenarios assume current pain is well-understood when the plan shows little baseline data: no flake-rate metric, no PR flow decomposition, no release failure taxonomy, no eligibility rules for auto-approval. So this is mainly a **sequencing problem with execution consequences**: the team is trying to automate before instrumenting and standardizing. The plan should change: add a short diagnostics phase, gate each automation behind safety metrics, and remove any immediate production-facing auto-approval/auto-deploy behavior.
+
+## The One Test
+Run a **2-week engineering flow baseline study** next week across one representative service/repo. Instrument every PR from open to prod: PR size, time to first review, total wait time, review rounds, CI duration, rerun count, flake failures, deploy lead time, and incident-causing changes. In parallel, manually classify the top 20 delayed PRs and last 10 deployment incidents by root cause. At the end, choose **one** bottleneck with quantified impact and trial the smallest safe intervention there. This single test would tell you whether review triage, test work, or deploy automation is actually the first lever — and whether the current plan should proceed, be reordered, or be cut.
+    OK: premortem output (47 lines)
+  [FAIL] Test 6 (conviction-gate): gate or premortem output issues
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  INTEGRATION TEST SUMMARY
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  PASS: 0
+  FAIL: 1
+  SKIP: 0
+
+  Results: tests/integration-output/results.log
+  Output:  tests/integration-output/
+
+  Debate log entries today: 20
+
+  Some tests FAILED — check output files for details.
