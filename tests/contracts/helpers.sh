@@ -3,17 +3,6 @@
 # Source this from each test: source "$(dirname "$0")/helpers.sh"
 
 PROJECT_ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
-SQLITE="sqlite3"
-
-# --- Temp dir helpers ---
-
-setup_test_dir() {
-    TEST_DIR="$(mktemp -d)"
-}
-
-teardown_test_dir() {
-    [ -n "$TEST_DIR" ] && rm -rf "$TEST_DIR"
-}
 
 # --- Assertion helpers ---
 PASS_COUNT=0

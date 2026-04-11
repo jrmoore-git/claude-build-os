@@ -19,10 +19,10 @@ Before modifying a skill (`skills/*/SKILL.md`), toolbelt script (`scripts/*_tool
 One JSON object per line. Each entry records a debate.py run:
 
 ```json
-{"timestamp": "2026-04-10T...", "mode": "challenge", "topic": "...", "status": "complete", "models": [...], ...}
+{"timestamp": "2026-04-10T...", "phase": "challenge", "debate_id": "...", "challengers": 3, ...}
 ```
 
-Fields vary by mode (challenge, judge, refine, review, review-panel). Common fields: `timestamp`, `mode`, `topic`, `status`.
+Fields vary by phase (challenge, judge, refine, review, review-panel). Common fields: `timestamp`, `phase`, `debate_id`.
 
 ### metrics.db — quality_metrics
 
@@ -49,12 +49,12 @@ import sys, json
 for line in sys.stdin:
     try:
         e = json.loads(line)
-        print(f\"{e.get('timestamp','?')[:16]}  {e.get('mode','?'):15s}  {e.get('status','?')}\")
+        print(f\"{e.get('timestamp','?')[:16]}  {e.get('phase','?'):15s}  {e.get('debate_id','?')}\")
     except: pass
 "
 ```
 
-### B. Activity by mode (last 7 days)
+### B. Activity by phase (last 7 days)
 
 ```bash
 python3.11 -c "
@@ -67,11 +67,11 @@ for line in open('stores/debate-log.jsonl'):
     try:
         e = json.loads(line)
         if e.get('timestamp', '') >= cutoff:
-            mode = e.get('mode', 'unknown')
-            counts[mode] = counts.get(mode, 0) + 1
+            phase = e.get('phase', 'unknown')
+            counts[phase] = counts.get(phase, 0) + 1
     except: pass
-for mode, n in sorted(counts.items(), key=lambda x: -x[1]):
-    print(f'{mode}: {n} runs')
+for phase, n in sorted(counts.items(), key=lambda x: -x[1]):
+    print(f'{phase}: {n} runs')
 "
 ```
 

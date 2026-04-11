@@ -4,7 +4,7 @@ surfaces_affected: "scripts/debate_tools.py, .claude/rules/reference/operational
 verification_commands: "bash tests/run_all.sh"
 rollback: "git revert <sha>"
 review_tier: "Tier 1.5"
-verification_evidence: "PENDING"
+verification_evidence: "96 pytest pass, 5/5 rollback contract, 3/3 audit completeness, sqlite removal verified, mode→phase fix verified — 4 probes all pass"
 challenge_artifact: "tasks/audit-batch2-challenge.md"
 challenge_recommendation: "PROCEED"
 challenge_revisions_applied: true

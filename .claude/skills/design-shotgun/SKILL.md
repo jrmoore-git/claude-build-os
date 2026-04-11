@@ -27,17 +27,17 @@ not a review process.
 Run before anything else:
 
 ```bash
-# Design CLI binary
-D=~/.claude/skills/gstack/design/dist/design
-if [ -x "$D" ]; then
+# Design CLI binary (set DESIGN_CLI in shell profile)
+D="${DESIGN_CLI:-}"
+if [ -n "$D" ] && [ -x "$D" ]; then
   echo "DESIGN_READY: $D"
 else
   echo "DESIGN_NOT_AVAILABLE"
 fi
 
-# Browse daemon
-B=~/.claude/skills/gstack/browse/dist/browse
-if [ -x "$B" ]; then
+# Browse daemon (set BROWSE_CLI in shell profile)
+B="${BROWSE_CLI:-}"
+if [ -n "$B" ] && [ -x "$B" ]; then
   echo "BROWSE_READY: $B"
 else
   echo "BROWSE_NOT_AVAILABLE (will use 'open' to view comparison boards)"
@@ -51,9 +51,9 @@ else
 fi
 ```
 
-If `DESIGN_NOT_AVAILABLE`: STOP. Tell the user the design CLI binary is not
-available at `~/.claude/skills/gstack/design/dist/design`. Cannot generate
-visual mockups without it.
+If `DESIGN_NOT_AVAILABLE`: STOP. Tell the user `DESIGN_CLI` is not set or not
+executable. They need to export it in their shell profile pointing to the
+design CLI binary (e.g., `export DESIGN_CLI=~/.claude/skills/gstack/design/dist/design`).
 
 If `OPENAI_KEY: MISSING`: STOP. Tell the user: "OPENAI_API_KEY is not set.
 The design CLI needs it for DALL-E image generation. Export it in your shell
@@ -279,7 +279,7 @@ AskUserQuestion:
    generating any variant. Include design system constraints in every generation brief.
 2. **Anti-slop enforcement.** No purple gradients, no centered-everything, no bubbly
    uniform radius, no generic hero copy.
-3. **Artifacts go to `designs/`.** Not `~/.gstack/`, not `/tmp/`. Design artifacts
+3. **Artifacts go to `designs/`.** Not `/tmp/`. Design artifacts
    are project files.
 4. **Show variants inline before opening the board.** User sees designs in terminal first.
 5. **Confirm feedback before saving.** Always summarize and verify.

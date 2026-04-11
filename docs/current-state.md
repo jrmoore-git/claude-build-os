@@ -1,25 +1,26 @@
 # Current State — 2026-04-10
 
 ## ⚠ STALE — auto-captured session ended without /wrap-session
-**Auto-capture date:** 2026-04-10 21:20 PT
-**Files changed this session:** 3 files in tasks
+**Auto-capture date:** 2026-04-10 21:54 PT
+**Files changed this session:** 4 files in .claude, docs, tasks
 **WARNING:** The "Next Action" below may be outdated. Cross-check with `git log --oneline -10` and recent session-log entries.
 
 
 ## What Changed This Session
-- Holistic doc review: read all key prose files (README, the-build-os, why-build-os, hooks, how-it-works, getting-started, cheat-sheet, infrastructure, platform-features, model-routing-guide)
-- hooks.md expanded from 5 to all 15 hooks with overview table, event-type organization, and incremental adoption guide
-- README docs map expanded from 5 to 12 entries organized into three tiers (start here / go deeper / reference)
-- README pipeline mermaid updated to include Refine as optional (dashed) stage
-- CLAUDE.md infrastructure reference updated to list all 15 hooks
+- Completed Audit Batch 2: stripped dead audit.db code from debate_tools.py, rewrote operational docs to use debate-log.jsonl with correct field names
+- Rewrote all 6 applicable contract tests for BuildOS invariants (27 assertions pass, replacing broken outbox-dependent tests)
+- Added llm_client.py unit tests (11 tests covering error categorization, credential safety, API key loading)
+- Fixed setup.sh idempotency bug (cp → ln -sf for pre-commit hook)
+- Cross-model review caught mode→phase field mismatch, fixed before ship
+- Shipped with all hard gates passing (tests, review, plan, verification, buildos-sync)
 
 ## Current Blockers
-- None identified
+- deploy_all.sh Steps 2-4 are TODO templates (API server, frontend, app tests) — BuildOS has no running services to restart. Needs customization to skip inapplicable steps.
 
 ## Next Action
-Test `/define discover` interactively on a real project to validate Phase 6.5 PRD generation (carried over from prior session).
+Customize deploy_all.sh for BuildOS (skip API server/frontend steps that don't apply), or test `/define discover` interactively on a real project (carried over).
 
 ## Recent Commits
-f1ec753 Doc sync: hooks.md covers all 15 hooks, README docs map expanded
-466db4d Add worktree cleanup to /wrap-session (audit finding F8)
-8041ac0 Audit cleanup: dead code removal, doc fixes, template markers
+b3d8278 Review fixes: mode->phase field mismatch, test isolation cleanup
+9dec8f4 Audit Batch 2: strip audit.db, rewrite contract tests, add llm_client tests
+4661477 [auto] Session work captured 2026-04-10 21:40 PT

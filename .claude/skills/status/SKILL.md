@@ -29,7 +29,7 @@ import sys, json
 for line in sys.stdin:
     try:
         e = json.loads(line)
-        print(f\"{e.get('timestamp','?')[:16]}  {e.get('mode','?')}  {e.get('status','?')}\")
+        print(f\"{e.get('timestamp','?')[:16]}  {e.get('phase','?')}  {e.get('debate_id','?')}\")
     except: pass
 "
 ```
