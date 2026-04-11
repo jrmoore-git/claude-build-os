@@ -47,6 +47,7 @@ Environment:
     LITELLM_MASTER_KEY   API key for LiteLLM (required)
 """
 import argparse
+import time
 import concurrent.futures
 import json
 import os
@@ -1089,6 +1090,7 @@ def cmd_challenge(args):
         """Run a single challenger. Returns (label, response, warnings, tool_log)."""
         label = CHALLENGER_LABELS[i]
         print(f"Calling {label}...", file=sys.stderr)
+        t0 = time.time()
         # Challenger calls use per-model challenger temperature (intentional
         # asymmetry vs judge mode — see LLM_CALL_DEFAULTS comment block).
         challenger_temp = _challenger_temperature(model)
@@ -1127,10 +1129,14 @@ def cmd_challenge(args):
                                          temperature=challenger_temp)
                 tool_log = []
             warnings = _validate_challenge(response)
+            elapsed = time.time() - t0
+            tool_info = f", {len(tool_log)} tool calls" if tool_log else ""
+            print(f"  {label} ({model}): {elapsed:.1f}s{tool_info}", file=sys.stderr)
             return label, response, warnings, tool_log
         except LLM_SAFE_EXCEPTIONS as e:
+            elapsed = time.time() - t0
             msg = f"Challenger {label} ({model}): {e}"
-            print(f"WARNING: {msg}", file=sys.stderr)
+            print(f"WARNING: {msg} ({elapsed:.1f}s)", file=sys.stderr)
             return label, f"[ERROR: {msg}]", [msg], []
 
     # Run challengers in parallel — each hits an independent model API.
@@ -1490,6 +1496,7 @@ def cmd_judge(args):
     consolidate_requested = not getattr(args, "no_consolidate", False)
 
     # Launch consolidation + verifier in parallel when both are needed
+    t_post_challenge = time.time()
     if consolidate_requested and verify_requested:
         def _do_consolidation():
             nonlocal ma_used, ma_fallback
@@ -1660,13 +1667,20 @@ def cmd_judge(args):
             f"{verification_text}\n"
         )
 
+    t_consolidation_done = time.time()
+    if consolidate_requested or verify_requested:
+        print(f"  Consolidation+verification: {t_consolidation_done - t_post_challenge:.1f}s", file=sys.stderr)
+
     print(f"Calling judge ({judge_model})...", file=sys.stderr)
+    t_judge_start = time.time()
     try:
         response = _call_litellm(judge_model, system_prompt, user_content,
                                  litellm_url, api_key)
     except LLM_SAFE_EXCEPTIONS as e:
         print(f"ERROR: judge call failed — {e}", file=sys.stderr)
         return 2
+    t_judge_done = time.time()
+    print(f"  Judge: {t_judge_done - t_judge_start:.1f}s", file=sys.stderr)
 
     # Parse rulings from response
     escalated = len(re.findall(r"Decision:\s*ESCALATE", response, re.IGNORECASE))
