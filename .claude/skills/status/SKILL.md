@@ -23,8 +23,15 @@ git status --short
 # Find recent artifacts (newest first)
 ls -t tasks/*-review.md tasks/*-plan.md tasks/*-challenge.md tasks/*-judgment.md tasks/*-debate.md tasks/*-refined.md tasks/*-proposal.md tasks/*-design.md 2>/dev/null | head -15
 
-# Check what skills have run this session (recent audit entries)
-sqlite3 -json stores/audit.db "SELECT action_type, MAX(timestamp) AS last FROM audit_log WHERE timestamp > datetime('now', '-4 hours') GROUP BY action_type ORDER BY last DESC LIMIT 10;" 2>/dev/null
+# Check recent debate activity
+tail -5 stores/debate-log.jsonl 2>/dev/null | python3.11 -c "
+import sys, json
+for line in sys.stdin:
+    try:
+        e = json.loads(line)
+        print(f\"{e.get('timestamp','?')[:16]}  {e.get('mode','?')}  {e.get('status','?')}\")
+    except: pass
+"
 ```
 
 If there are changed files, classify them:

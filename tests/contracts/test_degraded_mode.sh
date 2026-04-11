@@ -1,42 +1,80 @@
 #!/usr/bin/env bash
-# Contract 4: Degraded mode surfaced — failures always return structured errors
-# Note: pre-DB parse errors surface via JSON stdout, not audit log.
-set -uo pipefail
+# test_degraded_mode.sh — llm_client.py returns structured errors
+# Verifies LLMError class, error categorization, and retryable detection.
+set -euo pipefail
 source "$(dirname "$0")/helpers.sh"
-echo "=== Contract 4: Degraded Mode ==="
-setup_test_dbs
-trap teardown_test_dbs EXIT
+cd "$PROJECT_ROOT"
 
-# Invalid JSON → structured error, non-zero exit
-EXIT1=0
-OUT1=$(echo 'not valid json {{{' | $TOOL outbox_create 2>&1) || EXIT1=$?
-assert_exit "invalid JSON exits non-zero"         "$EXIT1" "1"
-assert_contains "error response has status field" "$OUT1" '"status"'
-assert_contains "error response has error status" "$OUT1" '"error"'
-assert_contains "error message is meaningful"     "$OUT1" "Invalid JSON"
+echo "=== Contract: Degraded Mode (llm_client.py error handling) ==="
 
-# Missing required field → structured error
-EXIT2=0
-OUT2=$(echo '{"idempotency_key":"test-deg-002","action_type":"email_reply"}' | $TOOL outbox_create 2>&1) || EXIT2=$?
-assert_exit "missing field exits non-zero"        "$EXIT2" "1"
-assert_contains "missing field error"             "$OUT2" '"error"'
-assert_contains "error names the missing field"   "$OUT2" "target"
+# 1. LLMError class exists with category attribute
+LLMERROR_CHECK=$(python3.11 -c "
+import sys
+sys.path.insert(0, 'scripts')
+from llm_client import LLMError
+e = LLMError('test error', category='timeout')
+assert hasattr(e, 'category'), 'no category attr'
+assert e.category == 'timeout', f'wrong category: {e.category}'
+assert str(e) == 'test error', f'wrong message: {e}'
+print('ok')
+" 2>&1 || echo "fail")
+assert "LLMError has category attribute" "$LLMERROR_CHECK" "ok"
 
-# Invalid tier (out of range) → structured error
-EXIT3=0
-OUT3=$(echo '{"idempotency_key":"test-deg-003","action_type":"email_reply","target":"t@t.com","content":"x","tier":9,"account":"sender@example.com"}' | $TOOL outbox_create 2>&1) || EXIT3=$?
-assert_exit "invalid tier exits non-zero"         "$EXIT3" "1"
-assert_contains "tier error is structured"        "$OUT3" '"error"'
+# 2. _categorize_error handles all expected categories
+CATEGORIZE_CHECK=$(python3.11 -c "
+import sys, urllib.error, io
+sys.path.insert(0, 'scripts')
+from llm_client import _categorize_error
 
-# Approve non-existent item → structured error
-EXIT4=0
-OUT4=$($TOOL outbox_approve --id 99999 2>&1) || EXIT4=$?
-assert_exit "approve missing item exits non-zero" "$EXIT4" "1"
-assert_contains "not-found error is structured"   "$OUT4" '"error"'
-assert_contains "error references the item id"    "$OUT4" "99999"
+# timeout
+assert _categorize_error(TimeoutError('timed out')) == 'timeout', 'timeout failed'
 
-# Verify no phantom audit entries were written for these pre-DB failures
-AUDIT_COUNT=$(db_count "$AUDIT_DB" audit_log)
-assert "no spurious audit entries from errors"    "$AUDIT_COUNT" "0"
+# rate_limit via HTTP 429
+err429 = urllib.error.HTTPError('http://x', 429, 'Rate Limited', {}, io.BytesIO(b''))
+assert _categorize_error(err429) == 'rate_limit', 'rate_limit failed'
+
+# auth via HTTP 401
+err401 = urllib.error.HTTPError('http://x', 401, 'Unauthorized', {}, io.BytesIO(b''))
+assert _categorize_error(err401) == 'auth', 'auth failed'
+
+# network via URLError
+assert _categorize_error(urllib.error.URLError('conn refused')) == 'network', 'network failed'
+
+# unknown fallback
+assert _categorize_error(ValueError('something')) == 'unknown', 'unknown failed'
+
+print('ok')
+" 2>&1 || echo "fail")
+assert "_categorize_error handles all categories" "$CATEGORIZE_CHECK" "ok"
+
+# 3. _is_retryable identifies retryable vs non-retryable
+RETRYABLE_CHECK=$(python3.11 -c "
+import sys, urllib.error, io
+sys.path.insert(0, 'scripts')
+from llm_client import _is_retryable
+
+# Retryable: HTTP 429, 500
+err429 = urllib.error.HTTPError('http://x', 429, 'Rate Limited', {}, io.BytesIO(b''))
+err500 = urllib.error.HTTPError('http://x', 500, 'Server Error', {}, io.BytesIO(b''))
+assert _is_retryable(err429) == True, '429 should be retryable'
+assert _is_retryable(err500) == True, '500 should be retryable'
+
+# Retryable: network errors
+assert _is_retryable(urllib.error.URLError('conn refused')) == True, 'URLError should be retryable'
+assert _is_retryable(ConnectionError('reset')) == True, 'ConnectionError should be retryable'
+assert _is_retryable(TimeoutError('timed out')) == True, 'TimeoutError should be retryable'
+
+# Non-retryable: HTTP 400, 404
+err400 = urllib.error.HTTPError('http://x', 400, 'Bad Request', {}, io.BytesIO(b''))
+err404 = urllib.error.HTTPError('http://x', 404, 'Not Found', {}, io.BytesIO(b''))
+assert _is_retryable(err400) == False, '400 should not be retryable'
+assert _is_retryable(err404) == False, '404 should not be retryable'
+
+# Non-retryable: ValueError
+assert _is_retryable(ValueError('bad')) == False, 'ValueError should not be retryable'
+
+print('ok')
+" 2>&1 || echo "fail")
+assert "_is_retryable identifies retryable errors" "$RETRYABLE_CHECK" "ok"
 
 report

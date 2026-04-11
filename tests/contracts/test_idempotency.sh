@@ -1,30 +1,44 @@
 #!/usr/bin/env bash
-# Contract 1: Idempotency — duplicate inputs never produce duplicate outputs
-set -uo pipefail
+# test_idempotency.sh — Config loading determinism
+# Verifies debate.py produces identical output on repeated runs (no LLM calls needed).
+set -euo pipefail
 source "$(dirname "$0")/helpers.sh"
-echo "=== Contract 1: Idempotency ==="
-setup_test_dbs
-trap teardown_test_dbs EXIT
+cd "$PROJECT_ROOT"
 
-# First create
-OUT1=$(test_item "test-idem-001" | $TOOL outbox_create)
-assert "first create returns status ok"      "$(json_field "$OUT1" status)"  "ok"
-assert "first create returns created:true"   "$(json_field "$OUT1" created)" "True"
-ID=$(json_field "$OUT1" id)
-assert "first create returns a numeric id"   "$(echo "$ID" | grep -c '^[0-9]*$')" "1"
+echo "=== Contract: Idempotency (config loading determinism) ==="
 
-# Second create — same key
-OUT2=$(test_item "test-idem-001" | $TOOL outbox_create)
-assert "second create returns status ok"     "$(json_field "$OUT2" status)"  "ok"
-assert "second create returns created:false" "$(json_field "$OUT2" created)" "False"
-assert "second create returns same id"       "$(json_field "$OUT2" id)"      "$ID"
+# 1. challenge --help output is deterministic
+HELP1=$(python3.11 scripts/debate.py challenge --help 2>&1)
+HEXIT1=$?
+HELP2=$(python3.11 scripts/debate.py challenge --help 2>&1)
+HEXIT2=$?
 
-# DB has exactly one row
-ROW_COUNT=$(db_count "$OUTBOX_DB" outbox "idempotency_key='test-idem-001'")
-assert "exactly one row in outbox"           "$ROW_COUNT" "1"
+assert "challenge --help exit code stable" "$HEXIT1" "$HEXIT2"
+assert "challenge --help output identical" "$HELP1" "$HELP2"
 
-# Audit has exactly one outbox_create entry (not two)
-AUDIT_COUNT=$(db_count "$AUDIT_DB" audit_log "action_type='outbox_create'")
-assert "exactly one audit entry for create" "$AUDIT_COUNT" "1"
+# 2. Config loading is deterministic (parse debate-models.json twice)
+CFG1=$(python3.11 -c "
+import json, sys
+sys.path.insert(0, 'scripts')
+cfg = json.load(open('config/debate-models.json'))
+print(json.dumps(cfg, sort_keys=True))
+" 2>&1)
+CFG2=$(python3.11 -c "
+import json, sys
+sys.path.insert(0, 'scripts')
+cfg = json.load(open('config/debate-models.json'))
+print(json.dumps(cfg, sort_keys=True))
+" 2>&1)
+
+assert "config loading output identical" "$CFG1" "$CFG2"
+
+# 3. review-panel --help is deterministic
+RP1=$(python3.11 scripts/debate.py review-panel --help 2>&1)
+RPEXIT1=$?
+RP2=$(python3.11 scripts/debate.py review-panel --help 2>&1)
+RPEXIT2=$?
+
+assert "review-panel --help exit code stable" "$RPEXIT1" "$RPEXIT2"
+assert "review-panel --help output identical" "$RP1" "$RP2"
 
 report

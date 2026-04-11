@@ -92,7 +92,7 @@ The cheapest test or MVP that validates the idea before full build.
 3+ concrete examples of the problem occurring. Include dates, error messages, or user reports where available. If no failures exist yet (greenfield), state that explicitly.
 
 ### Operational Context
-Real numbers from the running system relevant to this proposal. Pull from audit.db, cron schedules, cost data, or metrics.db as applicable. Examples: "morning-briefing runs daily at 7am, costs $0.04/run, last failure 2026-03-15" or "email-triage processes ~40 emails/day, 3 errors in last 7 days." If the proposal doesn't touch operational systems, state "N/A — greenfield."
+Real numbers from the running system relevant to this proposal. Pull from debate-log.jsonl, cron schedules, cost data, or metrics.db as applicable. Examples: "debate.py runs ~5-10 times/day, 95 entries in debate-log.jsonl" or "email-triage processes ~40 emails/day, 3 errors in last 7 days." If the proposal doesn't touch operational systems, state "N/A — greenfield."
 
 ### Baseline Performance
 How the current system performs on the dimension this proposal changes. Include: current behavior, current cost, current error rate. Required when the proposal replaces or modifies an existing system. If greenfield, state "No existing system."

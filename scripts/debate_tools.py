@@ -8,8 +8,7 @@ import glob
 import json
 import os
 import re
-import sqlite3
-from datetime import datetime, timedelta, timezone
+from datetime import datetime
 
 # Resolve project root
 try:
@@ -22,13 +21,6 @@ except (subprocess.CalledProcessError, FileNotFoundError):
 
 # --- Safety constants ---
 
-ALLOWED_TABLES = {
-    "audit_log": "stores/audit.db",
-}
-
-ALLOWED_COLUMNS = {
-    "audit_log": {"action_type", "model_used", "tier"},
-}
 
 ALLOWED_FILE_SETS = {
     "scripts": "scripts/*.py",
@@ -45,7 +37,6 @@ ALLOWED_CONFIG_KEYS = {"judge_default", "refine_rotation", "persona_model_map",
 SECRET_PATTERNS = {"key", "secret", "token", "password", "credential", "api_key"}
 
 MAX_SUBSTRING_LEN = 200
-MAX_COST_DAYS = 30
 MAX_RESULT_LEN = 5000  # increased to support read_file_snippet (50 lines)
 MAX_SNIPPET_LINES = 50
 
@@ -79,25 +70,6 @@ def _get_job_schedule(args):
     return json.dumps({"error": "job not found"})
 
 
-def _count_records(args):
-    table = args.get("table", "")
-    col = args.get("filter_column", "")
-    val = args.get("filter_value", "")
-    if table not in ALLOWED_TABLES:
-        return json.dumps({"error": f"table not allowed: {table}"})
-    allowed = ALLOWED_COLUMNS.get(table, set())
-    if col not in allowed:
-        return json.dumps({"error": f"column not allowed: {col}"})
-    db_path = os.path.join(PROJECT_ROOT, ALLOWED_TABLES[table])
-    conn = sqlite3.connect(db_path, timeout=5)
-    try:
-        cur = conn.execute(f"SELECT COUNT(*) FROM {table} WHERE {col} = ?", (val,))
-        count = cur.fetchone()[0]
-    finally:
-        conn.close()
-    return json.dumps({"table": table, "filter": f"{col}={val}", "count": count})
-
-
 def _check_code_presence(args):
     substring = args.get("substring", "")
     file_set = args.get("file_set", "")
@@ -119,37 +91,6 @@ def _check_code_presence(args):
         except OSError:
             continue
     return json.dumps({"exists": matches > 0, "match_count": matches})
-
-
-def _get_recent_costs(args):
-    prefix = args.get("action_prefix", "")
-    days = args.get("days", 7)
-    if not isinstance(days, int) or days < 1 or days > MAX_COST_DAYS:
-        days = 7
-    sanitized = prefix.replace("%", "").replace("_", "")
-    like_pat = sanitized + "%"
-    cutoff = (datetime.now(timezone.utc) - timedelta(days=days)).strftime(
-        "%Y-%m-%d %H:%M:%S"
-    )
-    db_path = os.path.join(PROJECT_ROOT, "stores", "audit.db")
-    conn = sqlite3.connect(db_path, timeout=5)
-    try:
-        cur = conn.execute(
-            "SELECT COALESCE(SUM(api_cost_usd), 0), COUNT(*), "
-            "COALESCE(AVG(api_cost_usd), 0) "
-            "FROM audit_log WHERE action_type LIKE ? AND timestamp > ?",
-            (like_pat, cutoff),
-        )
-        total, count, avg = cur.fetchone()
-    finally:
-        conn.close()
-    return json.dumps({
-        "action_prefix": sanitized,
-        "days": days,
-        "total_cost_usd": round(total, 4),
-        "call_count": count,
-        "avg_cost_usd": round(avg, 4),
-    })
 
 
 def _read_config_value(args):
@@ -320,9 +261,7 @@ def _read_file_snippet(args):
 
 _TOOL_DISPATCH = {
     "get_job_schedule": _get_job_schedule,
-    "count_records": _count_records,
     "check_code_presence": _check_code_presence,
-    "get_recent_costs": _get_recent_costs,
     "read_config_value": _read_config_value,
     "check_test_coverage": _check_test_coverage,
     "get_recent_commits": _get_recent_commits,
@@ -343,22 +282,6 @@ TOOL_DEFINITIONS = [
                 "type": "object",
                 "properties": {"job_name": {"type": "string"}},
                 "required": ["job_name"],
-            },
-        },
-    },
-    {
-        "type": "function",
-        "function": {
-            "name": "count_records",
-            "description": "Count rows in an allowed table filtered by one column.",
-            "parameters": {
-                "type": "object",
-                "properties": {
-                    "table": {"type": "string", "enum": list(ALLOWED_TABLES)},
-                    "filter_column": {"type": "string"},
-                    "filter_value": {"type": "string"},
-                },
-                "required": ["table", "filter_column", "filter_value"],
             },
         },
     },
@@ -391,21 +314,6 @@ TOOL_DEFINITIONS = [
                     },
                 },
                 "required": ["substring", "file_set"],
-            },
-        },
-    },
-    {
-        "type": "function",
-        "function": {
-            "name": "get_recent_costs",
-            "description": "Aggregate API cost for an action_type prefix over N days.",
-            "parameters": {
-                "type": "object",
-                "properties": {
-                    "action_prefix": {"type": "string"},
-                    "days": {"type": "integer", "minimum": 1, "maximum": MAX_COST_DAYS},
-                },
-                "required": ["action_prefix"],
             },
         },
     },
