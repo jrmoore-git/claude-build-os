@@ -222,3 +222,20 @@ ended without running `/wrap-session`. Review and enrich in the next session.
 - **tests/**: test_managed_agent.py
 
 **Auto-committed:** 2026-04-10 18:58 PT
+
+---
+
+## 2026-04-10 — Inspect-before-acting rule test passes
+
+**Decided:**
+- None (D9 recorded in prior wrap)
+
+**Implemented:**
+- Behavioral test of "Inspect before acting" rule: 2 subagents, both inspected code before answering
+- Test 1 (question): grepped debate.py for --dry-run before answering "no"
+- Test 2 (edit): 6 tool calls reading debate.py structure + config before planning edit
+
+**Not Finished:** Rule untested under high context pressure. Fix 1 hook deferred.
+
+**Next Session:** Observe rule in real coding sessions. If it fails under pressure, scope Fix 1.
+
