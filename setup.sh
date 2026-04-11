@@ -276,4 +276,26 @@ echo "Next steps:"
 echo "  1. Edit .env with your API keys (ANTHROPIC, OPENAI, GEMINI, LITELLM_MASTER_KEY)"
 echo "  2. Start LiteLLM: litellm --config config/litellm-config.yaml"
 echo "  3. Open Claude Code in this directory — all governance hooks are active"
+echo "  4. See Dependencies below for optional tools"
 echo ""
+
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+# Dependencies
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+#
+# Required:
+#   Python 3.11+          Core scripting (debate engine, hooks, toolbelt)
+#   git                   Version control, worktree isolation
+#
+# Required for cross-model features (/challenge, /debate, /review, /refine):
+#   LiteLLM proxy         pip install litellm — run with: litellm --config config/litellm-config.yaml
+#   API keys              At least 2 of: ANTHROPIC_API_KEY, OPENAI_API_KEY, GEMINI_API_KEY
+#
+# Optional:
+#   ruff                  Python linter (hook-enforced if installed)
+#   pytest                Test runner for tests/
+#   ollama                Local models for semantic search
+#
+# No requirements.txt is provided because BuildOS uses only Python stdlib
+# (sqlite3, json, subprocess, argparse, etc.) plus LiteLLM which runs as
+# a separate proxy process, not an imported library.

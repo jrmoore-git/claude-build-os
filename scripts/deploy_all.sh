@@ -6,6 +6,9 @@
 # This script runs everything.
 #
 # Usage: bash scripts/deploy_all.sh
+# TEMPLATE: This script is a starting point for your project's deploy pipeline.
+# Customize the TODO sections below for your infrastructure (systemctl, launchctl,
+# docker compose, etc.). Step 5 (contract tests) works out of the box.
 set -e
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"

@@ -1,6 +1,6 @@
 ---
 name: ship
-description: "Release engineer running pre-flight checks then deploying. Gates on tests + review. Wraps deploy_all.sh."
+description: "Release engineer running pre-flight checks then deploying. Gates on tests + review. Wraps deploy_all.sh (customize for your project)."
 user-invocable: true
 ---
 

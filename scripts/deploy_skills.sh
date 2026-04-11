@@ -6,6 +6,9 @@
 # Run this after any skill edit before verifying the fix.
 #
 # Usage: bash scripts/deploy_skills.sh [--verify <job-id>]
+# TEMPLATE: Customize the SERVICE_NAME, stop/start commands, and health check
+# for your gateway/agent service. The structure (stop → wait → start → health check)
+# is the recommended pattern.
 
 set -euo pipefail
 
