@@ -55,12 +55,20 @@ Based on the chosen tier, create these files:
 
 Tell the user: "Copy the `.claude/skills/` directory from the Build OS repo to your project. These provide session operations: `/recall`, `/plan`, `/review`, `/capture`, `/wrap-session`, `/triage`, and this `/setup` command."
 
-## Step 5: Show what was created
+## Step 5: Install design tools
+
+Run `./scripts/setup-design-tools.sh` to install the design CLI and browser
+CLI. These are required by `/design-shotgun` and useful for `/design-review`.
+If the script succeeds, tell the user to restart their shell (or `source ~/.zshrc`).
+If it fails, note that design skills will be unavailable but everything else works.
+
+## Step 6: Show what was created
 
 List every file created with a one-line description. Suggest what to do next:
 - Tier 0: "Start building. Update CLAUDE.md as you learn what rules matter."
 - Tier 1: "Run `/recall` at the start of each session. Update handoff.md before closing."
 - Tier 2: "Add one hook (see examples/). Write your first contract test. See `docs/platform-features.md` for hook types and events."
+- All tiers: "If design tools installed, try `/design-shotgun` to explore visual directions."
 
 ## Rules for this command
 - Create only the files needed for the chosen tier. Do not create Tier 2 files for a Tier 0 project.

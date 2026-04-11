@@ -51,9 +51,8 @@ else
 fi
 ```
 
-If `DESIGN_NOT_AVAILABLE`: STOP. Tell the user `DESIGN_CLI` is not set or not
-executable. They need to export it in their shell profile pointing to the
-design CLI binary (e.g., `export DESIGN_CLI=~/.claude/skills/gstack/design/dist/design`).
+If `DESIGN_NOT_AVAILABLE`: STOP. Tell the user: "Design tools aren't installed.
+Run `./scripts/setup-design-tools.sh` then restart your shell."
 
 If `OPENAI_KEY: MISSING`: STOP. Tell the user: "OPENAI_API_KEY is not set.
 The design CLI needs it for DALL-E image generation. Export it in your shell
