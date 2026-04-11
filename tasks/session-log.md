@@ -385,6 +385,8 @@ ended without running `/wrap-session`. Review and enrich in the next session.
 - `docs/project-prd.md` template: added acceptance criteria, constraints, verification plan sections with guidance text
 - Decision D10 recorded in decisions.md
 
-**Not Finished:** End-to-end test of Phase 6.5; onboarding docs (getting-started, cheat-sheet, examples) discussed but not built
+**Not Finished:** Onboarding docs (getting-started, cheat-sheet, examples) discussed but not built
 
-**Next Session:** Test `/define discover` end-to-end with Phase 6.5 on a real project
+**Tested:** PRD generation via worktree agent — 8/8 quality criteria passed. Fixed 2 gaps (Open Questions dropped, Distribution Plan unmapped).
+
+**Next Session:** Build onboarding docs; test `/define discover` interactively on a real project

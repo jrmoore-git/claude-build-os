@@ -10,9 +10,9 @@
 - None identified
 
 ## Next Action
-Test `/define discover` end-to-end on a real project to verify Phase 6.5 PRD generation works correctly — especially the gap-filling questions and the validate-a-draft path.
+Consider building the onboarding docs discussed earlier: getting-started.md, cheat-sheet.md, and an examples/ directory with a worked project.
 
 ## Recent Commits
+ace0e9f Fix Open Questions and Distribution Plan gaps in PRD generation mapping
+814bbf5 Session wrap 2026-04-10: PRD generation added to /define discover
 5a0da4a [auto] Session work captured 2026-04-10 20:36 PT
-a7c67d5 [auto] Session work captured 2026-04-10 20:32 PT
-bc073a2 [auto] Session work captured 2026-04-10 20:26 PT

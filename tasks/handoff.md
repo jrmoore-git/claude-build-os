@@ -12,12 +12,15 @@ Added interactive PRD generation to `/define discover` so team members walk out 
 - `docs/project-prd.md` template updated from 6 to 9 sections with guidance text
 
 ## NOT Finished
-- End-to-end test of `/define discover` with Phase 6.5 on a real project
 - Getting-started guide, cheat sheet, and worked example (discussed but not built)
 
+## Tested
+- PRD generation tested via worktree agent with fictional "Pulse" project — 8/8 quality criteria passed
+- Found and fixed 2 gaps: Open Questions silently dropped, Distribution Plan unmapped
+
 ## Next Session Should
-1. Test `/define discover` end-to-end on a real or sample project — verify PRD generation, gap-filling questions, and validate-a-draft path all work
-2. Consider building the onboarding docs discussed: getting-started.md, cheat-sheet.md, examples/
+1. Consider building the onboarding docs discussed: getting-started.md, cheat-sheet.md, examples/
+2. Test `/define discover` interactively on a real project (the worktree test simulated answers — real user interaction not yet tested)
 
 ## Key Files Changed
 .claude/skills/define/SKILL.md
