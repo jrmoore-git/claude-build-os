@@ -676,3 +676,28 @@ ended without running `/wrap-session`. Review and enrich in the next session.
 - **tests/**: exp-3b-organizational.md, exp-3c-organizational.md, exp-3d-organizational.md, exp-3e-organizational.md, exp-7b-multidomain.md, exp-7c-multidomain.md, exp-7d-multidomain.md, exp-7e-multidomain.md, exp-8b-career.md
 
 **Auto-committed:** 2026-04-11 00:11 PT
+
+---
+
+## 2026-04-11 — Domain-agnostic explore mode: adaptive dimensions, 8-domain validation
+
+**Decided:**
+- D11: Explore mode uses adaptive dimensions derived from problem domain, not hardcoded product dimensions
+- Pre-flight becomes adaptive tree (no 3-bucket classification menu)
+- Direction 2 forced to differ on mechanism; Direction 3 forced to challenge premise
+- Strategic questions adaptive: Why now + Workaround required, others optional per domain
+- ERRC grid optional (use when it adds insight)
+
+**Implemented:**
+- config/prompts/explore.md v3 — domain-agnostic
+- config/prompts/explore-diverge.md v4 — {dimensions} variable, premise-challenge, direction-aware rules
+- config/prompts/explore-synthesis.md v4 — {dimensions} variable, tension check
+- config/prompts/preflight-adaptive.md v5 — dimension derivation section
+- scripts/debate.py — domain-agnostic fallback prompts, dimension parsing, direction_number/total_directions
+- .claude/skills/debate/SKILL.md Step 3a — adaptive tree replaces 3-option menu
+- 8 experiments across product, engineering, org, research, strategy, process, multi-domain, career
+- 5 rounds of prompt iteration — non-product scores from 3.4-3.8 to 4.4+ avg
+
+**Not Finished:** Direction 1-2 overlap remains (~4.0 diversity); gstack update; browse.sh; audit 11-13; /define discover live test
+
+**Next Session:** Run real /debate --explore end-to-end to verify adaptive pre-flight in conversation flow

@@ -1,26 +1,21 @@
-# Current State — 2026-04-10
-
-## ⚠ STALE — auto-captured session ended without /wrap-session
-**Auto-capture date:** 2026-04-11 00:11 PT
-**Files changed this session:** 14 files in config, scripts, tasks, tests
-**WARNING:** The "Next Action" below may be outdated. Cross-check with `git log --oneline -10` and recent session-log entries.
-
+# Current State — 2026-04-11
 
 ## What Changed This Session
-- Ported `REFINE_STRATEGIC_POSTURE_RULE` from debates repo into `scripts/debate.py` — prevents conservative drift during refinement (hedge words, "study further" retreat)
-- Added false precision / timeline grounding rules to `config/prompts/explore-diverge.md` and `config/prompts/explore-synthesis.md` — timelines must cite evidence or say "depends on [X]"
-- Added phase-gate padding challenge to both explore prompts and the strategic posture rule — each rollout phase must produce a decision signal
-- Cleaned `/debate` SKILL.md: removed process narration leaks (internal rationale, "update pipeline manifest", cost estimates), collapsed Step 3b to silent instruction
-- Added auto-run pre-flight to `/debate` — Claude can self-seed pre-flight when it has enough context instead of interrogating the user
-- Saved feedback memory: don't narrate skill internals to user
+- Redesigned explore mode to be domain-agnostic (was product-market-only)
+- Pre-flight now infers domain and derives divergence dimensions adaptively (no 3-bucket menu)
+- Direction 2 forced to differ on mechanism; Direction 3 forced to challenge premise
+- Strategic questions made adaptive (Why now + Workaround required; others optional)
+- Ran 8 experiments across product, engineering, org, research, strategy, process, multi-domain, career
+- 5 rounds of prompt iteration — non-product questions improved from 3.4-3.8 to 4.4+ avg
+- Cross-model refined the proposal (6 rounds: Gemini, GPT, Claude)
 
 ## Current Blockers
 - None identified
 
 ## Next Action
-Update gstack 0.14.5.0 → 0.16.3.0 and create `scripts/browse.sh` (carried over from prior sessions).
+Run a real `/debate --explore` end-to-end on an actual problem to verify the adaptive pre-flight works in conversation (experiments tested the engine directly, not the SKILL.md interaction flow)
 
 ## Recent Commits
-7fdb17d [auto] Session work captured 2026-04-10 23:50 PT
-a2fc7a1 [auto] Session work captured 2026-04-10 23:47 PT
-bfd9cd5 [auto] Session work captured 2026-04-10 23:45 PT
+0ac3fb4 Domain-agnostic explore mode: adaptive dimensions, premise-challenge, 8-domain validation
+c026528 [auto] Session work captured 2026-04-11 00:11 PT
+f6ca96a Session wrap 2026-04-10: debate anti-conservatism + narration cleanup
