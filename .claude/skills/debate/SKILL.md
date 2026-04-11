@@ -1,21 +1,20 @@
 ---
 name: debate
-description: "Multi-model thinking: smart-routes to validate (adversarial review), pressure-test (strategic challenge), explore (divergent options), or pre-mortem (failure analysis). Includes pre-flight questions to break default framing. Use for decisions, strategy, and design uncertainty."
+description: "Multi-model thinking: smart-routes to validate (adversarial review), pressure-test (strategic challenge or pre-mortem), or explore (divergent options). Includes pre-flight questions to break default framing. Use for decisions, strategy, and design uncertainty."
 user-invocable: true
 ---
 
 # /debate — Multi-Model Thinking
 
-Smart-routed multi-model thinking. One entry point, multiple modes. Includes a pre-flight step that asks the right questions before running the AI — because the framing matters more than the model.
+Smart-routed multi-model thinking. One entry point, three modes. Includes a pre-flight step that asks the right questions before running the AI — because the framing matters more than the model.
 
 ## Modes
 
 | Mode | What it does | Models | Cost |
 |------|-------------|--------|------|
 | **validate** | Adversarial review: challenge → judge → refine | Multi-model (3 families) | ~$0.20-0.75 |
-| **pressure-test** | Strategic counter-thesis and honest take | Single-model | ~$0.03-0.08 |
+| **pressure-test** | Strategic counter-thesis (default) or pre-mortem failure analysis (`--frame premortem`) | Single-model | ~$0.03-0.08 |
 | **explore** | 3 divergent directions + synthesis | Single-model (3 rounds + synth) | ~$0.10-0.20 |
-| **pre-mortem** | Assume it failed, write the post-mortem | Single-model | ~$0.03-0.08 |
 
 ## Procedure
 
@@ -23,18 +22,19 @@ Smart-routed multi-model thinking. One entry point, multiple modes. Includes a p
 
 Parse the user's input:
 
-- If the user provided an explicit mode (`/debate --validate`, `/debate --pressure-test`, `/debate --explore`, `/debate --pre-mortem`), use it.
+- If the user provided an explicit mode (`/debate --validate`, `/debate --pressure-test`, `/debate --explore`), use it. For pre-mortem, use `/debate --pressure-test --frame premortem`.
 - If the input is a **question** (string, not a file path): → **explore**
 - If the input is a **file** with code diffs or implementation details: → **validate**
 - If the input is a **file** with thesis, strategy, or product recommendations: → **pressure-test**
+- If the user says "pre-mortem", "why will this fail", or "failure analysis": → **pressure-test** with `--frame premortem`
 - If ambiguous, show the user the options and ask:
 
 ```
 This could go several ways:
 1. **validate** — adversarial review (find flaws in the proposal)
 2. **pressure-test** — strategic challenge (is this the right thing to build?)
-3. **explore** — divergent thinking (what are the options?)
-4. **pre-mortem** — failure analysis (why will this fail?)
+3. **pressure-test --frame premortem** — failure analysis (why will this fail?)
+4. **explore** — divergent thinking (what are the options?)
 
 Which mode?
 ```
@@ -49,7 +49,7 @@ Store as `TOPIC`.
 
 ### Step 3: Pre-flight discovery (explore and pressure-test only)
 
-**Skip this step for validate and pre-mortem modes.** Validate works on concrete artifacts. Pre-mortem takes a plan as-is.
+**Skip this step for validate mode.** Validate works on concrete artifacts. For pressure-test with `--frame premortem`, pre-flight is optional (the plan is usually concrete enough).
 
 For explore and pressure-test, the framing determines the output quality. Bad framing produces sophisticated variations on the wrong answer. 2-5 minutes of upfront discovery is worth it.
 
@@ -174,15 +174,16 @@ Display the output to the user directly in the conversation (not just to a file)
 
 Update pipeline manifest.
 
-#### Mode: pre-mortem
+#### Mode: pressure-test --frame premortem
 
-Single-model prospective failure analysis.
+Same as pressure-test but with a pre-mortem prompt: assumes the plan failed and writes the post-mortem from the future.
 
 **Require plan:** `tasks/<topic>-proposal.md` or `tasks/<topic>-plan.md` must exist.
 
 ```bash
-python3.11 scripts/debate.py pre-mortem \
-  --plan tasks/<topic>-proposal.md \
+python3.11 scripts/debate.py pressure-test \
+  --proposal tasks/<topic>-proposal.md \
+  --frame premortem \
   --output tasks/<topic>-premortem.md
 ```
 
@@ -204,15 +205,15 @@ Display:
 ```
 
 For validate mode, suggest: "Build the implementation, then run `/review <topic>`"
-For pressure-test, suggest: "Revise the proposal based on the counter-thesis, or proceed if the thesis holds"
+For pressure-test (challenge frame), suggest: "Revise the proposal based on the counter-thesis, or proceed if the thesis holds"
+For pressure-test (premortem frame), suggest: "Address the top failure scenarios in your plan before proceeding"
 For explore, suggest: "Pick a direction and write it up as `tasks/<topic>-proposal.md`, then `/debate --pressure-test` or `/debate --validate`"
-For pre-mortem, suggest: "Address the top failure scenarios in your plan before proceeding"
 
 ## Degraded Mode
 
 Each mode fails gracefully:
 - **validate**: each stage is independently valuable (challenge only, challenge + judgment, all three)
-- **pressure-test / explore / pre-mortem**: single call, no partial state
+- **pressure-test / explore**: single call, no partial state
 
 Stop at the step that fails. Partial artifacts are valid.
 
