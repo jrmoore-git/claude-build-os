@@ -1,44 +1,47 @@
 # Handoff — 2026-04-10
 
 ## Session Focus
-Implemented and shipped Audit Batch 2 — structural cleanup of dead audit.db references, contract test rewrite for BuildOS, and new unit test coverage.
+Evaluated gstack (Garry Tan's Claude Code framework) vs BuildOS. Identified browser suite as the high-value complement — not the skills (mostly duplicates or weaker than ours).
 
 ## Decided
-- None (cleanup session, no new architectural decisions)
+- gstack's browser suite is the main thing worth leveraging — `/browse`, `/setup-browser-cookies`, `/qa`, `/qa-only`, `/benchmark`, `/canary`, `/connect-chrome`
+- No skill conflicts for browser skills (no BuildOS name collisions)
+- BuildOS keeps its own versions of overlapping skills (`/review`, `/ship`, `/autoplan`, `/design-*`, `/doc-sync`) — ours are stronger (cross-model debate, hook enforcement)
+- For Jarvis: browser value is authenticated web browsing for meeting prep, deal research, article extraction. Four prerequisites from web-search-tooling debate must close first.
+- For BuildOS: browser value is web app QA testing, perf benchmarks, post-deploy canary, design review
 
-## Implemented
-- Stripped audit.db code from debate_tools.py (2 functions, sqlite3 import, 2 tool definitions removed)
-- Rewrote operational-context.md and /status skill to reference debate-log.jsonl with correct field names (phase/debate_id)
-- Rewrote 6 contract tests: version_pinning, rollback, idempotency, audit_completeness, degraded_mode, artifact_validation
-- Deleted 3 downstream-only contract tests: approval_gating, exactly_once_scheduling, state_machine
-- Created test_llm_client.py (11 tests for error handling, credential safety)
-- Fixed setup.sh cp→ln -sf bug for pre-commit hook idempotency
-- Updated CLAUDE.md Essential Eight annotation (6 of 8 apply, 3 struck through)
-- Cross-model review (2/3 models), found and fixed mode→phase field mismatch
-- Shipped: all hard gates pass
+## Current State of gstack Install
+- gstack cloned at `~/.claude/skills/gstack/` — version 0.14.5.0 (current upstream: 0.16.3.0)
+- Browse + design binaries built and executable (~58MB each)
+- `BROWSE_CLI` and `DESIGN_CLI` env vars set in ~/.zshrc
+- Browse daemon running (PID 68623, since Apr 2)
+- **Missing: `scripts/browse.sh`** — wrapper needed by `/design-review` and `/design-consultation`
 
-## NOT Finished
-- deploy_all.sh needs customization for BuildOS (Steps 2-4 are TODO templates, no API server/frontend)
-- Audit findings 11-13 (from original audit) not yet addressed
-- `/define discover` live test still pending (carried over)
+## NOT Finished (carried over + new)
+- **Update gstack 0.14.5.0 → 0.16.3.0** — gets browser data platform (`scrape`, `data`, `media`, network interception)
+- **Create `scripts/browse.sh`** — thin wrapper around `$BROWSE_CLI`, fixes two broken skills
+- **Jarvis browser prerequisites** (scope in Jarvis project, not here): prompt injection mitigations, audit logging, outbound query policy, web_search.py spike closure
+- deploy_all.sh customization for BuildOS (carried over)
+- Audit findings 11-13 (carried over)
+- `/define discover` live test (carried over)
 
 ## Next Session Should
-1. Customize deploy_all.sh to skip inapplicable steps (or gate behind existence checks)
-2. Address remaining audit findings (11-13) if any are still relevant
-3. Test `/define discover` end-to-end on a real project
+1. Read this handoff + the gstack evaluation context below
+2. Update gstack to 0.16.3.0 and create `scripts/browse.sh`
+3. Test `/browse` and `/qa` on a real target to verify the suite works end-to-end
+4. Then pick up carried-over items (deploy_all.sh, /define discover test)
 
-## Key Files Changed
-scripts/debate_tools.py
-.claude/rules/reference/operational-context.md
-.claude/skills/status/SKILL.md
-.claude/skills/challenge/SKILL.md
-CLAUDE.md
-setup.sh
-tests/contracts/helpers.sh
-tests/contracts/test_*.sh (6 rewritten, 3 deleted)
-tests/test_llm_client.py
-tasks/audit-batch2-review.md
-tasks/lessons.md
+## gstack Evaluation Summary (for next session context)
+- gstack = 30 skills + headless browser daemon. 69K GitHub stars. MIT licensed.
+- 8 skills duplicate BuildOS (we're stronger on all 8). ~20 are complementary.
+- Browser suite = the real value. 50+ commands, ~100ms/call, persistent Chromium, cookie import, network interception.
+- gstack shipped 35 commits last week: browser data platform (v0.16), security hardening (22 fixes), multi-host platform, adaptive review gating.
+- BuildOS advantages: hook enforcement, cross-model adversarial debate, graduated pipeline tiers, lesson promotion. These don't exist in gstack.
+- Architecture difference: gstack trusts prompts, BuildOS trusts hooks. Complementary, not competing.
 
-## Doc Hygiene Warnings
-None — lessons.md updated with L17 (field name mismatch pattern)
+## Key Files
+scripts/setup-design-tools.sh (gstack installer)
+~/.claude/skills/gstack/ (gstack install dir)
+.claude/skills/design-shotgun/SKILL.md (uses $DESIGN_CLI, $BROWSE_CLI)
+.claude/skills/design-review/SKILL.md (references missing scripts/browse.sh)
+.claude/skills/design-consultation/SKILL.md (references missing scripts/browse.sh)

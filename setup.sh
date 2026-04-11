@@ -194,7 +194,25 @@ mkdir -p stores
 info "stores/:" "ready"
 
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-# 9. Write .buildos-config
+# 9. Install design tools (optional)
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+if [[ -x "${DESIGN_CLI:-}" ]] && [[ -x "${BROWSE_CLI:-}" ]]; then
+  ok "Design tools:" "already installed"
+elif [[ -x "$PROJECT_ROOT/scripts/setup-design-tools.sh" ]]; then
+  echo ""
+  info "Design tools:" "installing (needed for /design-shotgun)..."
+  if "$PROJECT_ROOT/scripts/setup-design-tools.sh"; then
+    ok "Design tools:" "installed"
+  else
+    warn "Design tools:" "install failed (design skills unavailable, everything else works)"
+  fi
+else
+  warn "Design tools:" "setup script missing"
+fi
+
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+# 10. Write .buildos-config
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 SETUP_DATE="$(date +%Y-%m-%d)"
@@ -210,7 +228,7 @@ CONF
 info "Config:" ".buildos-config written"
 
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-# 10. Preflight check
+# 11. Preflight check
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 echo ""
@@ -251,7 +269,7 @@ else
 fi
 
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-# 11. Summary
+# 12. Summary
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 echo ""
