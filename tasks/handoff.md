@@ -1,31 +1,27 @@
 # Handoff — 2026-04-10
 
 ## Session Focus
-Added interactive PRD generation to `/define discover` so team members walk out of problem discovery with a complete, best-practices PRD instead of a blank template.
+Ran pipeline quality tests end-to-end, fixed test infrastructure issues, and added per-stage timing instrumentation to debate.py.
 
 ## Decided
-- D10: `/define discover` generates the PRD from the design doc conversation (3 paths: generate, validate draft, skip)
-- PRD template expanded to 9 sections based on research (acceptance criteria, constraints, verification plan added)
+- None (implementation of already-decided observer recommendations #1 and #3)
 
 ## Implemented
-- Phase 6.5 added to `.claude/skills/define/SKILL.md` with generation mapping, 3 gap-filling questions, and draft validation path
-- `docs/project-prd.md` template updated from 6 to 9 sections with guidance text
+- Fixed `tests/run_pipeline_quality.sh`: stdout/stderr separation for all debate.py commands, grep pipefail guards
+- Added `import time` and per-stage timing to `scripts/debate.py`: per-challenger elapsed time with tool call count, consolidation+verification phase, judge call
+- Verified evidence tag enforcement is solid (prompt-level + judge-level weighting) — no code changes needed
 
 ## NOT Finished
-- Getting-started guide, cheat sheet, and worked example (discussed but not built)
-
-## Tested
-- PRD generation tested via worktree agent with fictional "Pulse" project — 8/8 quality criteria passed
-- Found and fixed 2 gaps: Open Questions silently dropped, Distribution Plan unmapped
+- Onboarding docs (getting-started, cheat-sheet, examples)
+- Managed agents dispatch design (scratch files in tasks/)
 
 ## Next Session Should
-1. Consider building the onboarding docs discussed: getting-started.md, cheat-sheet.md, examples/
-2. Test `/define discover` interactively on a real project (the worktree test simulated answers — real user interaction not yet tested)
+1. Build onboarding docs or tackle managed-agents dispatch design
+2. Run pipeline quality tests again to see timing output in action
 
 ## Key Files Changed
-.claude/skills/define/SKILL.md
-docs/project-prd.md
-tasks/decisions.md
+scripts/debate.py
+tests/run_pipeline_quality.sh
 
 ## Doc Hygiene Warnings
 None

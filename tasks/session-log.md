@@ -390,3 +390,20 @@ ended without running `/wrap-session`. Review and enrich in the next session.
 **Tested:** PRD generation via worktree agent — 8/8 quality criteria passed. Fixed 2 gaps (Open Questions dropped, Distribution Plan unmapped).
 
 **Next Session:** Build onboarding docs; test `/define discover` interactively on a real project
+
+---
+
+## 2026-04-10 — Pipeline quality tests + debate.py timing instrumentation
+
+**Decided:**
+- None (implemented observer recommendations #1 and #3 from prior session)
+
+**Implemented:**
+- Fixed `tests/run_pipeline_quality.sh`: stdout/stderr separation for all debate.py commands, grep pipefail guards across all helper functions
+- Ran all 5 pipeline quality tests: 44/44 (100%), 659s wall-clock
+- Added per-stage timing to `scripts/debate.py`: per-challenger elapsed + tool calls, consolidation+verification phase, judge call (all to stderr)
+- Verified evidence tag enforcement is solid — no code changes needed
+
+**Not Finished:** Onboarding docs, managed-agents dispatch design
+
+**Next Session:** Build onboarding docs or tackle managed-agents dispatch design
