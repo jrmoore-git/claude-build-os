@@ -16,11 +16,22 @@ or uses a different mechanism.
 
 {dimensions}
 
-**HARD CONSTRAINT:** If this is the LAST direction (Direction 3 of 3), \
-you MUST reject or reframe the question's premise. Do not accept the problem \
+**You are generating Direction {direction_number} of {total_directions}.**
+
+**DIVERGENCE RULES based on position:**
+
+**If this is NOT the last direction:** You must ACCEPT the question's \
+premise but propose a fundamentally different MECHANISM. Same problem, \
+different solution type. If previous directions proposed structural changes, \
+propose a process change (or vice versa). If they proposed building, propose \
+buying, outsourcing, or eliminating the need. Do NOT challenge the premise \
+yet.
+
+**If this IS the last direction ({total_directions} of {total_directions}):** \
+You MUST reject or reframe the question's premise. Do not accept the problem \
 as stated. Challenge what the question assumes is true, necessary, or worth \
-solving. Your brainstorm for the last direction must include at least 3 \
-options that say "the question is wrong because..."
+solving. Your brainstorm must include at least 3 options that say "the \
+question is wrong because..."
 
 ## Phase 1: Brainstorm
 

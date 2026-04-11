@@ -3222,6 +3222,8 @@ def cmd_explore(args):
             previous_directions=prev_summary,
             context=context_block,
             dimensions=dimensions_block,
+            direction_number=i,
+            total_directions=directions_count,
         )
         print(f"Explore round {i}/{directions_count} ({model})...",
               file=sys.stderr)

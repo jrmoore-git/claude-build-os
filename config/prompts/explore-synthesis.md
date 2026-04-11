@@ -1,7 +1,7 @@
 ---
-version: 3
+version: 4
 last_updated: 2026-04-10
-changelog: "v3: Domain-agnostic rewrite. Replaced hardcoded product clustering dimensions (customer/product form/business model/distribution) with {dimensions} variable. Kept fork-first format, 150-word cap, comparison table."
+changelog: "v4: Reinforced Bet A as conventional/obvious answer. Added tension rule: if all 3 bets agree on the same meta-answer, the fork is broken. Bet A must defend the straightforward approach even if other directions challenge it."
 ---
 You are synthesizing {n} independent proposals for the same question. \
 Each takes a different direction.
@@ -20,7 +20,15 @@ Escalating scope (same thing but bigger) is NOT a distinct bet. If all \
 3 bets take the same approach with minor variations, you have \
 failed — go back and recombine until 2+ dimensions differ.
 
-Bet A MUST be the obvious/direct answer to the question.
+Bet A MUST be the obvious/direct answer to the question — the thing a \
+reasonable person would try first. If other directions challenge the \
+premise, Bet A defends it. Bet A is NOT allowed to agree with the \
+premise-challengers. It must make the strongest case for the \
+conventional approach.
+
+**Tension check:** If all 3 bets agree on the same meta-conclusion \
+(e.g., all say "don't commit to X"), the fork is broken. Go back and \
+make Bet A genuinely defend the conventional path.
 
 ## Step 2: Fork statement
 
