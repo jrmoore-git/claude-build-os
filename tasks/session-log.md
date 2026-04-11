@@ -371,3 +371,20 @@ ended without running `/wrap-session`. Review and enrich in the next session.
 - **tests/**: results.json, pm-stderr.log, pm-stdout.log, premortem.md, pressure-test.md, pt-stderr.log, pt-stdout.log, test5-convergence, timing.log
 
 **Auto-committed:** 2026-04-10 20:36 PT
+
+---
+
+## 2026-04-10 — PRD generation added to /define discover
+
+**Decided:**
+- D10: `/define discover` generates PRD from design doc conversation (generate, validate draft, or skip)
+- PRD template expanded 6 → 9 sections based on Claude/AI best practices research
+
+**Implemented:**
+- Phase 6.5 in `/define` skill: PRD generation mapping, 3 gap-filling questions (acceptance criteria, constraints, verification), draft validation path
+- `docs/project-prd.md` template: added acceptance criteria, constraints, verification plan sections with guidance text
+- Decision D10 recorded in decisions.md
+
+**Not Finished:** End-to-end test of Phase 6.5; onboarding docs (getting-started, cheat-sheet, examples) discussed but not built
+
+**Next Session:** Test `/define discover` end-to-end with Phase 6.5 on a real project
