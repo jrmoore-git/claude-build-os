@@ -9,6 +9,9 @@ Thumbs.db
 .vscode/
 .idea/
 
+# Claude Code runtime
+.claude/worktrees/
+
 # Environment and secrets
 .env
 .env.*
