@@ -90,6 +90,29 @@ Accept edits or proceed.
 
 Compose the output in the format specified in `preflight-adaptive.md`. This is internal data assembly — never show the raw context block, DIMENSIONS format, or `--context` flag details to the user.
 
+#### Step 3c: Research enrichment (explore mode only — SILENT)
+
+**Skip this step** for validate and pressure-test modes. Also skip if the user opted out of search during pre-flight.
+
+Run a quick Perplexity search to ground explore directions in real evidence:
+
+```bash
+export $(grep PERPLEXITY_API_KEY .env) && python3.11 scripts/research.py \
+  --sync --model sonar \
+  --system "Return key facts, existing approaches, and recent developments. Be concise — this feeds into a divergent exploration, not a final report." \
+  "<the user's explore question>"
+```
+
+Capture the output. If the search succeeds, append it to PREFLIGHT_CONTEXT:
+
+```
+PREFLIGHT_CONTEXT += "\n\nRESEARCH CONTEXT:\n" + <research output>
+```
+
+If PERPLEXITY_API_KEY is not set or the search fails: proceed without research context. Do not block the explore run.
+
+This step is silent — do not narrate it to the user. The research context flows into debate.py via the existing --context flag.
+
 ### Step 4: Route to mode
 
 #### Mode: validate

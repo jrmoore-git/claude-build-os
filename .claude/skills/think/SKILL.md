@@ -334,7 +334,7 @@ understanding conventional wisdom so you can evaluate where it's wrong.
 **Privacy gate:** Before searching, use AskUserQuestion:
 > I'd like to search for what the world thinks about this space to inform our
 > discussion. This sends generalized category terms (not your specific idea) to
-> a search provider. OK to proceed?
+> a search provider (Perplexity). OK to proceed?
 > A) Yes, search away
 > B) Skip -- keep this session private
 
@@ -344,32 +344,34 @@ When searching, use **generalized category terms** -- never the user's specific 
 name, proprietary concept, or stealth idea. For example, search "task management app
 landscape" not "SuperTodo AI-powered task killer."
 
-Use `web_search.py` for research. Run searches via Bash with env var injection:
-
+**Product mode:** Run via Bash:
 ```bash
-YOU_COM_API_KEY="$YOU_COM_API_KEY" /opt/homebrew/bin/python3.11 scripts/web_search.py search "query here" --num 5
+export $(grep PERPLEXITY_API_KEY .env) && python3.11 scripts/research.py \
+  --sync --model sonar \
+  --system "Return a concise landscape overview: key players, common approaches, known failure modes, and recent trends. No marketing language." \
+  -o tasks/<topic>-landscape.md \
+  "[problem space] landscape: existing approaches, common mistakes, why incumbents fail or succeed"
 ```
 
-If `YOU_COM_API_KEY` is not set or search fails, fall back to Claude's built-in WebSearch tool:
+**Builder mode:** Run via Bash:
+```bash
+export $(grep PERPLEXITY_API_KEY .env) && python3.11 scripts/research.py \
+  --sync --model sonar \
+  --system "Return a concise landscape overview: existing solutions, open source alternatives, and best current approaches. No marketing language." \
+  -o tasks/<topic>-landscape.md \
+  "[thing being built] existing solutions and open source alternatives"
 ```
-WebSearch("query here")
-```
-If WebSearch is also unavailable, note: "Search unavailable -- proceeding with in-distribution knowledge only."
 
-**Product mode:** Search for:
-- "[problem space] startup approach {current year}"
-- "[problem space] common mistakes"
-- "why [incumbent solution] fails" OR "why [incumbent solution] works"
+Replace `<topic>` with the actual topic slug. Replace bracketed query terms with
+generalized category terms derived from the user's problem statement.
 
-**Builder mode:** Search for:
-- "[thing being built] existing solutions"
-- "[thing being built] open source alternatives"
-- "best [thing category] {current year}"
+**Fallback:** If `PERPLEXITY_API_KEY` is not set in `.env` or `research.py` fails,
+note: "Research unavailable -- proceeding with in-distribution knowledge only." and
+continue to Phase 3.
 
-Parse the JSON results (`.results[].title`, `.results[].snippet`, `.results[].url`).
-Run the three-layer synthesis:
+Read the research output from `tasks/<topic>-landscape.md` and run the three-layer synthesis:
 - **[Layer 1]** What does everyone already know about this space?
-- **[Layer 2]** What are the search results and current discourse saying?
+- **[Layer 2]** What did the research surface about current discourse, key players, and approaches?
 - **[Layer 3]** Given what WE learned in Phase 2A/2B -- is there a reason the conventional approach is wrong?
 
 **Eureka check:** If Layer 3 reasoning reveals a genuine insight, name it: "EUREKA:
@@ -383,8 +385,8 @@ on it." Proceed to Phase 3.
 conventional approach fails, those become premises to challenge. If conventional wisdom
 is solid, that raises the bar for any premise that contradicts it.
 
-**Landscape write:** Write research findings to `tasks/<topic>-landscape.md` so
-downstream skills (/elevate, /design-consultation) can reuse without repeating research.
+**Landscape write:** `research.py -o` writes findings directly to `tasks/<topic>-landscape.md`.
+Downstream skills (/elevate, /design-consultation) can reuse without repeating research.
 
 ---
 

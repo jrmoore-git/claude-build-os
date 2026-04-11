@@ -1,21 +1,24 @@
 # Current State — 2026-04-11
 
+## ⚠ STALE — auto-captured session ended without /wrap-session
+**Auto-capture date:** 2026-04-11 10:42 PT
+**Files changed this session:** 3 files in tasks
+**WARNING:** The "Next Action" below may be outdated. Cross-check with `git log --oneline -10` and recent session-log entries.
+
+
 ## What Changed This Session
-- Redesigned explore mode to be domain-agnostic (was product-market-only)
-- Pre-flight now infers domain and derives divergence dimensions adaptively (no 3-bucket menu)
-- Direction 2 forced to differ on mechanism; Direction 3 forced to challenge premise
-- Strategic questions made adaptive (Why now + Workaround required; others optional)
-- Ran 8 experiments across product, engineering, org, research, strategy, process, multi-domain, career
-- 5 rounds of prompt iteration — non-product questions improved from 3.4-3.8 to 4.4+ avg
-- Cross-model refined the proposal (6 rounds: Gemini, GPT, Claude)
+- Designed explore intake flow: 5-track routing question ("What do you want to think through?") with fixed forcing questions per track, inspired by gstack's office-hours pattern
+- Decided on hybrid approach: fixed question backbone (5 per track) + adaptive delivery from existing preflight-adaptive.md
+- Tracks: Building something new, Fixing what's broken, Making a decision, Rethinking an approach, Research/refining thinking
+- Researched gstack's office-hours and CEO-review intake patterns for reference
 
 ## Current Blockers
 - None identified
 
 ## Next Action
-Run a real `/debate --explore` end-to-end on an actual problem to verify the adaptive pre-flight works in conversation (experiments tested the engine directly, not the SKILL.md interaction flow)
+Implement the 5-track fixed question sets in `config/prompts/preflight-tracks.md` and wire into the adaptive preflight protocol
 
 ## Recent Commits
+d8ea71c Session wrap 2026-04-11: domain-agnostic explore mode, 8-domain validation
 0ac3fb4 Domain-agnostic explore mode: adaptive dimensions, premise-challenge, 8-domain validation
 c026528 [auto] Session work captured 2026-04-11 00:11 PT
-f6ca96a Session wrap 2026-04-10: debate anti-conservatism + narration cleanup
