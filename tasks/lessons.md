@@ -12,7 +12,7 @@ Mistakes, surprises, and patterns worth remembering. Each entry is a lesson lear
 |---|---|---|---|
 | L10 | Adversarial process injects its own risk preferences when no posture is specified — security dominated output when user wanted speed | Pipeline over-rotated on security controls in a speed-focused analysis | Use --security-posture flag; default to 2 for product work, 4 for infra/auth |
 | L11 | Adversarial validation produces bug lists when applied to strategic questions — wrong cognitive tool for the job | Strategic debate: challengers grepped codebase to verify file counts instead of pressure-testing the business thesis | Match the thinking mode to the question type: validate for implementation, pressure-test for strategy, explore for options |
-| L12 | Multi-model doesn't beat single-model for divergent thinking — prompt design is the variable, not model diversity | 3 different models converged on same direction; 1 model asked 3x with forced divergence produced genuinely different output | Reserve multi-model for review/judging (proven). Use single-model with better prompts for thinking modes. |
+| L16 | Multi-model doesn't beat single-model for divergent thinking — prompt design is the variable, not model diversity | 3 different models converged on same direction; 1 model asked 3x with forced divergence produced genuinely different output | Reserve multi-model for review/judging (proven). Use single-model with better prompts for thinking modes. |
 | L13 | LLMs skip the obvious-but-correct answer when prompted to be "interesting" or "creative" — novelty bias | Explore prompt said "pick the most interesting direction." Model brainstormed the right answer as option #1 but developed option #7 instead | Prompt for "most likely to succeed" not "most interesting." Or present multiple options and let human pick. |
 | L14 | The framing of the input determines the solution space more than the prompt or model — garbage frame in, garbage options out | Every explore run with a narrow frame produced narrow variations. Pre-flight reframe produced completely different directions | Pre-flight discovery conversation is the highest-leverage intervention. Better framing > better prompts > better models. |
 | L15 | 5 questions dumped at once feels like a form, not a conversation — users reject it | Built v1 pre-flight as numbered list of 5 questions. User said "these are weird questions" and didn't engage | One question at a time, adapted to prior answers. GStack style. Max 4 questions. |
@@ -27,4 +27,4 @@ Before promoting a lesson, state how you would catch a violation of the resultin
 
 | # | Promoted to | Date |
 |---|---|---|
-| L12 | `.claude/rules/security.md` — "Use HttpOnly cookies, never auth in URLs" | 2026-03-01 |
+| L12 (original) | `.claude/rules/security.md` — "Use HttpOnly cookies, never auth in URLs" | 2026-03-01 |

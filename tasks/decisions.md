@@ -6,6 +6,24 @@ Settled architectural and product decisions. Each entry records what was decided
 
 ---
 
+### D1: BuildOS is Python + Shell, no JavaScript — framework matches the Claude Code harness language
+**Decision:** All scripts use Python 3.11+ and Bash. No JS/TS runtime. Skills are Markdown files with YAML frontmatter, not code modules.
+**Rationale:** Claude Code's harness runs on Node but skills are prompt documents, not executable code. Python handles all scripting (debate engine, hooks, toolbelt). Shell handles orchestration (deploy, test runners, git hooks). Adding JS would create a second runtime for no gain.
+**Alternatives considered:** (a) TypeScript for type-safe tooling (rejected: Python's subprocess/sqlite3 stdlib covers all needs), (b) Pure shell (rejected: debate engine complexity exceeds shell's maintainability threshold)
+**Date:** 2026-03-01
+
+### D2: Cross-model debate via LiteLLM proxy, not direct API calls
+**Decision:** All multi-model calls route through a local LiteLLM proxy at localhost:4000. Scripts use `llm_client.py` which calls the proxy. Direct API calls to Anthropic/OpenAI/Google are prohibited in application code.
+**Rationale:** Cross-model debate requires calling Claude, GPT, and Gemini from the same codebase. Direct API calls mean 3 different SDKs with different auth, retry, and error patterns. LiteLLM provides a unified OpenAI-compatible interface with model routing, fallbacks, and cost tracking in one place.
+**Alternatives considered:** (a) Direct SDK calls per provider (rejected: 3x auth/retry complexity), (b) Anthropic's model routing (rejected: doesn't cover non-Anthropic models), (c) Cloud-hosted LiteLLM (rejected: adds latency and external dependency for local dev)
+**Date:** 2026-03-01
+
+### D3: Skills are SKILL.md prompt documents, not executable code modules
+**Decision:** Each skill is a Markdown file (`.claude/skills/<name>/SKILL.md`) with YAML frontmatter and a procedure section. The Claude Code harness loads and executes them as prompts. Skills do not import each other or share code — shared logic lives in `scripts/`.
+**Rationale:** Skills are instructions for Claude, not programs. Making them Markdown keeps them readable, auditable, and editable without a build step. Code reuse happens at the script layer (debate.py, llm_client.py), not the skill layer.
+**Alternatives considered:** (a) Python skill modules with decorators (rejected: over-engineering for prompt documents), (b) YAML-only skills (rejected: procedures need freeform text that YAML makes awkward), (c) Skills that import shared skill libraries (rejected: creates hidden coupling between prompt documents)
+**Date:** 2026-03-01
+
 ### D4: Security posture is a user choice via --security-posture flag, not a pipeline default
 **Decision:** Add `--security-posture` (1-5) to `debate.py`. At 1-2, security findings are advisory-only and PM is the final arbiter. At 4-5, security can block. Default: 3 (balanced). Skills ask the user before running.
 **Rationale:** A velocity-focused analysis spent significant pipeline capacity injecting security controls (egress policies, approval gates, credential rotation) into a speed-focused recommendation. Security was over-rotating as the de facto final arbiter when PM should have been.
