@@ -710,8 +710,15 @@ because `/define discover` doesn't ask about them directly.
 | Target User / Desperate Specificity (Q3) | **2. Who it's for** — specific person with role, not a category |
 | Narrowest Wedge (Q4) + recommended approach | **3. Core requirements** — numbered, each starts with "Users can..." or "The system..." |
 | Rejected approaches + explicit scope boundaries | **6. Out of scope** — what this does NOT do, including things AI might add |
-| Recommended Approach + key technical choices | **7. Technical decisions** — link to design doc for detail |
+| Recommended Approach + key technical choices | **7. Technical decisions** — link to design doc for detail. Fold Distribution Plan here if present. |
 | Success Criteria from design doc | **8. Success criteria** — measurable and time-bound, not aspirational |
+
+**Open Questions handling:** If the design doc has an "Open Questions" section with
+unresolved items, surface each one during PRD Q1-Q3 follow-ups where relevant. For
+example, an open question about "notification method" should be raised during PRD Q2
+(Constraints) or PRD Q1 (Acceptance Criteria). Any open questions that remain unresolved
+after the follow-ups go into a `## Open Questions` appendix at the end of the PRD —
+do not silently drop them.
 
 **Step 2: Ask follow-up questions for gaps.** Ask ONE AT A TIME via AskUserQuestion.
 Prefix each with `[PRD Q N/3]`. Smart-skip any question the design doc already answers.
