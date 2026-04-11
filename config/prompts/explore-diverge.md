@@ -1,7 +1,7 @@
 ---
-version: 2
+version: 4
 last_updated: 2026-04-10
-changelog: "v2: Tightened divergence to require 2+ of customer/product-form/business-model/distribution to differ. Aligned with synthesis prompt v2."
+changelog: "v4: Premise-challenge constraint added — last direction MUST reject or reframe the question. Dimension enforcement tightened to explicit 3-of-N check. ERRC grid made optional (use when it adds insight). Questions adapted: keep Why now + Workaround (universal), 10x/analogy optional."
 ---
 You will be given a question or problem statement. Previous directions have \
 already been proposed.
@@ -10,27 +10,24 @@ PREVIOUS DIRECTIONS (you must NOT repeat or lightly vary any of these):
 
 {previous_directions}
 
-You must propose something STRUCTURALLY different. Not a cosmetic variation.
+You must propose something STRUCTURALLY different. Not a cosmetic variation — \
+a direction that makes different assumptions, targets different outcomes, \
+or uses a different mechanism.
 
-To ensure real divergence, at least 3 of these 5 dimensions must differ \
-from ALL previous directions:
+{dimensions}
 
-1. **Customer segment** — who pays? (solo dev, CTO, consultancy, vendor, \
-enterprise buyer, non-technical user)
-2. **Revenue model** — how do they pay? (subscription, licensing, services, \
-per-seat, usage-based, free+premium)
-3. **Distribution channel** — how do they find it? (direct, platform \
-marketplace, channel partner, content/SEO, embedded)
-4. **Product form** — what do they use? (CLI, web app, API, library, \
-service, content, community)
-5. **Wedge** — what single problem unlocks their wallet?
+**HARD CONSTRAINT:** If this is the LAST direction (Direction 3 of 3), \
+you MUST reject or reframe the question's premise. Do not accept the problem \
+as stated. Challenge what the question assumes is true, necessary, or worth \
+solving. Your brainstorm for the last direction must include at least 3 \
+options that say "the question is wrong because..."
 
 ## Phase 1: Brainstorm
 
-Before committing to a direction, brainstorm 6-8 options that satisfy the \
-structural divergence requirement above. For each, note which dimensions \
-differ. Include at least 2 that feel uncomfortable or contrarian. Do not \
-evaluate yet.
+Brainstorm 6-8 options that satisfy the divergence requirement. For each, \
+tag which dimensions differ from ALL previous directions. You need at \
+least 3 dimensions different. Include at least 2 that feel uncomfortable \
+or contrarian. Do not evaluate yet.
 
 ## Phase 2: Develop
 
@@ -38,25 +35,31 @@ Pick the most interesting and develop it fully.
 
 {context}
 
-Apply the **eliminate-reduce-raise-create grid** to your direction:
-- **Eliminate:** What does the current category assume is necessary that \
-your direction drops entirely?
-- **Reduce:** What does the category over-invest in that your direction \
-does just enough of?
-- **Raise:** What does the category under-invest in that your direction \
-makes central?
-- **Create:** What does your direction offer that nothing in the category \
-has today?
+**Optional: ERRC grid** — Use if it adds genuine insight for this type \
+of problem. Skip if it feels forced.
 
-Your direction must also answer:
-1. **Why now?** What changed that makes this possible?
-2. **What's the workaround?** What are users doing without this?
+| Eliminate | Reduce | Raise | Create |
+|-----------|--------|-------|--------|
+| ... | ... | ... | ... |
+
+Your direction must answer:
+1. **Why now?** What changed that makes this possible or necessary?
+2. **What's the workaround?** What are people doing without this?
+
+And optionally (use when they add insight, skip when they feel forced):
 3. **10x on which axis?** Name the one dimension.
-4. **Adjacent analogy:** Where did this pattern work in another market?
+4. **Adjacent analogy:** Where did this pattern work in another domain?
 
 Rules:
-- Be specific. Name the first customer, first use case, first dollar.
+- Be specific. Name the first concrete action, who it affects, what changes.
 - Do not hedge. Make your case.
+- Timelines must be grounded. If you state a duration ("6 months", "8 weeks"),
+  cite what takes that long and why. Comparable evidence ("Team X did similar
+  in Y weeks") beats invented estimates. If you don't have evidence for a
+  timeline, say "timeline depends on [specific unknown]" — not a fake number.
+- Do not invent multi-phase rollouts for comfort. Each phase must produce a
+  decision signal the previous phase couldn't. "Shadow mode → staging →
+  production" is three phases; justify why two wouldn't work.
 - Keep Phase 2 under 800 words.
 
 Output format:
@@ -75,7 +78,7 @@ Output format:
 [Why this is the right direction, answering the 4 questions above.]
 
 ## First Move
-[What you'd build or do first.]
+[What you'd do first.]
 
 ## Why This Beats the Alternatives
 [What's wrong with the obvious approaches AND the previous directions.]

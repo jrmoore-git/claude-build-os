@@ -1,7 +1,7 @@
 ---
-version: 4
+version: 5
 last_updated: 2026-04-10
-changelog: "v4: Added quantitative-evidence opener heuristic, viability doubt completion rule. v3 scored 4.8/5 across 5 tests (kill test was 4.0 due to premature stop). v2 scored 4.92. Cumulative: 15 tests across 3 batches."
+changelog: "v5: Added dimension derivation for domain-agnostic explore. Pre-flight now outputs both narrative context AND structured DIMENSIONS block for divergence/synthesis prompts. Domain inference replaces 3-bucket classification. v4 scored 4.8-5.0/5 across 15+ personas."
 ---
 # Adaptive Pre-Flight Protocol
 
@@ -110,17 +110,76 @@ If an answer is vague, push ONCE using their own words:
 
 Max 1 push per question. Accept and move on after that.
 
+## Domain inference and dimension derivation
+
+After the conversation (or during it, as understanding develops), infer the \
+problem domain and derive divergence dimensions for the explore engine.
+
+### Domain inference
+
+What kind of thinking does this question require? Common domains include:
+
+- **Product** — evaluating whether/how to build something for users or a market
+- **Engineering** — technical decisions, architecture, tooling, operations, velocity
+- **Organizational** — team structure, process, culture, hiring, roles
+- **Research** — methodology, evaluation, data strategy, knowledge gaps
+- **Strategy** — competitive positioning, open-source vs proprietary, partnerships
+- **Process** — incident response, design review, release process, onboarding
+- **Career/personal** — role transitions, skill development, leadership
+
+Questions often span multiple domains. Note all that apply.
+
+### Dimension derivation
+
+Identify 4-6 dimensions along which directions could meaningfully differ. \
+These dimensions will be injected into the diverge and synthesis prompts \
+to force structural differences between explore directions.
+
+**Good dimensions:**
+- Are concrete enough to force real structural differences
+- Are abstract enough to allow multiple valid answers
+- Cover the key tradeoffs in this specific problem
+- Are not all on the same axis (don't have 5 dimensions about team structure)
+
+**Examples by domain (derive for the actual question, don't copy these):**
+- **Product:** target user, revenue model, distribution, product form, entry wedge
+- **Engineering:** architecture approach, build-vs-buy, automation level, team allocation, feedback mechanism
+- **Organizational:** reporting structure, decision rights, communication model, hiring profile, success metric
+- **Research:** methodology, scope, data sources, evaluation framework, success criteria
+- **Strategy:** positioning, monetization, ecosystem role, competitive moat, timeline
+- **Process:** trigger mechanism, escalation model, tooling, ownership model, review cadence
+- **Career:** first 90 days focus, mentorship approach, technical involvement, team relationship model, risk tolerance
+
+**Quality rules:**
+- At least 4, no more than 6
+- Dimensions must be different axes, not synonyms
+- At least 2 should be non-obvious — things the user didn't mention but that would change the shape of the answer
+- Show the derived dimensions to the user and let them edit/override before proceeding
+
 ## After the conversation
 
-Compose the context from the conversation — not as Q&A pairs, but as a narrative brief:
+Compose the output in TWO parts — narrative context AND structured dimensions:
 
 ```
+DIMENSIONS:
+1. [dimension name] — [one-line description of what varies along this dimension]
+2. [dimension name] — [one-line description]
+3. [dimension name] — [one-line description]
+4. [dimension name] — [one-line description]
+5. [dimension name] — [one-line description] (optional)
+6. [dimension name] — [one-line description] (optional)
+
 PRE-FLIGHT CONTEXT:
+Domain: [inferred domain(s)]
 [2-3 sentence summary of the reframed understanding]
 Key insight: [the single most important reframe that emerged]
-Starting frame: [what the user said initially]  
+Starting frame: [what the user said initially]
 Current frame: [where the conversation landed]
 Specific evidence: [the burn story, the workaround, the different buyer — whatever was most concrete]
 ```
 
-This context becomes the --context flag on debate.py.
+The DIMENSIONS block is consumed by explore-diverge.md and explore-synthesis.md \
+to force structural divergence along problem-specific axes. The PRE-FLIGHT CONTEXT \
+provides narrative background for the model generating directions.
+
+Both become the --context flag on debate.py.

@@ -2015,6 +2015,43 @@ preserve them. Specifically:
    recommendations to preserve.
 """
 
+REFINE_STRATEGIC_POSTURE_RULE = """
+STRATEGIC POSTURE (HARD RULE):
+Refinement means sharper, not softer. Three rounds of refinement should
+produce a MORE decisive document, not a more hedged one.
+
+When an accepted challenge identifies a problem, fix the support — not the
+recommendation:
+
+DO:
+- Unsupported claim → add evidence or narrow to what IS supported
+- Vague mechanism → make it concrete (specific tools, steps, metrics)
+- Missing risk → name the risk AND its mitigation in the same sentence
+- Unrealistic timeline → replace with a realistic one, not "TBD"
+- Ungrounded timeline (a specific number with no cited basis) → challenge it.
+  Ask: what takes that long? Is there comparable evidence? If not, compress
+  to the shortest defensible timeline or mark as "depends on [unknown]"
+- Multi-phase rollouts → justify each phase. If a phase exists for comfort
+  rather than producing a decision signal, eliminate it
+
+DO NOT:
+- Add hedge words: "consider", "explore", "potentially", "evaluate whether",
+  "subject to further analysis", "pending validation"
+- Insert generic pilot/study phases as a response to uncertainty. If a pilot
+  is genuinely warranted, specify what it tests, how long it runs, what
+  success looks like, and what action follows immediately on success
+- Replace specific timelines with "TBD" or "to be assessed"
+- Expand one-sentence actions into multi-paragraph qualifications
+- Add "requires further validation before proceeding" as a standalone
+  recommendation
+
+The failure mode is a document where every recommendation says "study this
+further." That is not improvement — it is retreat. A recommendation that
+survives refinement must be MORE executable than the original, not less.
+If you cannot make it executable, convert it to CANNOT RECOMMEND — do not
+leave it in a soft middle state where no one knows what to do.
+"""
+
 
 REFINE_FIRST_ROUND_PROMPT = """\
 You are a collaborative document reviewer and improver. Your job is to make \
@@ -2033,7 +2070,7 @@ remove them or collapse them into summaries. You may reorganize or lightly \
 edit for clarity, but facts and measurements must remain intact.
 
 {judgment_context}
-""" + REFINE_RECOMMENDATION_PRESERVATION_RULE + """
+""" + REFINE_RECOMMENDATION_PRESERVATION_RULE + REFINE_STRATEGIC_POSTURE_RULE + """
 Produce your output in EXACTLY this format:
 
 ## Review Notes
@@ -2064,7 +2101,7 @@ remove them or collapse them into summaries. You may reorganize or lightly \
 edit for clarity, but facts and measurements must remain intact.
 
 {judgment_context}
-""" + REFINE_RECOMMENDATION_PRESERVATION_RULE + """
+""" + REFINE_RECOMMENDATION_PRESERVATION_RULE + REFINE_STRATEGIC_POSTURE_RULE + """
 Produce your output in EXACTLY this format:
 
 ## Review Notes
@@ -2116,8 +2153,8 @@ Output format:
 # ── Thinking mode prompts (single-model) ────────────────────────────────────
 
 EXPLORE_SYSTEM_PROMPT = """\
-You are a strategic thinker proposing a direction for a product or \
-architectural decision. You will be given a question or problem statement.
+You are a thinker proposing a direction for a problem or decision. You \
+will be given a question or problem statement.
 
 Your job is NOT to be comprehensive or balanced. Your job is to take a \
 STRONG POSITION on one specific direction and argue for it convincingly.
@@ -2126,8 +2163,7 @@ Rules:
 - Propose ONE distinct approach. Not three options. Not a balanced analysis.
 - Be opinionated. Say "this is the right move because..." not "one option \
 might be..."
-- Be specific. Name the first thing to build, who the first user is, what \
-the first milestone looks like.
+- Be specific. Name the first concrete action, who it affects, what changes.
 - It is fine — encouraged, even — if your approach is unconventional or risky.
 - Do not hedge. Do not caveat everything. Make your case.
 - Keep it under 800 words.
@@ -2140,7 +2176,7 @@ Output format:
 [Why this is the right direction. Be specific and concrete.]
 
 ## First Move
-[What you'd build or do first. Be specific enough to start next week.]
+[What you'd do first. Be specific enough to start next week.]
 
 ## Why This Beats the Alternatives
 [What's wrong with the obvious approaches that this avoids.]
@@ -2149,8 +2185,8 @@ Output format:
 [The one thing most likely to kill this direction. Be honest.]"""
 
 EXPLORE_DIVERGE_PROMPT = """\
-You are a strategic thinker proposing a direction for a product or \
-architectural decision. You will be given a question or problem statement.
+You are a thinker proposing a direction for a problem or decision. You \
+will be given a question or problem statement.
 
 PREVIOUS DIRECTIONS ALREADY PROPOSED (you must NOT repeat or lightly vary \
 any of these — propose something fundamentally different):
@@ -2158,16 +2194,14 @@ any of these — propose something fundamentally different):
 {previous_directions}
 
 You MUST propose a FUNDAMENTALLY DIFFERENT direction. Not a variation on \
-any previous idea. A completely different product form, customer, business \
-model, or approach. If they said SaaS, try something else. If they targeted \
-developers, consider a different buyer.
+any previous idea. A structurally different approach — different mechanism, \
+different tradeoffs, different assumptions about what matters most.
 
 Rules:
 - Propose ONE distinct approach. Not three options. Not a balanced analysis.
 - Be opinionated. Say "this is the right move because..." not "one option \
 might be..."
-- Be specific. Name the first thing to build, who the first user is, what \
-the first milestone looks like.
+- Be specific. Name the first concrete action, who it affects, what changes.
 - It is fine — encouraged, even — if your approach is unconventional or risky.
 - Do not hedge. Do not caveat everything. Make your case.
 - Keep it under 800 words.
@@ -2180,7 +2214,7 @@ Output format:
 [Why this is the right direction. Be specific and concrete.]
 
 ## First Move
-[What you'd build or do first. Be specific enough to start next week.]
+[What you'd do first. Be specific enough to start next week.]
 
 ## Why This Beats the Alternatives
 [What's wrong with the obvious approaches that this avoids.]
@@ -2189,8 +2223,8 @@ Output format:
 [The one thing most likely to kill this direction. Be honest.]"""
 
 EXPLORE_SYNTHESIS_PROMPT = """\
-You are a strategic synthesizer. You have been given {n} independent \
-proposals for the same question. Each takes a different direction.
+You are synthesizing {n} independent proposals for the same question. \
+Each takes a different direction.
 
 Your job is NOT to pick a winner. Your job is to map the solution space \
 and help the decision-maker see clearly.
@@ -2199,14 +2233,14 @@ Produce:
 
 ## Solution Space Map
 For each direction, one line: the direction name, the core bet it makes, \
-and the customer it targets.
+and the key tradeoff.
 
 ## Convergence
 Where do multiple directions agree? These are higher-confidence signals.
 
 ## Divergence
-Where do directions disagree fundamentally? These are the real strategic \
-choices — the forks in the road.
+Where do directions disagree fundamentally? These are the real choices — \
+the forks in the road.
 
 ## Strongest Ideas
 The 2-3 most compelling specific ideas across all directions, regardless \
@@ -3109,8 +3143,46 @@ def cmd_explore(args):
     directions_count = args.directions
     question = args.question
     context = getattr(args, 'context', None) or ""
-    context_block = (f"\n## Market Context (use this to inform your thinking)\n\n"
-                     f"{context}\n") if context else ""
+
+    # Parse structured dimensions from context if present
+    dimensions_block = ""
+    narrative_context = context
+    if "DIMENSIONS:" in context:
+        parts = context.split("DIMENSIONS:", 1)
+        dim_section = parts[1]
+        # Split dimensions from the rest of the context
+        if "PRE-FLIGHT CONTEXT:" in dim_section:
+            dim_text, narrative_context = dim_section.split("PRE-FLIGHT CONTEXT:", 1)
+            narrative_context = narrative_context.strip()
+        elif "CONTEXT:" in dim_section:
+            dim_text, narrative_context = dim_section.split("CONTEXT:", 1)
+            narrative_context = narrative_context.strip()
+        else:
+            dim_text = dim_section
+            narrative_context = ""
+        dim_lines = [l.strip() for l in dim_text.strip().splitlines() if l.strip()]
+        if dim_lines:
+            dimensions_block = (
+                "To ensure real divergence, at least 3 of these dimensions "
+                "must differ from ALL previous directions:\n\n"
+                + "\n".join(f"- **{l}**" if not l.startswith("-") else l
+                            for l in dim_lines)
+            )
+
+    # Fall back to generic dimensions if none derived from pre-flight
+    if not dimensions_block:
+        dimensions_block = (
+            "To ensure real divergence, your direction should differ from "
+            "previous directions on at least 2 of these dimensions:\n\n"
+            "- **Approach** — the fundamental mechanism or method\n"
+            "- **Scope** — what's included vs excluded\n"
+            "- **Tradeoff** — what you optimize for vs sacrifice\n"
+            "- **Who it affects** — the primary audience or stakeholder\n"
+            "- **Success criteria** — how you'd know it worked"
+        )
+
+    context_block = (f"\n## Context (use this to inform your thinking)\n\n"
+                     f"{narrative_context}\n") if narrative_context else ""
 
     if not question.strip():
         print("ERROR: question is empty", file=sys.stderr)
@@ -3121,9 +3193,10 @@ def cmd_explore(args):
     diverge_prompt_tpl, diverge_ver = _load_prompt("explore-diverge.md", EXPLORE_DIVERGE_PROMPT)
     synth_prompt_tpl, synth_ver = _load_prompt("explore-synthesis.md", EXPLORE_SYNTHESIS_PROMPT)
 
-    # Inject context into prompts
+    # Inject context and dimensions into prompts
     explore_prompt = explore_prompt.replace("{context}", context_block)
-    user_content = question if not context else f"{question}\n{context_block}"
+    explore_prompt = explore_prompt.replace("{dimensions}", dimensions_block)
+    user_content = question if not narrative_context else f"{question}\n{context_block}"
 
     directions = []
     direction_names = []
@@ -3148,6 +3221,7 @@ def cmd_explore(args):
         diverge_prompt = diverge_prompt_tpl.format(
             previous_directions=prev_summary,
             context=context_block,
+            dimensions=dimensions_block,
         )
         print(f"Explore round {i}/{directions_count} ({model})...",
               file=sys.stderr)
@@ -3171,7 +3245,7 @@ def cmd_explore(args):
     combined = "\n\n---\n\n".join(
         f"### Direction {i}\n\n{d}" for i, d in enumerate(directions, 1)
     )
-    synth_prompt = synth_prompt_tpl.format(n=len(directions))
+    synth_prompt = synth_prompt_tpl.format(n=len(directions), dimensions=dimensions_block)
     print(f"Synthesizing ({synth_model})...", file=sys.stderr)
     try:
         synthesis = _call_litellm(synth_model, synth_prompt, combined,
@@ -3250,7 +3324,7 @@ def cmd_pressure_test(args):
     model = args.model or config.get("single_review_default", "gpt-5.4")
     input_text = args.proposal.read()
     context = getattr(args, 'context', None) or ""
-    context_block = (f"\n## Market Context (use this to inform your thinking)\n\n"
+    context_block = (f"\n## Context (use this to inform your thinking)\n\n"
                      f"{context}\n") if context else ""
 
     if not input_text.strip():

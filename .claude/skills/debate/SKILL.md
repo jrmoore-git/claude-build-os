@@ -51,52 +51,44 @@ Store as `TOPIC`.
 
 **Skip this step for validate mode.** Validate works on concrete artifacts. For pressure-test with `--frame premortem`, pre-flight is optional (the plan is usually concrete enough).
 
-For explore and pressure-test, the framing determines the output quality. Bad framing produces sophisticated variations on the wrong answer. 2-5 minutes of upfront discovery is worth it.
+**If the user says "skip" or "just run it":** skip pre-flight and proceed.
 
-**If the user says "skip" or "just run it":** skip pre-flight and proceed. But note that the output quality will be lower.
+**Auto-run pre-flight:** If the user says "just run it" or "you know enough" or "answer the questions yourself" — and you genuinely have enough context from memory, prior conversation, or the proposal file to answer the pre-flight questions substantively — then self-seed the pre-flight. State your assumed answers briefly (bullet list), let the user correct, then proceed. This avoids interrogating the user when you already know the situation.
 
-#### Step 3a: Classify the thinking type
+#### Step 3a: Adaptive pre-flight (no classification menu)
 
-Ask the user:
+Read `config/prompts/preflight-adaptive.md` for the full protocol.
+
+**Do NOT present a classification menu.** Instead, read the user's question and adapt:
+
+1. **Infer the domain** from the question (product, engineering, organizational, research, strategy, process, career — or multiple). Don't ask the user to classify; infer from what they said.
+
+2. **Select forcing questions** adaptively. Draw from the reference pre-flight files when the domain matches:
+   - Product domain: reference `config/prompts/preflight-product.md`
+   - Solo builder domain: reference `config/prompts/preflight-solo-builder.md`
+   - Architecture domain: reference `config/prompts/preflight-architecture.md`
+   - Other domains: generate questions using the templates in `preflight-adaptive.md`
+
+3. **Ask questions ONE AT A TIME** (2-4 questions, hard cap at 4). Follow the adaptive pre-flight protocol: conversational style, push once if vague, use the user's own words to sharpen follow-ups. Follow the Discovery Rule — create conditions for the user to name the insight, don't name it yourself.
+
+4. **Derive divergence dimensions** (4-6) based on the domain and the user's answers. These are the axes along which explore directions should structurally differ. Show them to the user:
 
 ```
-Before we run, I need to understand the problem. What kind of thinking is this?
+Based on our conversation, I'll explore along these dimensions:
+1. [dimension] — [one-line description]
+2. [dimension] — [one-line description]
+3. [dimension] — [one-line description]
+4. [dimension] — [one-line description]
+5. [dimension] — [one-line description]
 
-(A) **Product opportunity** — evaluating whether/how to build something for a market
-(B) **Solo builder** — figuring out what to build for yourself or your workflow
-(C) **Architectural decision** — deciding how something should work technically
+Want to adjust any of these before I run?
 ```
 
-Based on the answer, read the corresponding pre-flight file:
+Accept edits or proceed.
 
-- **(A):** Read `config/prompts/preflight-product.md`
-- **(B):** Read `config/prompts/preflight-solo-builder.md`
-- **(C):** Read `config/prompts/preflight-architecture.md`
+#### Step 3b: Compose context with dimensions (SILENT — do not narrate this step)
 
-#### Step 3b: Route to the right question subset
-
-Each pre-flight file has a **Routing** section that selects which 3 of 5 questions to ask based on the user's stage. Read the user's input and prior answers to determine the route. Skip questions already answered by what the user has said.
-
-#### Step 3c: Ask questions ONE AT A TIME
-
-**Do not dump all questions at once.** Ask one. Wait for the answer. Evaluate specificity.
-
-For each question:
-1. Ask the question conversationally (not as a formal numbered item)
-2. Read the user's answer
-3. Check against the **push-until** criteria in the pre-flight file
-4. If the answer is vague or matches a **red flag**, push once with the suggested reframe
-5. When the answer is specific enough, move to the next question
-
-**Push style:** Conversational, not interrogative. "You said 'developers would find it useful' — but who specifically? Is there someone who'd be upset if this disappeared tomorrow?" Not "Your answer is too vague. Please be more specific."
-
-**Maximum pushes per question:** 1. If the answer is still vague after one push, accept it and move on. Don't interrogate.
-
-#### Step 3d: Compose context
-
-After the questions, compose the answers into the context format specified at the bottom of the pre-flight file. This context becomes the `--context` flag on the `debate.py` command.
-
-The pre-flight context REPLACES the category-anchored description as the primary input to the AI. This is the point — the user's specific, pushed-to-specific answers are better framing than whatever label they started with.
+Compose the output in the format specified in `preflight-adaptive.md`. This is internal data assembly — never show the raw context block, DIMENSIONS format, or `--context` flag details to the user.
 
 ### Step 4: Route to mode
 
@@ -139,7 +131,7 @@ python3.11 scripts/debate.py refine \
   --output tasks/<topic>-refined.md
 ```
 
-Display summary table with artifact status. Update pipeline manifest.
+Display summary table with artifact status.
 
 #### Mode: pressure-test
 
@@ -156,8 +148,6 @@ python3.11 scripts/debate.py pressure-test \
 
 Display the output to the user directly in the conversation (not just to a file).
 
-Update pipeline manifest.
-
 #### Mode: explore
 
 Single-model divergent exploration. No proposal needed — takes a question.
@@ -171,8 +161,6 @@ python3.11 scripts/debate.py explore \
 ```
 
 Display the output to the user directly in the conversation (not just to a file).
-
-Update pipeline manifest.
 
 #### Mode: pressure-test --frame premortem
 
@@ -188,8 +176,6 @@ python3.11 scripts/debate.py pressure-test \
 ```
 
 Display the output to the user directly in the conversation (not just to a file).
-
-Update pipeline manifest.
 
 ### Step 5: Summary
 
@@ -217,12 +203,9 @@ Each mode fails gracefully:
 
 Stop at the step that fails. Partial artifacts are valid.
 
-## Important Notes
+## Internal Notes (SILENT — never narrate these to the user)
 
-- **Pre-flight is the highest-leverage step.** The user's answers to 5 questions determine whether the AI explores the right solution space or produces sophisticated variations on the wrong frame. Don't rush it.
-- validate mode costs ~$0.20-0.75 per run (multi-model). Reserve for implementation review, code review, schema changes.
-- pressure-test, explore, and pre-mortem cost ~$0.03-0.20 per run (single-model). Cheap enough to run casually on strategic questions.
-- Each step checks for existing artifacts and skips if found. Re-running `/debate` after a partial failure resumes where it left off.
-- validate uses GPT-5.4 as judge (different model family from Claude to avoid self-preference bias).
-- explore uses forced sequential divergence — same model, explicitly different each round. This produces more diverse output than 3 different models (tested and verified).
-- **Always display thinking-mode output (explore, pressure-test, pre-mortem) directly in the conversation.** The user should see results without opening a file.
+- Don't rush pre-flight. Don't explain why pre-flight matters.
+- Each step checks for existing artifacts and skips if found.
+- Always display thinking-mode output (explore, pressure-test, pre-mortem) directly in the conversation.
+- Never narrate internal mechanics, cost estimates, model choices, or pipeline plumbing to the user.
