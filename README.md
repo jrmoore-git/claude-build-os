@@ -31,11 +31,14 @@ flowchart LR
     subgraph Engineering["⚙️ Engineering"]
         direction TB
         C[Challenge] --> D[Plan]
-        D --> E[Build]
-        E --> F[Review]
-        F --> G[Ship]
+        D --> E[Refine]
+        E --> F[Build]
+        F --> G[Review]
+        G --> H[Ship]
     end
     Product --> Engineering
+
+    style E fill:#f5f5f5,stroke:#999,stroke-dasharray: 5 5
 ```
 
 | Stage | Role | Skills | Output |
@@ -417,13 +420,31 @@ git pull origin main
 
 ## Docs Map
 
+**Start here:**
+
+| You want to... | Read |
+|---|---|
+| **Get running in an hour** | [Getting Started](docs/getting-started.md) — guided first-hour tutorial: define, plan, build, review, ship |
+| **Quick reference while working** | [Cheat Sheet](docs/cheat-sheet.md) — pipeline tiers, all 24 skills, key files, shortcuts |
+
+**Go deeper:**
+
 | You want to... | Read |
 |---|---|
 | **Understand the philosophy** | [Why Build OS Exists](docs/why-build-os.md) — the narrative case for governance over prompting |
 | **Learn the full framework** | [The Build OS](docs/the-build-os.md) — governance tiers, file system, operations, enforcement, memory, review, bootstrap |
-| **Run a team project** | [Team Playbook](docs/team-playbook.md) — agent teams, parallel work, orchestration, cheat sheets |
-| **Build a production system** | [Advanced Patterns](docs/advanced-patterns.md) — audit protocol, degradation testing, cross-model debate, failure classes |
+| **Run a team project** | [Team Playbook](docs/team-playbook.md) — agent teams, parallel work, orchestration |
+| **Build a production system** | [Advanced Patterns](docs/advanced-patterns.md) — audit protocol, degradation testing, failure classes |
+
+**Reference:**
+
+| You want to... | Read |
+|---|---|
 | **Understand Claude Code features** | [Platform Features](docs/platform-features.md) — hooks, rules, skills, memory, session management |
+| **See what each script does** | [How It Works](docs/how-it-works.md) — debate.py, tier_classify.py, recall_search.py, and all tooling |
+| **Configure cross-model review** | [Infrastructure](docs/infrastructure.md) — LiteLLM setup, API keys, optional dependencies |
+| **Understand the 15 hooks** | [Hooks Reference](docs/hooks.md) — plan gate, review gate, decompose gate, and 12 more |
+| **Route models by cost** | [Model Routing Guide](docs/model-routing-guide.md) — task classification, per-skill defaults, escalation |
 
 ---
 

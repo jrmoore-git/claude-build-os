@@ -1,8 +1,30 @@
 # Hooks Reference
 
-The Build OS ships five hooks. Four are PreToolUse enforcement hooks — they run before the matched tool executes, and can block or warn based on what they find. Each is scoped by a matcher pattern: plan-gate and review-gate match `Bash` (firing on `git commit`), while decompose-gate and tier-gate match `Write|Edit` (firing on file edits). The fifth, stop-autocommit, is a Stop hook that fires when the session ends.
+Build OS ships 15 hooks organized by event type. Hooks are the third level of the enforcement ladder: advisory (CLAUDE.md) → rules (.claude/rules/) → **hooks** → architecture. They fire every time the matched tool is called, cannot be ignored by the model, and enforce governance as deterministic code.
 
-Hooks are the third level of the enforcement ladder: advisory (CLAUDE.md) → rules (.claude/rules/) → **hooks** → architecture. They fire every time the matched tool is called, cannot be ignored by the model, and enforce governance as deterministic code.
+## Overview
+
+| Hook | Event | Matcher | Behavior |
+|------|-------|---------|----------|
+| [hook-decompose-gate.py](#hook-decompose-gatepy) | PreToolUse | Write\|Edit | **Blocks** first write until parallel decomposition is assessed |
+| [hook-guard-env.sh](#hook-guard-envsh) | PreToolUse | Write\|Edit, Bash | **Blocks** .env writes and credential management commands |
+| [hook-tier-gate.sh](#hook-tier-gatesh) | PreToolUse | Write\|Edit | **Blocks** Tier 1 file edits without debate artifacts |
+| [hook-pre-edit-gate.sh](#hook-pre-edit-gatesh) | PreToolUse | Write\|Edit | **Blocks** protected file edits without a recent plan/proposal |
+| [hook-memory-size-gate.py](#hook-memory-size-gatepy) | PreToolUse | Write\|Edit | **Blocks** MEMORY.md writes when file exceeds 150 lines |
+| [hook-agent-isolation.py](#hook-agent-isolationpy) | PreToolUse | Agent | **Blocks** write-capable agents without worktree isolation |
+| [hook-plan-gate.sh](#hook-plan-gatesh) | PreToolUse | Bash | **Blocks** commits to protected paths without a valid plan |
+| [hook-review-gate.sh](#hook-review-gatesh) | PreToolUse | Bash | **Blocks** Tier 1 commits without debate artifacts |
+| [hook-pre-commit-tests.sh](#hook-pre-commit-testssh) | PreToolUse | Bash | **Blocks** commits if pytest fails |
+| [hook-prd-drift-check.sh](#hook-prd-drift-checksh) | PreToolUse | Bash | **Blocks** commits with 5+ unsynced decisions; warns at 3+ |
+| [hook-bash-fix-forward.py](#hook-bash-fix-forwardpy) | PreToolUse | Bash | **Blocks** bandaid commands (rm lock files, kill -9) without investigation |
+| [hook-syntax-check-python.sh](#hook-syntax-check-pythonsh) | PostToolUse | Write\|Edit | **Blocks** on Python syntax errors |
+| [hook-ruff-check.sh](#hook-ruff-checksh) | PostToolUse | Write\|Edit | **Warns** on ruff lint violations (non-blocking) |
+| [hook-post-tool-test.sh](#hook-post-tool-testsh) | PostToolUse | Write\|Edit | **Warns** — auto-runs pytest for toolbelt scripts |
+| [hook-stop-autocommit.py](#hook-stop-autocommitpy) | Stop | — | Auto-captures uncommitted work on session exit |
+
+---
+
+## PreToolUse: Bash Hooks
 
 
 ## hook-plan-gate.sh
@@ -86,6 +108,71 @@ Gates commits to high-risk files without valid debate artifacts.
 Neither `[EMERGENCY]` nor any other bypass (besides `[TRIVIAL]`) is available in review-gate.
 
 
+## hook-pre-commit-tests.sh
+
+Blocks commits if the test suite fails.
+
+**When it fires:** PreToolUse with `Bash` matcher, activates on `git commit` commands.
+
+**What it checks:** Runs `pytest` against the project test suite. If any test fails, the commit is blocked.
+
+**Pass conditions:**
+- No `git commit` in the command
+- All pytest tests pass (exit code 0)
+- No tests exist (pytest returns "no tests collected")
+
+**Block conditions:**
+- Any pytest test fails — the commit is blocked with the test output shown
+
+**Timeout:** 60 seconds (longest timeout of any hook — test suites can be slow).
+
+
+## hook-prd-drift-check.sh
+
+Prevents commits when too many decisions have accumulated without being synced to the PRD.
+
+**When it fires:** PreToolUse with `Bash` matcher, activates on `git commit` commands.
+
+**What it checks:** Counts decision entries in `tasks/decisions.md` that haven't been reflected in `docs/project-prd.md`.
+
+**Pass conditions:**
+- Fewer than 3 unsynced decisions
+- No `git commit` in the command
+
+**Advisory (non-blocking):**
+- 3–4 unsynced decisions → prints a warning suggesting a PRD sync
+
+**Block conditions:**
+- 5 or more unsynced decisions → blocks the commit until the PRD is updated or decisions are marked as synced
+
+
+## hook-bash-fix-forward.py
+
+Blocks common "bandaid" bash commands that skip investigation.
+
+**When it fires:** PreToolUse with `Bash` matcher.
+
+**What it checks:** Scans the command for patterns that indicate a workaround rather than a root-cause fix:
+
+| Blocked pattern | Required investigation first |
+|----------------|----------------------------|
+| `rm .git/index.lock` | `lsof .git/index.lock` or `pgrep git` |
+| `kill -9` / `kill -KILL` | `ps aux` to identify the stuck process |
+| `pkill <name>` | `pgrep -a <name>` to see what's running |
+| `rm *.lock` / `rm *.pid` | `lsof <file>` or `fuser <file>` |
+
+**Block conditions:**
+- Any blocked pattern detected without evidence of prior investigation in the session
+
+**Design rationale:** See `.claude/rules/bash-failures.md` for the full policy. Bandaid commands mask root causes. This hook enforces "diagnose first, fix second."
+
+---
+
+---
+
+## PreToolUse: Write|Edit Hooks
+
+
 ## hook-decompose-gate.py
 
 Forces decomposition assessment before the first write operation in each session.
@@ -158,6 +245,145 @@ Classifies file tier before the first edit and gates accordingly.
 Neither `[EMERGENCY]` nor `[TRIVIAL]` bypass is available in tier-gate.
 
 
+## hook-guard-env.sh
+
+Protects credentials by blocking .env file writes and credential management commands.
+
+**When it fires:** PreToolUse with `Write|Edit` and `Bash` matchers. Fires on both file edits and shell commands.
+
+**What it checks:**
+
+1. For Write|Edit: is the target file a `.env` file or a SKILL.md file?
+2. For Bash: does the command include credential management operations (e.g., `gog auth`)?
+
+**Block conditions:**
+- Direct writes to `.env` files — asks for human approval
+- Credential management commands in Bash
+- Edits to SKILL.md files that could expose credentials
+
+**Design rationale:** Secrets in `.env` are Tier 1 data. Accidental overwrites or exposure are high-blast-radius and hard to reverse. This hook ensures human oversight on all credential-adjacent operations.
+
+
+## hook-pre-edit-gate.sh
+
+Prevents edits to protected files unless a plan or proposal artifact was recently modified.
+
+**When it fires:** PreToolUse with `Write|Edit` matcher.
+
+**What it checks:**
+
+1. Is the target file in a protected path? (matches `scripts/*_tool.py`, `scripts/*_pipeline.py`, `skills/**/*.md`, `.claude/rules/*.md`)
+2. If yes, was any plan or proposal artifact (`tasks/*-plan.md`, `tasks/*-proposal.md`) modified in the last 2 hours?
+
+**Pass conditions:**
+- File is not in a protected path
+- A plan or proposal artifact was modified within the last 2 hours
+
+**Block conditions:**
+- Protected file edit attempted without a recent plan or proposal artifact
+
+**Relationship to plan-gate:** The plan gate blocks *commits* without a valid plan. The pre-edit gate blocks *edits* without a recent plan — it fires earlier in the workflow, before code is even written.
+
+
+## hook-memory-size-gate.py
+
+Prevents the auto-memory index (`MEMORY.md`) from growing unbounded.
+
+**When it fires:** PreToolUse with `Write|Edit` matcher, only for MEMORY.md files.
+
+**What it checks:**
+
+1. Is the target file a MEMORY.md?
+2. If yes, is the file already at or above 150 lines?
+3. Would this edit add more lines?
+
+**Block conditions:**
+- MEMORY.md is at or above 150 lines and the edit would add content
+
+The deny message instructs the agent to prune existing entries before adding new ones.
+
+---
+
+## PreToolUse: Agent Hooks
+
+
+## hook-agent-isolation.py
+
+Enforces worktree isolation for write-capable agents dispatched during parallel plans.
+
+**When it fires:** PreToolUse with `Agent` matcher. Only activates when a parallel plan is in progress (detected via decomposition flag file).
+
+**What it checks:**
+
+1. Is a parallel plan active? (checks for `plan_submitted: true` in the decomposition flag file)
+2. Is the agent being dispatched write-capable? (has edit/write permissions)
+3. Does the agent specify `isolation: "worktree"`?
+
+**Pass conditions:**
+- No parallel plan is active (bypass flag or no flag file)
+- Agent is read-only (Explore, research agents)
+- Agent specifies worktree isolation
+
+**Block conditions:**
+- Parallel plan active and agent dispatched without `isolation: "worktree"` and agent is write-capable
+
+**Design rationale:** Multiple write-capable agents editing the same checkout cause file collisions, merge conflicts, and `index.lock` contention. Worktree isolation gives each agent its own git checkout. This was enforced as a hook after repeated incidents of parallel agents trampling each other's work.
+
+---
+
+## PostToolUse: Write|Edit Hooks
+
+These hooks run *after* a file is written or edited. They validate the result and surface issues immediately.
+
+
+## hook-syntax-check-python.sh
+
+Validates Python syntax after every write or edit to a `.py` file.
+
+**When it fires:** PostToolUse with `Write|Edit` matcher. Only activates for Python files.
+
+**What it checks:** Runs `python3 -m py_compile` on the edited file.
+
+**Pass conditions:**
+- File is not a `.py` file
+- Python syntax is valid
+
+**Block conditions:**
+- Python syntax error detected — the edit is flagged and the error message is shown
+
+**Why PostToolUse, not PreToolUse:** The file must exist with the new content before syntax can be checked. This catches errors immediately after the write so they can be fixed in the same turn.
+
+
+## hook-ruff-check.sh
+
+Runs the ruff linter on Python files after edits.
+
+**When it fires:** PostToolUse with `Write|Edit` matcher. Only activates for Python files.
+
+**What it checks:** Runs `ruff check` with complexity (C901) and line length (E501) rules.
+
+**Behavior:** Non-blocking — displays lint violations but does not prevent the edit. The agent sees the warnings and can choose to fix them.
+
+**Timeout:** 15 seconds.
+
+
+## hook-post-tool-test.sh
+
+Auto-runs the corresponding test file when a toolbelt script is edited.
+
+**When it fires:** PostToolUse with `Write|Edit` matcher. Only activates for `scripts/*_tool.py` files.
+
+**What it does:** When a toolbelt script is edited, looks for a matching test file (`tests/test_<name>.py`) and runs `pytest` on it.
+
+**Behavior:** Non-blocking — shows test results but does not prevent the edit. Gives immediate feedback on whether the change broke existing tests.
+
+**Timeout:** 60 seconds.
+
+---
+
+## Stop Hooks
+
+
 ## hook-stop-autocommit.py
 
 Session safety net. When a Claude Code session exits without running `/wrap-session`, this hook auto-captures uncommitted work so nothing is lost.
@@ -176,27 +402,14 @@ Session safety net. When a Claude Code session exits without running `/wrap-sess
 
 **Pass conditions:** Always runs (stop hooks don't block). If there are no uncommitted changes, it exits silently.
 
-**Wiring:**
-
-```json
-{
-  "hooks": {
-    "Stop": [
-      {
-        "matcher": "",
-        "command": "python3 hooks/hook-stop-autocommit.py"
-      }
-    ]
-  }
-}
-```
-
 
 ## Wiring hooks into your project
 
 Add hooks to `.claude/settings.json` (or `.claude/settings.local.json` for personal, non-committed settings). Each hook needs a matcher pattern and the script path.
 
-### All five hooks
+### All 15 hooks (full Build OS)
+
+This matches the actual wiring in the Build OS `.claude/settings.json`:
 
 ```json
 {
@@ -204,25 +417,47 @@ Add hooks to `.claude/settings.json` (or `.claude/settings.local.json` for perso
     "PreToolUse": [
       {
         "matcher": "Write|Edit",
-        "command": "python3 hooks/hook-decompose-gate.py"
+        "hooks": [
+          {"type": "command", "command": "python3 hooks/hook-decompose-gate.py", "timeout": 2},
+          {"type": "command", "command": "bash hooks/hook-guard-env.sh", "timeout": 10},
+          {"type": "command", "command": "bash hooks/hook-tier-gate.sh \"$TOOL_INPUT\"", "timeout": 10},
+          {"type": "command", "command": "bash hooks/hook-pre-edit-gate.sh", "timeout": 10},
+          {"type": "command", "command": "python3 hooks/hook-memory-size-gate.py", "timeout": 2}
+        ]
+      },
+      {
+        "matcher": "Agent",
+        "hooks": [
+          {"type": "command", "command": "python3 hooks/hook-agent-isolation.py", "timeout": 2}
+        ]
       },
       {
         "matcher": "Bash",
-        "command": "bash hooks/hook-plan-gate.sh"
-      },
-      {
-        "matcher": "Bash",
-        "command": "bash hooks/hook-review-gate.sh"
-      },
+        "hooks": [
+          {"type": "command", "command": "bash hooks/hook-guard-env.sh", "timeout": 10},
+          {"type": "command", "command": "bash hooks/hook-pre-commit-tests.sh", "timeout": 60},
+          {"type": "command", "command": "bash hooks/hook-prd-drift-check.sh", "timeout": 10},
+          {"type": "command", "command": "bash hooks/hook-review-gate.sh", "timeout": 10},
+          {"type": "command", "command": "bash hooks/hook-plan-gate.sh", "timeout": 10},
+          {"type": "command", "command": "python3 hooks/hook-bash-fix-forward.py", "timeout": 5}
+        ]
+      }
+    ],
+    "PostToolUse": [
       {
         "matcher": "Write|Edit",
-        "command": "bash hooks/hook-tier-gate.sh"
+        "hooks": [
+          {"type": "command", "command": "bash hooks/hook-syntax-check-python.sh", "timeout": 30},
+          {"type": "command", "command": "bash hooks/hook-post-tool-test.sh", "timeout": 60},
+          {"type": "command", "command": "bash hooks/hook-ruff-check.sh", "timeout": 15}
+        ]
       }
     ],
     "Stop": [
       {
-        "matcher": "",
-        "command": "python3 hooks/hook-stop-autocommit.py"
+        "hooks": [
+          {"type": "command", "command": "python3 hooks/hook-stop-autocommit.py", "timeout": 30}
+        ]
       }
     ]
   }
@@ -239,12 +474,26 @@ If you only want one hook, start with the plan gate. It enforces the highest-val
     "PreToolUse": [
       {
         "matcher": "Bash",
-        "command": "bash hooks/hook-plan-gate.sh"
+        "hooks": [
+          {"type": "command", "command": "bash hooks/hook-plan-gate.sh", "timeout": 10}
+        ]
       }
     ]
   }
 }
 ```
+
+### Incremental adoption
+
+Add hooks in order of value. Each row adds one capability:
+
+| Level | Add these hooks | What you get |
+|-------|----------------|-------------|
+| **1** | plan-gate | Plans required before commits to protected paths |
+| **2** | + pre-commit-tests, syntax-check-python | Tests must pass, no broken syntax |
+| **3** | + review-gate, tier-gate | Cross-model review enforced for high-risk files |
+| **4** | + decompose-gate, agent-isolation | Parallel work gated and isolated |
+| **5** | + all remaining | Full governance: env protection, linting, drift checks, auto-capture |
 
 ### Configuration
 
