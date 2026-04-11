@@ -1,0 +1,15 @@
+{
+  "topic": "managed-agents-dispatch",
+  "created": "2026-04-10T18:44:41.104135-07:00",
+  "updated": "2026-04-10T18:44:41.104135-07:00",
+  "stages": [
+    {
+      "skill": "plan",
+      "artifact": "tasks/managed-agents-dispatch-plan.md",
+      "status": "complete",
+      "timestamp": "2026-04-10T18:44:41.104022-07:00",
+      "recommendation": null
+    }
+  ],
+  "cost_summary": null
+}
