@@ -1,18 +1,17 @@
 # Current State — 2026-04-10
 
 ## What Changed This Session
-- Ran all 5 pipeline quality tests — 44/44 (100%) pass, 659s wall-clock
-- Fixed stdout/stderr handling and grep pipefail issues in `tests/run_pipeline_quality.sh`
-- Added per-stage timing instrumentation to `debate.py` challenge and judge phases (per-challenger elapsed time, consolidation+verification, judge call)
-- Verified evidence tag enforcement is working correctly (prompt-level + judge-level, no code changes needed)
+- Built 3 onboarding docs for team cloneability: getting-started.md (guided tutorial), cheat-sheet.md (quick reference), examples/pulse/ (complete worked example with PRD, decisions, lessons, current-state)
+- Assessed BuildOS usefulness and identified the gap: new team members need guided entry points, not just raw rules and skills
+- `/define discover` Phase 6.5 (PRD generation) and expanded PRD template were built in a prior session today
 
 ## Current Blockers
 - None identified
 
 ## Next Action
-Consider building the onboarding docs: getting-started.md, cheat-sheet.md, and examples/ directory. Or run the managed-agents dispatch design work (scratch files exist in tasks/).
+Test `/define discover` interactively on a real project to validate the full flow including Phase 6.5 PRD generation.
 
 ## Recent Commits
-4a947f8 Add per-stage timing instrumentation to debate.py challenge/judge phases
-ace0e9f Fix Open Questions and Distribution Plan gaps in PRD generation mapping
-814bbf5 Session wrap 2026-04-10: PRD generation added to /define discover
+66ade06 Remove stale managed-agents-dispatch scratch files
+b575816 Gitignore .claude/worktrees/, remove stale dispatch scratch files
+6d7a4e7 Session wrap 2026-04-10: pipeline quality tests + debate.py timing

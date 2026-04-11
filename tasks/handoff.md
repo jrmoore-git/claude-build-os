@@ -1,27 +1,32 @@
 # Handoff — 2026-04-10
 
 ## Session Focus
-Ran pipeline quality tests end-to-end, fixed test infrastructure issues, and added per-stage timing instrumentation to debate.py.
+Built onboarding docs to make BuildOS team-cloneable: getting-started guide, cheat sheet, and worked example project.
 
 ## Decided
-- None (implementation of already-decided observer recommendations #1 and #3)
+- D10 (prior session): `/define discover` generates PRD interactively
 
 ## Implemented
-- Fixed `tests/run_pipeline_quality.sh`: stdout/stderr separation for all debate.py commands, grep pipefail guards
-- Added `import time` and per-stage timing to `scripts/debate.py`: per-challenger elapsed time with tool call count, consolidation+verification phase, judge call
-- Verified evidence tag enforcement is solid (prompt-level + judge-level weighting) — no code changes needed
+- `docs/getting-started.md` — 116-line guided tutorial walking through clone → define → plan → build → review → ship
+- `docs/cheat-sheet.md` — 80-line quick reference: pipeline tiers, all 24 skills, key files, governance shortcuts
+- `examples/pulse/` — complete worked example (5 files): PRD, decisions, lessons, current-state for a fictional team health tool
 
 ## NOT Finished
-- Onboarding docs (getting-started, cheat-sheet, examples)
+- Live interactive test of `/define discover` with Phase 6.5 PRD generation on a real project
 - Managed agents dispatch design (scratch files in tasks/)
 
 ## Next Session Should
-1. Build onboarding docs or tackle managed-agents dispatch design
-2. Run pipeline quality tests again to see timing output in action
+1. Test `/define discover` end-to-end on a real project to validate PRD generation flow
+2. Consider managed-agents dispatch design if time permits
 
 ## Key Files Changed
-scripts/debate.py
-tests/run_pipeline_quality.sh
+docs/getting-started.md (new)
+docs/cheat-sheet.md (new)
+examples/pulse/README.md (new)
+examples/pulse/docs/project-prd.md (new)
+examples/pulse/docs/current-state.md (new)
+examples/pulse/tasks/decisions.md (new)
+examples/pulse/tasks/lessons.md (new)
 
 ## Doc Hygiene Warnings
 None

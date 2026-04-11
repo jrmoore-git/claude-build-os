@@ -407,3 +407,19 @@ ended without running `/wrap-session`. Review and enrich in the next session.
 **Not Finished:** Onboarding docs, managed-agents dispatch design
 
 **Next Session:** Build onboarding docs or tackle managed-agents dispatch design
+
+---
+
+## 2026-04-10 — Onboarding docs for team cloneability
+
+**Decided:**
+- None (execution of prior plan to make BuildOS team-cloneable)
+
+**Implemented:**
+- `docs/getting-started.md`: 116-line guided tutorial (clone → define → plan → build → review → ship)
+- `docs/cheat-sheet.md`: 80-line quick reference (pipeline tiers, 24 skills, key files, governance shortcuts)
+- `examples/pulse/`: complete worked example (5 files) — PRD, decisions, lessons, current-state for a fictional team health tool
+
+**Not Finished:** Live test of `/define discover` Phase 6.5 PRD generation on a real project
+
+**Next Session:** Test `/define discover` end-to-end; consider managed-agents dispatch design
