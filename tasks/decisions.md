@@ -29,3 +29,9 @@ Settled architectural and product decisions. Each entry records what was decided
 **Rationale:** 5 questions dumped at once (v1) felt like a form and the user rejected it. Research shows 3+ upfront questions cause 20-40% abandonment in consumer flows, but GStack proved that one-at-a-time with push-until-specific works for high-stakes discovery. Tested across 20+ simulated personas at 4.8-5.0/5. Key rules: discovery rule (never state the insight), never do the math for them, viability doubt completion.
 **Alternatives considered:** (a) No pre-flight, generate then iterate (rejected: wrong frames anchor strategic output), (b) 5 questions as a batch (rejected: user rejected it), (c) 1 question only (rejected: insufficient to break deep anchors per testing)
 **Date:** 2026-04-10
+
+### D8: Upgrade /status with smart routing instead of creating /next
+**Decision:** Enhance the existing `/status` skill with a context-aware routing table instead of creating a new `/next` command. The routing table reads git state, artifacts, context budget, and audit log to suggest the specific next skill and mode.
+**Rationale:** Debate session surfaced the concept of "nudges" (suggesting the right skill at the right moment). Three implementation options evaluated: (a) rules text, (b) hooks, (c) a new `/next` command. The `/next` concept was strong but creating a separate command duplicates `/status` purpose — two commands answering "what should I do?" is worse than one. `/status` already reads git state and artifacts with a static 6-row routing table. Upgrading to 13 priority-ordered conditions with contextual overlays gives the same result without a new command.
+**Alternatives considered:** (a) New `/next` skill (rejected: duplicates `/status` purpose), (b) Auto-nudge hooks (rejected: gets annoying, binary block/allow doesn't suit suggestions), (c) Advisory rule text (rejected: drops under context pressure)
+**Date:** 2026-04-10
