@@ -26,14 +26,14 @@ Build OS structures work as a pipeline. Product thinking defines the *what*; eng
 flowchart LR
     subgraph Product["🎯 Product Thinking"]
         direction TB
-        A[Define] --> B[Design]
+        A[Think] --> B[Design]
     end
     subgraph Engineering["⚙️ Engineering"]
         direction TB
         C[Challenge] --> D[Plan]
-        D --> E[Refine]
+        D --> E[Polish]
         E --> F[Build]
-        F --> G[Review]
+        F --> G[Check]
         G --> H[Ship]
     end
     Product --> Engineering
@@ -218,7 +218,7 @@ Within each stage of the pipeline, every Build OS session follows the same loop:
 
 ```mermaid
 flowchart LR
-    A[Recall] --> B[Plan]
+    A[Start] --> B[Plan]
     B --> C[Execute]
     C --> D[Verify]
     D --> E[Document]
@@ -228,7 +228,7 @@ flowchart LR
 
 | Step | What happens |
 |---|---|
-| **Recall** | Load prior context from disk: PRD, decisions, lessons, last handoff |
+| **Start** | Load prior context from disk: PRD, decisions, lessons, last handoff |
 | **Plan** | Write the approach to a file before building |
 | **Execute** | Implement against the plan |
 | **Verify** | Prove it works — tests, output, screenshots, manual checks |
@@ -250,9 +250,9 @@ project-root/
 │   ├── rules/                 # Rules loaded automatically each session
 │   │   └── no-raw-sql.md
 │   └── skills/                # Slash commands Claude can invoke
-│       ├── define/
+│       ├── think/
 │       ├── plan/
-│       ├── review/
+│       ├── check/
 │       └── ship/
 ├── docs/
 │   ├── prd.md                 # Product requirements — the source of truth
@@ -368,7 +368,7 @@ Build OS ships with 15 skills — slash commands that implement the pipeline sta
 
 Running `/think` → `/challenge` → `/plan` → build → `/check` → `/ship` gives you the equivalent of a PM defining scope, an architect stress-testing the approach, engineers building, a cross-model review panel checking quality, and a release engineer running pre-flight gates before deploying. `/ship` includes verification (adversarial probes), QA dimensions, and all other gates inline — the standard path is `/check` → `/ship`, not a longer chain. Each skill writes artifacts to disk so the next stage (or session) picks up where the last one left off. Pipeline progress is tracked in manifest files (`tasks/<topic>-manifest.json`) so you can see which stages have completed for any topic.
 
-**Recent additions (v3.1):** Challengers get optional read-only verifier tools (`--enable-tools`) to check claims against the actual codebase. Quantitative claims must be tagged as EVIDENCED, ESTIMATED, or SPECULATIVE — speculative claims alone can't drive material verdicts. `/review --fix-loop` automates the fix → re-review cycle. Proposals use a structured template with mandatory sections (Current System Failures, Operational Context, Baseline Performance) to prevent challengers from fabricating numbers.
+**Recent additions (v3.1):** Challengers get optional read-only verifier tools (`--enable-tools`) to check claims against the actual codebase. Quantitative claims must be tagged as EVIDENCED, ESTIMATED, or SPECULATIVE — speculative claims alone can't drive material verdicts. `/check --fix-loop` automates the fix → re-review cycle. Proposals use a structured template with mandatory sections (Current System Failures, Operational Context, Baseline Performance) to prevent challengers from fabricating numbers.
 
 You don't need all of them. Start with `/plan` and `/check`. Add the rest as your workflow matures.
 
@@ -424,7 +424,7 @@ git pull origin main
 | You want to... | Read |
 |---|---|
 | **Get running in an hour** | [Getting Started](docs/getting-started.md) — guided first-hour tutorial: define, plan, build, review, ship |
-| **Quick reference while working** | [Cheat Sheet](docs/cheat-sheet.md) — pipeline tiers, all 24 skills, key files, shortcuts |
+| **Quick reference while working** | [Cheat Sheet](docs/cheat-sheet.md) — pipeline tiers, all 15 skills, key files, shortcuts |
 
 **Go deeper:**
 

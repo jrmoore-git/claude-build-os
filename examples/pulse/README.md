@@ -15,8 +15,8 @@ This is a worked example showing what Build OS artifacts look like for a real pr
 
 **How these artifacts were created:**
 
-1. `/define discover` produced the design doc (not included here -- the PRD supersedes it for this example)
+1. `/think discover` produced the design doc (not included here -- the PRD supersedes it for this example)
 2. PRD was generated from the design doc conversation in Phase 6.5
 3. Decisions were recorded as they came up during `/challenge` and `/plan`
 4. Lessons were recorded when things broke during implementation
-5. `current-state.md` was written by `/wrap-session` after the first sprint
+5. `current-state.md` was written by `/wrap` after the first sprint

@@ -46,22 +46,24 @@ The cross-model debate engine (`debate.py`) got the most significant changes:
 - Retries transient errors (429, 5xx, network) with exponential backoff (3 attempts)
 - Rollback path via `BUILDOS_LLM_LEGACY=1` env var
 
-## New Skills (8 added → 24 total)
+## New Skills (8 added, later consolidated to 15 total)
+
+> **Note:** Skills were renamed and consolidated on 2026-04-11 (D12). The names below reflect the current skill names.
 
 | Skill | What it does |
 |-------|-------------|
-| `/define` (discover + refine) | Full problem discovery with forcing questions, premise challenges, alternatives. Writes design doc + optional PRD generation. Refine mode = 5 quick questions for smaller tasks. |
-| `/elevate` | Scope ambition review after `/define`. 4 modes: dream big, selective expansion, hold scope, strip to essentials. |
-| `/refine` | 6-round cross-model collaborative improvement. Standalone on any input, or as final phase of `/debate`. |
-| `/autoplan` | Auto-detects pipeline tier from task description, chains skills with auto-decisions, surfaces taste decisions at final approval gate. |
-| `/design-shotgun` | Generate multiple AI design variants, open comparison board, collect structured feedback, iterate. |
-| `/doc-sync` | Cross-references git diff against all project docs. Fixes drift, polishes changelog voice, checks cross-doc consistency. |
-| `/governance` | Qualitative governance hygiene scan. |
-| `/qa` | Domain-specific QA validation. Go/no-go gate before `/ship`. |
+| `/think` (discover + refine) | Full problem discovery with forcing questions, premise challenges, alternatives. Writes design doc + optional PRD generation. Refine mode = 5 quick questions for smaller tasks. |
+| `/elevate` | Scope ambition review after `/think`. 4 modes: dream big, selective expansion, hold scope, strip to essentials. |
+| `/polish` | 6-round cross-model collaborative improvement. Standalone on any input, or as final phase of `/challenge --deep`. |
+| `/plan --auto` | Auto-detects pipeline tier from task description, chains skills with auto-decisions, surfaces taste decisions at final approval gate. |
+| `/design variants` | Generate multiple AI design variants, open comparison board, collect structured feedback, iterate. |
+| `/sync` | Cross-references git diff against all project docs. Fixes drift, polishes changelog voice, checks cross-doc consistency. |
+| `/check --governance` | Qualitative governance hygiene scan. |
+| `/check --qa` | Domain-specific QA validation. Go/no-go gate before `/ship`. |
 
-## PRD Generation (Phase 6.5 of `/define discover`)
+## PRD Generation (Phase 6.5 of `/think discover`)
 
-After problem discovery, `/define` now offers to generate a PRD from the conversation:
+After problem discovery, `/think` now offers to generate a PRD from the conversation:
 
 - **Three paths:** generate from design doc, validate a user's existing draft, or skip
 - **PRD template expanded** from 6 to 9 sections:
@@ -99,8 +101,8 @@ After problem discovery, `/define` now offers to generate a PRD from the convers
 
 ## Onboarding Docs (new)
 
-- **`docs/getting-started.md`** — guided tutorial: clone → define → plan → build → review → ship
-- **`docs/cheat-sheet.md`** — quick reference: pipeline tiers, all 24 skills, key files, governance shortcuts
+- **`docs/getting-started.md`** — guided tutorial: clone → think → plan → build → check → ship
+- **`docs/cheat-sheet.md`** — quick reference: pipeline tiers, all 15 skills, key files, governance shortcuts
 - **`examples/pulse/`** — complete worked example project (PRD, decisions, lessons, current-state)
 - **`docs/why-build-os.md`** — explains the problem BuildOS solves
 - **`docs/PERSONAS.md`** — model persona assignments and routing rationale
@@ -119,7 +121,7 @@ After problem discovery, `/define` now offers to generate a PRD from the convers
 - Stripped all project-specific content (product references, contact names, project config)
 - Archived 79 completed task artifacts
 - Reduced banned-terms to secrets-only patterns (was catching false positives on common words)
-- Deleted obsolete skills (`/think`, `/handoff`, `/sync`)
+- Deleted obsolete skills (pre-April names that were later consolidated)
 
 ---
 

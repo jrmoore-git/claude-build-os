@@ -6,7 +6,7 @@ A guided first-hour tutorial. By the end, you'll have a defined product, an impl
 
 ## 1. Prerequisites
 
-You need [Claude Code](https://claude.ai/claude-code), git, and Python 3.11+. For cross-model review (`/challenge`, `/debate`, `/review`), you also need LiteLLM and API keys from Anthropic, OpenAI, and Google AI. See the [README](../README.md) for full setup details.
+You need [Claude Code](https://claude.ai/claude-code), git, and Python 3.11+. For cross-model review (`/challenge`, `/challenge --deep`, `/check`), you also need LiteLLM and API keys from Anthropic, OpenAI, and Google AI. See the [README](../README.md) for full setup details.
 
 ## 2. Clone and Setup (~5 min)
 
@@ -29,10 +29,10 @@ This walks you through three questions (what are you building, who's the audienc
 ## 3. Define Your Product (~15 min)
 
 ```
-/define discover
+/think discover
 ```
 
-This is the PM phase. `/define discover` runs a structured problem discovery:
+This is the PM phase. `/think discover` runs a structured problem discovery:
 
 1. **Forcing questions** -- it asks hard questions about demand, status quo, target users, and scope. These aren't busywork; they surface assumptions you haven't examined.
 2. **Premise challenge** -- it states the premises behind your idea and asks you to confirm or reject each one.
@@ -42,7 +42,7 @@ This is the PM phase. `/define discover` runs a structured problem discovery:
 
 At the end, you'll have two artifacts: a design doc and a PRD. These are the source of truth for the rest of the pipeline.
 
-**For smaller work**, use `/define refine` instead -- it asks 5 quick forcing questions and writes a brief. Use this for features where the problem is already clear.
+**For smaller work**, use `/think refine` instead -- it asks 5 quick forcing questions and writes a brief. Use this for features where the problem is already clear.
 
 ## 4. Plan Your First Feature (~5 min)
 
@@ -68,7 +68,7 @@ This is normal Claude Code usage. Ask Claude to implement the plan. The framewor
 ## 6. Review (~5 min)
 
 ```
-/review
+/check
 ```
 
 This sends your diff to three models from different families. Each reviews through a different lens:
@@ -79,7 +79,7 @@ This sends your diff to three models from different families. Each reviews throu
 
 The review writes to `tasks/<topic>-review.md`. Fix any issues flagged, then proceed.
 
-**Note:** `/review` requires LiteLLM and API keys. If you haven't set those up yet, do a manual review instead -- the framework doesn't block you.
+**Note:** `/check` requires LiteLLM and API keys. If you haven't set those up yet, do a manual review instead -- the framework doesn't block you.
 
 ## 7. Ship
 
@@ -95,12 +95,12 @@ Match the pipeline to the task:
 
 | Task | Pipeline |
 |---|---|
-| Bugfix | `/plan` --> build --> `/review` --> `/ship` |
-| Small feature | `/define refine` --> `/plan` --> build --> `/review` --> `/ship` |
-| New feature | `/define discover` --> `/challenge` --> `/plan` --> build --> `/review` --> `/ship` |
-| Big bet | `/define discover` --> `/elevate` --> `/challenge` --> `/plan` --> build --> `/review` --> `/ship` |
+| Bugfix | `/plan` --> build --> `/check` --> `/ship` |
+| Small feature | `/think refine` --> `/plan` --> build --> `/check` --> `/ship` |
+| New feature | `/think discover` --> `/challenge` --> `/plan` --> build --> `/check` --> `/ship` |
+| Big bet | `/think discover` --> `/elevate` --> `/challenge` --> `/plan` --> build --> `/check` --> `/ship` |
 
-A typo fix doesn't need `/define discover`. A new product does. Use the tier that matches your risk.
+A typo fix doesn't need `/think discover`. A new product does. Use the tier that matches your risk.
 
 ## 9. What to Learn Next
 
@@ -113,4 +113,4 @@ A typo fix doesn't need `/define discover`. A new product does. Use the tier tha
 
 ---
 
-You don't need to learn everything. Start with `/define` --> `/plan` --> build --> `/review` --> `/ship`. Add the rest as your workflow matures.
+You don't need to learn everything. Start with `/think` --> `/plan` --> build --> `/check` --> `/ship`. Add the rest as your workflow matures.

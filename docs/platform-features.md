@@ -126,9 +126,9 @@ Claude Code maintains automatic memory at `~/.claude/projects/<project>/memory/M
 | File | Purpose | Who writes it |
 |---|---|---|
 | `MEMORY.md` (auto) | Claude's session-to-session observations | Claude (automatic) |
-| `tasks/decisions.md` | Deliberate architectural choices with rationale | You (via /capture or /doc-sync) |
-| `tasks/lessons.md` | Mistakes and patterns worth remembering | You (via /capture or /doc-sync) |
-| `tasks/handoff.md` | Next-session context and status | You (via /wrap-session) |
+| `tasks/decisions.md` | Deliberate architectural choices with rationale | You (via /log or /sync) |
+| `tasks/lessons.md` | Mistakes and patterns worth remembering | You (via /log or /sync) |
+| `tasks/handoff.md` | Next-session context and status | You (via /wrap) |
 
 Auto memory and framework files serve different purposes. Auto memory captures what Claude notices; framework files capture what you deliberately record. If both contain the same information, the framework file is authoritative.
 
@@ -149,7 +149,7 @@ Claude Code provides session continuity features that complement the handoff wor
 | `/compact <instructions>` | Guided compaction with preservation hints |
 | `/clear` | Clear context between unrelated tasks |
 
-Use these alongside — not instead of — the handoff file. Native session continuity preserves conversation; the handoff file preserves decisions and intent. A resumed session has conversation history but not the structured context that `/recall` provides.
+Use these alongside — not instead of — the handoff file. Native session continuity preserves conversation; the handoff file preserves decisions and intent. A resumed session has conversation history but not the structured context that `/start` provides.
 
 ---
 

@@ -1,6 +1,6 @@
 # Product Requirements — [Project Name]
 
-> **Template file.** This is the PRD template for projects built with BuildOS. Fill this in using `/define discover` which generates a PRD interactively, or write it manually. BuildOS itself is a framework — its "requirements" are the skills, hooks, and rules in the repo.
+> **Template file.** This is the PRD template for projects built with BuildOS. Fill this in using `/think discover` which generates a PRD interactively, or write it manually. BuildOS itself is a framework — its "requirements" are the skills, hooks, and rules in the repo.
 
 ## 1. What we're building
 [One paragraph. What is this project, what problem does it solve, and why does it exist?]
