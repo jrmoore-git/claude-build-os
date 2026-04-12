@@ -77,30 +77,24 @@ MANIFEST=(
   config/buildos-expected-divergences.json
 
   # Skills
-  .claude/skills/autoplan/SKILL.md
-  .claude/skills/challenge/SKILL.md
-  .claude/skills/debate/SKILL.md
-  .claude/skills/define/SKILL.md
-  .claude/skills/design-consultation/SKILL.md
-  .claude/skills/design-review/SKILL.md
-  .claude/skills/doc-sync/SKILL.md
-  .claude/skills/elevate/SKILL.md
-  .claude/skills/governance/SKILL.md
-  .claude/skills/plan/SKILL.md
-  .claude/skills/plan-design-review/SKILL.md
-  .claude/skills/qa/SKILL.md
-  .claude/skills/recall/SKILL.md
-  .claude/skills/review/SKILL.md
-  .claude/skills/ship/SKILL.md
-  .claude/skills/status/SKILL.md
-  .claude/skills/wrap-session/SKILL.md
-  .claude/skills/capture/SKILL.md
-  .claude/skills/design-shotgun/SKILL.md
-  .claude/skills/refine/SKILL.md
-  .claude/skills/review-x/SKILL.md
-  .claude/skills/setup/SKILL.md
   .claude/skills/audit/SKILL.md
+  .claude/skills/challenge/SKILL.md
+  .claude/skills/design/SKILL.md
+  .claude/skills/elevate/SKILL.md
+  .claude/skills/explore/SKILL.md
+  .claude/skills/log/SKILL.md
+  .claude/skills/plan/SKILL.md
+  .claude/skills/polish/SKILL.md
+  .claude/skills/pressure-test/SKILL.md
+  .claude/skills/research/SKILL.md
+  .claude/skills/review/SKILL.md
+  .claude/skills/setup/SKILL.md
+  .claude/skills/ship/SKILL.md
+  .claude/skills/start/SKILL.md
+  .claude/skills/sync/SKILL.md
+  .claude/skills/think/SKILL.md
   .claude/skills/triage/SKILL.md
+  .claude/skills/wrap/SKILL.md
 
   # Scripts
   scripts/debate.py
@@ -116,21 +110,23 @@ MANIFEST=(
   scripts/buildos-sync.sh
   scripts/debate_tools.py
   scripts/llm_client.py
-  scripts/verify_state.py
+  scripts/check_conviction_gate.py
   scripts/deploy_all.sh
   scripts/deploy_skills.sh
-  scripts/pipeline_manifest.py
+  scripts/managed_agent.py
+  scripts/research.py
+  scripts/setup-design-tools.sh
 
   # Reference rules
   .claude/rules/reference/code-quality-detail.md
   .claude/rules/reference/operational-context.md
+  .claude/rules/reference/debate-invocations.md
   .claude/rules/reference/platform.md
 
   # Hooks
   hooks/hook-agent-isolation.py
   hooks/hook-bash-fix-forward.py
   hooks/hook-decompose-gate.py
-  hooks/hook-decompose-gate.sh
   hooks/hook-guard-env.sh
   hooks/hook-plan-gate.sh
   hooks/hook-post-tool-test.sh

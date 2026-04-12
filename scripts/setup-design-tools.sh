@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Install the design CLI and browser CLI used by /design-shotgun.
+# Install the design CLI and browser CLI used by /design variants.
 # Adds DESIGN_CLI and BROWSE_CLI to your shell profile.
 
 set -euo pipefail
@@ -24,7 +24,7 @@ SHELL_RC="$HOME/.zshrc"
 if ! grep -q 'DESIGN_CLI' "$SHELL_RC" 2>/dev/null; then
   cat >> "$SHELL_RC" <<'EOF'
 
-# Design tooling (used by /design-shotgun)
+# Design tooling (used by /design variants)
 export DESIGN_CLI="$HOME/.claude/skills/gstack/design/dist/design"
 export BROWSE_CLI="$HOME/.claude/skills/gstack/browse/dist/browse"
 EOF
