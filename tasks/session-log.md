@@ -879,7 +879,7 @@ ended without running `/wrap`. Review and enrich in the next session.
 
 ---
 
-## 2026-04-11 — Skill rename: 25→15 skills, rip-and-replace
+## 2026-04-11 — Skill rename: 25→18 skills, rip-and-replace
 
 **Decided:**
 - D12: Rip-and-replace with no aliases — solo user, zero backward-compat overhead
@@ -894,5 +894,5 @@ ended without running `/wrap`. Review and enrich in the next session.
 
 **Not Finished:** Fresh session verification; explore intake not wired to prompt files yet
 
-**Next Session:** Verify all 15 skills resolve in a fresh session, then wire explore intake into preflight-adaptive.md v6
+**Next Session:** Verify all 18 skills resolve in a fresh session, then wire explore intake into preflight-adaptive.md v6
 

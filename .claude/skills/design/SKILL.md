@@ -128,7 +128,7 @@ ls app/src/ app/src/app/ app/src/components/ 2>/dev/null | head -30
 bash scripts/browse.sh goto "about:blank" && echo "BROWSE_READY" || echo "BROWSE_UNAVAILABLE"
 ```
 
-Browse enables visual competitive research. If unavailable, the skill works without it using `web_search.py` and built-in design knowledge.
+Browse enables visual competitive research. If unavailable, the skill works without it using `research.py` and built-in design knowledge.
 
 ---
 
@@ -157,10 +157,10 @@ Store answers for use in Phase 3.
 
 **Step 1: Identify what's out there via web search**
 
-Use `web_search.py` to find 5-10 products in their space:
+Use `research.py` to find 5-10 products in their space:
 
 ```bash
-YOU_COM_API_KEY="$YOU_COM_API_KEY" python3.11 scripts/web_search.py search "[product category] website design" --num 10
+export $(grep PERPLEXITY_API_KEY .env) && python3.11 scripts/research.py --sync --model sonar "[product category] website design best examples"
 ```
 
 Search for:
@@ -182,7 +182,7 @@ For each site, analyze: fonts actually used, color palette, layout approach, spa
 
 If a site blocks the headless browser or requires login, skip it and note why.
 
-If browse is not available, rely on `web_search.py` results and your built-in design knowledge — this is fine.
+If browse is not available, rely on `research.py` results and your built-in design knowledge — this is fine.
 
 **Step 3: Synthesize findings**
 
@@ -197,9 +197,9 @@ Summarize conversationally:
 > "I looked at what's out there. Here's the landscape: they converge on [patterns]. Most of them feel [observation — e.g., interchangeable, polished but generic, etc.]. The opportunity to stand out is [gap]. Here's where I'd play it safe and where I'd take a risk..."
 
 **Graceful degradation:**
-- Browse available: screenshots + snapshots + web_search.py (richest research)
-- Browse unavailable: web_search.py only (still good)
-- web_search.py unavailable: fall back to Claude's built-in WebSearch tool
+- Browse available: screenshots + snapshots + research.py (richest research)
+- Browse unavailable: research.py only (still good)
+- research.py unavailable: fall back to Claude's built-in WebSearch tool
 - WebSearch also unavailable: built-in design knowledge (always works)
 
 If the user said no research, skip entirely and proceed to Phase 3 using built-in design knowledge.

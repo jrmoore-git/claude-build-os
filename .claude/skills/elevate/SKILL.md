@@ -180,13 +180,13 @@ Report findings before proceeding to Step 0.
 **Reuse existing research:** Before running web search, check if `tasks/<topic>-landscape.md`
 exists (written by /think). If it exists, read it and use those findings instead of
 repeating the search. State: "Found landscape research from /think -- using existing
-findings." Skip the web_search.py calls below and proceed to the three-layer synthesis
+findings." Skip the research calls below and proceed to the three-layer synthesis
 using the landscape file content.
 
-Before challenging scope, understand the landscape. Use `web_search.py` for research:
+Before challenging scope, understand the landscape. Use `research.py` for research:
 
 ```bash
-YOU_COM_API_KEY="$YOU_COM_API_KEY" /opt/homebrew/bin/python3.11 scripts/web_search.py search "query here" --num 5
+export $(grep PERPLEXITY_API_KEY .env) && python3.11 scripts/research.py --sync --model sonar "query here"
 ```
 
 Search for:
@@ -194,7 +194,7 @@ Search for:
 - "[key feature] alternatives"
 - "why [incumbent/conventional approach] [succeeds/fails]"
 
-If `YOU_COM_API_KEY` is not set or search fails, fall back to Claude's built-in WebSearch tool:
+If `PERPLEXITY_API_KEY` is not set or search fails, fall back to Claude's built-in WebSearch tool:
 ```
 WebSearch("query here")
 ```

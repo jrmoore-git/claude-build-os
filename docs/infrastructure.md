@@ -65,14 +65,14 @@ ollama pull nomic-embed-text
 
 Ollama runs locally. No data leaves your machine. The `nomic-embed-text` model is small (~274MB) and fast.
 
-### You.com Search API
+### Perplexity Sonar API
 
-Enables web research in skills that need external context — `/think discover` (competitive research), context enrichment, and any skill that needs to look up people or companies. `web_search.py` wraps the You.com API with SSRF protection and untrusted content labeling.
+Enables web research in skills that need external context — `/research` (deep async research), `/explore` (pre-flight enrichment), `/think discover` (competitive landscape), and `/design consult` (competitive design research). `scripts/research.py` wraps the Perplexity Sonar API with sync and async modes.
 
 ```bash
-# Get an API key at https://you.com/search-api
+# Get an API key at https://docs.perplexity.ai/
 # Add to .env:
-YOU_COM_API_KEY=ydc-sk-...
+PERPLEXITY_API_KEY=pplx-...
 ```
 
 Without it, skills fall back to Claude's built-in WebSearch tool. If that's also unavailable, they skip web research and proceed with training knowledge only. The core debate pipeline does not require it.

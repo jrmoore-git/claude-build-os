@@ -180,18 +180,6 @@ PERPLEXITY_API_KEY=pplx-...
 
 **Fallback:** Without this, `/research` is unavailable and `/explore` skips research enrichment. Other skills are unaffected.
 
-### Optional: Web Search (You.com Search API)
-
-Gives `/think discover`, `/elevate`, and `/design consult` access to live web search for competitive research, landscape analysis, and design inspiration. Lighter-weight than Perplexity — good for spot lookups during problem discovery.
-
-```bash
-# Get an API key at https://you.com/search-api
-# Add to .env:
-YOU_COM_API_KEY=ydc-sk-...
-```
-
-**Fallback:** Without this, skills fall back to Claude's built-in WebSearch tool. If that's also unavailable, skills skip web research and proceed with Claude's training knowledge only. The core pipeline (`/challenge`, `/check`, `/ship`) never uses web search.
-
 ### Optional: Semantic Search (Ollama)
 
 Gives governance search semantic similarity matching for finding conceptually related lessons and decisions, even when they don't share exact keywords. Two systems use this:
@@ -371,7 +359,7 @@ For the full guide — spawn prompts, token budgets, custom agent definitions, a
 
 ## The Skills
 
-Build OS ships with 15 skills — slash commands that implement the pipeline stages. Think of them as the team members you'd want on a real project:
+Build OS ships with 18 skills — slash commands that implement the pipeline stages. Think of them as the team members you'd want on a real project:
 
 | Role | Skills | What they do |
 |---|---|---|
@@ -381,8 +369,10 @@ Build OS ships with 15 skills — slash commands that implement the pipeline sta
 | **Refiner** | `/polish` | 6-round cross-model collaborative improvement on any document |
 | **Lead Engineer** | `/plan` (`--auto` for full pipeline) | Implementation planning, auto-tier detection |
 | **Reviewer** | `/check` | Cross-model code review (3 lenses: PM, Security, Architecture). `--fix` auto-fixes mechanical issues. `--fix-loop` runs fix → re-review cycles (max 3 iterations). `--qa`, `--governance`, `--second-opinion`, `--all` for additional checks. |
+| **Researcher** | `/research` | Deep web research via Perplexity Sonar with citations (async deep + sync quick) |
 | **Release** | `/ship`, `/sync` | Pre-flight gates (verify + QA + tests + review) → deploy → doc sync |
-| **Session** | `/start`, `/wrap`, `/log`, `/triage` | Bootstrap + routing, session close, knowledge capture, info routing. `/start` orients the session; context enrichment for debate models is handled separately by `enrich_context.py`. |
+| **Session** | `/start`, `/wrap`, `/log`, `/triage` | Bootstrap + routing, session close, knowledge capture, info routing |
+| **Bootstrap** | `/setup`, `/audit` | Interactive project setup, two-phase blind discovery audit |
 
 Running `/think` → `/challenge` → `/plan` → build → `/check` → `/ship` gives you the equivalent of a PM defining scope, an architect stress-testing the approach, engineers building, a cross-model review panel checking quality, and a release engineer running pre-flight gates before deploying. `/ship` includes verification (adversarial probes), QA dimensions, and all other gates inline — the standard path is `/check` → `/ship`, not a longer chain. Each skill writes artifacts to disk so the next stage (or session) picks up where the last one left off. Pipeline progress is tracked in manifest files (`tasks/<topic>-manifest.json`) so you can see which stages have completed for any topic.
 
@@ -442,7 +432,7 @@ git pull origin main
 | You want to... | Read |
 |---|---|
 | **Get running in an hour** | [Getting Started](docs/getting-started.md) — guided first-hour tutorial: define, plan, build, review, ship |
-| **Quick reference while working** | [Cheat Sheet](docs/cheat-sheet.md) — pipeline tiers, all 15 skills, key files, shortcuts |
+| **Quick reference while working** | [Cheat Sheet](docs/cheat-sheet.md) — pipeline tiers, all 18 skills, key files, shortcuts |
 
 **Go deeper:**
 

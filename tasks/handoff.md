@@ -1,7 +1,7 @@
 # Handoff — 2026-04-11
 
 ## Session Focus
-Executed the full 25→15 skill rename and restructure: renames, merges, flag additions, old directory deletions, and cross-reference updates across 40+ files.
+Executed the full 25→18 skill rename and restructure: renames, merges, flag additions, old directory deletions, and cross-reference updates across 40+ files.
 
 ## Decided
 - D12: Rip-and-replace with no aliases — solo user means zero backward-compat overhead
@@ -15,7 +15,7 @@ Executed the full 25→15 skill rename and restructure: renames, merges, flag ad
 - All cross-references updated in rules, docs, README, CLAUDE.md, cheat-sheet
 
 ## NOT Finished
-- Fresh session verification that all 15 skills resolve correctly
+- Fresh session verification that all 18 skills resolve correctly
 - Explore intake refinement not yet wired into actual prompt files (preflight-adaptive.md v6)
 
 ## Next Session Should
