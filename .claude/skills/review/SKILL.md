@@ -37,7 +37,25 @@ These rules apply to EVERY AskUserQuestion call in this skill:
    lowercase alphanumeric + hyphens only (`[a-z0-9-]`). Strip `/`, `..`, spaces, and
    special characters. This prevents path traversal in file writes.
 
-# /review — Unified Quality Check
+# /review — Cross-Model Quality Review
+
+## Content-Type Detection (BEFORE mode routing)
+
+Before selecting a mode, determine what is being reviewed:
+
+1. **Check for explicit file argument.** If the user says `/review tasks/<topic>-explore.md` or `/review tasks/<topic>-design.md` or similar — the input is a **document**, not code.
+
+2. **Check for git diff.** Run `git diff --name-only HEAD; git diff --cached --name-only; git diff --name-only`. If there are changed files with code extensions (`.py`, `.js`, `.ts`, `.sh`, `.sql`, `.json`, `.yaml`, `.html`, `.css`, etc.) — the input is **code**.
+
+3. **If no code changes and no explicit file** — ask what they want reviewed.
+
+**Routing by content type:**
+
+| Content | Route | Why |
+|---|---|---|
+| Code (git diff with code files) | **code-review** mode (PM + Security + Architecture personas) | Technical review needs specialized lenses |
+| Non-code document (design doc, strategy, explore output, plan, proposal) | **document-review** mode (cross-model refinement, no personas) | PM/Security/Architecture personas are wrong for non-technical content — use collaborative cross-model improvement instead |
+| Mixed (code + docs in same diff) | **code-review** mode on code files only, note doc changes separately | Don't send prose through security scanners |
 
 ## Mode Routing
 
@@ -45,7 +63,7 @@ Parse the user's invocation to determine which mode to run:
 
 | Invocation | Mode | Description |
 |---|---|---|
-| `/review` (no flags) | **code-review** | Cross-model code review (3 lenses). Smart context: if `tasks/<topic>-refined.md` exists, review against spec. If pre-ship context detected (review + qa artifacts already exist), suggest `--all`. |
+| `/review` (no flags) | **code-review** or **document-review** | Auto-detected by content type above. Code → 3-lens persona review. Documents → cross-model refinement. |
 | `/review --second-opinion` | **second-opinion** | Get a second model's opinion on an existing review. Requires a prior `/review` review artifact. |
 | `/review --qa` | **qa** | 5-dimension QA validation (test coverage, regression risk, plan compliance, negative tests, integration). |
 | `/review --governance` | **governance** | Governance hygiene scan (lessons, decisions, rules, cross-references, escalation ladder). |
@@ -359,6 +377,63 @@ Review passed after 3 iterations. Artifact: tasks/<topic>-review.md
 ```
 
 `--fix-loop` implies `--fix` — you do not need to pass both.
+
+---
+
+## Mode: Document Review (auto-detected for non-code input)
+
+When the content-type detection identifies the input as a non-code document (design doc, strategy, explore output, plan, proposal), use cross-model refinement instead of persona-based review. PM/Security/Architecture lenses are designed for code — applying them to a strategy doc or design proposal produces irrelevant findings.
+
+### Step 1: Identify the document
+
+The document is either:
+- Explicitly provided by the user (`/review tasks/<topic>-explore.md`)
+- The only changed file in the working tree (if it's a `.md` file in `tasks/` or `docs/`)
+
+Read the document.
+
+### Step 2: Run cross-model refinement
+
+Use `debate.py refine` — the same engine that powers `/polish` — to get 3 models from different families to independently improve the document:
+
+```bash
+python3.11 scripts/debate.py refine \
+  --document <path to document> \
+  --rounds 3 \
+  --output tasks/<topic>-review.md
+```
+
+Three rounds (one per model family) is enough for review — this is lighter than `/polish` (6 rounds) because the goal is quality feedback, not iterative perfection.
+
+### Step 3: Write review artifact
+
+Read the refine output and write `tasks/<topic>-review.md` with:
+
+```markdown
+---
+topic: <topic>
+review_tier: cross-model-refinement
+status: passed | passed-with-warnings | fail
+content_type: document
+---
+# /review — <topic> (document review)
+
+## Content Type
+Non-code document — routed to cross-model refinement instead of persona-based code review.
+
+## Cross-Model Feedback
+[Summarize the refinement output: what each model suggested improving, common themes, disagreements]
+
+## Verdict
+[pass / pass-with-warnings / fail]
+
+## Suggested Next Action
+[What to do next based on the feedback]
+```
+
+### Step 4: Display results
+
+Show the verdict and key feedback points inline. If changes were suggested, list the top 3-5 concrete improvements.
 
 ---
 

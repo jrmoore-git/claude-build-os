@@ -33,12 +33,10 @@ flowchart LR
         C[Challenge] --> D[Plan]
         D --> E[Polish]
         E --> F[Build]
-        F --> G[Check]
+        F --> G[Review]
         G --> H[Ship]
     end
     Product --> Engineering
-
-    style E fill:#f5f5f5,stroke:#999,stroke-dasharray: 5 5
 ```
 
 | Stage | Role | Skills | Output |
