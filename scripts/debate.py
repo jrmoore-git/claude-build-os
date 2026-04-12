@@ -1852,6 +1852,8 @@ LLM_CALL_DEFAULTS = {
         "gemini-3.1-pro": 1.0,      # Fix 4 — Google explicitly requires 1.0 for Gemini 3
     },
     "consolidation_max_tokens": 4000,  # consolidation produces tight summaries
+    "explore_temperature": 1.0,         # max creativity for divergent directions
+    "pressure_test_temperature": 0.8,   # slightly creative for counter-thesis generation
 }
 
 # LLM_SAFE_EXCEPTIONS — recoverable errors from LLM calls. Network, API,
@@ -3206,7 +3208,7 @@ def cmd_explore(args):
     try:
         resp = _call_litellm(model, explore_prompt, user_content,
                              litellm_url, api_key,
-                             temperature=1.0)
+                             temperature=LLM_CALL_DEFAULTS["explore_temperature"])
     except LLM_SAFE_EXCEPTIONS as e:
         print(f"ERROR: explore round 1 failed — {e}", file=sys.stderr)
         return 1
@@ -3230,7 +3232,7 @@ def cmd_explore(args):
         try:
             resp = _call_litellm(model, diverge_prompt, user_content,
                                  litellm_url, api_key,
-                                 temperature=1.0)
+                                 temperature=LLM_CALL_DEFAULTS["explore_temperature"])
         except LLM_SAFE_EXCEPTIONS as e:
             print(f"WARNING: explore round {i} failed — {e}",
                   file=sys.stderr)
@@ -3350,7 +3352,7 @@ def cmd_pressure_test(args):
     try:
         response = _call_litellm(model, prompt, user_content,
                                  litellm_url, api_key,
-                                 temperature=0.8)
+                                 temperature=LLM_CALL_DEFAULTS["pressure_test_temperature"])
     except LLM_SAFE_EXCEPTIONS as e:
         print(f"ERROR: {phase} failed — {e}", file=sys.stderr)
         return 1
