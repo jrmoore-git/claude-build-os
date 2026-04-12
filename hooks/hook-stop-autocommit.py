@@ -15,6 +15,7 @@ Behavior:
 import os
 import subprocess
 import sys
+import time
 from datetime import datetime
 from pathlib import Path
 from zoneinfo import ZoneInfo
@@ -140,6 +141,24 @@ def mark_current_state_stale(files):
     CURRENT_STATE.write_text("\n".join(lines))
 
 
+DEDUP_WINDOW_SECS = 600  # 10 minutes
+
+
+def last_commit_is_recent_auto():
+    """Check if the last commit is an [auto] commit within the dedup window."""
+    subject, rc = git("log", "-1", "--format=%s")
+    if rc != 0 or not subject.startswith("[auto]"):
+        return False
+    epoch_str, rc = git("log", "-1", "--format=%ct")
+    if rc != 0:
+        return False
+    try:
+        commit_age = time.time() - int(epoch_str)
+        return commit_age < DEDUP_WINDOW_SECS
+    except ValueError:
+        return False
+
+
 def main():
     files = get_uncommitted_files()
     if not files:
@@ -152,10 +171,13 @@ def main():
         print(f"stop-autocommit: only {len(files)} files, skipping (detect-uncommitted will catch at next session)")
         return
 
-    print(f"stop-autocommit: {len(files)} uncommitted files detected, auto-committing")
+    amend = last_commit_is_recent_auto()
+    verb = "amending" if amend else "auto-committing"
+    print(f"stop-autocommit: {len(files)} uncommitted files detected, {verb}")
 
-    # Write session log entry
-    write_session_log_entry(files)
+    # Only write a new session-log entry on fresh commits (not amends)
+    if not amend:
+        write_session_log_entry(files)
 
     # Mark current-state.md as stale
     try:
@@ -174,7 +196,7 @@ def main():
     if CURRENT_STATE.exists():
         git("add", "docs/current-state.md")
 
-    # Commit
+    # Commit (amend if recent [auto] exists, otherwise new commit)
     now = datetime.now(PACIFIC)
     msg = (
         f"[auto] Session work captured {now.strftime('%Y-%m-%d %H:%M PT')}\n"
@@ -185,9 +207,14 @@ def main():
         f"Co-Authored-By: Claude Opus 4.6 <noreply@anthropic.com>"
     )
 
-    out, rc = git("commit", "-m", msg)
+    commit_args = ["commit", "-m", msg]
+    if amend:
+        commit_args = ["commit", "--amend", "-m", msg]
+
+    out, rc = git(*commit_args)
     if rc == 0:
-        print(f"stop-autocommit: committed {len(files)} files")
+        action = "amended into previous" if amend else "committed"
+        print(f"stop-autocommit: {action} ({len(files)} files)")
     else:
         print(f"stop-autocommit: commit failed: {out}", file=sys.stderr)
 
