@@ -1,28 +1,22 @@
 # Current State — 2026-04-11
 
-## ⚠ STALE — auto-captured session ended without /wrap-session
-**Auto-capture date:** 2026-04-11 21:53 PT
-**Files changed this session:** 8 files in tasks
-**WARNING:** The "Next Action" below may be outdated. Cross-check with `git log --oneline -10` and recent session-log entries.
-
-
 ## What Changed This Session
-- Made BuildOS discoverable without memorization: natural language is now the primary interface, slash commands are power-user shortcuts
-- Fixed 6 broken skill descriptions (design, elevate, investigate, research, sync, think) — YAML multiline `|` format was showing as literal `|` in the `/` menu
-- Created `/guide` skill — intent-based skill map ("I want to...") for users who are lost
-- Added `.claude/rules/natural-language-routing.md` — routing table + proactive pattern recognition rules
-- Built `hook-intent-router.py` (UserPromptSubmit) — deterministic keyword-based intent classification, injects routing suggestions into Claude's context
-- Built `hook-error-tracker.py` (PostToolUse:Bash) — tracks recurring errors, triggers proactive `/investigate` suggestions after 2+ failures of same class
-- Updated README, getting-started.md, cheat-sheet.md, hooks.md, CLAUDE.md with "no memorization required" messaging and new hook/skill documentation
-- Ran full performance profile: all hooks <80ms, full system overhead 3-6% of Claude API call time
+- Built learning system health infrastructure: three-depth healthcheck (counts/targeted/full), differentiated /start vs /wrap checks
+- Created `scripts/lesson_events.py` — structured event logger + velocity metrics (avg resolution time, recurrence rate, stale rate)
+- Added auto-verify stale lessons via cross-model panel in healthcheck Step 5b
+- Added governance pruning with `Enforced-By:` tag convention on rule files
+- Fixed `/challenge` conservatism: added PROCEED-WITH-FIXES recommendation, implementation cost tags in challenger prompts, symmetric risk evaluation
+- Fixed L23: `--models` challenger path now applies security posture modifier
+- Improved `hook-stop-autocommit.py` with 10-minute dedup window (amends recent auto-commits instead of creating new ones)
+- Iterated explore intake eval harness to 5/5 persona passes, backported to production (parallel session)
 
 ## Current Blockers
-- None identified
+- Gemini 3.1 Pro at daily quota limit (250 requests) — cross-model runs degraded to 2/3 challengers
 
 ## Next Action
-Test the intent router in a real session (settings.json changed — new sessions will have UserPromptSubmit hook active). Verify routing suggestions appear naturally in conversation.
+Test improved `/challenge` on a real new proposal to verify PROCEED-WITH-FIXES calibration works in practice.
 
 ## Recent Commits
-fa55a0f [auto] Session work captured 2026-04-11 21:52 PT
-23a051b [auto] Session work captured 2026-04-11 21:50 PT
-5436340 [auto] Session work captured 2026-04-11 21:49 PT
+fcb0498 [auto] Session work captured 2026-04-11 22:21 PT
+42768cf [auto] Session work captured 2026-04-11 22:04 PT
+606c8f7 [auto] Session work captured 2026-04-11 22:02 PT

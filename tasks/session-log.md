@@ -1637,3 +1637,50 @@ ended without running `/wrap-session`. Review and enrich in the next session.
 - **tasks/**: eval-speed-evidence.md, persona-misuse-evidence.md, test-visibility-evidence.md
 
 **Auto-committed:** 2026-04-11 22:05 PT
+
+---
+
+## 2026-04-11 — Learning system health + /challenge conservatism fix
+
+**Decided:**
+- Three healthcheck depths (counts/targeted/full) with differentiated /start vs /wrap checks
+- Structured event logging over git log parsing for velocity metrics
+- Enforced-By tag convention for rule-hook redundancy detection
+- PROCEED-WITH-FIXES recommendation + implementation cost tags for /challenge
+
+**Implemented:**
+- lesson_events.py (structured event logger + velocity metrics)
+- Healthcheck SKILL.md: three depths, auto-verify, velocity, pruning
+- Start/wrap SKILL.md: governance checks wired in
+- Challenge SKILL.md: proceed-with-fixes, cost assessment, symmetric risk
+- debate.py: IMPLEMENTATION_COST_INSTRUCTION, --models posture fix (L23)
+- hook-stop-autocommit.py: 10-min dedup window
+- Enforced-By tags on 4 rule files, security reference extraction
+
+**Not Finished:** L13/L14/L15 staleness unverified; live challenge test on genuinely new proposal
+
+**Next Session:** Test /challenge on a real new proposal; run /healthcheck to verify full pipeline
+
+---
+
+## 2026-04-11 — Explore intake eval harness iteration to 5/5 passes
+
+**Decided:**
+- Thread-and-steer replaces question-bank for explore pre-flight (v7)
+- Three-gate sufficiency (strategy + implementation + declaration), always invisible
+- Thesis-form reframe (25 words, user vocabulary), not practical alternatives
+- Mandatory options format for terse users (ALL remaining questions)
+- CONFIDENCE field always present (HIGH/MEDIUM/LOW)
+
+**Implemented:**
+- Eval harness iteration: system prompt rewrite, per-turn reminders, temperature 0.3->0.15
+- Backported 8 improvements to preflight-adaptive.md (v5->v7 full rewrite)
+- Backported to explore/SKILL.md (Step 2a: 7-step thread-and-steer intake)
+- Backported to explore-intake-refined.md (v6->v7)
+- Swapped persona model Gemini->GPT-5.4 after quota hit
+
+**Not Finished:** Optional Gemini cross-model confirmation; end-to-end /explore test with live input
+
+**Next Session:** Optional Gemini confirmation run; pick next improvement area
+
+**Commit:** 31c6b1b
