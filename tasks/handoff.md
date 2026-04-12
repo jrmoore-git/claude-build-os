@@ -1,85 +1,34 @@
 # Handoff — 2026-04-11
 
 ## Session Focus
-Designed the explore intake UX: a 5-track routing question with fixed forcing questions per track, layered on existing adaptive delivery. Research session — no code changes.
+Executed the full 25→15 skill rename and restructure: renames, merges, flag additions, old directory deletions, and cross-reference updates across 40+ files.
 
 ## Decided
-- Explore intake uses a routing question: "What do you want to think through?" with 5 tracks
-- Each track has 5 fixed forcing questions (gstack-style: conversational, challenging, with parenthetical pushback)
-- Delivery is hybrid: fixed question backbone + adaptive protocol (use their words, push once if vague, skip covered ground)
-- Track list: Building something new / Fixing what's broken / Making a decision / Rethinking an approach / Research or refining thinking
+- D12: Rip-and-replace with no aliases — solo user means zero backward-compat overhead
+- D11: Explore mode is domain-agnostic with adaptive dimensions (from earlier in session)
 
-## Designed (not yet implemented)
+## Implemented
+- 5 simple renames: define→think, refine→polish, wrap-session→wrap, capture→log, doc-sync→sync
+- 5 merged skills: recall+status→start, review+review-x+qa+governance→check, 4 design skills→design, debate explore→explore, debate pressure-test→pressure-test
+- challenge --deep flag (old debate validate), plan --auto flag (old autoplan)
+- 12 old directories deleted
+- All cross-references updated in rules, docs, README, CLAUDE.md, cheat-sheet
 
-### Intake menu
-"What do you want to think through?"
-- **Building something new** — new product, feature, or side project
-- **Fixing what's broken** — something isn't working and you're not sure why
-- **Making a decision** — multiple options, need to pick one
-- **Rethinking an approach** — it works but feels wrong
-- **Something else** — research, or refining your thinking on something
-
-### Questions per track (5 each, asked one at a time, adapted to prior answers)
-
-**Building something new:**
-1. Who needs this — a specific person, not a market segment? What's their day look like?
-2. What are they doing right now to solve this — even if it's ugly? Spreadsheet, manual process, just ignoring it?
-3. What's the smallest version someone would actually use — this week, not after you build the full thing?
-4. What existing thing is closest to what you're building — and where does it fall short?
-5. What's the version that makes you excited — the one you'd stay up late for?
-
-**Fixing what's broken:**
-1. When did you first notice — and what were you doing when it hit?
-2. Have you seen it work correctly before — what was different then?
-3. How are people working around it right now — or are they just stuck?
-4. What's your best guess on the cause — and what makes you unsure?
-5. If you fixed this perfectly, what changes for the person using it tomorrow?
-
-**Making a decision:**
-1. What are the actual options — not theoretical ones, the ones you'd realistically do?
-2. Gun to your head, which way do you lean — before overthinking it?
-3. What's the worst that happens if you pick wrong — and how hard is it to reverse?
-4. What information would make this obvious — and can you get it before deciding?
-5. Who else does this affect — and do they see the same options you do?
-
-**Rethinking an approach:**
-1. What made you start questioning it — specific moment, or a slow build?
-2. What's actually working — what would you keep no matter what?
-3. If you started over with what you know now, what would be different?
-4. What's the part you're most afraid to change — the thing that feels load-bearing?
-5. What's the cost of leaving it as-is for another six months?
-
-**Research / refining thinking:**
-1. What's the question you're actually trying to answer — in one sentence?
-2. What do you already believe about this — and what would change your mind?
-3. Why now — what made you think about this today, not last week?
-4. What have you read or heard that shaped your current thinking?
-5. What would change if you had a clear answer?
-
-## NOT Implemented
-- `config/prompts/preflight-tracks.md` — the fixed question sets above need to be written to this file
-- Wire preflight-tracks into preflight-adaptive.md as the backbone
-- Update SKILL.md Step 3a to reference track routing
-- Still need: real /debate --explore end-to-end test of the conversation flow
-
-## Carried Over
-- Direction 1-2 overlap (architectural)
-- gstack 0.14.5 → 0.16.3 update
-- browse.sh wrapper
-- deploy_all.sh customization
-- Audit findings 11-13
-- /define discover live test
+## NOT Finished
+- Fresh session verification that all 15 skills resolve correctly
+- Explore intake refinement not yet wired into actual prompt files (preflight-adaptive.md v6)
 
 ## Next Session Should
-1. Read this handoff — the full question design is here
-2. Implement preflight-tracks.md with the 5 track question sets
-3. Wire into adaptive preflight and SKILL.md
-4. Run a real /debate --explore end-to-end to test the full flow
+1. Run `/start` in fresh session — verify skill resolution and cross-references
+2. Implement explore intake protocol into `config/prompts/preflight-adaptive.md` v6
+3. Run end-to-end test through `debate.py explore` with the new adaptive pre-flight
 
 ## Key Files Changed
-docs/current-state.md
-tasks/handoff.md
-tasks/session-log.md
+CLAUDE.md, README.md, docs/cheat-sheet.md, docs/infrastructure.md, docs/model-routing-guide.md
+docs/how-it-works.md, docs/hooks.md, docs/file-ownership.md
+.claude/rules/workflow.md, .claude/rules/review-protocol.md, .claude/rules/session-discipline.md
+.claude/skills/{think,polish,wrap,log,sync,challenge,plan,elevate,ship,check,research,setup}/SKILL.md
+hooks/hook-decompose-gate.py, tasks/explore-intake-refined.md
 
 ## Doc Hygiene Warnings
-⚠ decisions.md not updated — design decision on fixed+adaptive intake tracks not yet recorded as a numbered decision
+None — decisions.md updated with D12

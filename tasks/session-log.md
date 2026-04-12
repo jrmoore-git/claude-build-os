@@ -876,3 +876,23 @@ ended without running `/wrap-session`. Review and enrich in the next session.
 - **tasks/**: eval-register-flow.md, explore-intake-refined.md
 
 **Auto-committed:** 2026-04-11 17:17 PT
+
+---
+
+## 2026-04-11 — Skill rename: 25→15 skills, rip-and-replace
+
+**Decided:**
+- D12: Rip-and-replace with no aliases — solo user, zero backward-compat overhead
+- D11: Explore mode domain-agnostic with adaptive dimensions
+
+**Implemented:**
+- 5 simple renames (define→think, refine→polish, wrap-session→wrap, capture→log, doc-sync→sync)
+- 5 merged skills (start, check, design, explore, pressure-test)
+- challenge --deep flag, plan --auto flag
+- 12 old directories deleted, 40+ files cross-referenced
+- Explore intake register mirroring refinement
+
+**Not Finished:** Fresh session verification; explore intake not wired to prompt files yet
+
+**Next Session:** Verify all 15 skills resolve in a fresh session, then wire explore intake into preflight-adaptive.md v6
+
