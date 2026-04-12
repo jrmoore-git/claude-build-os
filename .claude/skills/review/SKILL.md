@@ -382,7 +382,9 @@ Review passed after 3 iterations. Artifact: tasks/<topic>-review.md
 
 ## Mode: Document Review (auto-detected for non-code input)
 
-When the content-type detection identifies the input as a non-code document (design doc, strategy, explore output, plan, proposal), use cross-model refinement instead of persona-based review. PM/Security/Architecture lenses are designed for code — applying them to a strategy doc or design proposal produces irrelevant findings.
+When the content-type detection identifies the input as a non-code document (design doc, strategy, explore output, plan, proposal), use cross-model evaluation with content-appropriate prompts instead of persona-based code review. PM/Security/Architecture lenses are designed for code diffs — applying them to a strategy doc or design proposal produces irrelevant findings.
+
+**Key distinction:** `/review` evaluates. `/polish` improves. Document review uses `review-panel --models` (parallel independent evaluation), not `refine` (iterative improvement).
 
 ### Step 1: Identify the document
 
@@ -390,50 +392,87 @@ The document is either:
 - Explicitly provided by the user (`/review tasks/<topic>-explore.md`)
 - The only changed file in the working tree (if it's a `.md` file in `tasks/` or `docs/`)
 
-Read the document.
+Read the document. Determine its type for eval prompt selection:
+- **Design doc / proposal** — evaluate completeness, feasibility, evidence quality
+- **Protocol / spec** — evaluate clarity, implementability, concision, gap coverage
+- **Strategy / explore output** — evaluate divergence quality, actionability, premise strength
+- **Plan** — evaluate scope accuracy, risk coverage, sequencing
 
-### Step 2: Run cross-model refinement
+### Step 2: Generate evaluation prompt
 
-Use `debate.py refine` — the same engine that powers `/polish` — to get 3 models from different families to independently improve the document:
+Write a system prompt tailored to the document type. The prompt defines the evaluation lenses — NOT personas. Example structure:
 
-```bash
-python3.11 scripts/debate.py refine \
-  --document <path to document> \
-  --rounds 3 \
-  --output tasks/<topic>-review.md
+```
+You are evaluating a [document type]. Score 1-5 on each dimension:
+
+1. [Dimension appropriate to doc type] — [what to look for]
+2. [Dimension appropriate to doc type] — [what to look for]
+3. [Dimension appropriate to doc type] — [what to look for]
+4. [Dimension appropriate to doc type] — [what to look for]
+
+For each dimension: score, one-line rationale, specific quotes if issues found.
+Final verdict: what's the single highest-leverage improvement?
 ```
 
-Three rounds (one per model family) is enough for review — this is lighter than `/polish` (6 rounds) because the goal is quality feedback, not iterative perfection.
+Write the prompt to a temp file.
 
-### Step 3: Write review artifact
+### Step 3: Run cross-model evaluation
 
-Read the refine output and write `tasks/<topic>-review.md` with:
+Use `review-panel --models` to get 3 independent models evaluating with the same prompt — no persona framing injected:
+
+```bash
+python3.11 scripts/debate.py review-panel \
+  --models claude-opus-4-6,gemini-3.1-pro,gpt-5.4 \
+  --prompt-file <temp eval prompt> \
+  --input <path to document>
+```
+
+This runs 3 models in parallel. Each gets the eval prompt as its system prompt and the document as user content.
+
+### Step 4: Write review artifact
+
+Parse the 3 independent evaluations and write `tasks/<topic>-review.md`:
 
 ```markdown
 ---
 topic: <topic>
-review_tier: cross-model-refinement
+review_tier: cross-model-evaluation
 status: passed | passed-with-warnings | fail
 content_type: document
+models: claude-opus-4-6, gemini-3.1-pro, gpt-5.4
 ---
 # /review — <topic> (document review)
 
 ## Content Type
-Non-code document — routed to cross-model refinement instead of persona-based code review.
+Non-code document — routed to cross-model evaluation (not persona-based code review).
 
-## Cross-Model Feedback
-[Summarize the refinement output: what each model suggested improving, common themes, disagreements]
+## Scores
+
+| Dimension | Model A | Model B | Model C | Consensus |
+|---|---|---|---|---|
+| [dim 1] | N/5 | N/5 | N/5 | N/5 |
+| [dim 2] | N/5 | N/5 | N/5 | N/5 |
+| ... | | | | |
+
+## Key Findings
+[Common themes across all 3 models — what they agree on]
+
+## Disagreements
+[Where models diverged — surface both positions]
+
+## Highest-Leverage Improvements
+[Top 3-5 concrete improvements, ranked by consensus]
 
 ## Verdict
 [pass / pass-with-warnings / fail]
 
 ## Suggested Next Action
-[What to do next based on the feedback]
+[What to do next based on the evaluation]
 ```
 
-### Step 4: Display results
+### Step 5: Display results
 
-Show the verdict and key feedback points inline. If changes were suggested, list the top 3-5 concrete improvements.
+Show the verdict, score table, and key findings inline. If all 3 models agree on an issue, flag it as high-confidence.
 
 ---
 

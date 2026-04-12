@@ -2800,17 +2800,31 @@ def cmd_review_panel(args):
     litellm_url = os.environ.get("LITELLM_URL", DEFAULT_LITELLM_URL)
     config = _load_config()
 
-    personas = [p.strip().lower() for p in args.personas.split(",") if p.strip()]
-    if not personas:
-        print("ERROR: no personas specified", file=sys.stderr)
-        return 1
-
-    pmap = config["persona_model_map"]
-    for p in personas:
-        if p not in pmap:
-            print(f"ERROR: unknown persona '{p}'. Valid: {', '.join(sorted(pmap))}",
-                  file=sys.stderr)
+    # Resolve --personas or --models to a list of (label, model) pairs
+    direct_models_mode = False
+    if args.personas:
+        personas = [p.strip().lower() for p in args.personas.split(",") if p.strip()]
+        if not personas:
+            print("ERROR: no personas specified", file=sys.stderr)
             return 1
+        pmap = config["persona_model_map"]
+        for p in personas:
+            if p not in pmap:
+                print(f"ERROR: unknown persona '{p}'. Valid: {', '.join(sorted(pmap))}",
+                      file=sys.stderr)
+                return 1
+    elif args.models:
+        direct_models_mode = True
+        model_list = [m.strip() for m in args.models.split(",") if m.strip()]
+        if not model_list:
+            print("ERROR: no models specified", file=sys.stderr)
+            return 1
+        # Synthesize personas list and pmap from model names
+        personas = [f"model-{i+1}" for i in range(len(model_list))]
+        pmap = {label: model for label, model in zip(personas, model_list)}
+    else:
+        print("ERROR: specify --personas or --models", file=sys.stderr)
+        return 1
 
     # Load prompt
     if args.prompt:
@@ -2934,6 +2948,8 @@ def cmd_review_panel(args):
         "failed": len(failed),
         "input_file": args.input.name if hasattr(args.input, 'name') else "stdin",
     }
+    if direct_models_mode:
+        log_entry["mode"] = "direct-models"
     if all_tool_calls:
         log_entry["tool_calls"] = all_tool_calls
     if getattr(args, 'enable_tools', False):
@@ -3512,12 +3528,17 @@ def main():
     # review-panel (multi-persona)
     rp = sub.add_parser("review-panel",
                         help="Multi-persona panel review (anonymous labels)")
-    rp.add_argument("--personas", required=True,
-                    help="Comma-separated persona names (e.g., architect,security,pm)")
+    rp_model_group = rp.add_mutually_exclusive_group(required=True)
+    rp_model_group.add_argument("--personas",
+                    help="Comma-separated persona names (e.g., architect,security,pm). "
+                         "Routes to models via config. Alternative to --models.")
+    rp_model_group.add_argument("--models",
+                    help="Comma-separated LiteLLM model names (e.g., claude-opus-4-6,gemini-3.1-pro,gpt-5.4). "
+                         "Bypasses persona lookup — caller's --prompt is the only system prompt.")
     rp.add_argument("--prompt", default=None,
-                    help="Review prompt string")
+                    help="Review prompt string (used as system prompt for all reviewers)")
     rp.add_argument("--prompt-file", type=argparse.FileType("r"), default=None,
-                    help="Review prompt file")
+                    help="Review prompt file (used as system prompt for all reviewers)")
     rp.add_argument("--input", required=True, type=argparse.FileType("r"),
                     help="Document to review")
     rp.add_argument("--enable-tools", action="store_true", default=False,

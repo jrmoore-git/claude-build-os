@@ -1,8 +1,8 @@
 # Current State — 2026-04-11
 
 ## ⚠ STALE — auto-captured session ended without /wrap-session
-**Auto-capture date:** 2026-04-11 20:52 PT
-**Files changed this session:** 5 files in docs, tasks
+**Auto-capture date:** 2026-04-11 20:55 PT
+**Files changed this session:** 3 files in .claude, scripts
 **WARNING:** The "Next Action" below may be outdated. Cross-check with `git log --oneline -10` and recent session-log entries.
 
 

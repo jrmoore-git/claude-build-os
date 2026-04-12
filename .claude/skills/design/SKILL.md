@@ -125,7 +125,7 @@ ls app/src/ app/src/app/ app/src/components/ 2>/dev/null | head -30
 **Browse binary — always available:**
 
 ```bash
-bash scripts/browse.sh goto "about:blank" && echo "BROWSE_READY" || echo "BROWSE_UNAVAILABLE"
+bash scripts/browse.sh status && echo "BROWSE_READY" || echo "BROWSE_UNAVAILABLE"
 ```
 
 Browse enables visual competitive research. If unavailable, the skill works without it using `research.py` and built-in design knowledge.
@@ -624,7 +624,7 @@ Read `app/DESIGN.md` if it exists. This is the documented design system. Deviati
 **Verify browse binary:**
 
 ```bash
-bash scripts/browse.sh goto "about:blank" && echo "BROWSE_READY" || echo "BROWSE_UNAVAILABLE"
+bash scripts/browse.sh status && echo "BROWSE_READY" || echo "BROWSE_UNAVAILABLE"
 ```
 
 If BROWSE_UNAVAILABLE, STOP and tell the user the browse binary needs to be built. The error output from browse.sh explains what's missing.

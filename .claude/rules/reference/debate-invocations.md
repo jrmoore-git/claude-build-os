@@ -86,6 +86,7 @@ python3.11 scripts/debate.py review \
 
 ## Review Panel (multi-persona, anonymous)
 
+**With personas** (code review — personas route to models via config):
 ```bash
 python3.11 scripts/debate.py review-panel \
   --personas architect,security,pm \
@@ -93,6 +94,16 @@ python3.11 scripts/debate.py review-panel \
   --input tasks/<topic>-diff.md
 ```
 
+**With direct models** (document evaluation — no persona framing, caller's prompt is the only system prompt):
+```bash
+python3.11 scripts/debate.py review-panel \
+  --models claude-opus-4-6,gemini-3.1-pro,gpt-5.4 \
+  --prompt-file /tmp/eval-prompt.md \
+  --input tasks/<topic>-doc.md
+```
+
+- `--personas` and `--models` are mutually exclusive (one required).
+- `--models` bypasses persona lookup entirely — use for non-code evaluation where code-review personas are inappropriate.
 - `--enable-tools` gives reviewers read-only verifier tools.
 
 ## Explore (divergent directions + synthesis)
