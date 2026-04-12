@@ -13,9 +13,10 @@ description: Session workflow, shipping discipline, orient-before-planning
 | T0 / spike | build | Throwaway prototype, exploration, learning |
 | T2 / standard | `/think refine` → `/plan` → build | Bugfixes, small features, docs |
 | T1 / new feature | `/think discover` → `/challenge` → `/plan` → build | New features, abstractions, scope expansion |
+| T1+UI / feature with UI | `/think discover` → `/design consult` → `/challenge` → `/plan` → build → `/design review` | Any feature with user-facing interface |
 | Big bet | `/think discover` → `/elevate` → `/challenge` → `/plan` → build | Architectural decisions, major features, uncertain scope |
 
-All tiers end with: → `/check` → `/ship`. All tiers can optionally use `/polish` on plans or designs before building. Use `/plan --auto` to auto-chain the full pipeline.
+All tiers end with: → `/check` → `/ship`. If the feature has a UI, wire in `/design consult` (before challenge) and `/design review` (before check). All tiers can optionally use `/polish` on plans or designs before building. Use `/plan --auto` to auto-chain the full pipeline.
 
 - `/think` has two modes: `discover` (full problem discovery, writes `tasks/<topic>-design.md`) and `refine` (5 forcing questions, writes `tasks/<topic>-think.md`). Use before `/challenge` or `/plan`.
 - `/elevate` runs after `/think discover` to stress-test scope and ambition. 4 modes: SCOPE EXPANSION (dream big), SELECTIVE EXPANSION (hold + cherry-pick), HOLD SCOPE (rigor), SCOPE REDUCTION (strip to essentials). Reads the design doc from `/think discover`.

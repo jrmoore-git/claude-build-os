@@ -59,13 +59,16 @@ Not every task uses every stage. The framework scales with risk:
 | **Bugfix** | `/plan` → build → `/check` → `/ship` |
 | **Small feature** | `/think refine` → `/plan` → build → `/check` → `/ship` |
 | **New feature** | `/think discover` → `/challenge` → `/plan` → build → `/check` → `/ship` |
+| **New feature (UI)** | `/think discover` → `/design consult` → `/challenge` → `/plan` → build → `/design review` → `/check` → `/ship` |
 | **Big bet** | `/think discover` → `/elevate` → `/challenge` → `/plan` → build → `/check` → `/ship` |
 
-All tiers can optionally use `/polish` on plans or designs before building. Design modes (`/design consult`, `/design review`, `/design plan-check`) slot in where needed — they're not mandatory pipeline stages. Use `/plan --auto` to auto-chain the full pipeline for any tier.
+**If it has a UI, design is not optional.** `/design consult` establishes the design system and visual direction before engineering begins. `/design review` runs visual QA with a 94-item checklist before shipping. `/design plan-check` rates implementation plans 0-10 on design completeness. `/design variants` generates multiple visual directions when you're exploring options. These aren't nice-to-haves — building a UI without a design system produces AI slop (purple gradients, 3-column feature grids, centered-everything layouts).
 
-Two distinct multi-model workflows: **`/challenge --deep`** is adversarial (personas attack → judge rules → collaborative refine). **`/polish`** is standalone collaborative improvement (6 rounds across 3 model families, no personas or judgment). Use `/challenge --deep` when you need to pressure-test whether something is right. Use `/polish` when you have something and want it better.
+Use `/plan --auto` to auto-chain the full pipeline for any tier. `/polish` can improve plans or designs before building (6 rounds across 3 model families).
 
-The key insight: **Define** (what are we building and why?) is a different activity from **Plan** (how do we build it?). Skipping the first leads to well-planned solutions to the wrong problem.
+Two distinct multi-model workflows: **`/challenge --deep`** is adversarial (personas attack → judge rules → collaborative refine). **`/polish`** is standalone collaborative improvement (no personas or judgment). Use `/challenge --deep` when you need to pressure-test whether something is right. Use `/polish` when you have something and want it better.
+
+The key insight: **Think** (what are we building and why?) is a different activity from **Plan** (how do we build it?). Skipping the first leads to well-planned solutions to the wrong problem.
 
 ---
 
@@ -96,15 +99,15 @@ Skills that work out of the box: `/think`, `/elevate`, `/plan`, `/ship`, `/start
 
 ### Tier 2+: Cross-Model Review
 
-The `/challenge`, `/challenge --deep`, `/polish`, and `/check` skills send proposals to three different model families for independent review. This requires a proxy that routes requests to each provider.
+The `/challenge`, `/challenge --deep`, `/polish`, and `/check` skills send proposals to three different model families for independent review. Different model families disagree in useful ways — models from the same family tend to agree with each other (self-preference bias), so cross-family review produces stronger signals. When all three families flag the same concern, it's almost certainly real.
 
 **You need:**
 
 1. **Python 3.11+** — runs hooks, the debate engine, and utility scripts
-2. **API keys from three providers:**
-   - [Anthropic](https://console.anthropic.com/) (Claude — PM persona)
-   - [OpenAI](https://platform.openai.com/) (GPT — judge + security persona)
-   - [Google AI](https://aistudio.google.com/) (Gemini — architect persona)
+2. **API keys from three providers** (each assigned a role that plays to its strengths):
+   - [Anthropic](https://console.anthropic.com/) (Claude Opus — architect persona, systems reasoning)
+   - [OpenAI](https://platform.openai.com/) (GPT — security persona + judge, empirically strictest reviewer)
+   - [Google AI](https://aistudio.google.com/) (Gemini — staff + PM personas, creative divergence)
 3. **LiteLLM** — an open-source proxy that presents a single OpenAI-compatible endpoint and routes to the correct provider based on model name:
    ```bash
    pip install 'litellm[proxy]'
@@ -113,6 +116,8 @@ The `/challenge`, `/challenge --deep`, `/polish`, and `/check` skills send propo
    ```bash
    pip install openai
    ```
+
+Model-to-persona assignments are configured in `config/debate-models.json` and can be changed without code modifications. Refinement rotates all three families (Gemini → GPT → Claude) so each contributes to the final output.
 
 ### Setup
 
@@ -149,7 +154,8 @@ If `check-models` shows all three models as reachable, cross-model skills will w
 
 | Script | Purpose |
 |---|---|
-| `scripts/debate.py` | Cross-model engine: challenge, judge, refine, review |
+| `scripts/debate.py` | Cross-model engine: challenge, judge, refine, review, explore, pressure-test |
+| `scripts/research.py` | Deep web research via Perplexity Sonar (async deep research + sync quick lookup) |
 | `scripts/recall_search.py` | BM25 + semantic search across governance files (lessons, decisions, sessions) |
 | `scripts/enrich_context.py` | Extracts keywords from proposals, searches via `recall_search.py`, feeds prior context to debate models |
 
@@ -162,9 +168,21 @@ If `check-models` shows all three models as reachable, cross-model skills will w
 
 You can start at Tier 0 and add cross-model review later. The framework doesn't break without it — you just won't have multi-model review until you set it up.
 
-### Optional: Web Research (You.com Search API)
+### Optional: Deep Research (Perplexity Sonar API)
 
-Gives `/think discover`, `/elevate`, and `/design consult` access to live web search for competitive research, landscape analysis, and design inspiration.
+Powers the `/research` skill — deep, sourced web research with citations. Two modes: async deep research (~2-5 min, multi-source synthesis, ~$0.40-0.80) and sync quick lookup (instant, ~$0.01). Also feeds into `/explore` pre-flight for grounding divergent directions in real evidence.
+
+```bash
+# Get an API key at https://docs.perplexity.ai/
+# Add to .env:
+PERPLEXITY_API_KEY=pplx-...
+```
+
+**Fallback:** Without this, `/research` is unavailable and `/explore` skips research enrichment. Other skills are unaffected.
+
+### Optional: Web Search (You.com Search API)
+
+Gives `/think discover`, `/elevate`, and `/design consult` access to live web search for competitive research, landscape analysis, and design inspiration. Lighter-weight than Perplexity — good for spot lookups during problem discovery.
 
 ```bash
 # Get an API key at https://you.com/search-api
@@ -172,7 +190,7 @@ Gives `/think discover`, `/elevate`, and `/design consult` access to live web se
 YOU_COM_API_KEY=ydc-sk-...
 ```
 
-**Fallback:** Without this, skills fall back to Claude's built-in WebSearch tool. If that's also unavailable (e.g., running in a restricted environment), skills skip web research and proceed with Claude's training knowledge only. The core pipeline (`/challenge`, `/check`, `/ship`) never uses web search.
+**Fallback:** Without this, skills fall back to Claude's built-in WebSearch tool. If that's also unavailable, skills skip web research and proceed with Claude's training knowledge only. The core pipeline (`/challenge`, `/check`, `/ship`) never uses web search.
 
 ### Optional: Semantic Search (Ollama)
 

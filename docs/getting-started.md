@@ -98,9 +98,10 @@ Match the pipeline to the task:
 | Bugfix | `/plan` --> build --> `/check` --> `/ship` |
 | Small feature | `/think refine` --> `/plan` --> build --> `/check` --> `/ship` |
 | New feature | `/think discover` --> `/challenge` --> `/plan` --> build --> `/check` --> `/ship` |
+| New feature (UI) | `/think discover` --> `/design consult` --> `/challenge` --> `/plan` --> build --> `/design review` --> `/check` --> `/ship` |
 | Big bet | `/think discover` --> `/elevate` --> `/challenge` --> `/plan` --> build --> `/check` --> `/ship` |
 
-A typo fix doesn't need `/think discover`. A new product does. Use the tier that matches your risk.
+A typo fix doesn't need `/think discover`. A new product does. If it has a UI, wire in `/design consult` before planning and `/design review` before shipping. Use the tier that matches your risk.
 
 ## 9. What to Learn Next
 

@@ -80,7 +80,7 @@ If `[CHALLENGE-SKIPPED]` or `[TRIVIAL]` appears more than 3 times in a sprint, t
   - Utility: `/polish` (6-round cross-model refinement), `/log` (capture decisions/lessons), `/sync` (post-ship doc sync)
   - `/challenge --deep` = full adversarial pipeline: challenge → judge → refine. For pressure-testing decisions.
   - `/polish` = 6-round cross-model collaborative improvement. Standalone on any input, or as final phase of `/challenge --deep`.
-  - Pipeline tiers: T0 (spike) = build. T2 (standard) = `/think refine` → `/plan` → build. T1 (new feature) = `/think discover` → `/challenge` → `/plan` → build. Big bet = `/think discover` → `/elevate` → `/challenge` → `/plan` → build. All tiers can optionally use `/polish` on plans or designs before building. All end with → `/check` → `/ship`. Use `/plan --auto` to auto-chain the full pipeline.
+  - Pipeline tiers: T0 (spike) = build. T2 (standard) = `/think refine` → `/plan` → build. T1 (new feature) = `/think discover` → `/challenge` → `/plan` → build. T1+UI = `/think discover` → `/design consult` → `/challenge` → `/plan` → build → `/design review`. Big bet = `/think discover` → `/elevate` → `/challenge` → `/plan` → build. All tiers end with → `/check` → `/ship`. If it has a UI, wire in `/design consult` before plan and `/design review` before ship. Use `/plan --auto` to auto-chain the full pipeline.
 - **Rules:** `.claude/rules/` — code-quality, design, orchestration, review-protocol, session-discipline, skill-authoring, workflow (see individual files for details)
 
 ## Project-specific rules

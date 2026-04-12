@@ -6,10 +6,11 @@ SPIKE:       build
 BUGFIX:      /plan --skip-challenge → build → /check → /ship
 FEATURE:     /think refine → /plan → build → /check → /ship
 NEW FEATURE: /think discover → /challenge → /plan → build → /check → /ship
+FEATURE+UI:  /think discover → /design consult → /challenge → /plan → build → /design review → /check → /ship
 BIG BET:     /think discover → /elevate → /challenge → /plan → build → /check → /ship
 ```
 
-Optional: `/polish` on any plan or design before building. `/challenge --deep` for architectural uncertainty. `/plan --auto` to auto-chain the full pipeline.
+If it has a UI, wire in `/design consult` (before plan) and `/design review` (before ship). Optional: `/polish` on any plan or design. `/challenge --deep` for architectural uncertainty. `/plan --auto` to auto-chain the full pipeline.
 
 ## Session Commands
 
