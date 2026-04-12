@@ -63,17 +63,17 @@ def is_worktree_agent():
     return False
 
 
-DECOMPOSE_MESSAGE = (
-    "DECOMPOSITION GATE: This is your first write operation this session. "
-    "Before proceeding, assess whether this task involves multiple independent subtasks. "
-    "If YES (3+ independent files/subtasks): output a decomposition plan listing each subtask, "
-    "its file scope, and whether it runs parallel or sequential. Then write the flag "
-    "(use Bash tool, NOT Write tool): "
-    'echo \'{"plan_submitted": true}\' > FLAG_PATH — then proceed with parallel agents. '
-    "If NO (single file or tightly coupled): write the bypass flag "
-    "(use Bash tool, NOT Write tool): "
-    'echo \'{"bypass": true, "reason": "<why>"}\' > FLAG_PATH — then proceed normally. '
-    "If the user said 'skip' or 'just do it': write the bypass flag and proceed."
+DECOMPOSE_MESSAGE_FULL = (
+    "DECOMPOSITION GATE: Assess before writing. "
+    "3+ independent subtasks? → decompose plan + "
+    'echo \'{"plan_submitted": true}\' > FLAG_PATH (Bash tool). '
+    "Otherwise → "
+    'echo \'{"bypass": true, "reason": "<why>"}\' > FLAG_PATH (Bash tool).'
+)
+
+DECOMPOSE_MESSAGE_SHORT = (
+    "DECOMPOSITION GATE: Write blocked — set flag first. "
+    'Bash: echo \'{"bypass": true, "reason": "<why>"}\' > FLAG_PATH'
 )
 
 
@@ -113,10 +113,8 @@ def main():
                 # Bypass requires a reason for audit trail
                 if not flag_data.get("reason"):
                     no_reason_msg = (
-                        "EXECUTION GATE: Bypass flag found but missing 'reason' field. "
-                        "All bypasses must include a stated reason for audit. "
-                        "Update the flag (use Bash tool): "
-                        f"echo '{{\"bypass\": true, \"reason\": \"<why>\"}}' > {flag_path}"
+                        "DECOMPOSITION GATE: Bypass missing 'reason'. "
+                        f"Bash: echo '{{\"bypass\": true, \"reason\": \"<why>\"}}' > {flag_path}"
                     )
                     result = {
                         "hookSpecificOutput": {
@@ -136,12 +134,8 @@ def main():
                     return
                 # Main session trying to write after declaring parallel plan
                 block_msg = (
-                    "EXECUTION GATE: Your session declared a parallel plan "
-                    "(plan_submitted: true), but you are writing directly from "
-                    "the main session. Dispatch worktree-isolated agents for "
-                    "the planned subtasks, or update the flag to bypass with a "
-                    "reason (use Bash tool): "
-                    f"echo '{{\"bypass\": true, \"reason\": \"<why>\"}}' > {flag_path}"
+                    "DECOMPOSITION GATE: Parallel plan declared — dispatch agents or bypass. "
+                    f"Bash: echo '{{\"bypass\": true, \"reason\": \"<why>\"}}' > {flag_path}"
                 )
                 result = {
                     "hookSpecificOutput": {
@@ -155,9 +149,8 @@ def main():
         except (json.JSONDecodeError, OSError):
             # Corrupt flag file — deny with recovery message
             recover_msg = (
-                f"DECOMPOSITION GATE: Flag file at {flag_path} is corrupt or unreadable. "
-                "Delete it and re-create: "
-                f"rm {flag_path} && echo '{{\"bypass\": true, \"reason\": \"<why>\"}}' > {flag_path}"
+                f"DECOMPOSITION GATE: Corrupt flag. "
+                f"Bash: rm {flag_path} && echo '{{\"bypass\": true, \"reason\": \"<why>\"}}' > {flag_path}"
             )
             result = {
                 "hookSpecificOutput": {
@@ -204,12 +197,7 @@ def main():
     except OSError:
         pass
 
-    message = DECOMPOSE_MESSAGE.replace("FLAG_PATH", str(flag_path))
-    escalated_msg = (
-        f"DECOMPOSITION GATE: You have now written to {len(written_files)} different files "
-        f"({', '.join(os.path.basename(f) for f in sorted(written_files))}) without a "
-        "decomposition assessment. " + message
-    )
+    escalated_msg = DECOMPOSE_MESSAGE_SHORT.replace("FLAG_PATH", str(flag_path))
     result = {
         "hookSpecificOutput": {
             "hookEventName": "PreToolUse",

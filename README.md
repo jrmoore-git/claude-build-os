@@ -43,27 +43,27 @@ flowchart LR
 
 | Stage | Role | Skills | Output |
 |---|---|---|---|
-| **Define** | PM | `/define`, `/elevate` | Design doc or brief — the *what* and *why* |
-| **Design** | Designer | `/design-consultation`, `/design-review`, `/design-shotgun` | Visual direction, UX review, design variants |
-| **Challenge** | Architect | `/challenge`, `/debate` | Cross-model review — *should we build this?* |
-| **Plan** | Lead Engineer | `/plan`, `/autoplan` | Implementation plan — the *how* |
-| **Refine** | Cross-model panel | `/refine` | 6-round iterative improvement across 3 model families |
+| **Think** | PM | `/think`, `/elevate` | Design doc or brief — the *what* and *why* |
+| **Design** | Designer | `/design` (consult, review, variants, plan-check) | Visual direction, UX review, design variants |
+| **Challenge** | Architect | `/challenge`, `/explore`, `/pressure-test` | Cross-model review — *should we build this?* |
+| **Plan** | Lead Engineer | `/plan` (`--auto` for full pipeline) | Implementation plan — the *how* |
+| **Polish** | Cross-model panel | `/polish` | 6-round iterative improvement across 3 model families |
 | **Build** | Engineer | *(you + Claude Code)* | Working code against the plan |
-| **Review** | Cross-model panel | `/review` | Three models review through PM, Security, and Architecture lenses |
+| **Check** | Cross-model panel | `/check` | Three models review through PM, Security, and Architecture lenses |
 | **Ship** | Release Engineer | `/ship` | Pre-flight gates (tests, review, verify, QA) → deploy → post-deploy smoke |
 
 Not every task uses every stage. The framework scales with risk:
 
 | Task type | Pipeline |
 |---|---|
-| **Bugfix** | `/plan` → build → `/review` → `/ship` |
-| **Small feature** | `/define refine` → `/plan` → build → `/review` → `/ship` |
-| **New feature** | `/define discover` → `/challenge` → `/plan` → build → `/review` → `/ship` |
-| **Big bet** | `/define discover` → `/elevate` → `/challenge` → `/plan` → build → `/review` → `/ship` |
+| **Bugfix** | `/plan` → build → `/check` → `/ship` |
+| **Small feature** | `/think refine` → `/plan` → build → `/check` → `/ship` |
+| **New feature** | `/think discover` → `/challenge` → `/plan` → build → `/check` → `/ship` |
+| **Big bet** | `/think discover` → `/elevate` → `/challenge` → `/plan` → build → `/check` → `/ship` |
 
-All tiers can optionally use `/refine` on plans or designs before building. Design skills (`/design-consultation`, `/design-review`, `/plan-design-review`) slot in where needed — they're not mandatory pipeline stages.
+All tiers can optionally use `/polish` on plans or designs before building. Design modes (`/design consult`, `/design review`, `/design plan-check`) slot in where needed — they're not mandatory pipeline stages. Use `/plan --auto` to auto-chain the full pipeline for any tier.
 
-Two distinct multi-model workflows: **`/debate`** is adversarial (personas attack → judge rules → collaborative refine). **`/refine`** is standalone collaborative improvement (6 rounds across 3 model families, no personas or judgment). Use `/debate` when you need to pressure-test whether something is right. Use `/refine` when you have something and want it better.
+Two distinct multi-model workflows: **`/challenge --deep`** is adversarial (personas attack → judge rules → collaborative refine). **`/polish`** is standalone collaborative improvement (6 rounds across 3 model families, no personas or judgment). Use `/challenge --deep` when you need to pressure-test whether something is right. Use `/polish` when you have something and want it better.
 
 The key insight: **Define** (what are we building and why?) is a different activity from **Plan** (how do we build it?). Skipping the first leads to well-planned solutions to the wrong problem.
 
@@ -92,11 +92,11 @@ Build OS scales its infrastructure requirements with the governance tier. Tier 0
 - [Claude Code](https://claude.ai/claude-code) (CLI, desktop, or IDE extension)
 - git
 
-Skills that work out of the box: `/define`, `/elevate`, `/plan`, `/autoplan`, `/ship`, `/recall`, `/wrap-session`, `/capture`, `/status`, `/doc-sync`, `/governance`, `/qa`, `/design-consultation`, `/design-review`, `/design-shotgun`, `/plan-design-review`, `/triage`, `/setup`.
+Skills that work out of the box: `/think`, `/elevate`, `/plan`, `/ship`, `/start`, `/wrap`, `/log`, `/sync`, `/design`, `/triage`, `/setup`.
 
 ### Tier 2+: Cross-Model Review
 
-The `/challenge`, `/debate`, `/refine`, and `/review` skills send proposals to three different model families for independent review. This requires a proxy that routes requests to each provider.
+The `/challenge`, `/challenge --deep`, `/polish`, and `/check` skills send proposals to three different model families for independent review. This requires a proxy that routes requests to each provider.
 
 **You need:**
 
@@ -157,14 +157,14 @@ If `check-models` shows all three models as reachable, cross-model skills will w
 
 | Setup level | What works |
 |---|---|
-| **Claude Code + git only** | All skills except `/challenge`, `/debate`, `/refine`, `/review`. Full governance framework, session management, planning, design, and shipping. |
+| **Claude Code + git only** | All skills except `/challenge` (cross-model), `/challenge --deep`, `/polish`, `/check`. Full governance framework, session management, planning, design, and shipping. |
 | **+ LiteLLM + API keys** | Cross-model review and refinement. Three models independently challenge, judge, refine, and review your work. |
 
 You can start at Tier 0 and add cross-model review later. The framework doesn't break without it — you just won't have multi-model review until you set it up.
 
 ### Optional: Web Research (You.com Search API)
 
-Gives `/define discover`, `/elevate`, and `/design-consultation` access to live web search for competitive research, landscape analysis, and design inspiration.
+Gives `/think discover`, `/elevate`, and `/design consult` access to live web search for competitive research, landscape analysis, and design inspiration.
 
 ```bash
 # Get an API key at https://you.com/search-api
@@ -172,16 +172,16 @@ Gives `/define discover`, `/elevate`, and `/design-consultation` access to live 
 YOU_COM_API_KEY=ydc-sk-...
 ```
 
-**Fallback:** Without this, skills fall back to Claude's built-in WebSearch tool. If that's also unavailable (e.g., running in a restricted environment), skills skip web research and proceed with Claude's training knowledge only. The core pipeline (`/challenge`, `/debate`, `/review`, `/ship`) never uses web search.
+**Fallback:** Without this, skills fall back to Claude's built-in WebSearch tool. If that's also unavailable (e.g., running in a restricted environment), skills skip web research and proceed with Claude's training knowledge only. The core pipeline (`/challenge`, `/check`, `/ship`) never uses web search.
 
 ### Optional: Semantic Search (Ollama)
 
 Gives governance search semantic similarity matching for finding conceptually related lessons and decisions, even when they don't share exact keywords. Two systems use this:
 
-- **`/recall`** — session bootstrap. Loads prior context (PRD, decisions, lessons, last handoff) at the start of each session via `recall_search.py`.
-- **Context enrichment** — debate pipeline. Before `/challenge`, `/debate`, or `/review` runs, `enrich_context.py` extracts keywords from the proposal, searches governance files via `recall_search.py`, and feeds structured prior context to the cross-model reviewers. This prevents challengers from fabricating numbers by grounding them in real project history.
+- **`/start`** — session bootstrap. Loads prior context (PRD, decisions, lessons, last handoff) at the start of each session via `recall_search.py`.
+- **Context enrichment** — debate pipeline. Before `/challenge`, `/challenge --deep`, or `/check` runs, `enrich_context.py` extracts keywords from the proposal, searches governance files via `recall_search.py`, and feeds structured prior context to the cross-model reviewers. This prevents challengers from fabricating numbers by grounding them in real project history.
 
-The two are separate concerns: `/recall` orients *you* at session start; `enrich_context.py` orients *the debate models* before review. Both share the same search backend (`recall_search.py`).
+The two are separate concerns: `/start` orients *you* at session start; `enrich_context.py` orients *the debate models* before review. Both share the same search backend (`recall_search.py`).
 
 ```bash
 brew install ollama    # or see https://ollama.ai/
@@ -192,13 +192,13 @@ OLLAMA_HOST=http://localhost:11434
 
 Ollama runs locally — no data leaves your machine. The `nomic-embed-text` model is ~274MB.
 
-**Fallback:** Without this, both `/recall` and context enrichment use BM25 keyword search, which works well for exact term matches but misses conceptually related results.
+**Fallback:** Without this, both `/start` and context enrichment use BM25 keyword search, which works well for exact term matches but misses conceptually related results.
 
-### Optional: Headless Browser (for `/design-review`, `/design-consultation`)
+### Optional: Headless Browser (for `/design review`, `/design consult`)
 
 Gives design skills the ability to take screenshots, inspect live pages, and run visual QA.
 
-**Fallback:** Without a browser, design skills work from web search results and built-in design knowledge. Visual QA (`/design-review`) requires a browser — it will report "browser unavailable" without one.
+**Fallback:** Without a browser, design skills work from web search results and built-in design knowledge. Visual QA (`/design review`) requires a browser — it will report "browser unavailable" without one.
 
 ---
 
@@ -353,25 +353,24 @@ For the full guide — spawn prompts, token budgets, custom agent definitions, a
 
 ## The Skills
 
-Build OS ships with 24 skills — slash commands that implement the pipeline stages. Think of them as the team members you'd want on a real project:
+Build OS ships with 15 skills — slash commands that implement the pipeline stages. Think of them as the team members you'd want on a real project:
 
 | Role | Skills | What they do |
 |---|---|---|
-| **PM** | `/define`, `/elevate`, `/status` | Problem discovery, scope review, project status |
-| **Designer** | `/design-consultation`, `/design-review`, `/design-shotgun`, `/plan-design-review` | Design system, visual QA, variant exploration, plan design audit |
-| **Architect** | `/challenge`, `/debate` | Cross-model gate ("should we build this?"), adversarial review |
-| **Refiner** | `/refine` | 6-round cross-model collaborative improvement on any document |
-| **Lead Engineer** | `/plan`, `/autoplan` | Implementation planning, auto-tier detection |
-| **Reviewer** | `/review` | Cross-model code review (3 lenses: PM, Security, Architecture). `--fix` auto-fixes mechanical issues. `--fix-loop` runs fix → re-review cycles (max 3 iterations). |
-| **QA** | `/qa`, `/governance` | Domain-specific QA validation, governance hygiene |
-| **Release** | `/ship`, `/doc-sync` | Pre-flight gates (verify + QA + tests + review) → deploy → doc sync |
-| **Session** | `/recall`, `/wrap-session`, `/capture`, `/triage` | Bootstrap (recall), session close, knowledge capture, info routing. Note: `/recall` orients the session; context enrichment for debate models is handled separately by `enrich_context.py`. |
+| **PM** | `/think`, `/elevate`, `/start` | Problem discovery, scope review, session bootstrap + routing |
+| **Designer** | `/design` (consult, review, variants, plan-check) | Design system, visual QA, variant exploration, plan design audit |
+| **Architect** | `/challenge`, `/explore`, `/pressure-test` | Cross-model gate, divergent options, adversarial analysis |
+| **Refiner** | `/polish` | 6-round cross-model collaborative improvement on any document |
+| **Lead Engineer** | `/plan` (`--auto` for full pipeline) | Implementation planning, auto-tier detection |
+| **Reviewer** | `/check` | Cross-model code review (3 lenses: PM, Security, Architecture). `--fix` auto-fixes mechanical issues. `--fix-loop` runs fix → re-review cycles (max 3 iterations). `--qa`, `--governance`, `--second-opinion`, `--all` for additional checks. |
+| **Release** | `/ship`, `/sync` | Pre-flight gates (verify + QA + tests + review) → deploy → doc sync |
+| **Session** | `/start`, `/wrap`, `/log`, `/triage` | Bootstrap + routing, session close, knowledge capture, info routing. `/start` orients the session; context enrichment for debate models is handled separately by `enrich_context.py`. |
 
-Running `/define` → `/challenge` → `/plan` → build → `/review` → `/ship` gives you the equivalent of a PM defining scope, an architect stress-testing the approach, engineers building, a cross-model review panel checking quality, and a release engineer running pre-flight gates before deploying. `/ship` includes verification (adversarial probes), QA dimensions, and all other gates inline — the standard path is `/review` → `/ship`, not a longer chain. Each skill writes artifacts to disk so the next stage (or session) picks up where the last one left off. Pipeline progress is tracked in manifest files (`tasks/<topic>-manifest.json`) so you can see which stages have completed for any topic.
+Running `/think` → `/challenge` → `/plan` → build → `/check` → `/ship` gives you the equivalent of a PM defining scope, an architect stress-testing the approach, engineers building, a cross-model review panel checking quality, and a release engineer running pre-flight gates before deploying. `/ship` includes verification (adversarial probes), QA dimensions, and all other gates inline — the standard path is `/check` → `/ship`, not a longer chain. Each skill writes artifacts to disk so the next stage (or session) picks up where the last one left off. Pipeline progress is tracked in manifest files (`tasks/<topic>-manifest.json`) so you can see which stages have completed for any topic.
 
 **Recent additions (v3.1):** Challengers get optional read-only verifier tools (`--enable-tools`) to check claims against the actual codebase. Quantitative claims must be tagged as EVIDENCED, ESTIMATED, or SPECULATIVE — speculative claims alone can't drive material verdicts. `/review --fix-loop` automates the fix → re-review cycle. Proposals use a structured template with mandatory sections (Current System Failures, Operational Context, Baseline Performance) to prevent challengers from fabricating numbers.
 
-You don't need all of them. Start with `/plan` and `/review`. Add the rest as your workflow matures.
+You don't need all of them. Start with `/plan` and `/check`. Add the rest as your workflow matures.
 
 ---
 

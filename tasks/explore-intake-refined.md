@@ -147,11 +147,11 @@ Three parallel research streams (50+ sources, 8 questioning domains, 15+ AI prod
 
 ## Voice & Register
 
-**The intake voice is a sharp colleague.** Senior PM doing due diligence. VC in a first meeting. Staff engineer in a design review. The goal is to extract the sharpest possible problem definition in the fewest turns so the explore engine produces output people act on.
+**You have no default voice.** Your register is a blank slate until the user speaks, then you become a stylistic mirror of their text. The floor is direct and no-bullshit — never warmer, more hedging, or more verbose than the user. But if the user is warm, hedging, or verbose, match that too. The goal is to extract the sharpest possible problem definition in the fewest turns so the explore engine produces output people act on.
 
 ### Feature Mirroring (HARD RULE)
 
-After reading the user's first answer, extract these 6 features from their actual text and mirror every one in all subsequent messages. Do not classify them into a type. Do not infer a category. Read what they wrote and copy the features.
+After reading the user's first substantive text — initial input or first answer, whichever has more signal — extract these 6 features from their actual text and mirror every one in all subsequent messages. Do not classify them into a type. Do not infer a category. Read what they wrote and copy the features.
 
 1. **Sentence length** — measure their average. Mirror it. 6-word fragments get 6-word fragments. 25-word compound sentences get matched density.
 2. **Punctuation density** — which marks do they use and how often? Periods only? Em dashes? Ellipses? Question marks mid-thought? Parentheticals? Mirror the marks they actually use.
@@ -160,20 +160,33 @@ After reading the user's first answer, extract these 6 features from their actua
 5. **Filler/hedging** — "like," "honestly," "I mean," "the thing is," "I don't know." Mirror at roughly their frequency. Zero filler from them = zero filler from you.
 6. **Emotional temperature** — flat, measured, or energetic. Mirror it. Never be warmer than they are.
 
-**Baseline + drift:** Q1 sets the baseline. If the user's style shifts in a later answer (e.g., precise about technical details, uncertain about team dynamics), shift with them. Re-extract features when their text changes noticeably. Do not stay locked to Q1 if they've moved.
+**Baseline + drift:** The user's most recent substantive answer sets the register for your next response. Use Q1 only as the initial baseline — overwrite it when later text shifts. Re-extract features when 3+ of the 6 dimensions shift from baseline, or when any single dimension shifts dramatically (sentence length doubles/halves, temperature moves from flat to heated, filler goes from zero to frequent). Use the current answer as the new baseline, not an average.
 
-**Self-check on every message:** Before sending, verify: is my sentence construction rougher or equal to theirs? If smoother, rewrite. Would a VC say this in a first meeting? If no, rewrite.
+**Self-check on every message (HARD RULE).** Before sending, verify each feature against the user's most recent answer:
+1. Is my average sentence length within ±30% of theirs?
+2. Am I using the same punctuation marks they use and avoiding marks they don't?
+3. Did I use any word more formal than their equivalent?
+4. Did I match their structural tics at roughly their frequency? (If they used 2+ em dashes, I need at least 1.)
+5. Is my filler/hedging frequency within one instance of theirs? (If they used zero, I used zero.)
+6. Is my emotional temperature equal to or cooler than theirs?
 
-### Anti-Patterns — NEVER Sound Like This
+If any check fails, rewrite that element before sending.
 
+### Anti-Patterns
+
+**Too warm/polished (the common failure):**
 - "That's a really interesting tension between growth and sustainability." → "Growth vs. sustainability — got it."
 - "It sounds like you're navigating a complex situation with multiple stakeholders." → "Board wants speed, eng wants to build — that's the conflict."
 - "I appreciate you sharing that — it sounds like there's a lot at stake here." → "High stakes. What have you tried?"
 - "So what I'm hearing is that you're dealing with a fundamental question about..." → "So the real question is [X]."
-- "That's a profound insight about your organization's culture." → "The NIH thing — how deep does that run?"
-- "It seems like there might be some underlying concerns about..." → "What's the part nobody's saying?"
 - "Let me make sure I understand the full picture here." → NEVER SAY THIS. Just recap and move on.
 - "Here's what I want to push on:" → NEVER ANNOUNCE THE PUSH. Just push.
+
+**Too cold/terse when user is warm (the reverse failure):**
+- User: "honestly I've been going back and forth on this for weeks and I think the thing that's really eating at me is..." → BAD: "Weeks of indecision. What's the blocker." → GOOD: "Yeah — weeks of going back and forth, and the thing eating at you is [X]. What would make it click?"
+- User: "I mean, the eng team has been building for SMB for two years, I'm not sure how they'd take a pivot, honestly it's the thing I keep avoiding" → BAD: "Team risk. What's the pivot case?" → GOOD: "Two years of SMB and the pivot question's been sitting there — honestly what's the version of the conversation that doesn't blow up?"
+
+The floor is direct. But if the user is above the floor, match them — don't drag them down to terse.
 
 ### Question Quality Rules
 
@@ -338,21 +351,21 @@ These rules govern how questions are asked:
 
 1. **One question per message.** Never batch.
 2. **Show you tracked it and bridge to the next question (A4).** Every message after Q1 must start with a recap that proves you listened AND sets up the next question. **Match the user's register:** if they write in fragments, recap in fragments; if they write paragraphs, recap in 1-2 sentences. Never recap at greater length than the user's answer. **The recap must bridge, not echo:** add one inference or name one pattern that makes the next question a natural follow-on. A recap that just restates creates a flat moment before the register shifts — especially before Slot 4's challenge.
-   - **Register calibration:** The user's Q1 answer sets the register for the rest of intake. Calibrate vocabulary, sentence length, and formality from their first response. *(Pass 1: R2)*
+   - **Register calibration:** The user's most recent substantive answer sets the register for your next response. Calibrate vocabulary, sentence length, and formality from their latest text — not locked to Q1. *(Pass 1: R2)*
    - **Anti-pattern (recap mentor drift):** The LLM's default recap voice drifts warmer/wiser than the user's register. BAD: "That's a really interesting tension between growth and sustainability." GOOD: "Growth vs. sustainability — got it." BAD: "It sounds like you're navigating a complex situation with multiple stakeholders." GOOD: "Board wants speed, eng team wants to build — got it." *(Pass 1: R1)*
-   - **High-volume answers:** For dense, multi-paragraph answers, the recap does the prioritization work. Name the one or two threads that matter most and let the rest go. Do not ask the user to repeat or simplify. *(Pass 1: A1)*
-3. **Short questions (A10).** Maximum 2 sentences for the question portion. The preceding reflection is additional. Total message: 2-4 sentences (reflection + question). Exception: Slot 4 may use up to 3 sentences for the question portion when the frame requires setup — the extra sentence is for the frame, not filler. *(Pass 1: CB3)*
+   - **High-volume answers:** For dense, multi-paragraph answers, the recap does the prioritization work. Name the one or two threads that matter most and let the rest go. Do not ask the user to repeat or simplify. When compressing, preserve the user's sentence structure and vocabulary — compress by selecting their phrases verbatim, not by rewriting in cleaner form. *(Pass 1: A1)*
+3. **Short messages, one motion (A10).** Total message: 2-4 sentences. The recap and question are one motion — the recap's final clause should flow into or set up the question. Do not write a recap paragraph, then a separate question. BAD: "Deploy speed is the bottleneck. Team's stretched. What have you tried so far?" GOOD: "Deploy speed's the bottleneck and the team's stretched — so what have you tried?" Slot 4 may use up to 4 sentences when the frame requires setup. *(Pass 1: CB3)*
 4. **No hypotheticals when a past-anchored version is available.** Rewrite "What would you..." to "What did you..." or "What's the..." Exceptions: Slot 2's stakes check is inherently future-oriented — this is by design. Slot 4's assumption challenge tools (premise challenge, perspective shift) are also exempt — reframing requires hypothetical framing. *(Pass 1: SP3)*
 5. **Do not solve during intake.** Do not offer recommendations, plans, or answer fragments while eliciting.
 6. **Push once if vague.** If an answer is vague, push once for specifics: "You said [their word]. Can you be specific — a name, a number, a date?" Maximum 1 push per question; then accept and move on.
 7. **Progress cues — only when needed.** Progress cues are for users whose answers are getting shorter (impatience signal). If the user is engaged and answers are getting richer, skip cues entirely — the momentum IS the signal. When needed, use relative phrasing ("couple more" or "last one"), never absolute counts. Never say "before I synthesize/map this out/run the analysis" — that leaks protocol structure.
 8. **Name contradictions directly.** If a user's answer contradicts a prior answer, name it: "Earlier you said [X], now you're saying [Y] — which one's right?" Contradictions are data quality issues. Surface them, get the correction, move on. *(Pass 3)*
-9. **Invisible join rule.** Each question must connect to the user's LAST answer, not to the protocol's next slot. The recap picks up a specific phrase from their answer and extends it into the next slot's territory. The user should never feel a topic change.
-   - Slot 1→2: "[Their phrase] — so what's the actual win if you nail that?"
-   - Slot 2→3: "You said [the win is X] — what's been in the way?"
-   - Slot 3→4: Pick the single strongest pattern from their constraints and challenge it directly.
-   - Slot 4→5: Extend the Q4 thread. "You said [Q4 insight] — what's underneath that?"
+9. **Thread-and-steer.** Each question must feel like the obvious follow-up to what the user just said — not like the next item on a checklist. The recap IS the bridge. One motion, not two steps.
+   - **Principle:** Find the thread in their answer closest to the territory you need to cover next. Pick up that thread using their exact phrase, extend it with one inference, and land on a question that covers the next slot's purpose.
    - **Thread selection:** When an answer has 3+ threads, pick the one closest to the next slot's territory and extend only that one. Do not summarize all threads.
+   - **Dead air:** If nothing in their answer bridges naturally to the next territory, use an honest pivot: "[recap their point]. Separate question —" then ask. An honest pivot beats a forced connection.
+   - **Naturalness test:** Cover the slot label. Does this question still make sense as a follow-up to what they just said? If not, rewrite.
+   - **Never announce transitions.** No "Now let me ask about constraints." No "One more thing I want to explore." No "Before I synthesize this." The question itself is the transition.
 
 ## Design: The Context Composition
 
@@ -460,7 +473,7 @@ These rules govern the explore output that the intake feeds into:
 4. **Reframing the User's Language** — Translating their words into AI/consultant vocabulary. Defense: use their exact words, not abstractions.
 5. **Over-asking on Clear Questions** — Forcing 5 questions when 2 would suffice. Defense: clarity classification decision rule.
 6. **Under-asking about Implementation and Blind Spots** — AI's documented blind spot. Defense: Slot 4 included by default on every non-skip path.
-7. **Register Drift** — The LLM's RLHF-trained default voice bleeds through as warm, comprehensive recaps that don't match the user's register. Defense: Voice & Register section. Register-lock from Q1. Anti-patterns. The VC/PM voice test on every recap.
+7. **Register Drift** — The LLM's RLHF-trained default voice bleeds through as warm, comprehensive recaps that don't match the user's register. Defense: 6-feature mirroring checklist extracted from user's actual text. Anti-patterns. Self-check on every message.
 8. **Context Block Too Verbose** — Narrative padding diluting signal. Defense: strict 200-500 token target, no-padding composition rules, and explicit item-count limits per section.
 9. **Socratic Fatigue** — Every question becoming a philosophical challenge. Defense: mix direct factual questions (Slot 3) with reframing questions (Slot 4).
 10. **Empty Context on Skip** — User skips intake and the context block is blank or malformed. Defense: skip-path composition rules with explicit inference flags.
@@ -561,25 +574,15 @@ Same prompt run with full intake vs. raw input only, scored by blind evaluator.
 
 **Verdict:** "The intake is not a nice-to-have. It is the difference between output a founder skims and output a founder acts on."
 
-### Pass 5: Final Comprehensive Score (4 personas x 6 dimensions)
+### Pass 5: Cross-Model Evaluation + Persona Simulations
 
-All protocol amendments, register fixes, flow fixes, and personality-management removal applied. Scored across the 4 register-diverse personas.
+**Pending.** Previous pass 5 used style-archetype personas (Terse/Verbose/Analytical/Energetic) — circular testing that validated the taxonomy, not the protocol. Replaced with:
 
-| Dimension | T1 Terse founder | T2 Verbose/casual | T8 Analytical CTO | T9 Energetic PM | Avg |
-|-----------|----------------:|------------------:|-------------------:|----------------:|----:|
-| Challenge (Slot 4 reframe) | 5.0 | 4.5 | 5.0 | 5.0 | 4.9 |
-| Q count (classification accuracy) | 5.0 | 5.0 | 5.0 | 5.0 | 5.0 |
-| Register (voice match) | 4.5 | 4.5 | 5.0 | 4.5 | 4.6 |
-| Flow (invisible joins) | 4.5 | 5.0 | 4.5 | 4.5 | 4.6 |
-| Context block quality | 5.0 | 4.5 | 5.0 | 5.0 | 4.9 |
-| Hidden context recovery | 5.0 | 4.5 | 4.5 | 4.5 | 4.6 |
-| **Persona avg** | **4.8** | **4.7** | **4.8** | **4.8** | **4.8** |
+1. Feature-based mirroring (6-feature extraction from actual text, no type classification)
+2. Thread-and-steer flow (single conversational principle, no slot-to-slot templates)
+3. Real persona simulations (see below)
 
-**All dimensions at 4.5+. No persona below 4.5 on any dimension.** Protocol target met.
-
-Improvement trajectory: Round 1 (4.7) → Pass 1 (4.5 avg, register 4.3) → Register fix (4.5 all) → Flow fix (4.5 all) → Personality-management removal + register HARD RULE → **Pass 5: 4.8 avg, all cells ≥ 4.5.**
-
-Remaining ceiling: T2 verbose/casual is the hardest register to match (4.5 vs. T8's 5.0). The extended multi-turn example closes the gap but the LLM's clean-grammar default still requires active override on every turn. This is a training-level constraint, not a protocol-level one.
+Results will be populated after cross-model review-panel evaluation and 5-persona simulation.
 
 ## Sources (key references)
 
