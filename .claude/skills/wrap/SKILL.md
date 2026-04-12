@@ -104,6 +104,8 @@ Identify:
 
 ### Step 4 — Write docs/current-state.md
 
+**Read each file immediately before writing it.** Parallel sessions' Stop hooks can modify `current-state.md` and `handoff.md` between tool calls (via `mark_current_state_stale()`). A Read from Step 1 will be stale by the time you Write here. Read → Write must be adjacent with no intervening tool calls.
+
 Overwrite `docs/current-state.md` with:
 
 ```
