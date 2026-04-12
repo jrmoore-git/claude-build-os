@@ -186,6 +186,17 @@ IMPORTANT: Evaluate BOTH directions of risk:
 A recommendation to "keep it simple" must name the concrete failures that "simple" \
 leaves unfixed."""
 
+IMPLEMENTATION_COST_INSTRUCTION = """
+
+For each MATERIAL finding, estimate the implementation cost to fix it:
+- TRIVIAL (<20 lines, no new deps): Mechanical fix any engineer would apply without discussion
+- SMALL (20-100 lines, contained): Requires thought but bounded to existing patterns
+- MEDIUM (100+ lines or new concept): Introduces new patterns, abstractions, or dependencies
+- LARGE (new subsystem or infrastructure): Requires work that doesn't exist yet
+
+Tag format: [MATERIAL] [COST:TRIVIAL/SMALL/MEDIUM/LARGE]: [explanation]
+A MATERIAL finding with TRIVIAL cost is a build condition, not a reason to reject."""
+
 TOOL_INJECTION_DEFENSE = """
 
 TOOL USE: Before asserting any fact about repository contents, file structure, \
@@ -235,7 +246,7 @@ Output format:
 [What the proposal gets right — max 3 items]
 
 ## Verdict
-[APPROVE / REVISE / REJECT] with one-sentence rationale""" + EVIDENCE_TAG_INSTRUCTION + SYMMETRIC_RISK_INSTRUCTION
+[APPROVE / REVISE / REJECT] with one-sentence rationale""" + EVIDENCE_TAG_INSTRUCTION + SYMMETRIC_RISK_INSTRUCTION + IMPLEMENTATION_COST_INSTRUCTION
 
 VERDICT_SYSTEM_PROMPT = """\
 You are a final-round reviewer in a cross-model debate. You previously \
@@ -635,7 +646,7 @@ Output format:
 [What the proposal gets right — max 3 items]
 
 ## Verdict
-[APPROVE / REVISE / REJECT] with one-sentence rationale""" + EVIDENCE_TAG_INSTRUCTION + SYMMETRIC_RISK_INSTRUCTION,
+[APPROVE / REVISE / REJECT] with one-sentence rationale""" + EVIDENCE_TAG_INSTRUCTION + SYMMETRIC_RISK_INSTRUCTION + IMPLEMENTATION_COST_INSTRUCTION,
 
     "security": """\
 You are an adversarial security reviewer. Focus on:
@@ -668,7 +679,7 @@ Output format:
 [What the proposal gets right — max 3 items]
 
 ## Verdict
-[APPROVE / REVISE / REJECT] with one-sentence rationale""" + EVIDENCE_TAG_INSTRUCTION + SYMMETRIC_RISK_INSTRUCTION,
+[APPROVE / REVISE / REJECT] with one-sentence rationale""" + EVIDENCE_TAG_INSTRUCTION + SYMMETRIC_RISK_INSTRUCTION + IMPLEMENTATION_COST_INSTRUCTION,
 
     "staff": """\
 You are an adversarial staff/operations reviewer. Focus on:
@@ -701,7 +712,7 @@ Output format:
 [What the proposal gets right — max 3 items]
 
 ## Verdict
-[APPROVE / REVISE / REJECT] with one-sentence rationale""" + EVIDENCE_TAG_INSTRUCTION + SYMMETRIC_RISK_INSTRUCTION,
+[APPROVE / REVISE / REJECT] with one-sentence rationale""" + EVIDENCE_TAG_INSTRUCTION + SYMMETRIC_RISK_INSTRUCTION + IMPLEMENTATION_COST_INSTRUCTION,
 
     "pm": """\
 You are an adversarial PM/UX reviewer. Focus on:
@@ -735,7 +746,7 @@ Output format:
 [What the proposal gets right — max 3 items]
 
 ## Verdict
-[APPROVE / REVISE / REJECT] with one-sentence rationale""" + EVIDENCE_TAG_INSTRUCTION + SYMMETRIC_RISK_INSTRUCTION,
+[APPROVE / REVISE / REJECT] with one-sentence rationale""" + EVIDENCE_TAG_INSTRUCTION + SYMMETRIC_RISK_INSTRUCTION + IMPLEMENTATION_COST_INSTRUCTION,
 }
 
 
@@ -1061,6 +1072,10 @@ def cmd_challenge(args):
                       file=sys.stderr)
     elif args.models:
         prompt = custom_prompt or ADVERSARIAL_SYSTEM_PROMPT
+        posture = getattr(args, 'security_posture', 3)
+        posture_mod = SECURITY_POSTURE_CHALLENGER_MODIFIER.get(posture, "")
+        if posture_mod:
+            prompt = prompt + posture_mod
         for m in args.models.split(","):
             m = m.strip()
             if m:

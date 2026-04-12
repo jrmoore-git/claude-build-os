@@ -1,4 +1,5 @@
 # Bash Failures — Fix Forward, Don't Bandaid
+<!-- Enforced-By: hooks/hook-bash-fix-forward.py -->
 
 **A bash error is a signal to investigate, not an obstacle to bulldoze through.**
 

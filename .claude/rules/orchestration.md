@@ -1,6 +1,7 @@
 ---
 description: Runtime rules for multi-agent execution — isolation, sensitivity, reconciliation
 ---
+<!-- Enforced-By: hooks/hook-decompose-gate.py, hooks/hook-agent-isolation.py -->
 
 # Orchestration — Runtime Rules
 

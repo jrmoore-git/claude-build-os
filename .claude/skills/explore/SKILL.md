@@ -23,23 +23,25 @@ Store the question as `QUESTION` and derive a short slug as `TOPIC` (e.g., "pric
 - If the user says "skip" or "just run it": skip pre-flight entirely, proceed to Step 3.
 - If the user says "answer the questions yourself" or "you know enough" — and you genuinely have enough context from memory, prior conversation, or existing files to answer the pre-flight questions substantively — then self-seed the pre-flight. State your assumed answers briefly (bullet list), let the user correct, then proceed.
 
-#### Step 2a: Adaptive pre-flight
+#### Step 2a: Thread-and-steer intake
 
-Read `config/prompts/preflight-adaptive.md` for the full protocol.
+Read `config/prompts/preflight-adaptive.md` for the full protocol (v7).
 
-**Do NOT present a classification menu.** Instead:
+**Do NOT present a classification menu or question bank.** Instead:
 
-1. **Infer the domain** from the question (product, engineering, organizational, research, strategy, process, career — or multiple). Don't ask the user to classify; infer from what they said.
+1. **Thread-and-steer.** Each question picks up the strongest unresolved thread from the user's last answer. Use their exact phrases. Q1 IS the opening move — no preamble.
 
-2. **Select forcing questions** adaptively. Draw from the reference pre-flight files when the domain matches:
-   - Product domain: reference `config/prompts/preflight-product.md`
-   - Solo builder domain: reference `config/prompts/preflight-solo-builder.md`
-   - Architecture domain: reference `config/prompts/preflight-architecture.md`
-   - Other domains: generate questions using the templates in `preflight-adaptive.md`
+2. **Register matching.** Mirror their case, length, and density. If they write fragments, you write fragments. If your response is more than 2x their word count, it's too long.
 
-3. **Ask questions ONE AT A TIME** (2-4 questions, hard cap at 4). Follow the adaptive pre-flight protocol: conversational style, push once if vague, use the user's own words to sharpen follow-ups. Follow the Discovery Rule — create conditions for the user to name the insight, don't name it yourself.
+3. **Terse-user trigger.** If answers are short/vague (1-2 sentences, no elaboration), switch to options format for ALL remaining questions: "(a) X, (b) Y, (c) Z — which fits?"
 
-4. **Derive divergence dimensions** (4-6) based on the domain and the user's answers. These are the axes along which explore directions should structurally differ. Show them to the user:
+4. **Three-gate sufficiency (internal).** After each answer from Q3+, check: (a) strategy covered? (b) implementation mentioned? If strategy passes but implementation missing → meta-question. When both pass → stop. Never expose this logic to the user.
+
+5. **Reframe (optional, once).** If their answers reveal a root cause at a different level than their proposed solution, reframe with a one-sentence thesis + one question (~25 words, their vocabulary). If rejected, accept immediately.
+
+6. **Meta-question follow-up.** After "what should I have asked you that I didn't?" is answered, ask one follow-up threading from what they revealed before stopping.
+
+7. **Compose context block** with mandatory CONFIDENCE field (HIGH/MEDIUM/LOW) and derive 4 divergence dimensions. Show dimensions to the user:
 
 ```
 Based on our conversation, I'll explore along these dimensions:
@@ -47,9 +49,8 @@ Based on our conversation, I'll explore along these dimensions:
 2. [dimension] — [one-line description]
 3. [dimension] — [one-line description]
 4. [dimension] — [one-line description]
-5. [dimension] — [one-line description]
 
-Want to adjust any of these before I run?
+Want to adjust any before I run?
 ```
 
 Accept edits or proceed.

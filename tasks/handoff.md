@@ -1,35 +1,44 @@
 # Handoff — 2026-04-11
 
 ## Session Focus
-Evaluated gstack integration strategy, ran it through /challenge → /plan → build → /review → /ship, shipped browse.sh wrapper to unblock /design browser modes.
+Made BuildOS discoverable without memorization — natural language routing as primary interface, deterministic intent routing via hooks, all docs updated.
 
 ## Decided
-- gstack integration scoped to Tier 1 only (browse.sh wrapper) per cross-model challenge consensus (SIMPLIFY)
-- Broader gstack adoption (symlinks for /benchmark, /canary, /investigate, version upgrade) deferred to future proposals — each needs its own security/dependency review
-- gstack is an optional dependency — BuildOS works without it, only /design browser modes need it
+- Natural language is the primary interface; slash commands are power-user shortcuts
+- Deterministic routing via UserPromptSubmit hook (suggests, doesn't block)
+- Proactive routing via PostToolUse error tracking (same error 2x → suggest /investigate)
+- Nag prevention: each skill suggested at most once per session
 
 ## Implemented
-- `scripts/browse.sh` — thin wrapper (23 lines) around gstack's headless browser binary
-- Fixed `/design` SKILL.md readiness checks from `goto "about:blank"` to `status` (binary blocks non-http schemes on goto)
-- Added browse.sh to CLAUDE.md infrastructure reference
-- Updated README.md optional browser section to reference gstack by name
-- Full pipeline artifacts: proposal, findings, challenge, plan, review-debate, review
+- Fixed 6 broken YAML multiline skill descriptions (design, elevate, investigate, research, sync, think)
+- Fixed orphaned `Benefits from:` line in elevate SKILL.md that corrupted frontmatter
+- Created `/guide` skill — intent-based skill map at `.claude/skills/guide/SKILL.md`
+- Created `.claude/rules/natural-language-routing.md` — routing table + proactive pattern recognition
+- Built `hooks/hook-intent-router.py` (UserPromptSubmit) — 13 intent patterns, session-scoped nag prevention
+- Built `hooks/hook-error-tracker.py` (PostToolUse:Bash) — recurring error detection, feeds into intent router
+- Wired both hooks in `.claude/settings.json`
+- Updated README.md ("You Don't Need to Memorize Anything" section, skill count 18→19, /guide in table)
+- Updated docs/getting-started.md, docs/cheat-sheet.md, docs/hooks.md (15→17 hooks), CLAUDE.md
 
 ## NOT Finished
-- gstack Tier 2 adoption (/benchmark, /canary, /investigate) — deferred by design, not blocked
-- gstack version upgrade 0.14.5 → 0.16.3 — deferred until Tier 2 proposals evaluated
-- Explore intake protocol improvement (4/5 to 5/5) — from prior session, still pending
+- `tasks/lessons.md` not updated with YAML multiline description lesson
+- `tasks/decisions.md` not updated with routing architecture decision
+- Live testing of intent router in a fresh session (settings.json changed mid-session)
 
 ## Next Session Should
-1. Continue explore intake improvements, or start using `/design review` on a real project page now that browser integration works
-2. If evaluating gstack Tier 2, write separate proposals per the challenge recommendation
+1. Start a fresh session to test intent router live — type natural language and verify routing suggestions appear
+2. Add lesson about YAML `|` descriptions breaking Claude Code's skill menu
+3. Add decision entry for natural-language-routing-as-primary-interface architecture
 
 ## Key Files Changed
-- scripts/browse.sh (NEW)
-- .claude/skills/design/SKILL.md (readiness check fix)
-- CLAUDE.md (infrastructure reference)
-- README.md (optional browser section)
-- tasks/gstack-integration-{proposal,findings,challenge,plan,review-debate,review}.md (pipeline artifacts)
+- .claude/skills/guide/SKILL.md (NEW)
+- .claude/rules/natural-language-routing.md (NEW)
+- hooks/hook-intent-router.py (NEW)
+- hooks/hook-error-tracker.py (NEW)
+- .claude/settings.json (UserPromptSubmit + PostToolUse:Bash hooks added)
+- .claude/skills/{design,elevate,investigate,research,sync,think}/SKILL.md (description fixes)
+- CLAUDE.md, README.md, docs/getting-started.md, docs/cheat-sheet.md, docs/hooks.md
 
 ## Doc Hygiene Warnings
-None
+- ⚠ lessons.md NOT updated — add: YAML multiline `|` descriptions break `/` menu
+- ⚠ decisions.md NOT updated — add: natural-language routing as primary interface

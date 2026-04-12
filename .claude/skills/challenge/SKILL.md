@@ -186,7 +186,22 @@ Write findings to `tasks/<slug>-findings.md`. If degraded (not local-only), mark
 
 ### Step 9: Synthesize the challenge artifact
 
-Read the proposal, prior context, enrichment, and findings. Write `tasks/<slug>-challenge.md` following the structure in `templates/challenge-artifact.md`.
+Read the proposal, prior context, enrichment, and findings.
+
+**For each MATERIAL finding, assess implementation cost:**
+
+| Cost | Criteria | Effect on recommendation |
+|---|---|---|
+| **Trivial** (<20 lines, no new deps) | Fix is mechanical, any senior engineer would apply without discussion | Finding becomes an inline fix, not a blocker |
+| **Small** (20-100 lines, contained) | Fix requires thought but is bounded to existing patterns | Finding is a condition on PROCEED, not a reason to SIMPLIFY |
+| **Medium** (100+ lines or new concept) | Fix introduces new patterns, abstractions, or dependencies | Finding may justify SIMPLIFY if it outweighs the feature value |
+| **Large** (new subsystem or infrastructure) | Fix requires work that doesn't exist yet | Finding justifies PAUSE or phased approach |
+
+**Weigh both directions of risk:** What happens if we build this (challenger findings) AND
+what continues to fail if we don't (cost of inaction from the proposal's "Current System
+Failures" section). A recommendation to defer must name what stays broken.
+
+Write `tasks/<slug>-challenge.md` following the structure in `templates/challenge-artifact.md`.
 
 Artifact roles must stay separate:
 - `-proposal.md` = input
@@ -198,16 +213,21 @@ Artifact roles must stay separate:
 Display:
 
 ```text
-## Challenge Result: <PROCEED|SIMPLIFY|PAUSE|REJECT>
+## Challenge Result: <PROCEED|PROCEED-WITH-FIXES|SIMPLIFY|PAUSE|REJECT>
 
 <1-3 sentence summary>
+
+[If PROCEED-WITH-FIXES:]
+Inline fixes to include in build:
+1. [finding] → [fix, ~N lines]
+2. [finding] → [fix, ~N lines]
 
 Artifacts:
 - tasks/<slug>-challenge.md
 - tasks/<slug>-findings.md
 
 Next:
-- /plan <topic>     (if proceed)
+- /plan <topic>     (if proceed or proceed-with-fixes)
 - revise scope, then /plan <topic>   (if simplify)
 - address findings first   (if pause/reject)
 ```
@@ -220,10 +240,19 @@ python3.11 scripts/pipeline_manifest.py add <slug> --skill challenge --artifact 
 
 ## Recommendation guidance
 
-- **proceed** — no material objections from any persona
-- **simplify** — valid idea, oversized approach; plan the simpler alternative
-- **pause** — missing evidence or unresolved prerequisite
+- **proceed** — no material objections, or all material findings have trivial inline fixes
+- **proceed-with-fixes** — material findings exist but each fix is under ~20 lines of code.
+  List the fixes to include in the build. Do NOT defer to a later phase — if the fix is
+  trivial, it ships with the feature.
+- **simplify** — valid idea, but the approach is fundamentally oversized. The core feature
+  should be smaller, not just patched.
+- **pause** — missing evidence or unresolved prerequisite that can't be fixed inline
 - **reject** — should not be built as proposed
+
+**Anti-pattern: conservative deferral.** If a MATERIAL finding's fix is straightforward
+(under ~20 lines, no new dependencies, no architectural change), the correct recommendation
+is PROCEED-WITH-FIXES, not SIMPLIFY. Deferring trivially-fixable work behind "Phase 2"
+gates produces busywork phases with no real payoff.
 
 If findings conflict across personas, surface the tension explicitly.
 
@@ -237,8 +266,16 @@ Derive from concepts and reversibility, not line count:
 ## Rules
 
 - Write artifacts to disk, not just conversation.
-- Be skeptical by default — challenge the premise before endorsing.
-- Prefer the smallest reversible step.
+- **Challenge the premise, but weigh both sides.** Skepticism about building is useful.
+  Skepticism that ignores the cost of NOT building is incomplete. Every deferral must
+  name what stays broken.
+- **Prefer the smallest reversible step** — but don't confuse "smallest" with "none."
+  If the smallest step is a 50-line script that closes a real gap, that's the right scope.
+  Deferring it to a hypothetical Phase 2 is not simpler — it's slower.
+- **MATERIAL ≠ blocker.** A MATERIAL finding with a trivial fix is a build condition,
+  not a reason to downgrade the recommendation. Only findings that require substantial
+  new work (new subsystems, missing infrastructure, architectural changes) justify
+  SIMPLIFY or PAUSE.
 - Do not embed operational shell recipes; scripts own execution details.
 - Preserve the distinction between local-only (operator choice) and degraded (backend failure).
 - If risk or coverage is unclear, choose the safer path.

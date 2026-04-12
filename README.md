@@ -9,6 +9,19 @@ Build OS gives you a PM, designer, architect, engineering team, cross-model revi
 
 ---
 
+## You Don't Need to Memorize Anything
+
+Just describe what you want to do. Build OS routes you to the right tool automatically.
+
+- **"I want to build a new feature"** — Claude runs problem discovery, then planning, then builds
+- **"Something broke"** — Claude runs root-cause analysis before touching code
+- **"Is this ready to ship?"** — Claude runs cross-model review, then pre-flight gates
+- **"I'm lost"** — type `/guide` for a map of everything, organized by intent
+
+Build OS has 19 skills, but you don't need to know any of them by name. The slash commands (`/think`, `/plan`, `/review`, etc.) are power-user shortcuts. The primary interface is natural language — say what you need, and the system figures out the rest.
+
+---
+
 ## In 30 Seconds
 
 - **State lives on disk, not in chat.** Plans, decisions, and lessons go to files. The context window is RAM; the filesystem is memory.
@@ -357,7 +370,7 @@ For the full guide — spawn prompts, token budgets, custom agent definitions, a
 
 ## The Skills
 
-Build OS ships with 18 skills — slash commands that implement the pipeline stages. Think of them as the team members you'd want on a real project:
+Build OS ships with 19 skills — slash commands that implement the pipeline stages. Think of them as the team members you'd want on a real project:
 
 | Role | Skills | What they do |
 |---|---|---|
@@ -371,12 +384,15 @@ Build OS ships with 18 skills — slash commands that implement the pipeline sta
 | **Release** | `/ship`, `/sync` | Pre-flight gates (verify + QA + tests + review) → deploy → doc sync |
 | **Session** | `/start`, `/wrap`, `/log`, `/triage` | Bootstrap + routing, session close, knowledge capture, info routing |
 | **Bootstrap** | `/setup`, `/audit` | Interactive project setup, two-phase blind discovery audit |
+| **Discovery** | `/guide` | Intent-based skill map — "what can I do?" |
+
+**You don't need to memorize any of these.** Just describe what you're trying to do — Build OS routes you automatically. The slash commands are power-user shortcuts, not the primary interface.
 
 Running `/think` → `/challenge` → `/plan` → build → `/review` → `/ship` gives you the equivalent of a PM defining scope, an architect stress-testing the approach, engineers building, a cross-model review panel checking quality, and a release engineer running pre-flight gates before deploying. `/ship` includes verification (adversarial probes), QA dimensions, and all other gates inline — the standard path is `/review` → `/ship`, not a longer chain. Each skill writes artifacts to disk so the next stage (or session) picks up where the last one left off. Pipeline progress is tracked in manifest files (`tasks/<topic>-manifest.json`) so you can see which stages have completed for any topic.
 
 **Recent additions (v3.1):** Challengers get optional read-only verifier tools (`--enable-tools`) to check claims against the actual codebase. Quantitative claims must be tagged as EVIDENCED, ESTIMATED, or SPECULATIVE — speculative claims alone can't drive material verdicts. `/review --fix-loop` automates the fix → re-review cycle. Proposals use a structured template with mandatory sections (Current System Failures, Operational Context, Baseline Performance) to prevent challengers from fabricating numbers.
 
-You don't need all of them. Start with `/plan` and `/review`. Add the rest as your workflow matures.
+You don't need to learn all of them. Just tell Claude what you're doing — it picks the right skills. Or start with `/plan` and `/review` if you prefer explicit commands, and add the rest as your workflow matures.
 
 ---
 

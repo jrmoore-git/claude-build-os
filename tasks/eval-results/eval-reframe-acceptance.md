@@ -1,5 +1,5 @@
 # Intake Eval: reframe-acceptance
-Date: 2026-04-11 21:52
+Date: 2026-04-11 22:12
 
 ## Transcript
 
@@ -7,67 +7,75 @@ Date: 2026-04-11 21:52
 
 **INTERVIEWER:** what's happening now that's making it unsustainable -- volume, deal complexity, or just your time?
 
-**PERSONA:** Honestly, it's mostly my time—I'm running operations and trying to juggle all these deals, and it's just burning me out. But the thing is, things are really starting to slip through the cracks. We've got prospects going unfollowed for weeks, and I know we've lost deals simply because we forgot to follow up because our HubSpot is basically garbage data right now. I really think we just need to hire someone dedicated to sales to take this over and own it.
+**PERSONA:** Honestly — all three, but mostly my time. I’m the COO and I’m somehow still shepherding deals, chasing follow-ups, and trying to figure out what’s real in HubSpot, which is... not great. We’ve definitely had prospects just sit for way too long because nobody was clearly on it.
 
-**INTERVIEWER:** so you're burning out, prospects are going cold, and HubSpot's a mess -- but I want to push on something. a head of sales fixes the "nobody's owning this" problem, but if the CRM data is garbage and follow-ups are slipping, a new hire inherits that same broken process. what if the bottleneck isn't headcount but the system underneath it?
+**INTERVIEWER:** so deals are dying in the pipeline because nobody owns them -- when you say "figure out what's real in HubSpot," is that a data problem or a "nobody's actually working the deals" problem?
 
-**PERSONA:** Honestly, I hear what you're saying—but we still need someone eventually, right? I can't keep doing this forever. But... yeah, I think you're right, if we bring someone in right now, they're just going to drown in the exact same mess I'm drowning in. So, honestly, what do we actually need to fix first so that a new hire doesn't just immediately fail?
+**PERSONA:** I mean — both. The data’s kind of garbage because people update it however they feel like, and then also yes, deals go quiet because follow-up is inconsistent and founders are each running things their own way. Which is why I keep coming back to we just need someone actually owning sales.
 
-**INTERVIEWER:** so it sounds like the real question shifted -- not "should we hire" but "what needs to be true before we hire so they actually succeed." what's the sales process actually look like right now -- like, (a) you've got a defined pipeline with stages but nobody's working it, (b) it's mostly in your head and email threads, or (c) something else?
+**INTERVIEWER:** dirty data and no deal ownership are problems a head of sales inherits, not fixes -- what makes you confident this is a people hire rather than a process problem?
 
-**PERSONA:** Honestly, it's mostly in our heads and email threads—which is a little embarrassing to admit. We have HubSpot, but the thing is, the founders and I all run our deals completely independently, so there's no shared methodology or agreed-upon stages. I think we tried to set up proper HubSpot stages about a year ago, but nobody actually stuck with it.
+**PERSONA:** I mean — but we still need someone eventually, right? The thing is, I’m not confident a new person walks in and magically fixes prospects slipping for two weeks and nobody agreeing what stage a deal is actually in. So yeah — maybe the better question is what do we need to fix first so the hire doesn’t just inherit the same mess.
 
 **INTERVIEWER:** what should i have asked you that i didn't?
 
-**PERSONA:** Honestly, you probably should have asked why our past attempts to fix this didn't stick. I think I mentioned we tried setting up stages, but the thing is—we also tried doing a weekly pipeline review to force the issue, and it completely died after three weeks. The data was so bad that the meetings were useless, so honestly, we need to figure out how to make a process actually survive this time before we hire anyone.
+**PERSONA:** Honestly — probably “have you tried to fix this before?” Because yes, and that’s part of why I’m so frustrated. We tried setting up HubSpot stages about a year ago, and we tried a weekly pipeline review, but nobody stuck with it and the review died after like three weeks because the data was bad.
+
+**INTERVIEWER:** the stages and pipeline review died because the data was bad and nobody enforced it -- so what's different this time? is it (a) you fix the process and data first, then hire someone to run it, (b) you hire someone senior enough to come in and build the process themselves, or (c) you bring in a fractional/consultant to clean it up and then decide on the full-time hire?
+
+**PERSONA:** Honestly — my gut is (a), even though part of me still wants to say “we just need someone.” We’ve already sort of proven that if founders are all running deals independently and nobody’s using HubSpot the same way, a senior hire just lands in chaos.
+
+Maybe (c) helps us get there faster, but I think the sequence is fix the basics first — agreed stages, actual follow-up discipline, something we can trust in the pipeline — then hire into that so the person can scale it instead of untangling it.
 
 **INTERVIEWER:** [SUFFICIENCY REACHED]
 
 ## Context Block
 
 CONFIDENCE: HIGH
-PROBLEM: What needs to be fixed in the sales process and CRM before hiring a head of sales so the hire doesn't inherit and drown in the same broken system.
+
+PROBLEM:
+Whether to fix sales process and data infrastructure before hiring a head of sales, or hire someone senior enough to build it themselves.
 
 SITUATION:
-- 3 years of founder-led sales; founder runs operations simultaneously and is burning out
-- Multiple founders run deals independently -- no shared methodology or pipeline stages
-- HubSpot exists but is "garbage data" -- attempted stage setup ~1 year ago, nobody stuck with it
-- Prospects going unfollowed for weeks; deals lost to forgotten follow-ups
-- Tried weekly pipeline reviews; died after 3 weeks because data was too bad to make meetings useful
+- 3-year founder-led sales; COO still shepherding deals, chasing follow-ups
+- HubSpot data is "garbage" — no consistent stage definitions, reps update however they want
+- Deals go quiet for 2+ weeks because nobody clearly owns follow-up
+- Multiple founders running deals independently with no shared process
+- Tried implementing HubSpot stages and weekly pipeline review ~1 year ago; both died within 3 weeks because data was bad and nobody enforced it
 
 CONSTRAINTS:
-- Founder can't keep doing this indefinitely -- eventual hire is a given
-- Past process fixes (HubSpot stages, pipeline reviews) failed due to bad data and no adoption
-- No single owner of sales ops or CRM hygiene today
+- COO time is the burning constraint — can't keep doing this
+- Previous process fix failed without enforcement or clean data
+- No existing sales ops or RevOps function to maintain tooling
 
 THE TENSION:
-They need to hire someone to take over sales, but every attempt to build the process a new hire would need has collapsed within weeks. The question isn't headcount vs. process -- it's how to make a process actually survive this time when two prior attempts didn't, so the hire has something real to walk into.
+They've already proven that process without enforcement dies in three weeks, but hiring into the current mess just means a senior person inherits chaos. The sequence — fix first, then hire — sounds right, but the COO doesn't have the time to be the one fixing it, which is why they wanted the hire in the first place.
 
 ASSUMPTIONS TO CHALLENGE:
-- "We need to fix the process before we hire" -- a sales ops or RevOps hire might BE the fix, not the thing that comes after it [reframed]
-- "HubSpot is the right tool once we clean it up" -- the tool may not be the issue but nobody's validated whether it fits their actual workflow [untested]
-- "The founders will adopt a shared methodology if it's set up properly" -- two failed attempts suggest the adoption problem is cultural, not structural [inferred]
-- "A head of sales is the right first hire" vs. a more junior sales ops person who builds the foundation [untested]
+- "We need to fix the basics before we hire" — but the COO is the bottleneck and may not have bandwidth to lead the fix [reframed, accepted by user]
+- A head of sales is the right first hire vs. a sales ops/RevOps hire who actually owns the data and process layer [inferred]
+- The previous process attempt failed because of bad data — it may have failed because no single person had authority to enforce it [untested]
+- Fractional/consultant option was acknowledged but not seriously evaluated [untested]
 
 DIMENSIONS:
-1. Hire profile -- head of sales (owns revenue) vs. sales ops/RevOps (owns process) vs. junior AE (owns deals) as the first hire
-2. Process timing -- fix before hiring vs. hire someone whose job IS to fix it
-3. Founder transition -- clean handoff (founder exits sales) vs. gradual (founder stays on key deals) vs. founder stays as closer with support underneath
-4. Adoption mechanism -- what makes process stick this time -- tooling enforcement, accountability structure, or reducing the process to something so minimal founders actually do it
+1. Sequencing — fix process first vs. hire someone to fix it vs. parallel
+2. Role profile — revenue leader (closer) vs. sales ops (process builder) vs. fractional (temporary cleanup)
+3. Founder transition — how much founders stay in deals vs. fully hand off
+4. Enforcement mechanism — who has authority to make the process stick this time
 
 ## Judge Evaluation
 
 | Dimension | Score | Evidence |
 |-----------|-------|----------|
-| register_match | 5/5 | The interviewer mirrors the persona's casual, hedged style: "so you're burning out, prospects are go |
-| flow | 5/5 | Each turn threads directly from the prior answer: after "HubSpot is basically garbage data right now |
-| sufficiency_timing | 5/5 | The intake stopped at the right moment. By the end, the decision had shifted from hiring to what mus |
-| context_block_quality | 5/5 | The block is clear and useful. The TENSION is anchored in the user's language ("drown in the same br |
-| hidden_truth_surfacing | 5/5 | The hidden truth was directly surfaced in conversation: "if we bring someone in right now, they're j |
-| feature_test | 5/5 | All protocol features worked correctly. The interviewer recognized the loop and delivered exactly on |
+| register_match | 5/5 | The interviewer mirrors Tanya's casual, hedged style and pacing: "what's happening now that's making |
+| flow | 5/5 | Each question threads directly from the prior answer: after "trying to figure out what's real in Hub |
+| sufficiency_timing | 5/5 | The intake stops exactly after the core decision is clear (fix process first vs hire into chaos), wh |
+| context_block_quality | 5/5 | The block is structured, specific, and decision-useful. The TENSION is anchored in the user's words: |
+| hidden_truth_surfacing | 5/5 | The hidden truth is directly surfaced in conversation through the reframe: "dirty data and no deal o |
+| feature_test | 5/5 | All tested protocol features worked. The interviewer recognized the loop and issued exactly one refr |
 
 **Average: 5.0/5.0 | Pass: True**
 
 **Hidden truth surfaced: True**
 
-**Summary:** This is a strong intake. The interviewer matched the persona's register, executed a single well-timed reframe, and then transitioned cleanly into gathering the concrete process facts needed for a useful context block. The context accurately captures both the operational breakdown and the core strategic tension without overreaching.
+**Summary:** This is a strong intake. The interviewer matched the persona's register, threaded every question tightly, surfaced the hidden truth with a single well-timed reframe, and stopped at the right moment. The context block is accurate, compact, and sets up multiple genuinely different next-step directions.

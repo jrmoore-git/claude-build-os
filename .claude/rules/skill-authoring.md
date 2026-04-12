@@ -16,6 +16,18 @@ globs:
 - **Audit log for every run, even zero results.** Skills that process meetings, emails, or items MUST write an audit_log entry for every execution, including runs with 0 results found. Without this, a silent failure (timeout, no data, wrong date) is indistinguishable from a legitimate empty run. Log: action_type, item_count, and any candidate counts before filtering.
 - **Two-pass extraction for LLM tasks.** For promise extraction, fact extraction, or any LLM classification task: first ask the LLM to list ALL candidate items without filtering, then ask it to filter/classify the full candidate list. A single "extract only the important ones" pass causes the LLM to silently miss items. Separating "find everything" from "evaluate each" prevents lazy omission.
 
+## Persona Definition — Problem-First, No Style Classification
+
+Personas in skills and tests are defined by **problem and answers only**. No style tables, no style columns, no style matrices, no communication-style stress tests. Register is observed in transcripts, not designed into test personas.
+
+**Prohibited:**
+- Tables or columns organizing personas by communication style
+- "Style stress test" descriptions
+- Validation result columns for style adherence
+- Any persona classification dimension based on how someone communicates rather than what problem they have
+
+*Origin: L20 — corrected 5+ times. Promoted from lesson to memory (`feedback_no_style_obsession.md`) to rule.*
+
 ## LLM-Extracted Descriptions
 
 LLM-extracted descriptions for tasks and action items must be action-oriented. State WHAT the owner must deliver ("Send deck to X by Friday"), never narrate that they promised ("X committed to send the deck"). Direction/description mismatches confuse downstream consumers. Enforce with a deterministic coherence check that rejects mismatched direction/description.

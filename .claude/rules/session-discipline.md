@@ -1,6 +1,7 @@
 ---
 description: Session management, documentation-first, context budgeting
 ---
+<!-- Enforced-By: hooks/hook-plan-gate.sh, hooks/hook-review-gate.sh, hooks/hook-tier-gate.sh -->
 
 # Session Discipline Rules
 

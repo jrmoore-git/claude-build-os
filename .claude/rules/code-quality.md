@@ -1,6 +1,7 @@
 ---
 description: Code quality standards, review rules, and input validation requirements
 ---
+<!-- Enforced-By: hooks/hook-ruff-check.sh, hooks/hook-syntax-check-python.sh, hooks/hook-pre-commit-tests.sh -->
 
 # Code Quality
 

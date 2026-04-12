@@ -69,19 +69,20 @@ If `[CHALLENGE-SKIPPED]` or `[TRIVIAL]` appears more than 3 times in a sprint, t
 ## Infrastructure reference
 
 <!-- These point at the enforcement and tooling layers that back the rules above. -->
-- **Hooks (15):** `hook-plan-gate.sh`, `hook-review-gate.sh`, `hook-tier-gate.sh`, `hook-decompose-gate.py`, `hook-agent-isolation.py`, `hook-guard-env.sh`, `hook-pre-edit-gate.sh`, `hook-memory-size-gate.py`, `hook-post-tool-test.sh`, `hook-prd-drift-check.sh`, `hook-pre-commit-tests.sh`, `hook-ruff-check.sh`, `hook-syntax-check-python.sh`, `hook-bash-fix-forward.py`, `hook-stop-autocommit.py` — all in `hooks/`, wired in `.claude/settings.json` (see [Hooks Reference](docs/hooks.md))
+- **Hooks (17):** `hook-intent-router.py` (UserPromptSubmit), `hook-plan-gate.sh`, `hook-review-gate.sh`, `hook-tier-gate.sh`, `hook-decompose-gate.py`, `hook-agent-isolation.py`, `hook-guard-env.sh`, `hook-pre-edit-gate.sh`, `hook-memory-size-gate.py`, `hook-post-tool-test.sh`, `hook-prd-drift-check.sh`, `hook-pre-commit-tests.sh`, `hook-ruff-check.sh`, `hook-syntax-check-python.sh`, `hook-bash-fix-forward.py`, `hook-error-tracker.py` (PostToolUse:Bash), `hook-stop-autocommit.py` — all in `hooks/`, wired in `.claude/settings.json` (see [Hooks Reference](docs/hooks.md))
 - **Scripts:** `scripts/debate.py` (cross-model engine: challenge, judge, refine, review, review-panel, check-models — config-driven via `config/debate-models.json`; **read [invocation reference](.claude/rules/reference/debate-invocations.md) before calling directly**), `scripts/browse.sh` (thin wrapper around gstack's headless browser binary — used by `/design review`, `/design consult`, `/design variants`; requires gstack installed at `~/.claude/skills/gstack/`), `scripts/tier_classify.py` (file tier classification), `scripts/recall_search.py` (governance search), `scripts/finding_tracker.py` (finding lifecycle), `scripts/enrich_context.py` (context enrichment), `scripts/artifact_check.py` (artifact validation) — see [How It Works](docs/how-it-works.md)
 - **Config:** `config/protected-paths.json` defines protected globs, exempt paths, and required plan fields. `config/debate-models.json` maps personas to LiteLLM models (fallback to hardcoded defaults if missing).
-- **Skills:** `.claude/skills/` — each skill is a `SKILL.md` file with YAML frontmatter (18 skills):
+- **Skills:** `.claude/skills/` — each skill is a `SKILL.md` file with YAML frontmatter (19 skills):
   - Pipeline: `/start` → `/think` → `/elevate` → `/challenge` → `/plan` → `/review` → `/ship` → `/wrap`
   - Thinking: `/explore` (divergent options), `/pressure-test` (counter-thesis or pre-mortem)
   - Design: `/design` (4 modes: `consult`, `review`, `variants`, `plan-check`)
   - Specialist: `/research`, `/audit`, `/setup`, `/triage`
+  - Discovery: `/guide` (intent-based skill map — "what can I do?")
   - Utility: `/polish` (6-round cross-model refinement), `/log` (capture decisions/lessons), `/sync` (post-ship doc sync)
   - `/challenge --deep` = full adversarial pipeline: challenge → judge → refine. For pressure-testing decisions.
   - `/polish` = 6-round cross-model collaborative improvement. Standalone on any input, or as final phase of `/challenge --deep`.
   - Pipeline tiers: T0 (spike) = build. T2 (standard) = `/think refine` → `/plan` → build. T1 (new feature) = `/think discover` → `/challenge` → `/plan` → build. T1+UI = `/think discover` → `/design consult` → `/challenge` → `/plan` → build → `/design review`. Big bet = `/think discover` → `/elevate` → `/challenge` → `/plan` → build. All tiers end with → `/review` → `/ship`. If it has a UI, wire in `/design consult` before plan and `/design review` before ship. Use `/plan --auto` to auto-chain the full pipeline.
-- **Rules:** `.claude/rules/` — code-quality, design, orchestration, review-protocol, session-discipline, skill-authoring, workflow (see individual files for details)
+- **Rules:** `.claude/rules/` — code-quality, design, natural-language-routing, orchestration, review-protocol, session-discipline, skill-authoring, workflow (see individual files for details)
 
 ## Project-specific rules
 <!-- Add rules specific to your project as you discover them. Examples: -->

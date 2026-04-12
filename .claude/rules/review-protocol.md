@@ -62,17 +62,7 @@ Note: `/polish` also runs as the final phase of `/challenge --deep`. The standal
 
 ## Cross-Model Debate Engine
 
-Tool: `scripts/debate.py`. Run `debate.py --help` for full usage.
-
-Both `/challenge` and `/challenge --deep` invoke `debate.py`. The `/review` skill also uses it for cross-model code review.
-
-Models: Claude Opus 4.6 (architect), Gemini 3.1 Pro (staff + PM), GPT-5.4 (security + judge). Refinement rotates all three (gemini -> gpt -> claude). Before judging, multi-challenger findings are automatically consolidated (deduplicated and merged with corroboration notes). Use `--no-consolidate` to skip consolidation.
-
-**Security BLOCKING VETO on external code** is not subject to override. For all other work, security weight is controlled by `--security-posture` (1-5). At posture 1-2, security findings are advisory; PM is the final arbiter. At 4-5, security can block. Default: 3 (balanced).
-
-## Legacy Tier Classification
-
-`scripts/tier_classify.py` is used by the plan gate hook and `/ship` for protected path enforcement. `/review` no longer routes by tier -- it always runs cross-model review.
+Tool: `scripts/debate.py`. See `reference/debate-invocations.md` for full invocation patterns.
 
 **`[TRIVIAL]` bypass:** Include in commit message for typo/doc-only changes. Hook logs the bypass.
 

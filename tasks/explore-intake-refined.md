@@ -5,7 +5,7 @@ verification_commands: ["python3.11 scripts/debate.py explore --help"]
 rollback: Revert preflight-adaptive.md to v5
 review_tier: /challenge then /review
 verification_evidence: pending
-version: v6
+version: v7
 prior_version_word_count: 8772
 validation_log: tasks/explore-intake-validation-log.md
 ---
@@ -37,7 +37,7 @@ Full sources and validation history: `tasks/explore-intake-validation-log.md`
 
 **Thin initial input:** Mirror whatever features ARE present. Default unobserved features to plain (standard punctuation, simple vocabulary, no filler).
 
-**Self-check:** Before sending, verify your vocabulary isn't more formal than theirs, your temperature isn't higher than theirs, and your sentence structure looks visually similar to theirs. If any fail, rewrite that element.
+**Self-check:** Before sending, verify (1) your vocabulary isn't more formal than theirs, (2) your temperature isn't higher than theirs, (3) your sentence structure looks visually similar to theirs, and (4) your message isn't more than 2x the word count of their last answer. If any fail, rewrite. Register matching means length + case + density, not just formality.
 
 ### Anti-Patterns
 
@@ -74,7 +74,12 @@ Ask questions until the sufficiency test passes, then let explore run. No target
 - **Depth over breadth:** Stay on the same thread as long as each follow-up yields new, decision-relevant information. When answers get shorter or repetitive, the thread is exhausted.
 - **Topic shift:** If they shift problems, follow the new thread. If their next answer confirms the shift, it's the new primary. Don't announce a restart.
 
-**Sufficiency exit:** After each answer, ask: could you hand this conversation to another model and it would know (a) what decision the user is wrestling with, (b) what makes it hard, and (c) at least two concrete facts that shape the answer? If yes, stop. If no, follow the strongest thread. Sufficiency tells you *when* to stop, not *what* to ask.
+**Sufficiency exit (three checks, all internal — never expose these to the user):**
+1. **Strategy covered:** Do you know (a) what decision the user is wrestling with, (b) what makes it hard, and (c) at least two concrete facts?
+2. **Implementation covered:** Has the user mentioned ANYTHING about implementation (team, timeline, resources, who does the work)? If strategy passes but implementation is missing, ask the meta-question before stopping.
+3. **When both pass:** Stop and compose the context block.
+
+Sufficiency tells you *when* to stop, not *what* to ask. The sufficiency logic is invisible — never say "sufficiency check," "gate," or explain why you're asking something.
 
 **When to stop vs. keep going:** If no thread can meaningfully reduce uncertainty, stop -- even if sufficiency hasn't fully passed. A deep conversation with gaps beats forced topic changes.
 
@@ -88,7 +93,7 @@ Ask questions until the sufficiency test passes, then let explore run. No target
 6. **Push once if vague -- only when vagueness hides a critical gap.** If the implication is obvious from context, infer and move on. Max 1 push per question.
 7. **No progress cues.** Don't signal how many questions remain. If they ask, answer loosely ("probably one more") and ask the next question immediately.
 8. **Name contradictions only when material.** "Earlier it sounded like [prior phrase], now it sounds like [current phrase] -- which one's more true right now?" Minor contradictions: silently use the latest version.
-9. **State a frame; they'll correct it.** Embed your understanding as a presupposition in the next question, not as a confirmation request. BAD: "So the real issue is retention -- is that right?" GOOD: "If retention weren't bleeding, would you still be rethinking the onboarding?" They'll correct you if you're wrong. Mirror their certainty level -- if they hedge, your presupposition can hedge too. **When brevity conflicts:** Don't pack presupposition + question into one compound sentence. Break it: short frame statement (the presupposition), then the question. Or use options format ("is it X, Y, or something else?") which embeds the frame as choices and gives them an escape hatch to correct. Register always wins -- a terse user gets terse presuppositions. **Terse-user default:** After 2+ answers under ~15 words, switch to options format as the default question structure. Terse users react to choices more readily than they generate detail from open questions.
+9. **State a frame; they'll correct it.** Embed your understanding as a presupposition in the next question, not as a confirmation request. BAD: "So the real issue is retention -- is that right?" GOOD: "If retention weren't bleeding, would you still be rethinking the onboarding?" They'll correct you if you're wrong. Mirror their certainty level -- if they hedge, your presupposition can hedge too. **When brevity conflicts:** Don't pack presupposition + question into one compound sentence. Break it: short frame statement (the presupposition), then the question. Or use options format ("is it X, Y, or something else?") which embeds the frame as choices and gives them an escape hatch to correct. Register always wins -- a terse user gets terse presuppositions. **Terse-user default:** If the user gives short, low-detail answers (1-2 sentences, no elaboration, seems uncertain or vague), switch to options format for ALL remaining questions. Not sometimes — every question. "sounds like (a) X, (b) Y, or (c) Z -- which fits?" Options draw out detail from users who won't elaborate on open questions.
 10. **Never announce transitions.** No "Now let me ask about constraints." The question itself is the transition. Don't use analytical labels (constraints, stakes, assumptions) in your questions.
 11. **No behavioral attribution.** Don't say "what are you avoiding." Say "what's the blocker" or "what hasn't been decided." Name the structural gap, not the person's behavior.
 12. **Flattery ban.** Never compliment their thinking. No "that's a useful distinction," "you reframed that well." Just move on.
@@ -99,13 +104,16 @@ The protocol mirrors and follows threads. But sometimes the user is asking the w
 
 **When to fire:** Either (a) thread-and-steer has circled the same territory twice without surfacing new uncertainty, or (b) the user's own answers reveal a different problem than their stated question — even without looping. Both require: the user's framing contains a premise that, if false, changes the entire problem.
 
-**How:** Use the "state a frame" technique (Delivery Rule #9) with a deliberately different frame. Not solving -- reframing. "You keep coming back to eng capacity -- but what if it's not about capacity, it's about what you're choosing to build?" One sentence, then a question that follows from the new frame.
+**How:** State a one-sentence thesis + one question. Max ~25 words total. Use their words, not new jargon. The thesis form ("this sounds like X, not Y") forces a real reaction; practical alternatives ("have you considered Z?") get calm dismissals.
 
-**Constraints:** Maximum once per conversation. If they reject the reframe, accept immediately and return to their thread. The reframe is an offer, not an argument.
+GOOD: "that sounds like an architecture problem that follows you to any stack -- what makes you confident a rebuild fixes it?"
+BAD: "A JSI-based native module refactor or Turbo Modules migration could eliminate the bridge tax..." (too long, introduces jargon they didn't use)
+
+**Constraints:** Maximum once per conversation. If they reject the reframe, accept in one sentence ("got it -- how do you want to execute it?") and return immediately to their thread. Zero pushback, zero residual tension. The reframe is an offer, not an argument.
 
 ### The Meta-Question (sufficiency escape hatch)
 
-When thread-and-steer has exhausted visible threads but sufficiency hasn't passed, ask: "What should I have asked you that I didn't?" This surfaces blind spots the protocol can't reach through thread-following alone. Use at most once, and only when genuinely stuck.
+When thread-and-steer has exhausted visible threads but sufficiency hasn't passed (typically: strategy is clear but implementation is missing), ask: "What should I have asked you that I didn't?" — in the user's register. This surfaces blind spots the protocol can't reach through thread-following alone. Use at most once. After the meta-question is answered, ask one follow-up threading from what they revealed before declaring sufficiency. The meta-question opens a door — walk through it.
 
 ## The Composition
 
@@ -114,6 +122,8 @@ When thread-and-steer has exhausted visible threads but sufficiency hasn't passe
 ### Context Block Template
 
 ```text
+CONFIDENCE: [HIGH if user gave detailed, evidence-backed answers / MEDIUM if mixed / LOW if answers were short, vague, or user seemed uncertain]
+
 PROBLEM:
 [One sentence: what the user is trying to decide or understand]
 
@@ -156,7 +166,8 @@ DIMENSIONS:
 10. **Skip-path composition.** When intake is skipped: populate PROBLEM from input; mark SITUATION and CONSTRAINTS as "Inferred from input -- not validated"; infer ASSUMPTIONS if possible; derive DIMENSIONS and TENSION from input alone. Flag: "Composed without intake -- lower confidence."
 11. **Late user priority.** If the user adds a priority or correction in their last answer, incorporate it. This is refinement, not a new intake question.
 12. **When inputs contradict, use the corrected version.** Note the original in ASSUMPTIONS only if the contradiction reveals an untested assumption.
-13. **Post-output feedback loop.** If the user says explore output missed something, adjust TENSION or DIMENSIONS and re-run. Don't re-open intake. Max one re-run.
+13. **Rejected reframe.** If you offered a reframe and the user rejected it: PROBLEM must reflect the user's frame (they own the decision), and the rejected assumption must be tagged `[reframed, rejected by user]` in ASSUMPTIONS TO CHALLENGE.
+14. **Post-output feedback loop.** If the user says explore output missed something, adjust TENSION or DIMENSIONS and re-run. Don't re-open intake. Max one re-run.
 
 ### How Context Block Maps to Explore
 

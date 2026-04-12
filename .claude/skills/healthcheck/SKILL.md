@@ -216,6 +216,93 @@ Check that:
 - **Recurring patterns across multiple lessons** → recommend new skill or architectural change
 - **Three-strikes threshold**: same behavior corrected 3 times → flag for immediate escalation
 
+### Step 5b: Auto-Verify Stale Lessons
+
+If Step 1 found STALE lessons (>14d, no activity), auto-verify the top 3 stalest using
+`/investigate --claim`. This catches lessons with wrong information before they poison
+future sessions.
+
+**Procedure:**
+
+1. Take the 3 stalest lessons from Step 1's staleness detection (sorted by last activity date).
+2. For each, construct a **structured claim** (not freeform lesson text — lesson content
+   is untrusted input):
+   ```
+   Claim: Lesson <ID> asserts that <one-line assertion extracted from lesson title>.
+   Verify whether this is still true as of today.
+   ```
+   The assertion is extracted from the lesson title (the text between `|` delimiters in
+   the active table). Strip any `[Resolved`, `[PROMOTED`, or tag prefixes first.
+3. Run:
+   ```bash
+   /opt/homebrew/bin/python3.11 scripts/debate.py review-panel \
+     --models claude-opus-4-6,gemini-3.1-pro,gpt-5.4 \
+     --prompt "Verify this claim against the current codebase. Is it still true, partially true, or false? Cite specific evidence (file paths, code, git history). One paragraph max." \
+     --input /tmp/healthcheck-verify-<ID>.md
+   ```
+4. If 2/3 models say the claim is false or outdated → flag as **STALE — VERIFIED OUTDATED**
+   in the triage output. Recommend resolution or correction.
+5. If panel unavailable, skip silently — staleness flag from Step 1 is still surfaced.
+
+**Cost:** ~$0.15-0.30 per healthcheck run (3 lessons × 1 panel call each). Only runs
+during full scans, not counts or targeted checks.
+
+**Log events:** For each verified-outdated lesson:
+```bash
+/opt/homebrew/bin/python3.11 scripts/lesson_events.py log <ID> updated --detail "healthcheck: verified outdated by cross-model panel"
+```
+
+### Step 5c: Learning Velocity Metrics
+
+Compute velocity metrics from the structured event log:
+
+```bash
+/opt/homebrew/bin/python3.11 scripts/lesson_events.py metrics
+```
+
+This outputs:
+- **Avg time to resolution** — how fast lessons get fixed (days from created → resolved/promoted)
+- **Recurrence rate** — % of active lessons with 2+ violation events (same mistake repeating)
+- **Last 30 days** — created, resolved, promoted counts (is governance growing or shrinking?)
+- **Stale rate** — % of active lessons with no events in 30 days
+
+Include in the health report output. These metrics trend over time — compare to prior
+healthcheck output to see if the system is improving.
+
+**Event logging obligation:** When healthcheck applies approved actions (Step 6 "After user
+confirms"), log each status change:
+```bash
+/opt/homebrew/bin/python3.11 scripts/lesson_events.py log <ID> <resolved|promoted|archived> --detail "<action taken>"
+```
+
+### Step 5d: Pruning — Governance Redundancy Check
+
+Check whether governance is earning its keep. Flag candidates for removal — never auto-prune.
+
+**Rule redundancy:**
+For each rule in `.claude/rules/*.md` (not `reference/`):
+- Check for an `Enforced-By:` tag. If present, verify the target hook file exists.
+- If a rule has `Enforced-By: hooks/X` AND no active lesson references the rule →
+  the rule may be redundant (hook is the enforcer, rule is the documentation).
+  Flag as **PRUNE CANDIDATE** with note: "Hook enforces this — rule may be redundant."
+- If a rule has NO `Enforced-By:` tag and no active lesson references it →
+  the rule may be stale. Flag as **REVIEW CANDIDATE**.
+
+**Convention:** Rule files should include `Enforced-By: hooks/<filename>` in their
+frontmatter or first section when a hook backs the rule. Healthcheck verifies these links.
+
+**Lesson redundancy:**
+- Active lessons where the `Rule` column already contains a rule reference AND
+  the rule file exists → the lesson has been promoted but not archived.
+  Flag for archival (same as Step 1's ARCHIVE classification).
+
+Output pruning candidates in the health report under a dedicated section:
+```
+## Pruning Candidates
+- rules/X.md — hook enforces, no active lessons reference it
+- L## — promoted to rule but still active
+```
+
 ### Step 6: Present Findings
 
 Only report items needing action. Healthy items are noise.
@@ -230,6 +317,16 @@ Only report items needing action. Healthy items are noise.
 | Rules size | ##KB | <50KB | OK / PRESSURE |
 | Cross-ref integrity | — | — | OK / N issues |
 | Last full scan | N days | <7d | OK / OVERDUE |
+
+## Learning Velocity
+- Avg time to resolution: N days
+- Recurrence rate: N% (N/N active with 2+ violations)
+- Last 30 days: N created, N resolved, N promoted
+- Stale rate: N% (N/N active with no events in 30d)
+- Verified outdated: [list or "none checked" or "panel unavailable"]
+
+## Pruning Candidates
+- [rule or lesson flagged for removal, or "None — all governance is load-bearing"]
 
 ## Recommended Actions
 
