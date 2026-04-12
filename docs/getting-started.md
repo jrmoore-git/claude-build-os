@@ -4,6 +4,16 @@ A guided first-hour tutorial. By the end, you'll have a defined product, an impl
 
 ---
 
+## The Only Thing You Need to Know
+
+**Just describe what you want to do.** You don't need to memorize any commands. Build OS has 19 skills, but the primary interface is natural language — tell Claude what you're building, what's broken, or what you need, and it routes you to the right tool.
+
+If you ever feel lost, type `/guide` for a quick map organized by intent, or `/start` to get oriented in your current project.
+
+The slash commands below are shown so you understand what's happening, not because you need to type them.
+
+---
+
 ## 1. Prerequisites
 
 You need [Claude Code](https://claude.ai/claude-code), git, and Python 3.11+. For cross-model review (`/challenge`, `/challenge --deep`, `/review`), you also need LiteLLM and API keys from Anthropic, OpenAI, and Google AI. See the [README](../README.md) for full setup details.

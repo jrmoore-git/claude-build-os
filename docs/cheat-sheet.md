@@ -1,4 +1,7 @@
 # Build OS Cheat Sheet
+
+**You don't need to memorize any of this.** Just describe what you want to do — Build OS routes you automatically. Type `/guide` if you're lost. This reference is for when you want precision.
+
 ## Pipeline by Task Type
 
 ```
@@ -52,6 +55,7 @@ If it has a UI, wire in `/design consult` (before plan) and `/design review` (be
 | Session | `/triage` | Classify and route incoming information |
 | Bootstrap | `/setup` | Interactive project setup |
 | Bootstrap | `/audit` | Two-phase blind discovery audit |
+| Discovery | `/guide` | Intent-based skill map — "what can I do?" |
 
 ## Key Files
 

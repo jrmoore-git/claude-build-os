@@ -1,14 +1,6 @@
 ---
 name: elevate
-description: |
-  Scope and ambition review. Rethink the problem, find the 10-star product,
-  challenge premises, expand scope when it creates a better product. Four modes:
-  SCOPE EXPANSION (dream big), SELECTIVE EXPANSION (hold scope + cherry-pick),
-  HOLD SCOPE (maximum rigor), SCOPE REDUCTION (strip to essentials).
-  Use when asked to "think bigger", "expand scope", "rethink this", or
-  "is this ambitious enough". Run after /plan to stress-test scope and ambition.
-  Defers to: /think (problem discovery), /plan (implementation spec), /review (code review).
-  Benefits from: /think discover (reads design doc from tasks/).
+description: "Scope and ambition review. Rethink the problem, find the 10-star product, challenge premises, expand scope when it creates a better product. Four modes: SCOPE EXPANSION (dream big), SELECTIVE EXPANSION (hold scope + cherry-pick), HOLD SCOPE (maximum rigor), SCOPE REDUCTION (strip to essentials). Benefits from /think discover. Defers to: /think (problem discovery), /plan (implementation spec), /review (code review)."
 user-invocable: true
 allowed-tools:
   - Read

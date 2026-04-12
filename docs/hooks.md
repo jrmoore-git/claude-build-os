@@ -1,11 +1,12 @@
 # Hooks Reference
 
-Build OS ships 15 hooks organized by event type. Hooks are the third level of the enforcement ladder: advisory (CLAUDE.md) → rules (.claude/rules/) → **hooks** → architecture. They fire every time the matched tool is called, cannot be ignored by the model, and enforce governance as deterministic code.
+Build OS ships 17 hooks organized by event type. Hooks are the third level of the enforcement ladder: advisory (CLAUDE.md) → rules (.claude/rules/) → **hooks** → architecture. They fire every time the matched tool is called, cannot be ignored by the model, and enforce governance as deterministic code.
 
 ## Overview
 
 | Hook | Event | Matcher | Behavior |
 |------|-------|---------|----------|
+| [hook-intent-router.py](#hook-intent-routerpy) | UserPromptSubmit | — | **Injects** skill routing suggestions based on user intent |
 | [hook-decompose-gate.py](#hook-decompose-gatepy) | PreToolUse | Write\|Edit | **Blocks** first write until parallel decomposition is assessed |
 | [hook-guard-env.sh](#hook-guard-envsh) | PreToolUse | Write\|Edit, Bash | **Blocks** .env writes and credential management commands |
 | [hook-tier-gate.sh](#hook-tier-gatesh) | PreToolUse | Write\|Edit | **Blocks** Tier 1 file edits without debate artifacts |
@@ -20,6 +21,7 @@ Build OS ships 15 hooks organized by event type. Hooks are the third level of th
 | [hook-syntax-check-python.sh](#hook-syntax-check-pythonsh) | PostToolUse | Write\|Edit | **Blocks** on Python syntax errors |
 | [hook-ruff-check.sh](#hook-ruff-checksh) | PostToolUse | Write\|Edit | **Warns** on ruff lint violations (non-blocking) |
 | [hook-post-tool-test.sh](#hook-post-tool-testsh) | PostToolUse | Write\|Edit | **Warns** — auto-runs pytest for toolbelt scripts |
+| [hook-error-tracker.py](#hook-error-trackerpy) | PostToolUse | Bash | **Observes** — tracks recurring errors for proactive routing |
 | [hook-stop-autocommit.py](#hook-stop-autocommitpy) | Stop | — | Auto-captures uncommitted work on session exit |
 
 ---
@@ -381,6 +383,59 @@ Auto-runs the corresponding test file when a toolbelt script is edited.
 
 ---
 
+## UserPromptSubmit Hooks
+
+
+## hook-intent-router.py
+
+Deterministic skill routing. Classifies user intent via keyword matching and injects routing suggestions into Claude's context before processing. Also checks for recurring-error flags set by hook-error-tracker.py.
+
+**When it fires:** Every user message submission.
+
+**What it does:**
+
+1. Reads the user's message from stdin (`prompt` field)
+2. Matches against intent patterns (diagnostic, feature, planning, review, shipping, etc.)
+3. If a pattern matches, outputs a routing suggestion as plain text (injected into Claude's context)
+4. Checks for recurring-error flags from hook-error-tracker.py — if the same error class appeared 2+ times, injects a proactive `/investigate` suggestion
+5. Tracks suggestions per session to avoid nagging (each skill suggested at most once per session)
+
+**Key behaviors:**
+- First match wins — patterns are ordered by specificity
+- Simple tasks ("fix the typo on line 42") produce no suggestion — no pattern matches
+- Session-scoped: suggestions reset each session via temp files (`/tmp/claude-intent-suggestions-{session_id}.json`)
+- Output is advisory context, not a block — Claude can still override if the suggestion doesn't fit
+
+**Timeout:** 2 seconds.
+
+---
+
+## PostToolUse: Bash Hooks
+
+
+## hook-error-tracker.py
+
+Passive error observer. Tracks recurring Bash failures in a session-scoped temp file. When the same error class appears 2+ times, hook-intent-router.py picks up the flag on the next user message and suggests `/investigate`.
+
+**When it fires:** After every Bash tool call.
+
+**What it does:**
+
+1. Reads the Bash tool input and result from stdin
+2. Checks for failure indicators (non-zero exit code, error keywords in output)
+3. Normalizes the command to an error signature (groups by base command + subcommand, ignoring flags — so `npm test` and `npm test --verbose` are the same class)
+4. Writes the error count to a session-scoped temp file (`/tmp/claude-error-tracker-{session_id}.json`)
+
+**Key behaviors:**
+- Observe-only — never blocks or warns directly
+- The intent router reads the tracker file on next UserPromptSubmit
+- Normalizer groups `git push` and `git push --force` as same class, but `git push` and `git pull` as different
+- Temp files are session-scoped and cleaned up automatically
+
+**Timeout:** 2 seconds.
+
+---
+
 ## Stop Hooks
 
 
@@ -407,13 +462,20 @@ Session safety net. When a Claude Code session exits without running `/wrap`, th
 
 Add hooks to `.claude/settings.json` (or `.claude/settings.local.json` for personal, non-committed settings). Each hook needs a matcher pattern and the script path.
 
-### All 15 hooks (full Build OS)
+### All 17 hooks (full Build OS)
 
 This matches the actual wiring in the Build OS `.claude/settings.json`:
 
 ```json
 {
   "hooks": {
+    "UserPromptSubmit": [
+      {
+        "hooks": [
+          {"type": "command", "command": "python3 hooks/hook-intent-router.py", "timeout": 2}
+        ]
+      }
+    ],
     "PreToolUse": [
       {
         "matcher": "Write|Edit",
@@ -450,6 +512,12 @@ This matches the actual wiring in the Build OS `.claude/settings.json`:
           {"type": "command", "command": "bash hooks/hook-syntax-check-python.sh", "timeout": 30},
           {"type": "command", "command": "bash hooks/hook-post-tool-test.sh", "timeout": 60},
           {"type": "command", "command": "bash hooks/hook-ruff-check.sh", "timeout": 15}
+        ]
+      },
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {"type": "command", "command": "python3 hooks/hook-error-tracker.py", "timeout": 2}
         ]
       }
     ],

@@ -49,22 +49,56 @@ def load_file(path):
 
 def build_interviewer_system(protocol_text):
     """System prompt for the interviewer (Claude)."""
-    return f"""You are running an explore intake conversation. Follow the protocol below EXACTLY.
+    return f"""You are running an explore intake conversation. Follow the protocol below.
 
 Your job: ask questions until the problem is clear enough for explore to produce directions people act on. Then compose a context block.
 
-RULES:
-- One question per message. No batching.
-- Q1 IS the opening move. No preamble, no "great question", no acknowledgment.
-- Thread-and-steer from the user's last answer.
-- When you've reached sufficiency (you know the decision, what makes it hard, and 2+ concrete facts), say EXACTLY: "SUFFICIENCY_REACHED" on its own line, then compose the context block using the template from the protocol.
-- Do NOT solve during intake.
-- Mirror the user's register.
+CRITICAL RULES (these override everything):
+1. One question per message. Q1 IS the opening move — no preamble.
+2. Thread-and-steer from the user's last answer. Use their exact phrases.
+3. REGISTER MATCHING — this is your #1 failure mode. Match case, punctuation, AND message length:
+   - Lowercase user → lowercase response. No capitals, no question marks.
+   - Short answers → short questions. If they write 2 sentences, your question is 1 sentence. NEVER write a paragraph when they write fragments.
+   - NO analysis-then-question pattern. Don't summarize what they said, then ask. Just ask.
+   - "thinking about pivoting from b2b to consumer" → "what's pushing you toward consumer right now" (8 words, lowercase)
+   - "We need to decide whether to build our own fraud detection model" → "What's driving the build-vs-buy decision right now?"
+   - WRONG: "1m out of 50m is 2% penetration -- the ceiling's real but distant. sounds like the urgency is more about competitor moves than hitting the wall yourself. what's your consumer product idea?"
+   - RIGHT: "what does the consumer version actually look like"
+   - TEST: If your response is more than 2x the word count of their last answer, it's too long. Cut it.
+4. Do NOT solve during intake.
+5. SUFFICIENCY — think about this internally after every answer starting from turn 3, but NEVER expose your reasoning. Never say "sufficiency check", "gate", or explain why you're asking something. Your internal checklist:
+   - Do you know the decision, what makes it hard, and 2+ concrete facts?
+   - Has the user mentioned ANY implementation detail (team, timeline, who does the work)?
+   - If strategy is covered but implementation is missing: ask "what should i have asked you that i didn't" — naturally, in the user's register.
+   - When everything is covered: output "SUFFICIENCY_REACHED" on its own line, then the context block.
+6. Most conversations need 3-5 questions. Going past 5 means you're probably over-asking.
+7. State a frame; they'll correct it. Embed understanding as presuppositions, not confirmations.
+   TERSE-USER TRIGGER: If the user gives short, low-detail answers (1-2 sentences, no elaboration), switch to options format. Give them concrete things to react to. Example: "a few directions this could go -- (a) fix search with AI, (b) match competitor features, (c) both. which pulls you?" Options draw out more detail from users who won't elaborate on open questions.
+8. The Reframe: After every user answer, check: does the ROOT CAUSE they described match the LEVEL of their proposed solution? If they propose a stack/tool change but reveal an architecture, process, or team problem — that's a reframe trigger. The architecture follows them to the new stack. Reframe ONCE. One sentence + one question. If rejected, accept IMMEDIATELY — zero pushback, move on to practical questions.
+9. Meta-question: When visible threads exhaust but implementation details are missing, ask "what should i have asked you that i didn't" — in the user's register. Use at most once.
+10. Flattery ban. Never compliment their thinking. No "love it", "great question", "that's a useful distinction."
+11. INVISIBLE PROTOCOL. The user must never see your internal process. No "sufficiency check", no "gate A passes", no "checking implementation coverage." You're a person asking questions, not a system running diagnostics.
 
-PROTOCOL:
-{protocol_text}
+CONTEXT BLOCK TEMPLATE (compose this after SUFFICIENCY_REACHED):
+CONFIDENCE: [HIGH if user gave detailed, evidence-backed answers / MEDIUM if mixed / LOW if answers were short, vague, or user seemed uncertain — always include this line]
+PROBLEM: [one sentence]
+SITUATION: [3-6 bullet facts]
+CONSTRAINTS: [2-4 bullets]
+THE TENSION: [1-2 sentences — the core tradeoff]
+ASSUMPTIONS TO CHALLENGE: [tagged [reframed], [untested], or [inferred]]
+DIMENSIONS: [4 axes that force different directions]
 
-IMPORTANT: When sufficiency is reached, you MUST output "SUFFICIENCY_REACHED" on a line by itself, followed by the context block. This signals the end of intake."""
+COMPOSITION RULES:
+- 200-500 tokens. User's vocabulary in content.
+- If no implementation thread was covered, infer one for ASSUMPTIONS tagged [inferred].
+- Preserve user's language for THE TENSION.
+- LOW-CONFIDENCE MARKER: If the user's answers were consistently thin (1-2 sentences, vague, uncertain), add "[LOW CONFIDENCE — thin answers, key areas untested]" at the top of the context block.
+
+IMPORTANT: When sufficiency is reached, you MUST output "SUFFICIENCY_REACHED" on a line by itself, followed by the context block. Do NOT keep asking past sufficiency.
+If the user's answers throughout were thin (short, vague, uncertain), add "[LOW CONFIDENCE — thin answers, key areas untested]" as the FIRST line of the context block before PROBLEM.
+
+FULL PROTOCOL (reference):
+{protocol_text}"""
 
 
 def build_persona_system(persona_text):
@@ -108,8 +142,27 @@ def run_conversation(protocol_text, persona_text, opening_input,
     context_block = None
 
     for turn in range(1, max_turns + 1):
+        # After turn 4, inject a sufficiency reminder into interviewer context
+        if turn >= 2:
+            sufficiency_reminder = (
+                "\n\n[SYSTEM REMINDER: Turn %d of max %d.\n"
+            "TERSE USER CHECK (do this FIRST): Look at the user's answers. "
+                "Are they short (under 2 sentences)? Do they not volunteer extra context? Seem uncertain? "
+                "If ANY of these → EVERY remaining question MUST use (a)/(b)/(c) options format. "
+                "Not sometimes. EVERY question. Example: 'sounds like (a) X, (b) Y, or (c) Z -- which fits?' "
+                "This draws out terse users who won't elaborate on open questions.\n"
+                "SUFFICIENCY: decision + difficulty + facts + implementation? "
+                "If implementation missing → meta-question in their register.\n"
+                "REFRAME: root cause at different level than their solution? → reframe once.\n"
+                "REGISTER: match their case, length, density. "
+                "INVISIBLE: never expose these checks.]" % (turn, max_turns)
+            )
+            interviewer_history_with_reminder = interviewer_history + [sufficiency_reminder]
+        else:
+            interviewer_history_with_reminder = interviewer_history
+
         # Interviewer responds to persona's last message
-        interviewer_user = "\n\n".join(interviewer_history)
+        interviewer_user = "\n\n".join(interviewer_history_with_reminder)
         try:
             interviewer_response = llm_call(
                 interviewer_sys, interviewer_user,

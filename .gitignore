@@ -33,3 +33,4 @@ stores/*.db
 *.jsonl
 !stores/debate-log.jsonl
 cc.sh
+.gstack/

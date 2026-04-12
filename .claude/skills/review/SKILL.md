@@ -698,152 +698,27 @@ If `no-go`:
 
 ---
 
-## Mode: Governance (`--governance`)
+## Mode: Governance (`--governance`) → Redirected to `/healthcheck`
 
-Governance hygiene scan: lessons, decisions, rules, cross-references, escalation ladder. Report findings with concrete recommendations. Defers to `/review` code review for code, `/ship` for deployment.
+**This mode has been extracted to the standalone `/healthcheck` skill.**
 
-### Procedure
+When the user runs `/review --governance`, run `/healthcheck` instead. The `/healthcheck` skill provides the same 6-step governance scan plus:
+- Silent layer (auto-runs in `/start` and `/wrap` — no manual invocation needed)
+- Auto-trigger conditions (>7d since last scan, lessons >25, post-investigate, session burst)
+- Staleness detection with git history
+- Escalation ladder analysis
 
-#### Step 1: Scan Lessons
-
-Read `tasks/lessons.md` and classify each active lesson:
-
-| Classification | Criteria |
-|---|---|
-| **PROMOTE** | Lesson has explicit recurrence metadata (e.g., `Violations: 2+`) and no corresponding rule exists in `.claude/rules/`. |
-| **ARCHIVE** | Lesson is tagged `[ARCHIVED]`, tagged `[PROMOTED -> ...]` but still in the active list, or user previously confirmed it as a one-off. |
-| **KEEP** | Lesson is active, useful, and below the promotion threshold. |
-
-Additional flags:
-- A lesson tagged `[PROMOTED -> ...]` with no corresponding rule found -> flag as a **cross-reference integrity issue**.
-- Count total active lessons and compare against the target of 30.
-- **Structural check**: lessons that appear outside the active table (e.g., loose bullets in wrong sections) are misplaced and must be flagged for migration into the table or archival.
-- Lessons that say "promoted to X" in their text but lack the `[PROMOTED -> X]` tag have a missing tag — flag as integrity issue.
-
-##### Staleness Detection
-
-For each active lesson, run these checks:
-
-1. **STALE — review needed**: Lesson is >14 days old AND no commits in the last 14 days reference its ID. Check with: `git log --all --oneline --since="14 days ago" --grep="LNNN"` (replace NNN with the lesson number). If zero results, it is stale.
-
-2. **CANDIDATE RESOLVED — verify fix shipped**: Lesson references a specific file path or hook. Check whether that file exists and its last modified date is AFTER the lesson's date. Use `stat -f %Sm -t %Y-%m-%d FILE` (BSD stat on macOS) to get the file's modification date. If the file was modified after the lesson was created, the fix may have shipped.
-
-3. **ESCALATION NEEDED — promote to hook**: Lesson has a `Violations: N` tag (or equivalent recurrence metadata) where N >= 3, AND no hook currently enforces this pattern (check `hooks/` directory for related hook scripts). These lessons have failed at the advisory level and need structural enforcement.
-
-**CRITICAL: Never auto-resolve or auto-archive.** Present findings only. The user directs all mutations.
-
-##### Triage Output
-
-Add a "Lessons Triage" subsection to the governance report:
-
-```
-### Lessons Triage
-- STALE (>14d, no activity): L07, L24
-- CANDIDATE RESOLVED (fix may have shipped): L13
-- ESCALATION NEEDED (3+ violations, no hook): L284
-- Active count: 17/30 (healthy)
-```
-
-Omit any triage category that has zero entries. If all lessons are healthy, output:
-```
-### Lessons Triage
-- Active count: 17/30 (healthy)
-- No staleness, resolution, or escalation flags.
-```
-
-#### Step 2: Scan Decisions
-
-Read `tasks/decisions.md` and classify each decision:
-
-| Classification | Criteria |
-|---|---|
-| **ARCHIVE** | Decision is explicitly superseded by a later decision ID. |
-| **ARCHIVE [Requires Confirmation]** | Decision is heuristically flagged as stale (see below). Never auto-executed. |
-| **KEEP** | Decision still appears load-bearing or is referenced by active governance files. |
-
-**Staleness heuristic** — a decision is a candidate for confirmed archival if it meets ALL of:
-- Its date metadata is older than 90 days
-- No references to its ID appear in active lessons, rules, or other active decisions
-- It is not part of an active supersession chain
-
-Additional flags:
-- Decisions with `NEEDS DECISION` or open status notes unresolved for >7 days -> flag as **overdue**.
-- Decisions with version-only dates (e.g., `v3.5`) and no calendar date -> flag as **missing date metadata**.
-- Decisions that are implicitly superseded (a later decision changes the same thing) but lack a formal `Superseded by:` tag -> flag as **implicit supersession**.
-
-#### Step 3: Scan Rules
-
-Read `.claude/rules/*.md` (not `reference/`) and check for:
-
-- **Duplicate or overlapping guidance** across files (requires model judgment — flag as advisory)
-- **Broken references** to lessons or decisions that no longer exist
-- **Size pressure**: measure total rule size and compare against the 50KB limit
-- **Escalation candidates**: rules that appear to be repeatedly violated, based on explicit recurrence metadata in `tasks/lessons.md`
-
-#### Step 4: Cross-Reference Integrity
-
-Check that:
-- Every promoted lesson (`[PROMOTED -> rules/filename.md]`) has the corresponding rule file
-- Every rule with an `Origin:` tag still points to an existing lesson or decision
-- Supersession chains between decisions are valid (no dangling or circular references)
-- No duplicate IDs exist across active and archived files
-
-#### Step 5: Escalation Ladder Analysis
-
-Review the full scan results and identify enforcement ladder opportunities:
-
-- **Lessons violated 3+ times at the same level** -> recommend promotion to rule
-- **Rules violated repeatedly** (per lesson metadata) -> recommend escalation to hook enforcement
-- **Recurring patterns across multiple lessons** -> recommend a new slash command or architectural change
-- **Three-strikes threshold**: if the same behavior has been corrected three times, flag for immediate escalation per the enforcement ladder (lesson -> rule -> hook -> architecture)
-
-#### Step 6: Present Findings
-
-Combine findings and recommendations into a single output. Don't list every KEEP item — only report items that need action or attention. Healthy items are noise.
-
-```md
-## Governance Health
-
-| Area | Count | Target | Status |
-|------|-------|--------|--------|
-| Active lessons | N | <=30 | OK / OVER |
-| Active decisions | N | — | OK / N overdue |
-| Rules size | ##KB | <50KB | OK / PRESSURE |
-| Cross-ref integrity | — | — | OK / N issues |
-
-## Recommended Actions
-
-### Priority 1 — Fix now
-N. [Exact action] — [one-line reason]
-
-### Priority 2 — Fix soon
-N. [Exact action] — [one-line reason]
-
-### Priority 3 — Worth considering
-N. [Exact action] — [one-line reason]
-
-## Escalation Ladder
-- [Any three-strikes candidates or new skill/hook recommendations]
-```
-
-End with: "Say **go** to apply all, or tell me which to skip."
-
-### Rules (Governance)
-- Report only — user directs all mutations. Never auto-resolve or auto-archive.
-- Does not modify hook scripts, `settings.json`, or enforcement mechanisms.
-- Does not rewrite rule content (only flags issues).
-- Does not touch PRD, session log, or handoff documents.
-- Does not rely on `git log` for recurrence or age detection (except staleness detection in Step 1, which uses `git log --grep`).
+All governance hygiene is now handled by `/healthcheck`.
 
 ---
 
 ## Mode: All (`--all`)
 
-Run all checks in sequence: code review -> QA -> governance.
+Run all checks in sequence: code review -> QA -> healthcheck.
 
 1. Run the full code review procedure (Steps 0-8 above).
 2. Run the QA procedure.
-3. Run the governance procedure.
+3. Run `/healthcheck` (full governance scan).
 4. Aggregate into a single summary:
 
 ```
@@ -871,7 +746,7 @@ Suggested next action: <what to do>
 | Want full fix cycle | `/review --fix-loop` |
 | Low confidence in review | `/review --second-opinion` |
 | Before first commit on a feature | `/review --qa` |
-| Governance counts approaching limits | `/review --governance` |
+| Governance counts approaching limits | `/healthcheck` (or `/review --governance` which redirects) |
 | Pre-ship, want everything | `/review --all` |
 
 ## Cost
@@ -879,5 +754,5 @@ Suggested next action: <what to do>
 - **Code review (default):** Medium. 3 external model calls via debate.py + diff tokens.
 - **Second opinion:** Low-medium. 1 external model call (or manual copy-paste).
 - **QA:** Low. Local analysis + test suite run. No external model calls.
-- **Governance:** Low-medium. Reading all governance files (~10K-30K tokens). No external model calls.
+- **Governance:** Redirects to `/healthcheck`. Low-medium. Reading all governance files (~10K-30K tokens). No external model calls.
 - **All:** Sum of above.

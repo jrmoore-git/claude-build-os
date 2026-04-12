@@ -1,10 +1,6 @@
 ---
 name: research
-description: |
-  Deep web research via Perplexity Sonar. Returns sourced markdown with citations.
-  Two modes: deep (async, multi-source synthesis) and quick (sync, spot lookup).
-  Use when a task needs evidence, landscape awareness, or multi-source synthesis.
-  Defers to: /think (problem discovery), /explore (divergent options).
+description: "Deep web research via Perplexity Sonar. Returns sourced markdown with citations. Two modes: deep (async, multi-source synthesis) and quick (sync, spot lookup). Use when a task needs evidence, landscape awareness, or multi-source synthesis. Defers to: /think (problem discovery), /explore (divergent options)."
 user-invocable: true
 allowed-tools:
   - Bash

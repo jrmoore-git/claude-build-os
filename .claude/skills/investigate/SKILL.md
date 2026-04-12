@@ -1,11 +1,6 @@
 ---
 name: investigate
-description: |
-  Structured root-cause analysis using cross-model debate, governance memory,
-  and finding lifecycle tracking. Three modes: symptom (something broke),
-  drift (behavior changed), claim (verify a claim). Embodies diagnostic-before-fix.
-  Defers to: /audit (broad codebase archaeology), /pressure-test (adversarial pre-mortem),
-  /think (problem discovery for new work).
+description: "Structured root-cause analysis using cross-model debate, governance memory, and finding lifecycle tracking. Three modes: symptom (something broke), drift (behavior changed), claim (verify a claim). Embodies diagnostic-before-fix. Defers to: /audit (broad codebase archaeology), /pressure-test (adversarial pre-mortem), /think (problem discovery for new work)."
 user-invocable: true
 allowed-tools:
   - Bash
@@ -20,8 +15,8 @@ allowed-tools:
 
 # /investigate -- Structured Root-Cause Analysis
 
-Six-phase investigation protocol: scope, gather evidence, pull context, form hypotheses,
-test hypotheses with cross-model panel, route findings to governance docs.
+Seven-phase investigation protocol: scope, gather evidence, pull context, form hypotheses,
+test hypotheses with cross-model panel, route findings, present results.
 
 ## When to use
 
@@ -114,12 +109,17 @@ Note any staleness or version drift — these may be contributing factors.
 - **claim**: Identify what evidence would confirm or refute the claim. Read the relevant
   code path end-to-end. Check if tests exist that exercise the claimed behavior.
 
+**Scope limiter:** If after reading 10 files and running 10 commands you haven't narrowed
+to 2 strong hypotheses, pause and ask the user to refine the investigation scope. Vague
+topics ("performance", "things seem slow") need narrowing before Phase 3.
+
 **Write evidence to disk** as you gather it:
 ```
 tasks/<TOPIC>-evidence.md
 ```
 Append each piece of evidence with its source (file path, command, git ref). This preserves
-progress if the session is interrupted.
+progress if the session is interrupted. This file is working state — it is cleaned up in
+Phase 6c after the investigation report captures all findings.
 
 ### Phase 3: Context (Governance Memory)
 
@@ -134,7 +134,7 @@ Extract 3-5 keywords from the symptom/topic. Parse JSON results.
 
 **3b. Enrich context** — pull structured governance context:
 
-Write a temp summary of the investigation to a scratch file:
+Write a temp summary of the investigation to `/tmp/investigate-<TOPIC>-context.md`:
 ```
 # Investigation: <symptom description>
 ## Area
@@ -145,7 +145,7 @@ Write a temp summary of the investigation to a scratch file:
 
 ```bash
 /opt/homebrew/bin/python3.11 scripts/enrich_context.py \
-  --proposal <scratch-file> --scope all --top-k 5
+  --proposal /tmp/investigate-<TOPIC>-context.md --scope all --top-k 5
 ```
 Parse JSON. Retain relevant decisions and lessons for Phase 4.
 
@@ -270,13 +270,30 @@ Status: <RESOLVED|LIKELY|OPEN>
 
 **6b. Persist findings** — if the investigation produced actionable findings:
 
+For findings that need resolution tracking (bugs, broken behavior, stale artifacts):
+```bash
+# Import findings from the investigation report if it contains MATERIAL-tagged items.
+# finding_tracker expects judgment-format markdown. Write a judgment-format section
+# to a temp file, then import:
+cat > /tmp/investigate-<TOPIC>-findings.md << 'EOF'
+## Findings
+### F1: <finding title>
+- **Verdict:** ACCEPT
+- **Severity:** <critical|warning|info>
+- **Evidence:** <from investigation>
+EOF
+/opt/homebrew/bin/python3.11 scripts/finding_tracker.py import \
+  --judgment /tmp/investigate-<TOPIC>-findings.md 2>/dev/null
+```
+Skip if no MATERIAL findings or if finding_tracker is unavailable.
+
 For surprises or gotchas discovered during investigation:
 - If it's a recurring pattern → note for `tasks/lessons.md` (user decides whether to add)
 - If it reveals a decision that should be documented → note for `tasks/decisions.md`
 
 **6c. Clean up** — remove scratch files:
 ```bash
-rm -f tasks/<TOPIC>-evidence.md /tmp/investigate-*.md
+rm -f tasks/<TOPIC>-evidence.md /tmp/investigate-<TOPIC>-context.md /tmp/investigate-<TOPIC>-findings.md
 ```
 
 ### Phase 7: Present Results

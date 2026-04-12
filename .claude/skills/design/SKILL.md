@@ -1,11 +1,6 @@
 ---
 name: design
-description: |
-  Unified design skill with 4 modes: consult (design system builder),
-  review (visual QA with 94-item audit), variants (AI design exploration),
-  plan-check (designer's eye on a plan). Infers mode from context when
-  not specified. Defers to /think for problem definition, /review for
-  code review, /polish for iterative document refinement.
+description: "Unified design skill with 4 modes: consult (design system builder), review (visual QA with 94-item audit), variants (AI design exploration), plan-check (designer's eye on a plan). Infers mode from context when not specified. Defers to /think for problem definition, /review for code review, /polish for iterative document refinement."
 user-invocable: true
 allowed-tools:
   - Bash

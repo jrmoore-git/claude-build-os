@@ -1,11 +1,6 @@
 ---
 name: sync
-description: |
-  Sync project docs to match what shipped. Cross-references the git diff against
-  all project docs, polishes CHANGELOG voice, checks cross-doc consistency.
-  Never auto-commits.
-  Use when asked to "sync docs", "update the docs", or "post-ship docs".
-  Suggest after a commit lands or code is shipped.
+description: "Sync project docs to match what shipped. Cross-references the git diff against all project docs, polishes CHANGELOG voice, checks cross-doc consistency. Never auto-commits. Use when asked to sync docs, update the docs, or post-ship docs. Suggest after a commit lands or code is shipped."
 user-invocable: true
 allowed-tools:
   - Bash

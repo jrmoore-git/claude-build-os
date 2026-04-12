@@ -198,11 +198,11 @@ Ollama runs locally — no data leaves your machine. The `nomic-embed-text` mode
 
 **Fallback:** Without this, both `/start` and context enrichment use BM25 keyword search, which works well for exact term matches but misses conceptually related results.
 
-### Optional: Headless Browser (for `/design review`, `/design consult`)
+### Optional: Headless Browser (for `/design review`, `/design consult`, `/design variants`)
 
-Gives design skills the ability to take screenshots, inspect live pages, and run visual QA.
+Gives design skills the ability to take screenshots, inspect live pages, and run visual QA. Build OS uses [gstack](https://github.com/garrytan/gstack)'s headless browser binary via `scripts/browse.sh`. Install gstack, then run `bash scripts/setup-design-tools.sh` to configure paths.
 
-**Fallback:** Without a browser, design skills work from web search results and built-in design knowledge. Visual QA (`/design review`) requires a browser — it will report "browser unavailable" without one.
+**Fallback:** Without gstack, design skills work from web search results and built-in design knowledge. Visual QA (`/design review`) requires the browser — it will report "browser unavailable" without one. All other Build OS skills work without it.
 
 ---
 

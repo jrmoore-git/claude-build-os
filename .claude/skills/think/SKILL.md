@@ -1,11 +1,6 @@
 ---
 name: think
-description: |
-  Problem definition in two modes. "discover" runs full problem discovery with
-  forcing questions, premise challenges, alternatives, and writes a design doc.
-  "refine" runs a lightweight sanity check with 5 forcing questions for features
-  or pass-through for bugfixes. Use before /challenge or /plan.
-  Defers to: /challenge (scope gate), /plan (implementation spec), /elevate (ambition review).
+description: "Problem definition in two modes. 'discover' runs full problem discovery with forcing questions, premise challenges, alternatives, and writes a design doc. 'refine' runs a lightweight sanity check with 5 forcing questions for features or pass-through for bugfixes. Use before /challenge or /plan. Defers to: /challenge (scope gate), /plan (implementation spec), /elevate (ambition review)."
 user-invocable: true
 allowed-tools:
   - Bash
@@ -623,7 +618,7 @@ perspectives from different reviewer archetypes — anonymized and position-rand
 
 ```bash
 /opt/homebrew/bin/python3.11 scripts/debate.py review-panel \
-  --personas architect,security,pm \
+  --models claude-opus-4-6,gemini-3.1-pro,gpt-5.4 \
   --enable-tools \
   --allowed-tools check_code_presence,read_config_value \
   --prompt "Read this design document and review on 5 dimensions: Completeness, Consistency, Clarity, Scope (YAGNI?), Feasibility. For each dimension: PASS or list specific issues with fixes. Return a quality score (1-10). You have access to read-only verifier tools (check_code_presence, read_config_value) to fact-check claims about the current system." \

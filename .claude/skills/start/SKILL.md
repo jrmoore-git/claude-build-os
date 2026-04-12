@@ -87,6 +87,40 @@ python3.11 scripts/recall_search.py [domain keywords] --semantic --files lessons
 ```
 Include results with similarity > 0.5. Treat scores below 0.55 as low-confidence.
 
+**1g. Governance health — backward-looking (what rotted since last session?)**
+
+Quick staleness scan — output ONLY if something needs attention. Silence = healthy.
+
+```bash
+# Count active lessons
+active_count=$(grep -c '^| L[0-9]' tasks/lessons.md 2>/dev/null || echo 0)
+
+# Check for Resolved lessons still in active table (stale from prior sessions)
+resolved_active=$(grep -E '^\| L[0-9]+.*\[Resolved' tasks/lessons.md 2>/dev/null || true)
+
+# Days since last full healthcheck
+last_hc=$(grep -n '\[healthcheck\]' tasks/session-log.md 2>/dev/null | tail -1 || true)
+
+# Overdue decisions (NEEDS DECISION or open status, added >7 days ago)
+overdue_decisions=$(grep -E 'NEEDS DECISION|Status: open' tasks/decisions.md 2>/dev/null || true)
+```
+
+**Output only if something's wrong:**
+```
+## Governance Health
+- Lessons: N/30 [OK|WARNING >25|OVER >30]
+- Resolved lessons still active: [list or "none"]
+- Last full scan: N days ago [OK <7d|OVERDUE >7d]
+- Overdue decisions: [list or omit]
+```
+
+If everything is healthy (count ≤25, no Resolved in active, last scan <7d, no overdue decisions): emit nothing.
+
+**Auto-trigger full /healthcheck:** If ANY of these conditions are true, run `/healthcheck` (full 6-step scan) after bootstrap completes but before Step 2:
+1. >7 days since last `[healthcheck]` marker in session-log
+2. Active lesson count >25
+3. Post-investigate flag (investigation report flagged stale governance)
+
 ### Step 2: Gather workflow state
 
 ```bash

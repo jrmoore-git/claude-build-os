@@ -37,6 +37,50 @@ Check specifically:
 Report: "✓ lessons.md updated" or "⚠ lessons.md NOT updated"
 Report: "✓ decisions.md updated" or "⚠ decisions.md NOT updated"
 
+### Step 1b — Governance check — session-scoped (what did THIS session create or break?)
+
+Checks only governance items this session touched. Not a global scan.
+
+```bash
+# What governance files did this session modify?
+gov_changed=$(git diff HEAD --name-only -- tasks/lessons.md tasks/decisions.md 2>/dev/null)
+
+# If no governance files changed, skip entirely — nothing to check
+```
+
+**If governance files changed**, run targeted checks on the diff:
+
+```bash
+# Extract lesson IDs added/modified this session
+new_lessons=$(git diff HEAD -- tasks/lessons.md | grep '^+|' | grep -oE 'L[0-9]+' | sort -u)
+
+# Extract decision IDs added/modified this session
+new_decisions=$(git diff HEAD -- tasks/decisions.md | grep '^+|' | grep -oE 'D[0-9]+' | sort -u)
+```
+
+**For each new/modified item, check:**
+- Lessons with `[Resolved` tag still in active table → "archive before wrapping?"
+- Lessons with `[PROMOTED -> rules/X.md]` → verify `rules/X.md` exists
+- Lessons that say "promoted to" in text but lack `[PROMOTED ->]` tag → flag missing tag
+- Decisions with `Superseded by: D##` → verify D## exists
+- New cross-references → verify targets exist
+
+**Output only if something's wrong:**
+```
+## Session Governance Check
+- New/modified: L19, L21, D45
+- ⚠ L17 has [Resolved] tag but is still in active table — archive?
+- ⚠ L21 says "promoted to rules/X.md" but [PROMOTED ->] tag is missing
+```
+
+If all new items are well-formed: emit nothing.
+
+**Also check global limits** (cheap — always run):
+- Active count >25: "⚠ Lessons at N/30 — approaching limit."
+- Active count >30: "⚠ Lessons OVER target (N/30) — triage needed."
+
+**Auto-trigger escalation:** If this session added 3+ new governance items (`new_lessons` + `new_decisions` count ≥ 3), run the targeted `/healthcheck` scan (not full — just the items from this session plus their cross-refs). Escalate to full scan only if the targeted check finds cross-ref integrity issues.
+
 ### Step 2 — Gather change summary
 
 ```bash
