@@ -1,5 +1,5 @@
 ---
-name: doc-sync
+name: sync
 description: |
   Sync project docs to match what shipped. Cross-references the git diff against
   all project docs, polishes CHANGELOG voice, checks cross-doc consistency.
@@ -19,7 +19,7 @@ allowed-tools:
 
 # Doc Sync: Post-Ship Documentation Update
 
-You are running the `/doc-sync` workflow. This runs **after code is committed**
+You are running the `/sync` workflow. This runs **after code is committed**
 but **before declaring the work done**. Your job: ensure every documentation file
 in the project is accurate and up to date.
 

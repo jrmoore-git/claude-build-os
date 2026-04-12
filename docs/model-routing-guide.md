@@ -45,10 +45,10 @@ These are the built-in routing decisions. Override per-skill via `model:` in SKI
 
 | Skill | Task Type | Model Tier | Rationale |
 |-------|-----------|-----------|-----------|
-| `/challenge`, `/debate`, `/review` | Strategic reasoning | Premium (cross-model) | Adversarial review needs frontier judgment across model families |
-| `/refine` | Iterative improvement | Premium (rotating) | 6-round rotation across 3 model families |
-| `/plan`, `/define` | Analysis + synthesis | Standard | Needs reasoning but not adversarial pressure |
-| `/recall`, `/status` | Summarization | Standard | Assembly from multiple sources |
+| `/challenge`, `/challenge --deep`, `/check` | Strategic reasoning | Premium (cross-model) | Adversarial review needs frontier judgment across model families |
+| `/polish` | Iterative improvement | Premium (rotating) | 6-round rotation across 3 model families |
+| `/plan`, `/think` | Analysis + synthesis | Standard | Needs reasoning but not adversarial pressure |
+| `/start` | Summarization | Standard | Assembly from multiple sources |
 | `/triage` | Classification | Economy | Categorization with structured output |
 | `tier_classify.py` | Classification | Economy | File tier assignment — pure categorization |
 | Artifact validation | Validation | No LLM | `artifact_check.py` — deterministic checks |

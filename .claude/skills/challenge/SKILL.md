@@ -8,6 +8,38 @@ user-invocable: true
 
 Question the premise, scope, and complexity of proposed work before committing to a plan. Runs a cross-model challenge via `debate.py` when available, produces durable artifacts on disk, and acts as a gate that `/plan` relies on.
 
+## `--deep` Mode (Full Adversarial Pipeline)
+
+`/challenge --deep` runs the full adversarial pipeline: challenge → judge → refine. This is the old `/debate --validate` mode. Use when you need a scored verdict with independent judgment, not just a gate check.
+
+```bash
+# Step 1: Challenge (same as standard /challenge Step 7)
+python3.11 scripts/debate.py --security-posture $POSTURE challenge \
+  --proposal tasks/<slug>-proposal.md \
+  --personas architect,security,pm \
+  --enable-tools \
+  --output tasks/<slug>-debate.md
+
+# Step 2: Judge (independent evaluation)
+python3.11 scripts/debate.py --security-posture $POSTURE judge \
+  --proposal tasks/<slug>-proposal.md \
+  --challenge tasks/<slug>-debate.md \
+  --model gpt-5.4 \
+  --verify-claims \
+  --output tasks/<slug>-judgment.md
+
+# Step 3: Refine (iterative cross-model improvement)
+python3.11 scripts/debate.py refine \
+  --document tasks/<slug>-proposal.md \
+  --judgment tasks/<slug>-judgment.md \
+  --rounds 3 \
+  --output tasks/<slug>-refined.md
+```
+
+Each stage is independently valuable — stop at the step that fails. Partial artifacts are valid.
+
+After `--deep`, suggest: "Build the implementation, then run `/check`"
+
 ## When to run
 
 Run `/challenge` before `/plan` for any non-trivial change, especially when the proposal introduces:
@@ -56,7 +88,7 @@ Store the answer as `POSTURE` (default 3). Pass `--security-posture $POSTURE` to
 
 ### Step 2: Check for prior context
 
-Look for prior `/define` output:
+Look for prior `/think` output:
 - `tasks/<slug>-design.md`
 - `tasks/<slug>-think.md`
 

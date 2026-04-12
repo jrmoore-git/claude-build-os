@@ -14,7 +14,7 @@ Any recent Python 3 (3.9+) works. No third-party Python packages are required fo
 
 ### LiteLLM
 
-The cross-model debate engine (`/challenge`, `/debate`, `/review`) calls models from multiple provider families through a single API. LiteLLM is the routing layer that makes this possible. Scripts call LiteLLM's OpenAI-compatible API at `http://localhost:4000` via stdlib `urllib.request` — no pip install needed in your project.
+The cross-model debate engine (`/challenge`, `/challenge --deep`, `/check`) calls models from multiple provider families through a single API. LiteLLM is the routing layer that makes this possible. Scripts call LiteLLM's OpenAI-compatible API at `http://localhost:4000` via stdlib `urllib.request` — no pip install needed in your project.
 
 ```bash
 # Copy and configure
@@ -56,7 +56,7 @@ Copy `.env.example` to `.env` and fill in your keys. Model-to-role assignments a
 
 ### Ollama + nomic-embed-text
 
-Enables semantic search in the `/recall` skill. Without Ollama, `/recall` falls back to BM25 keyword search, which still works well but misses conceptually related results that don't share exact terms.
+Enables semantic search in the `/start` skill. Without Ollama, `/start` falls back to BM25 keyword search, which still works well but misses conceptually related results that don't share exact terms.
 
 ```bash
 brew install ollama    # or see https://ollama.ai/ for other platforms
@@ -67,7 +67,7 @@ Ollama runs locally. No data leaves your machine. The `nomic-embed-text` model i
 
 ### You.com Search API
 
-Enables web research in skills that need external context — `/define discover` (competitive research), context enrichment, and any skill that needs to look up people or companies. `web_search.py` wraps the You.com API with SSRF protection and untrusted content labeling.
+Enables web research in skills that need external context — `/think discover` (competitive research), context enrichment, and any skill that needs to look up people or companies. `web_search.py` wraps the You.com API with SSRF protection and untrusted content labeling.
 
 ```bash
 # Get an API key at https://you.com/search-api

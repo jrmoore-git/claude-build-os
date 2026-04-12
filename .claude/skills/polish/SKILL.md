@@ -1,16 +1,16 @@
 ---
-name: refine
-description: "Cross-model iterative refinement (6 rounds, 3 models). Standalone or as final phase of /debate. For improving any document, plan, or answer."
+name: polish
+description: "Cross-model iterative refinement (6 rounds, 3 models). Standalone or as final phase of /challenge --deep. For improving any document, plan, or answer."
 user-invocable: true
 ---
 
-# /refine — Cross-Model Iterative Refinement
+# /polish — Cross-Model Iterative Refinement
 
 6-round collaborative refinement across 3 model families. Each model reads the previous version and produces a better one. No personas, no adversarial framing — just iterative improvement.
 
-Use standalone on any input, or as the final phase of `/debate`.
+Use standalone on any input, or as the final phase of `/challenge --deep`.
 
-Defers to `/debate` when you need adversarial pressure-testing (personas, judgment). Defers to `/review` for post-implementation code review.
+Defers to `/pressure-test` when you need adversarial pressure-testing. Defers to `/check` for post-implementation code review.
 
 ## Procedure
 
@@ -81,5 +81,5 @@ Clean up temp focus file if created.
 - 6 rounds across 3 models means each model refines twice (gemini -> gpt -> claude -> gemini -> gpt -> claude).
 - Model rotation configured in `config/debate-models.json` under `refine_rotation`.
 - The `--enable-tools` flag gives refiners read-only access to verify claims against the codebase.
-- When called as part of `/debate`, the judgment file seeds accepted challenges as focus areas. When standalone, the focus areas slot serves the same purpose.
+- When called as part of `/challenge --deep`, the judgment file seeds accepted challenges as focus areas. When standalone, the focus areas slot serves the same purpose.
 - Each round preserves verified data, measurements, and operational context — models are instructed not to collapse evidence into summaries.

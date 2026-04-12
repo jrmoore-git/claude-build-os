@@ -4,7 +4,7 @@ description: |
   Deep web research via Perplexity Sonar. Returns sourced markdown with citations.
   Two modes: deep (async, multi-source synthesis) and quick (sync, spot lookup).
   Use when a task needs evidence, landscape awareness, or multi-source synthesis.
-  Defers to: /define (problem discovery), /debate explore (divergent options).
+  Defers to: /think (problem discovery), /explore (divergent options).
 user-invocable: true
 allowed-tools:
   - Bash
@@ -20,7 +20,7 @@ Two modes: **deep** (default, async Perplexity Sonar Deep Research, ~2-5 min, $0
 ## When to use
 
 - Need sourced evidence on a topic before making decisions
-- Landscape/competitive awareness for /define or /debate
+- Landscape/competitive awareness for /think or /explore
 - Multi-source synthesis that would take 15+ minutes with WebSearch agents
 - Academic research (use --academic flag)
 

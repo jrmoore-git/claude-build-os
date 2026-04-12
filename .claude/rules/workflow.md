@@ -11,16 +11,18 @@ description: Session workflow, shipping discipline, orient-before-planning
 | Tier | Route | When |
 |------|-------|------|
 | T0 / spike | build | Throwaway prototype, exploration, learning |
-| T2 / standard | `/define refine` → `/plan` → build | Bugfixes, small features, docs |
-| T1 / new feature | `/define discover` → `/challenge` → `/plan` → build | New features, abstractions, scope expansion |
-| Big bet | `/define discover` → `/elevate` → `/challenge` → `/plan` → build | Architectural decisions, major features, uncertain scope |
+| T2 / standard | `/think refine` → `/plan` → build | Bugfixes, small features, docs |
+| T1 / new feature | `/think discover` → `/challenge` → `/plan` → build | New features, abstractions, scope expansion |
+| Big bet | `/think discover` → `/elevate` → `/challenge` → `/plan` → build | Architectural decisions, major features, uncertain scope |
 
-All tiers end with: → `/review` → `/ship`. All tiers can optionally use `/refine` on plans or designs before building.
+All tiers end with: → `/check` → `/ship`. All tiers can optionally use `/polish` on plans or designs before building. Use `/plan --auto` to auto-chain the full pipeline.
 
-- `/define` has two modes: `discover` (full problem discovery, writes `tasks/<topic>-design.md`) and `refine` (5 forcing questions, writes `tasks/<topic>-think.md`). Use before `/challenge` or `/plan`.
-- `/elevate` runs after `/define discover` to stress-test scope and ambition. 4 modes: SCOPE EXPANSION (dream big), SELECTIVE EXPANSION (hold + cherry-pick), HOLD SCOPE (rigor), SCOPE REDUCTION (strip to essentials). Reads the design doc from `/define discover`.
-- `/challenge` gates whether we should build this at all. `/elevate` assumes we're building and reviews whether we're thinking big enough. Different questions, complementary.
-- `/refine` = 6-round cross-model collaborative improvement. Standalone on any input (plan, design, answer), or as final phase of `/debate`. Different from `/debate`: no adversarial personas, no judgment — just iterative improvement across 3 model families.
+- `/think` has two modes: `discover` (full problem discovery, writes `tasks/<topic>-design.md`) and `refine` (5 forcing questions, writes `tasks/<topic>-think.md`). Use before `/challenge` or `/plan`.
+- `/elevate` runs after `/think discover` to stress-test scope and ambition. 4 modes: SCOPE EXPANSION (dream big), SELECTIVE EXPANSION (hold + cherry-pick), HOLD SCOPE (rigor), SCOPE REDUCTION (strip to essentials). Reads the design doc from `/think discover`.
+- `/challenge` gates whether we should build this at all. `/challenge --deep` runs the full adversarial pipeline (challenge → judge → refine). `/elevate` assumes we're building and reviews whether we're thinking big enough. Different questions, complementary.
+- `/polish` = 6-round cross-model collaborative improvement. Standalone on any input (plan, design, answer), or as final phase of `/challenge --deep`.
+- `/explore` = 3+ divergent directions with cross-model synthesis. For exploring options before committing.
+- `/pressure-test` = counter-thesis or pre-mortem failure analysis. For adversarial analysis of a direction or plan.
 2. **Document first, execute second** — write rules/decisions before implementing.
 3. **Verify before done** — prove it works (tests, logs, demos).
 4. **Decompose before parallelizing** — see `.claude/rules/orchestration.md` for full heuristics. Quick check: 3+ independent subtasks with non-overlapping files → parallel subagents. Otherwise sequential. Skip for < 3 tool calls.

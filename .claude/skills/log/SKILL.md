@@ -1,5 +1,5 @@
 ---
-name: capture
+name: log
 description: Extract decisions, lessons, and action items from conversations or documents
 user-invocable: true
 ---

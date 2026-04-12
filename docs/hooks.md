@@ -386,7 +386,7 @@ Auto-runs the corresponding test file when a toolbelt script is edited.
 
 ## hook-stop-autocommit.py
 
-Session safety net. When a Claude Code session exits without running `/wrap-session`, this hook auto-captures uncommitted work so nothing is lost.
+Session safety net. When a Claude Code session exits without running `/wrap`, this hook auto-captures uncommitted work so nothing is lost.
 
 **When it fires:** Stop hook (runs when the Claude Code session ends).
 
@@ -398,7 +398,7 @@ Session safety net. When a Claude Code session exits without running `/wrap-sess
 4. Stages all changed files plus the updated session log and current-state doc
 5. Commits with message `[auto] Session work captured <date>`
 
-**Staleness marking:** The stale marker in `current-state.md` is detected by `/recall`'s freshness check (`scripts/check-current-state-freshness.py`). When `/recall` sees the marker, it warns the user not to trust the frozen "Next Action" and derives recommendations from git log + session-log instead. The marker is idempotent — if `## ⚠ STALE` already exists, it won't add a duplicate.
+**Staleness marking:** The stale marker in `current-state.md` is detected by `/start`'s freshness check (`scripts/check-current-state-freshness.py`). When `/start` sees the marker, it warns the user not to trust the frozen "Next Action" and derives recommendations from git log + session-log instead. The marker is idempotent — if `## ⚠ STALE` already exists, it won't add a duplicate.
 
 **Pass conditions:** Always runs (stop hooks don't block). If there are no uncommitted changes, it exits silently.
 

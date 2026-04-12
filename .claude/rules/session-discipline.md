@@ -43,7 +43,7 @@ Priority when context is low: 1. Session summary → 2. Phase review → 3. Impl
 
 Enforced by `scripts/hook-plan-gate.sh`. Protected paths require a `tasks/<topic>-plan.md` with valid YAML frontmatter (`scope`, `surfaces_affected`, `verification_commands`, `rollback`, `review_tier`, `verification_evidence`) before commit. Config: `config/protected-paths.json`. `[TRIVIAL]` blocked for protected paths; `[EMERGENCY]` allowed with warning.
 
-**Review requirement:** No commit without the appropriate review tier. See `.claude/rules/reference/review-protocol.md` for the 3-stage chain (`/challenge` → `/debate` → `/review`) and tier classification.
+**Review requirement:** No commit without the appropriate review tier. See `.claude/rules/reference/review-protocol.md` for the 3-stage chain (`/challenge` → `/challenge --deep` → `/check`) and tier classification.
 
 ## Verification
 - Never mark a task complete without proving it works
@@ -75,7 +75,7 @@ If the same behavior has been corrected three times at the same level, escalate 
 
 `tasks/lessons.md` is a **lean queue** (target: <=30 entries). Check for duplicates before adding. Promote recurring lessons to `.claude/rules/`. Triage at 30+ entries: archive one-offs and already-promoted items to `tasks/lessons-archived.md`.
 
-**Lesson closure rule:** When a commit fixes a lesson, the same commit must update the lesson's status in `tasks/lessons.md` to Resolved (code fix shipped) or Promoted (rule/hook/architecture). A lesson left Active after its fix ships poisons future sessions — `/recall` surfaces it as open work, other sessions waste time re-investigating.
+**Lesson closure rule:** When a commit fixes a lesson, the same commit must update the lesson's status in `tasks/lessons.md` to Resolved (code fix shipped) or Promoted (rule/hook/architecture). A lesson left Active after its fix ships poisons future sessions — `/start` surfaces it as open work, other sessions waste time re-investigating.
 
 ## Large-Task Execution
 

@@ -14,14 +14,14 @@ Auto-generate the plan artifact that `hook-plan-gate.sh` requires for protected 
 
 Ask the user for a topic name if not provided as an argument.
 
-Check for a `/define` design doc or brief:
+Check for a `/think` design doc or brief:
 ```bash
 test -f tasks/<topic>-design.md && echo "design doc found" || test -f tasks/<topic>-think.md && echo "brief found" || echo "none"
 ```
 
 If found, read it (design doc takes precedence over brief).
 
-If not found, ask the user: "No design doc or brief found. What's the scope of this change? What files will you modify? Consider running `/define refine` first."
+If not found, ask the user: "No design doc or brief found. What's the scope of this change? What files will you modify? Consider running `/think refine` first."
 
 ### Step 1b: Challenge gate
 
@@ -155,7 +155,7 @@ Only write the file after user approval.
 After writing:
 - "Plan written to `tasks/<topic>-plan.md`."
 - "This satisfies the plan gate for protected paths."
-- "Build the changes, then run `/qa` to validate and `/review` when ready."
+- "Build the changes, then run `/check` when ready."
 
 Update the pipeline manifest:
 
@@ -163,8 +163,52 @@ Update the pipeline manifest:
 python3.11 scripts/pipeline_manifest.py add <topic> --skill plan --artifact tasks/<topic>-plan.md --status complete
 ```
 
+## `--auto` Mode (Auto-Planning Pipeline)
+
+`/plan --auto` detects the pipeline tier from the task description, then chains skills with auto-decisions using 6 decision principles. Surfaces taste decisions at a final approval gate.
+
+### Tier Detection
+
+- **T2 (standard):** Bugfix, test, docs, trivial refactor, small feature → `/think refine` → `/plan`
+- **T1 (new feature):** New capability, new abstraction, scope expansion → `/think discover` → `/challenge` → `/plan`
+- **Big bet:** Architectural decision, major feature, uncertain scope → `/think discover` → `/elevate` → `/challenge` → `/plan`
+- **T0 (spike):** Prototype, exploration → skip pipeline, just build
+
+If UI scope detected (2+ UI terms in task description), `/design plan-check` runs after `/plan`.
+
+### The 6 Decision Principles
+
+These auto-answer every intermediate question:
+
+1. **Choose completeness** — Ship the whole thing. Pick the approach that covers more edge cases.
+2. **Boil lakes** — Fix everything in the blast radius. Auto-approve expansions that are in blast radius AND < 1 day effort.
+3. **Pragmatic** — If two options fix the same thing, pick the cleaner one.
+4. **DRY** — Duplicates existing functionality? Reject. Reuse what exists.
+5. **Explicit over clever** — 10-line obvious fix > 200-line abstraction.
+6. **Bias toward action** — Flag concerns but don't block.
+
+**Conflict resolution:** `/think` phase: P1+P6 dominate. `/challenge` phase: P5+P3 dominate. `/plan` phase: P5+P1 dominate.
+
+### Decision Classification
+
+- **Mechanical:** One clearly right answer. Auto-decide silently.
+- **Taste:** Reasonable people could disagree. Auto-decide with recommendation, surface at final gate.
+- **User Challenge:** Both models agree the user's stated direction should change. NEVER auto-decided.
+
+### Sequential Execution (MANDATORY)
+
+Skills execute in strict order per the tier's chain. Each must complete fully before the next begins. Between each skill, verify all required outputs from the prior skill exist.
+
+### Final Approval Gate
+
+After the pipeline completes, present ALL deferred decisions in a single AskUserQuestion:
+
+- Taste decisions: what was auto-decided, which principle, the close alternative
+- User challenges: full context block (what user said, what models recommend, why, blind spots, cost of being wrong)
+- Options: A) Approve all, proceed to build. B) Review taste decisions one by one. C) Reject — revert.
+
 ## Important Notes
 
 - The plan artifact MUST have valid YAML frontmatter with all required fields — `hook-plan-gate.sh` validates this.
-- `verification_evidence` starts as "PENDING" — it gets filled in during `/qa` or `/ship`.
+- `verification_evidence` starts as "PENDING" — it gets filled in during `/check --qa` or `/ship`.
 - If the user already has a plan in mind, don't fight it. Use the three lenses to sanity-check, not to redesign.

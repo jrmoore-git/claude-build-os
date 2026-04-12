@@ -6,16 +6,16 @@ Which skill owns which file, and in what order skills run at session close.
 
 | File | Owner skill | Other skills may... |
 |------|-------------|---------------------|
-| `tasks/handoff.md` | `/wrap-session` | Overwritten each session close. |
-| `tasks/session-log.md` | `/wrap-session` | Append only (never overwrite previous entries). |
-| `docs/current-state.md` | `/wrap-session` | `hook-stop-autocommit.py` injects a `⚠ STALE` marker on unclean session exit. |
-| `tasks/decisions.md` | `/capture` or `/doc-sync` | Append only. Entries are numbered and never modified after writing. |
-| `tasks/lessons.md` | `/capture` or `/doc-sync` | Append only. Promote recurring lessons to `.claude/rules/` and archive. |
-| `docs/project-prd.md` | `/doc-sync` | Read by `/recall`, `/plan`, `/review`. |
+| `tasks/handoff.md` | `/wrap` | Overwritten each session close. |
+| `tasks/session-log.md` | `/wrap` | Append only (never overwrite previous entries). |
+| `docs/current-state.md` | `/wrap` | `hook-stop-autocommit.py` injects a `⚠ STALE` marker on unclean session exit. |
+| `tasks/decisions.md` | `/log` or `/sync` | Append only. Entries are numbered and never modified after writing. |
+| `tasks/lessons.md` | `/log` or `/sync` | Append only. Promote recurring lessons to `.claude/rules/` and archive. |
+| `docs/project-prd.md` | `/sync` | Read by `/start`, `/plan`, `/check`. |
 | `.claude/rules/*.md` | Manual or `/setup` | Read by Claude automatically. Promoted from lessons.md when recurring. |
 | `CLAUDE.md` | Manual or `/setup` | Read by Claude automatically on every turn. |
-| `tasks/plan-*.md` | `/plan` | Read by `/review`. Deleted after successful implementation (optional). |
-| `tasks/review-*.md` | `/review` | Read by `/review-x`. |
+| `tasks/plan-*.md` | `/plan` | Read by `/check`. Deleted after successful implementation (optional). |
+| `tasks/review-*.md` | `/check` | Read by `/check --second-opinion`. |
 | `tasks/*-challenge.md` | `/challenge` | Read by `/plan` Phase 0. Stale after 7 days. |
 
 ## Session-log vs handoff
@@ -29,7 +29,7 @@ Both capture "what's done" and "what's not done" — but session-log records it 
 
 ## Session close sequence
 
-Run `/wrap-session` at session end. It handles everything in one command:
+Run `/wrap` at session end. It handles everything in one command:
 
 1. Check doc hygiene (lessons.md, decisions.md updated?)
 2. Write `docs/current-state.md`

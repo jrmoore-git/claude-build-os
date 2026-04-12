@@ -7,8 +7,8 @@ description: |
   HOLD SCOPE (maximum rigor), SCOPE REDUCTION (strip to essentials).
   Use when asked to "think bigger", "expand scope", "rethink this", or
   "is this ambitious enough". Run after /plan to stress-test scope and ambition.
-  Defers to: /define (problem discovery), /plan (implementation spec), /review (code review).
-  Benefits from: /define discover (reads design doc from tasks/).
+  Defers to: /think (problem discovery), /plan (implementation spec), /check (code review).
+  Benefits from: /think discover (reads design doc from tasks/).
 user-invocable: true
 allowed-tools:
   - Read
@@ -178,8 +178,8 @@ Report findings before proceeding to Step 0.
 ### Landscape Check
 
 **Reuse existing research:** Before running web search, check if `tasks/<topic>-landscape.md`
-exists (written by /define). If it exists, read it and use those findings instead of
-repeating the search. State: "Found landscape research from /define -- using existing
+exists (written by /think). If it exists, read it and use those findings instead of
+repeating the search. State: "Found landscape research from /think -- using existing
 findings." Skip the web_search.py calls below and proceed to the three-layer synthesis
 using the landscape file content.
 
@@ -213,7 +213,7 @@ BRANCH=$(git rev-parse --abbrev-ref HEAD 2>/dev/null | tr '/' '-' || echo 'no-br
 ls -t tasks/*-design.md 2>/dev/null | head -5
 ```
 
-If a design doc exists (from `/define discover`), read it. Use it as source of truth
+If a design doc exists (from `/think discover`), read it. Use it as source of truth
 for the problem statement, constraints, and chosen approach. If it has a `Supersedes:`
 field, note this is a revised design.
 
@@ -224,14 +224,14 @@ correct before moving on. If the user says nothing or confirms, proceed.
 
 **If no design doc found**, output the following as markdown text, then offer via AskUserQuestion:
 
-> No design doc found. `/define discover` produces a structured problem statement,
+> No design doc found. `/think discover` produces a structured problem statement,
 > premise challenge, and explored alternatives -- it gives this review sharper input.
 > Takes about 10-15 minutes.
 >
-> A) Run /define discover now (Recommended) -- we'll pick up the review right after
+> A) Run /think discover now (Recommended) -- we'll pick up the review right after
 > B) Skip -- proceed with standard review
 
-If A: read `.claude/skills/define/SKILL.md` and follow the discover mode inline,
+If A: read `.claude/skills/think/SKILL.md` and follow the discover mode inline,
 skipping the OUTPUT SILENCE and Completion Status sections (already handled here).
 After completion, re-check for design doc and continue.
 
@@ -239,7 +239,7 @@ If B: proceed normally. Do not re-offer.
 
 **Mid-session detection:** During Step 0A, if the user can't articulate the problem,
 keeps changing the statement, or is clearly exploring rather than reviewing -- offer
-`/define discover` once. If they decline, proceed.
+`/think discover` once. If they decline, proceed.
 
 Read the plan file that the user pointed this review at.
 
@@ -508,8 +508,8 @@ SELECTIVE only: retrospective on cherry-pick decisions.
 
 ### Section 11: Design & UX Review (skip if no UI scope detected)
 Prefix output with `[Section 11/11]`.
-The PM calling in the designer. Not a pixel-level audit -- that's /plan-design-review
-and /design-review. This is ensuring the plan has design intentionality.
+The PM calling in the designer. Not a pixel-level audit -- that's /design plan-check
+and /design review. This is ensuring the plan has design intentionality.
 
 Evaluate:
 - Information architecture -- what does the user see first, second, third?
@@ -530,7 +530,7 @@ EXPANSION/SELECTIVE additions:
 
 Required ASCII diagram: user flow showing screens/states and transitions.
 
-If significant UI scope: recommend running `/plan-design-review` before implementation.
+If significant UI scope: recommend running `/design plan-check` before implementation.
 
 **STOP.** Batch all issues in this section into one AskUserQuestion per the batching rules.
 
@@ -692,6 +692,7 @@ After the completion summary, output the following as markdown text, then use As
 > Review complete. What's next?
 > A) `/challenge` (Recommended) -- gate whether to proceed with this scope
 > B) `/plan` -- go straight to planning
+> C) `/explore` -- generate divergent options before committing
 
 ---
 

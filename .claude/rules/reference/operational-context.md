@@ -10,7 +10,7 @@ Before modifying a skill (`skills/*/SKILL.md`), toolbelt script (`scripts/*_tool
 
 - Before editing a skill's SKILL.md or its backing script
 - Before changing a cron schedule or adding a cron job
-- During `/recall` session bootstrap (skill health query only)
+- During `/start` session bootstrap (skill health query only)
 
 ## Data Sources
 

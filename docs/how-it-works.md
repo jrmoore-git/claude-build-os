@@ -30,7 +30,7 @@ Personas map to models via `config/debate-models.json`. The default assignments 
 
 The judge defaults to gpt-5.4 (different family from the typical Claude author avoids self-preference bias). The refinement rotation cycles all three families: gemini → gpt → claude.
 
-Each persona gets a role-specific adversarial prompt (architecture concerns, security focus, operational feasibility, or user value). Note that personas sharing a model are deduplicated — `--personas architect,staff` produces one challenger since both map to gemini-3.1-pro. Alternatively, pass `--models gpt-5.4,gemini-3.1-pro` directly with a generic adversarial prompt. An optional `--system-prompt` flag (takes a string or file path) overrides the default prompt entirely — used by `/review` to replace adversarial challenge prompts with review-specific persona lens definitions.
+Each persona gets a role-specific adversarial prompt (architecture concerns, security focus, operational feasibility, or user value). Note that personas sharing a model are deduplicated — `--personas architect,staff` produces one challenger since both map to gemini-3.1-pro. Alternatively, pass `--models gpt-5.4,gemini-3.1-pro` directly with a generic adversarial prompt. An optional `--system-prompt` flag (takes a string or file path) overrides the default prompt entirely — used by `/check` to replace adversarial challenge prompts with review-specific persona lens definitions.
 
 **`--enable-tools`** gives challengers access to read-only verifier tools (check_function_exists, check_test_coverage, count_records, get_recent_costs). These let challengers verify claims against the actual codebase rather than speculating. Tools are sandboxed to read-only operations.
 
@@ -49,17 +49,17 @@ Default judge model: gpt-5.4 (chosen because a different model family avoids sel
 
 Produces: `tasks/<topic>-judgment.md` with accepted/dismissed/escalated counts. Findings marked ESCALATE require human review. Prints JSON to stdout with `accepted`, `dismissed`, `escalated` counts and `needs_human` flag.
 
-**refine** — Iterative cross-model document improvement. Each round, a different model reviews and rewrites the document. Works as both the final phase of the `/debate` pipeline (seeded with accepted challenges) and as a standalone tool via the `/refine` skill (for collaborative improvement without adversarial framing).
+**refine** — Iterative cross-model document improvement. Each round, a different model reviews and rewrites the document. Works as both the final phase of the `/challenge --deep` pipeline (seeded with accepted challenges) and as a standalone tool via the `/polish` skill (for collaborative improvement without adversarial framing).
 
 ```
-# As part of /debate pipeline (seeded with judgment)
+# As part of /challenge --deep pipeline (seeded with judgment)
 python3.11 scripts/debate.py refine \
     --document tasks/auth-redesign-proposal.md \
     --judgment tasks/auth-redesign-judgment.md \
     --rounds 6 \
     --output tasks/auth-redesign-refined.md
 
-# Standalone via /refine skill (no judgment needed)
+# Standalone via /polish skill (no judgment needed)
 python3.11 scripts/debate.py refine \
     --document tasks/any-document.md \
     --rounds 6 \
@@ -69,7 +69,7 @@ python3.11 scripts/debate.py refine \
 
 Default model rotation: gemini-3.1-pro → gpt-5.4 → claude-opus-4-6 (cycles if rounds exceed model count). All three model families participate in refinement, ensuring no single family's biases dominate the final output. Default rounds: 6 (each model refines twice). Each round produces review notes and a complete revised document; the revised document feeds into the next round.
 
-The `--judgment` flag is optional. When provided (as in the `/debate` pipeline), the first round is seeded with accepted challenges so models know exactly what to fix. When omitted (standalone `/refine`), models use their own judgment to improve the document. The `/refine` skill can also pass user-specified focus areas via the same `--judgment` slot.
+The `--judgment` flag is optional. When provided (as in the `/challenge --deep` pipeline), the first round is seeded with accepted challenges so models know exactly what to fix. When omitted (standalone `/polish`), models use their own judgment to improve the document. The `/polish` skill can also pass user-specified focus areas via the same `--judgment` slot.
 
 Produces: `tasks/<topic>-refined.md` with per-round review notes and the final refined document.
 
@@ -96,13 +96,13 @@ python3.11 scripts/debate.py verdict \
 
 ### The standard pipeline
 
-The recommended three-step pipeline (via `/debate`):
+The recommended three-step pipeline (via `/challenge --deep`):
 
 1. `challenge` — adversarial models find issues
 2. `judge` — independent model evaluates which issues are real
 3. `refine` — collaborative models fix accepted issues and improve the document
 
-The `refine` subcommand also runs standalone (via `/refine` skill) for collaborative improvement without the adversarial phases. Use `/debate` when you need to pressure-test whether something is right. Use `/refine` when you have something and want it better.
+The `refine` subcommand also runs standalone (via `/polish` skill) for collaborative improvement without the adversarial phases. Use `/challenge --deep` when you need to pressure-test whether something is right. Use `/polish` when you have something and want it better.
 
 All events are logged to `stores/debate-log.jsonl` (append-only JSONL with timestamps, phase, model mapping, and counts).
 
@@ -165,7 +165,7 @@ The `ambiguous` flag is true when multiple different non-exempt tiers are presen
 
 BM25 + semantic hybrid search across governance files. Surfaces relevant prior context (lessons, decisions, session notes, current state) given a search query.
 
-The problem it solves: governance files grow over time. Manually scanning 80+ lessons or 50+ decisions for relevant entries is slow. This script makes prior context searchable so `/recall` and other skills can load only what matters.
+The problem it solves: governance files grow over time. Manually scanning 80+ lessons or 50+ decisions for relevant entries is slow. This script makes prior context searchable so `/start` and other skills can load only what matters.
 
 ### Search modes
 
@@ -318,14 +318,14 @@ Keyword extraction: up to 8 keywords from frontmatter `scope:` field, first head
 
 ### Used by
 
-Called by `/challenge`, `/debate`, and `/review` skills to enrich context before sending to cross-model reviewers. Also usable as a standalone CLI tool. Calls `recall_search.py` internally with `--json` output.
+Called by `/challenge`, `/challenge --deep`, and `/check` skills to enrich context before sending to cross-model reviewers. Also usable as a standalone CLI tool. Calls `recall_search.py` internally with `--json` output.
 
 
 ## pipeline_manifest.py
 
 Tracks pipeline stage completion for a topic. Records which skills have run, what artifacts they produced, and their status.
 
-The problem it solves: a topic may pass through `/challenge` → `/plan` → build → `/review` across multiple sessions. Without a manifest, you have to manually check for each artifact file. This script provides a single query point for pipeline progress.
+The problem it solves: a topic may pass through `/challenge` → `/plan` → build → `/check` across multiple sessions. Without a manifest, you have to manually check for each artifact file. This script provides a single query point for pipeline progress.
 
 ### Subcommands
 
@@ -357,7 +357,7 @@ Manifests are written to `tasks/<topic>-manifest.json`. The `show` and `validate
 
 ### Used by
 
-`/challenge`, `/debate`, `/plan`, and `/review` skills call `add` after completing their stage. `/ship` calls `validate` to check pipeline completeness.
+`/challenge`, `/challenge --deep`, `/plan`, and `/check` skills call `add` after completing their stage. `/ship` calls `validate` to check pipeline completeness.
 
 
 ## artifact_check.py
@@ -411,9 +411,9 @@ Standalone CLI tool. The hooks replicate similar validation logic inline rather 
 
 ## check-current-state-freshness.py
 
-Detects whether `docs/current-state.md` is stale relative to recent git activity. Used by `/recall` to prevent trusting a frozen "Next Action" from a previous session.
+Detects whether `docs/current-state.md` is stale relative to recent git activity. Used by `/start` to prevent trusting a frozen "Next Action" from a previous session.
 
-The problem it solves: if a session exits without running `/wrap-session`, the `hook-stop-autocommit.py` safety net captures uncommitted work and marks `current-state.md` with a `## ⚠ STALE` warning. But staleness can also happen without the marker — if commits land after the date in the current-state header. This script detects both cases.
+The problem it solves: if a session exits without running `/wrap`, the `hook-stop-autocommit.py` safety net captures uncommitted work and marks `current-state.md` with a `## ⚠ STALE` warning. But staleness can also happen without the marker — if commits land after the date in the current-state header. This script detects both cases.
 
 ### What it checks
 
@@ -448,7 +448,7 @@ When not stale: `{"is_stale": false}`.
 
 ### Used by
 
-The `/recall` skill calls this in step 0c. When `is_stale` is true, `/recall` adds a warning to the session brief and derives its "Next" recommendations from git log + session-log instead of the frozen current-state doc.
+The `/start` skill calls this in step 0c. When `is_stale` is true, `/start` adds a warning to the session brief and derives its "Next" recommendations from git log + session-log instead of the frozen current-state doc.
 
 
 ## verify_state.py
@@ -496,4 +496,4 @@ Exit code: 0 if all pass, 1 if any fail.
 
 ### Used by
 
-`hook-stop-autocommit.py` and `/wrap-session` call this at session close. Also used by `/ship` as a pre-deploy health check. The `--include-tests` flag adds the full test suite — excluded by default to keep session-close fast.
+`hook-stop-autocommit.py` and `/wrap` call this at session close. Also used by `/ship` as a pre-deploy health check. The `--include-tests` flag adds the full test suite — excluded by default to keep session-close fast.
