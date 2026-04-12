@@ -1,38 +1,35 @@
 # Handoff — 2026-04-11
 
 ## Session Focus
-Built discoverability infrastructure so users never need to memorize skills — natural language routing with deterministic hooks, /guide skill, and YAML description fixes.
+Full documentation accuracy audit — verified all README, docs, and prose files match actual system implementation, then fixed every discrepancy found.
 
 ## Decided
-- Natural language is the primary interface; slash commands are power-user shortcuts (D16)
-- Three-layer routing: advisory rule → deterministic intent hook → proactive error tracker
-- Hook-based routing is advisory (suggest, not block) — nag prevention via session-scoped tracker files
-- YAML multiline `|` in skill descriptions breaks Claude Code's `/` menu — use single-line quoted strings only (L22)
+- None (doc fixes only, no architectural decisions)
 
 ## Implemented
-- `hooks/hook-intent-router.py` — UserPromptSubmit hook, 13 compiled regex patterns, proactive /investigate on recurring errors
-- `hooks/hook-error-tracker.py` — PostToolUse:Bash hook, passive observer, error signature normalization
-- `.claude/skills/guide/SKILL.md` — intent-based skill map ("I want to...")
-- `.claude/rules/natural-language-routing.md` — 18 intent-to-skill mappings + 8 proactive patterns
-- Fixed YAML descriptions on 6 skills (design, elevate, investigate, research, sync, think)
-- Updated README, getting-started, cheat-sheet, hooks docs
-- Added L22, D16, wrap skill read-before-write rule
+- Audited 7 domains in parallel: skill counts, hook counts, scripts, pipeline tiers, cross-references, setup flow, narrative docs, config files
+- Fixed 12 files across docs/, skills/, rules/
+- Removed phantom script references (pipeline_manifest.py, verify_state.py) from docs and skill files
+- Fixed all stale counts (skills 19→21, hooks 15→17)
+- Corrected file tree paths in README (docs/prd.md → docs/project-prd.md, decisions/lessons → tasks/)
+- Added missing /investigate and /healthcheck to user-facing docs
+- Added T0/spike tier to pipeline tables
+- Fixed Python version requirement in infrastructure.md (3.9+ → 3.11+)
 
 ## NOT Finished
-- Live test of intent router in a fresh session (all 20/20 in unit tests, not yet exercised end-to-end)
-- Parallel session left: L13/L14/L15 staleness unverified, live /challenge test on new proposal
+- Nothing outstanding from this session
+- Prior session work still pending: live test of intent router end-to-end, L13/L14/L15 staleness
 
 ## Next Session Should
-1. Start a fresh session to test intent routing end-to-end (hook fires on real user messages)
-2. Optionally verify L13/L14/L15 staleness, test /challenge on a real proposal
+1. Read through the updated README end-to-end to verify it reads well as a cohesive document
+2. Resume prior work: test intent router in fresh session, verify L13/L14/L15
 
 ## Key Files Changed
-hooks/hook-intent-router.py, hooks/hook-error-tracker.py
-.claude/skills/guide/SKILL.md, .claude/rules/natural-language-routing.md
-.claude/skills/{design,elevate,investigate,research,sync,think}/SKILL.md
-.claude/settings.json, CLAUDE.md, README.md
-docs/getting-started.md, docs/cheat-sheet.md, docs/hooks.md
-tasks/lessons.md (L22), tasks/decisions.md (D16)
+README.md
+docs/cheat-sheet.md, docs/how-it-works.md, docs/getting-started.md
+docs/infrastructure.md, docs/changelog-april-2026.md, docs/team-playbook.md
+.claude/rules/workflow.md, .claude/skills/start/SKILL.md
+.claude/skills/challenge/SKILL.md, .claude/skills/plan/SKILL.md, .claude/skills/review/SKILL.md
 
 ## Doc Hygiene Warnings
 None

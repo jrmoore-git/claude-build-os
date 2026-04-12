@@ -1721,3 +1721,30 @@ ended without running `/wrap-session`. Review and enrich in the next session.
 - **docs/**: changelog-april-2026.md, cheat-sheet.md, getting-started.md, how-it-works.md, infrastructure.md, team-playbook.md
 
 **Auto-committed:** 2026-04-11 22:40 PT
+
+---
+
+## 2026-04-11 — Full documentation accuracy audit and fix
+
+**Decided:**
+- None (doc-only changes)
+
+**Implemented:**
+- 8 parallel audit agents checked: skill counts, hook counts, scripts, pipeline tiers, cross-references, setup flow, narrative docs, config files
+- Fixed skill count 19/18→21 across 5 files (README, getting-started, cheat-sheet, changelog)
+- Fixed hook count 15→17 in README
+- Removed phantom pipeline_manifest.py and verify_state.py sections from how-it-works.md
+- Removed pipeline_manifest.py calls from challenge, plan, review SKILL.md files
+- Added 8 missing debate.py subcommands + lesson_events.py to how-it-works.md
+- Fixed README file tree (docs/prd.md→project-prd.md, decisions/lessons→tasks/)
+- Fixed docs/build-plan.md phantom refs in workflow.md, start/SKILL.md, team-playbook.md
+- Fixed Python 3.9+→3.11+ in infrastructure.md
+- Added /investigate and /healthcheck to README + cheat-sheet skill tables
+- Added T0/spike to README + getting-started pipeline tables
+- 12 files changed total
+
+**Not Finished:** Nothing from this session. Prior: intent router live test, L13/L14/L15 staleness.
+
+**Next Session:** Read updated README end-to-end; resume intent router testing.
+
+**Commits:** 5f14a9b (auto-captured 11 files), 52d4405 (README fix)
