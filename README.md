@@ -18,7 +18,7 @@ Just describe what you want to do. Build OS routes you to the right tool automat
 - **"Is this ready to ship?"** — Claude runs cross-model review, then pre-flight gates
 - **"I'm lost"** — type `/guide` for a map of everything, organized by intent
 
-Build OS has 19 skills, but you don't need to know any of them by name. The slash commands (`/think`, `/plan`, `/review`, etc.) are power-user shortcuts. The primary interface is natural language — say what you need, and the system figures out the rest.
+Build OS has 21 skills, but you don't need to know any of them by name. The slash commands (`/think`, `/plan`, `/review`, etc.) are power-user shortcuts. The primary interface is natural language — say what you need, and the system figures out the rest.
 
 ---
 
@@ -67,6 +67,7 @@ Not every task uses every stage. The framework scales with risk:
 
 | Task type | Pipeline |
 |---|---|
+| **Spike / prototype** | build (no pipeline) |
 | **Bugfix** | `/plan` → build → `/review` → `/ship` |
 | **Small feature** | `/think refine` → `/plan` → build → `/review` → `/ship` |
 | **New feature** | `/think discover` → `/challenge` → `/plan` → build → `/review` → `/ship` |
@@ -106,7 +107,7 @@ Build OS scales its infrastructure requirements with the governance tier. Tier 0
 - [Claude Code](https://claude.ai/claude-code) (CLI, desktop, or IDE extension)
 - git
 
-Skills that work out of the box: `/think`, `/elevate`, `/plan`, `/ship`, `/start`, `/wrap`, `/log`, `/sync`, `/design`, `/triage`, `/setup`.
+Skills that work out of the box: `/think`, `/elevate`, `/plan`, `/ship`, `/start`, `/wrap`, `/log`, `/sync`, `/design`, `/triage`, `/setup`, `/guide`, `/investigate`, `/healthcheck`, `/audit`.
 
 ### Tier 2+: Cross-Model Review
 
@@ -265,30 +266,30 @@ project-root/
 ├── CLAUDE.md                  # Top-level instructions for Claude
 ├── .claude/
 │   ├── rules/                 # Rules loaded automatically each session
-│   │   └── no-raw-sql.md
+│   │   └── code-quality.md
 │   └── skills/                # Slash commands Claude can invoke
 │       ├── think/
 │       ├── plan/
-│       ├── check/
+│       ├── review/
 │       └── ship/
 ├── docs/
-│   ├── prd.md                 # Product requirements — the source of truth
-│   ├── decisions.md           # Numbered decision log with rationale
-│   └── lessons.md             # Numbered lessons from mistakes
+│   └── project-prd.md         # Product requirements — the source of truth
 ├── tasks/
-│   ├── current.md             # Active task: goal, plan, status, blockers
-│   └── handoff.md             # What the next session needs to know
+│   ├── decisions.md           # Numbered decision log with rationale
+│   ├── lessons.md             # Numbered lessons from mistakes
+│   ├── handoff.md             # What the next session needs to know
+│   └── <topic>-plan.md        # Active plans per topic
 └── tests/                     # At least one smoke test (Tier 2+)
 ```
 
 | File | Purpose | Updated when |
 |---|---|---|
 | `CLAUDE.md` | Project-wide instructions and constraints | Setup; major scope changes |
-| `docs/prd.md` | What you're building and why | Scope changes approved by human |
-| `docs/decisions.md` | Settled choices with rationale | Any non-trivial "why" is resolved |
-| `docs/lessons.md` | Mistakes and surprises, numbered | Something unexpected happens |
-| `tasks/current.md` | Active task with plan and status | Every session |
+| `docs/project-prd.md` | What you're building and why | Scope changes approved by human |
+| `tasks/decisions.md` | Settled choices with rationale | Any non-trivial "why" is resolved |
+| `tasks/lessons.md` | Mistakes and surprises, numbered | Something unexpected happens |
 | `tasks/handoff.md` | Context for the next session | End of every session |
+| `tasks/<topic>-plan.md` | Active plans per topic | Planning and execution |
 | `.claude/rules/` | Standing rules Claude must follow | A lesson gets promoted |
 | `.claude/skills/` | Reusable procedures as slash commands | A workflow gets formalized |
 
@@ -370,7 +371,7 @@ For the full guide — spawn prompts, token budgets, custom agent definitions, a
 
 ## The Skills
 
-Build OS ships with 19 skills — slash commands that implement the pipeline stages. Think of them as the team members you'd want on a real project:
+Build OS ships with 21 skills — slash commands that implement the pipeline stages. Think of them as the team members you'd want on a real project:
 
 | Role | Skills | What they do |
 |---|---|---|
@@ -383,6 +384,8 @@ Build OS ships with 19 skills — slash commands that implement the pipeline sta
 | **Researcher** | `/research` | Deep web research via Perplexity Sonar with citations (async deep + sync quick) |
 | **Release** | `/ship`, `/sync` | Pre-flight gates (verify + QA + tests + review) → deploy → doc sync |
 | **Session** | `/start`, `/wrap`, `/log`, `/triage` | Bootstrap + routing, session close, knowledge capture, info routing |
+| **Diagnostics** | `/investigate` | Structured root-cause analysis: symptom, drift, claim modes with cross-model debate |
+| **System Health** | `/healthcheck` | Learning system health check — scans lessons, decisions, rules, cross-references |
 | **Bootstrap** | `/setup`, `/audit` | Interactive project setup, two-phase blind discovery audit |
 | **Discovery** | `/guide` | Intent-based skill map — "what can I do?" |
 
@@ -446,7 +449,7 @@ git pull origin main
 | You want to... | Read |
 |---|---|
 | **Get running in an hour** | [Getting Started](docs/getting-started.md) — guided first-hour tutorial: define, plan, build, review, ship |
-| **Quick reference while working** | [Cheat Sheet](docs/cheat-sheet.md) — pipeline tiers, all 18 skills, key files, shortcuts |
+| **Quick reference while working** | [Cheat Sheet](docs/cheat-sheet.md) — pipeline tiers, all 21 skills, key files, shortcuts |
 
 **Go deeper:**
 
@@ -464,7 +467,7 @@ git pull origin main
 | **Understand Claude Code features** | [Platform Features](docs/platform-features.md) — hooks, rules, skills, memory, session management |
 | **See what each script does** | [How It Works](docs/how-it-works.md) — debate.py, tier_classify.py, recall_search.py, and all tooling |
 | **Configure cross-model review** | [Infrastructure](docs/infrastructure.md) — LiteLLM setup, API keys, optional dependencies |
-| **Understand the 15 hooks** | [Hooks Reference](docs/hooks.md) — plan gate, review gate, decompose gate, and 12 more |
+| **Understand the 17 hooks** | [Hooks Reference](docs/hooks.md) — plan gate, review gate, decompose gate, and 14 more |
 | **Route models by cost** | [Model Routing Guide](docs/model-routing-guide.md) — task classification, per-skill defaults, escalation |
 
 ---
