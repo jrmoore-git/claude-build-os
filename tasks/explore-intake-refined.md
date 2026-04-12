@@ -97,10 +97,10 @@ The previous revision is thorough, well-structured, and evidence-rich. It reads 
 
 ---
 scope: Explore intake question design + context composition
-surfaces_affected: [config/prompts/preflight-adaptive.md, config/prompts/preflight-tracks.md, .claude/skills/debate/SKILL.md, scripts/debate.py]
+surfaces_affected: [config/prompts/preflight-adaptive.md, config/prompts/preflight-tracks.md, .claude/skills/explore/SKILL.md, scripts/debate.py]
 verification_commands: ["python3.11 scripts/debate.py explore --help"]
 rollback: Revert preflight-adaptive.md to v5, remove preflight-tracks.md
-review_tier: /challenge then /review
+review_tier: /challenge then /check
 verification_evidence: pending
 ---
 
@@ -163,11 +163,11 @@ After reading the user's first substantive text — initial input or first answe
 **Baseline + drift:** Always calibrate to the user's most recent substantive answer (10+ words). Brief confirmations ("yeah that's right," "go for it") don't reset the baseline — maintain the register from their last substantive response. The initial extraction exists only for the first response; every subsequent response mirrors the latest substantive answer's features.
 
 **Self-check on every message (HARD RULE).** Before sending, verify each feature against the user's most recent answer:
-1. **Sentence length:** If their longest sentence was under 10 words, keep all yours under 12. If their average is 20+, don't drop below 15. Match their sentence count per message within ±1.
+1. **Sentence length:** Match their average sentence length within ±20%. If their average is 14 words, yours should be 11-17. If their average is 8, yours should be 6-10. Never exceed their longest sentence by more than 3 words. Message length should roughly match theirs in density — but cap at 2-4 sentences regardless (use fragments if needed to stay in register).
 2. **Punctuation:** Am I using the same marks they use and avoiding marks they don't? Never import punctuation from protocol examples — only from the user's text.
 3. **Vocabulary:** Did I use any word more formal than their equivalent?
 4. **Structural tics:** Did I match their tics at roughly their frequency? (If they used 2+ em dashes, I need at least 1. If they used zero, I used zero.)
-5. **Filler/hedging:** Within one instance of theirs. Zero from them = zero from me.
+5. **Filler/hedging:** Never exceed their filler frequency. Zero from them = zero from me. It is always safe to use zero.
 6. **Temperature:** Am I at their energy level or below — never above?
 7. **Recap polish:** Did I compress using their phrasing, or did I rewrite into cleaner prose? If my recap sounds more editorial than their answer, rewrite it down.
 
@@ -189,11 +189,15 @@ If any check fails, rewrite that element before sending.
 - User: "honestly I've been going back and forth on this for weeks and I think the thing that's really eating at me is..." → BAD: "Weeks of indecision. What's the blocker." → GOOD: "Yeah — weeks of going back and forth, and the thing eating at you is [X]. What would make it click?"
 - User: "I mean, the eng team has been building for SMB for two years, I'm not sure how they'd take a pivot, honestly it's the thing I keep avoiding" → BAD: "Team risk. What's the pivot case?" → GOOD: "Two years of SMB and the pivot question's been sitting there — honestly what's the version of the conversation that doesn't blow up?"
 
+**Failure: flattening warm/narrative users:**
+- User: "I've been really excited about this — the team's energy is incredible and honestly I think we might be onto something special here" → BAD: "Team's excited. What's the risk?" → GOOD: "The team energy sounds real — and when something feels that good, there's usually a version of this that could go sideways. What's the one that worries you?"
+- User: "there's this beautiful thing happening where the product and eng teams are finally talking to each other, and the ideas flowing out of those conversations are honestly some of the best I've seen in years" → BAD: "Good collaboration. Where does it break?" → GOOD: "Those product-eng conversations sound like they're actually producing — honestly when that kind of energy is flowing, the question is what kills it. What's the thing that could shut this down?"
+
 Mirror the user. Do not drag them toward any default.
 
 **Failure: analytical escalation (mid-conversation drift):**
 As you accumulate context, your language will naturally become more structured and analytical. Guard against this especially in Slots 3-4.
-- BAD (Slot 4 after casual Slots 1-2): "The underlying assumption in your framing is that engineering capacity is the binding constraint — what if it's actually a prioritization problem?"
+- BAD (assumption challenge after casual earlier answers): "The underlying assumption in your framing is that engineering capacity is the binding constraint — what if it's actually a prioritization problem?"
 - GOOD: "You keep coming back to eng capacity — but what if it's not about capacity, it's about what you're choosing to build?"
 
 ### Question Quality Rules
@@ -224,142 +228,64 @@ Following the pattern confirmed across OpenAI Deep Research, Perplexity, and Rep
 
 ### Classification Rule
 
-Before asking any intake question, estimate the initial input's clarity tier. The tier sets a maximum question count, not a minimum — if the user's answers are rich enough to cover territory early, finish early. Stop as soon as the context block can be composed with a clear PROBLEM, TENSION, 2+ SITUATION bullets, and 3-4 DIMENSIONS.
+Before asking any intake question, estimate the initial input's clarity. This sets a rough ceiling, not a fixed count — finish as soon as you have enough for the context block (clear PROBLEM, TENSION, 2+ SITUATION bullets, 3-4 DIMENSIONS). The sufficiency test matters more than the tier label.
 
 | Input clarity | Intake questions | Default slot plan | Example |
 |---|---:|---|---|
-| **Well-specified** (clear goal, constraints, context) | 1-2 | Slot 4 only, or Slots 2+4 (see note below) | "Should we use Postgres or DynamoDB for our 10M-row analytics workload with JSON support?" |
+| **Well-specified** (clear goal, constraints, context) | 1-2 | Assumption challenge only, or stakes + assumption challenge | "Should we use Postgres or DynamoDB for our 10M-row analytics workload with JSON support?" |
 | **Moderate** (clear topic, vague scope) | 3-4 | Slots 1-4 | "How should we think about our data layer?" |
 | **Ambiguous** (vague topic, no constraints) | 4-5 | All slots | "I want to rethink our technical approach" |
 | **Explicit skip** ("skip", "just run it") | 0 | None — compose from initial input only | Any input with explicit skip signal |
 
-This table is the single authoritative source for question count. All references to adaptive question count elsewhere in this document defer to it.
+This table is a planning guide, not a rigid commitment. The sufficiency test (PROBLEM + TENSION + 2+ SITUATION + 3-4 DIMENSIONS) always overrides the tier count — finish early if you have enough, extend by one if a major dimension surfaces late.
 
 **Solution-as-input rule (A2):** When the initial input names a solution or approach rather than a problem, question, or decision (e.g., "microservices migration strategy" instead of "our deploys are too slow"), classify one tier vaguer than surface indicators suggest. Solution-framed inputs look well-specified but often hide the real problem behind the user's initial frame. **Floor:** Never classify a solution-framed input as Ambiguous unless it genuinely lacks a clear topic — the maximum escalation is to Moderate. *(Pass 1: SP5)*
 
 **Binary decision rule:** Binary inputs ("should we do X or Y?") should be classified as Moderate regardless of surface specificity. The binary frame usually hides dimensions the user hasn't considered. *(Pass 1: SP1)*
 
-**Two-slot path flow rule:** When running Slots 2+4 only (well-specified input), the Slot 2 recap must be meatier than usual — it's doing the work of both acknowledging a detailed input and setting up the challenge. 2-3 sentences of recap are acceptable here. Without this, the jump from stakes to challenge feels abrupt.
+**Two-territory path flow rule:** When covering only stakes + assumption challenge (well-specified input), the stakes recap must be meatier than usual — it's doing the work of both acknowledging a detailed input and setting up the challenge. 2-3 sentences of recap are acceptable here. Without this, the jump to challenge feels abrupt.
 
-**Mid-intake escalation rule (A1):** Classification commits to a slot count, but the count is not a ceiling. If a user's answer introduces a major dimension absent from the initial input (e.g., a well-specified product question reveals a deeper technical or business constraint), add one slot. Recommend adding Slot 3 for well-specified inputs that escalate, or Slot 5 for moderate inputs that escalate. Do not re-classify — just extend by one.
+**Mid-intake escalation rule (A1):** If a user's answer introduces a major dimension absent from the initial input (e.g., a well-specified product question reveals a deeper technical or business constraint), add one question to cover it. Do not re-classify — just extend by one. The sufficiency test is always the real exit condition.
 
-### The Question Sequence
+### How Intake Works
 
-Each slot defines a coverage requirement — a territory the intake must cover. Slots are hidden audit labels, not speaking order. **Execution rule:** First write the natural next question from the user's last answer using thread-and-steer; then verify which slot territory it covers. Never ask a question because a slot is "due." If the user's answer naturally bridges to Slot 4's territory before Slot 3, go there.
+**One rule governs every question:** From the user's last answer, identify the strongest unresolved thread that would materially change the explore output. Pick it up in their words, extend it with one inference, and ask about it. That's it.
 
-#### Slot 1: The Opening (Broad Funnel + Trigger)
+After writing each question, run the coverage audit (below) to check whether you've missed important territory. The audit may reveal a gap — but it never tells you what to ask. You always derive the next question from the user's last answer using thread-and-steer (Delivery Rule #9).
 
-**Purpose:** Surface both the topic and the trigger event. Past-anchored.
+**First question only:** If the user's initial input is too vague to thread-and-steer from (< 20 words, no clear topic or trigger), ask what they're trying to figure out and what triggered the thought. If the input is a file or document, ask what specifically they want to explore about it. For all other cases — including well-specified inputs — thread-and-steer from Q1.
 
-**Default:** "What are you trying to figure out, and what made you start thinking about it?"
+**Sufficiency exit:** Stop asking questions when the context block can be composed with a clear PROBLEM, TENSION, 2+ SITUATION bullets, and 3-4 DIMENSIONS. Do not count questions. Do not track which territories have been "visited." The sufficiency test is the only exit condition.
 
-**Adaptation rules:**
-- If the user already provided a detailed question with clear topic and trigger: skip Slot 1.
-- If the input is a file or document: "I've read this — what specifically do you want to explore about it?"
-- If the input is vague (< 20 words): use the default, emphasizing the trigger: "What happened that made you think about this?"
+**Bomb rule:** If an answer introduces a major new dimension, it becomes the new thread. It replaces the next planned question, it doesn't add one. Only explore the bomb if it would materially change the context block.
 
-#### Slot 2: The Stakes Check
+### Coverage Audit (post-hoc — consult AFTER writing each question)
 
-**Purpose:** Confirm you tracked their answer and find out what's actually at stake. Offer your read back and let them correct it.
+After drafting your next question, check which of these territories the user's answers have covered so far. This is a **checklist you consult silently**, not a sequence you follow.
 
-**Target information:** What's actually at stake — the win, the cost, or the risk. Generate the question from the user's thread, not from a template.
+| Territory | Satisfied when context block can populate... | Notes |
+|---|---|---|
+| **Topic + trigger** | PROBLEM (one sentence) | Usually covered by initial input. If not, your first question handles it. |
+| **Stakes** | THE TENSION (core tradeoff) | What's the win, cost, or risk? Stakes questions are exempt from the "no hypotheticals" rule — they're forward-looking by design. Watch for therapy-drift: match the user's exact directness level. |
+| **Constraints + attempts** | CONSTRAINTS (2+ bullets), SITUATION (3+ bullets) | What they've tried, what blocks them, what's off the table. If they mention conflicting success criteria, surface the conflict. Optional sub-probes (max ONE per question): stakeholder opinions, team alignment, deadline pressure, source verification. |
+| **Assumption challenge** | ASSUMPTIONS TO CHALLENGE (1+ items) | State their implicit assumption and challenge it in one fluid sentence — frame and question as one motion. Pick the weakest assumption: if they named a solution, challenge the problem definition; if binary framing, challenge the frame; if a constraint seems fixed, test it. Must be covered in every non-skip path. |
+| **Implicit signals** | Any gap the user keeps circling but hasn't named | If the user keeps returning to a theme without stating it directly, pick up that thread. This is not a separate question type — it's thread-and-steer applied to implicit signals. |
 
-Worked example (shows the reasoning, not a reusable template):
-> User said: "deploys take 40 min and it's killing us"
-> Threads available: "deploys take 40 min," "killing us"
-> Thread closest to stakes territory: "killing us" (already emotional → cost angle)
-> Extension: "40 min deploys and it's killing you — what's it actually costing?"
-> *The phrasing above is illustrative — never reuse it. Your phrasing comes from the user's vocabulary.*
+**If a territory is uncovered and no thread bridges to it:** Stay on the user's active thread and go deeper — a genuine follow-up that deepens existing territory beats a forced bridge to new territory. If a territory remains uncovered after all questions, compose the context block with "Not elicited" for that section. A visible topic change is worse than a missing territory.
 
-**Success criteria sub-probe (A7):** For decision-oriented inputs, integrate the measurement question into the stakes question as one motion — do not bolt it on as a compound question. Skip for open exploration.
+**Never announce transitions.** No "Now let me ask about constraints." No "One more thing I want to explore." No "Before I synthesize this." The question itself is the transition.
 
-**Metric conflict sub-probe:** If the user states multiple success criteria that could pull in different directions (e.g., speed AND sustainability), ask: "If those pull in different directions, which one wins?" *(Pass 1: A4)*
+### Final Recap (replaces checkpoint)
 
-**Slot 2 is exempt from the "no hypotheticals" delivery rule.** The stakes question is forward-looking by design.
+When the sufficiency test is met, your response to the final answer expands into a correction invite — same length and register as any other recap. Pick up the thread from the final answer, name the core tension using their words, and end with a question that invites correction without signaling completeness. Do not summarize all constraints or the full situation — that's what the context block is for. The user should experience this as another follow-up, not a summary.
 
-**Adaptation rules:**
-- Use their words, not abstractions. "So this is really about deploy speed" not "So the core challenge relates to your continuous delivery pipeline."
-- The recap must advance understanding, not parrot. Add one inference: "So the real issue is [X] — what's the win if you nail it?"
-- If their Slot 1 answer already includes stakes or consequences: skip the stakes question and go to constraints instead. *(Pass 1: S2-2)*
-- **Register rule:** This slot has the highest therapy-drift risk. Match the user's exact directness level — don't default to sharp if they're not sharp.
+The final recap must pass the same 7-point register self-check as every other message. If the user spoke in fragments, the recap is fragments.
 
-#### Slot 3: The Constraint + Attempts Question
-
-**Purpose:** Reveal the user's current theory, surface constraints, and prevent re-treading.
-
-**Target information:** What they've tried, what's blocking them, and what constraints exist. Generate the question from the user's thread.
-
-Worked example:
-> User said: "the cost is we're losing deals to faster competitors"
-> Threads available: "losing deals," "faster competitors," "cost"
-> Thread closest to constraints territory: "faster competitors" (implies attempts to compete)
-> Extension: "Losing deals to speed — what have you tried to close that gap?"
-> *Never reuse this phrasing. Derive from the user's actual words.*
-
-**Adaptation rules:**
-- If they already mentioned attempts: "You mentioned [X] — what didn't work about it?"
-- If this is a new or greenfield question: "What constraints are you working within — time, resources, or things that are off the table?"
-- If they are deciding between options: "What's pulling you toward each option, and what's holding you back?"
-
-**Optional probes (maximum ONE per Slot 3 question — pick the single highest-leverage probe, not multiple):**
-- **Stakeholder:** Who else has a strong opinion, and what are they pushing for? *(organizational decisions)*
-- **Alignment:** Is the team aligned, or are there camps? *(team decisions)*
-- **Clock:** Is there a deadline driving the timeline? *(when no time constraint has surfaced)*
-- **Source:** Have you heard that directly, or is that secondhand? *(when user cites stakeholder preferences)*
-
-These replace the default question when they fire — they are not additions. Translate into the user's vocabulary.
-
-#### Slot 4: The Assumption Challenge
-
-**Purpose:** Break default framing and surface what is unsaid. This is the second use of "offer a frame and invite correction" — this time applied to their assumptions rather than their problem statement.
-
-**Target output:** State the user's implicit assumption and challenge it in one fluid sentence. The frame and the question are one motion — do not state a frame and then ask a separate correction question. Match the user's syntax. If they speak in fragments: "Assuming X. What's wrong with that?" If they write full sentences: "You're treating X as given — what if [inversion]?"
-
-**Candidate questions (select based on domain and prior answers):**
-- **Premise challenge:** "What if the opposite were true — what if [invert their assumption]?"
-- **Perspective shift:** "Who would disagree with how you're framing this, and what would they say?"
-- **The unsaid:** "What's the part of this nobody's saying out loud?"
-- **Action test:** "If you had to decide right now with no more information, which way would you go?"
-
-**Adaptation rules:**
-- Include this slot by default in every non-skip path.
-- **Selection rule:** Pick the challenge tool that targets the weakest assumption in their answers. If they've named a solution, challenge the problem definition. If they've framed it as binary, challenge the frame. If they're taking a constraint as fixed, test whether it actually is. Don't select based on the user's emotional state or engagement level — select based on where the biggest assumption lives.
-- **Crystallize, don't repeat.** If the user has already half-surfaced a reframe in earlier answers, name it precisely. The value is precision and clarity, not novelty.
-
-#### Slot 5: The Meta-Question
-
-**Purpose:** Catch what structured questions missed.
-
-**Default:** "What am I missing?" — or connect to the Q4 thread. If Q4 opened a new dimension, extend it: "You said [Q4 insight] — what's underneath that?" The meta-question should feel like a continuation of the conversation, not a closing ritual.
-
-**NEVER preface with:** "Before I map this out..." / "Before I run the analysis..." / "One last question before I synthesize..." — these leak protocol structure. The user should not know a phase transition is coming. Just ask.
-
-**When to include:**
-- The prior answers were rich but still feel incomplete.
-- The problem spans multiple domains or has cross-cutting dimensions.
-- The user's answers have been getting longer and more detailed.
-
-**When to skip:**
-- You already have 4 strong, specific answers.
-- The user has signaled impatience ("just run it").
-- The domain is narrow and well-specified after 4 questions.
-
-**Bomb rule:** If ANY slot's answer introduces a dimension as significant as The Tension, add one follow-up probe in the next slot: "Say more about that — how does it connect to [the main issue]?" If the bomb arrives in Slot 4+ and the follow-up covers what Slot 5 would have caught, the probe replaces Slot 5 rather than extending beyond it — keeping the question count within the classification range. *(Pass 1: SP2, Pass 3: generalized)*
-
-### Confirmation Checkpoint
-
-After the final intake slot, present a single confirmation checkpoint before running explore.
-
-**Checkpoint format:**
-1. Reflect the composed understanding in compact form.
-2. Show the draft dimensions.
-3. Ask for correction in one message.
-
-**Checkpoint (A8):** Fuse with the response to the final intake answer. Your recap is longer than usual — it covers the full picture, not just the last answer. State the core tension and one major constraint, then ask for correction. Do not list "angles" or "dimensions" as a separate item — weave them into the recap as natural phrases.
-
-Example: "So it comes down to whether to invest in the design system or let teams improvise — with Q3 eating your runway and the team split on third-party components. And underneath that, maybe it's patterns you need, not components. What's off?"
-
-This IS the checkpoint — but it reads as a meaty recap, not a phase gate. The checkpoint must pass the same 7-point register self-check as every other message. If the user spoke in fragments, the checkpoint is fragments.
+**Rules:**
+- Do not introduce new analysis or recommendations.
+- If the user corrects the framing, revise the context block once, then proceed.
+- If the user says nothing substantive or confirms, proceed immediately.
+- Maximum one revision pass. If the user introduces substantially new information, incorporate it but do not re-open intake.
 
 **Checkpoint rules:**
 - Do not introduce new analysis or recommendations.
@@ -376,19 +302,19 @@ These rules govern how questions are asked:
    - **Register calibration:** The user's most recent substantive answer sets the register for your next response. Calibrate vocabulary, sentence length, and formality from their latest text — not locked to Q1. *(Pass 1: R2)*
    - **Anti-pattern (recap mentor drift):** The LLM's default recap voice drifts warmer/wiser than the user's register. BAD: "That's a really interesting tension between growth and sustainability." GOOD: "Growth vs. sustainability — got it." BAD: "It sounds like you're navigating a complex situation with multiple stakeholders." GOOD: "Board wants speed, eng team wants to build — got it." *(Pass 1: R1)*
    - **High-volume answers:** For dense, multi-paragraph answers, the recap does the prioritization work. Name the one or two threads that matter most and let the rest go. Do not ask the user to repeat or simplify. When compressing, preserve the user's sentence structure and vocabulary — compress by selecting their phrases verbatim, not by rewriting in cleaner form. *(Pass 1: A1)*
-3. **Short messages, one motion (A10).** Total message: 2-4 sentences. The recap and question are one motion — the recap's final clause should flow into or set up the question. Do not write a recap paragraph, then a separate question. BAD: "Deploy speed is the bottleneck. Team's stretched. What have you tried so far?" GOOD: "Deploy speed's the bottleneck and the team's stretched — so what have you tried?" Slot 4 may use up to 4 sentences when the frame requires setup. *(Pass 1: CB3)*
-4. **No hypotheticals when a past-anchored version is available.** Rewrite "What would you..." to "What did you..." or "What's the..." Exceptions: Slot 2's stakes check is inherently future-oriented — this is by design. Slot 4's assumption challenge tools (premise challenge, perspective shift) are also exempt — reframing requires hypothetical framing. *(Pass 1: SP3)*
+3. **Short messages, one motion (A10).** Total message: 2-4 sentences. The recap and question are one motion — the recap's final clause should flow into or set up the question. Do not write a recap paragraph, then a separate question. BAD: "Deploy speed is the bottleneck. Team's stretched. What have you tried so far?" GOOD: "Deploy speed's the bottleneck and the team's stretched — so what have you tried?" Assumption challenge may use up to 4 sentences when the frame requires setup. *(Pass 1: CB3)*
+4. **No hypotheticals when a past-anchored version is available.** Rewrite "What would you..." to "What did you..." or "What's the..." Exceptions: Stakes territory is inherently future-oriented — this is by design. Assumption challenge (premise challenge, perspective shift) is also exempt — reframing requires hypothetical framing. *(Pass 1: SP3)*
 5. **Do not solve during intake.** Do not offer recommendations, plans, or answer fragments while eliciting.
 6. **Push once if vague.** If an answer is vague, push once for specifics: "You said [their word]. Can you be specific — a name, a number, a date?" Maximum 1 push per question; then accept and move on.
 7. **No progress cues.** Do not signal how many questions remain — no "couple more," "last one," or "almost there." These leak protocol structure. If the user is getting impatient (answers shrinking), shorten recaps and ask the single highest-leverage remaining question. If the user explicitly asks "how many more questions?" you may say "one or two more" — otherwise, never signal count awareness.
 8. **Name contradictions directly.** If a user's answer contradicts a prior answer, name it: "Earlier you said [X], now you're saying [Y] — which one's right?" Contradictions are data quality issues. Surface them, get the correction, move on. *(Pass 3)*
 9. **Thread-and-steer.** Each question must feel like the obvious follow-up to what the user just said — not like the next item on a checklist. The recap IS the bridge. One motion, not two steps.
-   - **Principle:** Find the thread in their answer closest to the territory you need to cover next. Pick up that thread using their exact phrase, extend it with one inference, and land on a question that covers the next slot's purpose. Slots define coverage requirements, not speaking order — if the user's answer naturally bridges to Slot 4's territory before Slot 3, go there.
-   - **Thread selection:** When an answer has 3+ threads, pick the one closest to the next uncovered territory and extend only that one. Do not summarize all threads.
-   - **Forward coverage:** If the user's answer already covers the next slot's territory, acknowledge in the recap ("You already hit on constraints —") and advance to the slot after that. Never re-ask territory the user has already covered, even if it arrived in the "wrong" slot.
-   - **Dead air:** If nothing in their answer bridges naturally, find the weakest connection and use it. A weak bridge is better than two separate moves. Example: User talked about team morale, next territory is constraints. Weak bridge: "The morale thing — is that a constraint you're working around, or is there something else boxing you in?" Only use a close-and-pivot as last resort: "That covers X. I'm missing Y, which could change the answer — [question]."
-   - **Naturalness test:** Cover the slot label. Does this question still make sense as a follow-up to what they just said? If not, rewrite.
-   - **Never announce transitions.** No "Now let me ask about constraints." No "One more thing I want to explore." No "Before I synthesize this." The question itself is the transition.
+   - **Principle:** From the user's last answer, identify the strongest unresolved thread that would materially change the explore output. Pick up that thread using their exact phrase, extend it with one inference, and land on a question. After writing it, run the coverage audit to check which territory it satisfies.
+   - **Thread selection:** When an answer has 3+ threads, pick the one with the most unresolved energy and extend only that one. Do not summarize all threads.
+   - **Forward coverage:** If the user's answer already covers a territory, don't re-ask it. Never re-ask territory the user has already covered, even if it arrived out of the expected order.
+   - **No bridge needed:** If no thread connects to uncovered territory, stay on the user's active thread and go deeper. A genuine follow-up that deepens existing territory beats a forced bridge to new territory. If a territory remains uncovered after all questions, compose the context block with "Not elicited" for that section.
+   - **Naturalness test:** Does this question still make sense as a follow-up to what they just said? If not, rewrite.
+   - **Never announce transitions.** No "Now let me ask about constraints." No "One more thing I want to explore." No "Before I synthesize this." The question itself is the transition. Do not use territory labels (constraints, stakes, assumptions) in your questions.
 
 ## Design: The Context Composition
 
@@ -516,7 +442,7 @@ These rules govern the explore output that the intake feeds into:
 2. **Delete `config/prompts/preflight-tracks.md`.**
    Replace fixed track-specific question sets with the adaptive slot model. Domain-specific variation happens through slot selection and phrasing within the universal sequence, not through separate fixed questionnaires.
 
-3. **Update `.claude/skills/debate/SKILL.md` Step 3a.**
+3. **Update `.claude/skills/explore/SKILL.md` Step 3a.**
    Make Step 3a explicitly enforce:
    - one question per message,
    - recap before every post-Q1 question,
@@ -535,7 +461,7 @@ These rules govern the explore output that the intake feeds into:
    - explicit skip: 0 slots.
    The mapping must be a decision rule, not a guideline — the system classifies input clarity first, then commits to the corresponding slot count.
 
-6. **Run an end-to-end `/debate --explore` verification with a real prompt.**
+6. **Run an end-to-end `/explore` verification with a real prompt.**
    Use one prompt from each non-skip clarity tier (well-specified, moderate, ambiguous). Success criteria per run:
    - intake completes within the slot count specified by the clarity table,
    - the generated context block is ≤500 tokens,
