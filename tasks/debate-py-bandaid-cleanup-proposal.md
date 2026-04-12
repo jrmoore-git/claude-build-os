@@ -78,10 +78,10 @@ This is about 12 edits in one file, ~30 min of work, zero behavior change. It ad
 
 ### Operational Context
 
-- **`scripts/debate.py`**: 2473 lines, touched in 9 of the last 10 sessions. Central engine for `/challenge`, `/debate`, `/refine`, `/review-panel`. Used daily.
+- **`scripts/debate.py`**: 2473 lines, touched in 9 of the last 10 sessions. Central engine for `/challenge`, `/challenge --deep`, `/polish`, `/check`. Used daily.
 - **Fix 9 root cause queue**: 5 entries pre-audit, 8 entries post-audit (#2-#8 from audit + #1 resolved).
 - **Runs per week** (estimated from handoff and session log): ~10-20 debate/challenge/refine invocations.
-- **Cost per run**: ~$1-5 for `/challenge`, ~$5-15 for `/debate`, ~$0.50-2 for `/refine`.
+- **Cost per run**: ~$1-5 for `/challenge`, ~$5-15 for `/challenge --deep`, ~$0.50-2 for `/polish`.
 - **Direct dependency**: Phase 1b of CloudZero velocity v3 will add `research` and `synthesize` subcommands to this exact file. Plan at `tasks/cz-velocity-v3-plan.md` v2.3. The new subcommands will introduce ~2-4 new LLM call sites.
 - **Linter infrastructure exists**: `tests/test_tool_loop_config.py` (AST-based, green) is designed to be extended. Extending it is cheap.
 

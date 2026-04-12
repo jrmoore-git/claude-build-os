@@ -4,9 +4,8 @@ tier: T1
 thesis: "The debate system finds problems but doesn't fix them. A closed-loop architecture — where judge-accepted findings trigger data collection and remediation before refinement — is the single highest-leverage change. Secondary improvements (chunked refinement, audience context, thesis-required proposals) compound on the closed loop."
 surfaces_affected:
   - scripts/debate.py
-  - .claude/skills/debate/SKILL.md
-  - .claude/skills/refine/SKILL.md
   - .claude/skills/challenge/SKILL.md
+  - .claude/skills/polish/SKILL.md
   - config/debate-models.json
 origin: "Post-mortem from velocity analysis project (downstream). Full adversarial pipeline ran against a real 336-repo engineering analysis. Compared output to a human analyst (Scott) who produced a more useful document. 8 structural failures identified."
 ---
@@ -37,7 +36,7 @@ The remediate step would:
 - For DATA_GAP and METHODOLOGY: generate a collection/analysis task, execute it, append results to the proposal
 - For SCOPE and FRAMING: pass directly to refine as seeded focus areas (current behavior)
 
-**Blast radius:** New subcommand in debate.py. New step in /debate skill. Does not affect /challenge, /refine, or /review.
+**Blast radius:** New subcommand in debate.py. New step in /challenge --deep skill. Does not affect /challenge, /polish, or /check.
 
 **Risk:** Remediation could be expensive (additional API calls, data collection). Needs a cost ceiling and user confirmation for expensive remediation tasks.
 
@@ -51,7 +50,7 @@ The remediate step would:
 - Reassemble into the final document
 - Run one final "coherence pass" on the assembled document
 
-**Blast radius:** Engine change to debate.py refine subcommand. Optional flag — default behavior unchanged. Benefits both /debate and /refine skills.
+**Blast radius:** Engine change to debate.py refine subcommand. Optional flag — default behavior unchanged. Benefits both /challenge --deep and /polish skills.
 
 **Risk:** Section-by-section refinement may lose cross-section coherence (e.g., a finding in Section 3 that contradicts Section 6). The coherence pass mitigates this but adds one more round of API calls.
 
@@ -71,12 +70,12 @@ The remediate step would:
 
 **Problem:** The velocity analysis proposal was deliberately neutral ("no conclusions, no editorializing"). This made refinement useless — there was no argument to improve, only data to annotate. Refinement works best on a strong claim.
 
-**Proposed fix:** Update the proposal template (used by /debate) to require:
+**Proposed fix:** Update the proposal template (used by /challenge --deep) to require:
 - A `## Thesis` section with a falsifiable claim
 - A `## Recommendations` section with specific actions
 - Mark proposals without a thesis as "data report" tier — they can be challenged but skip refinement (nothing to refine)
 
-**Blast radius:** Template/process change. No engine changes. Affects /debate skill procedure.
+**Blast radius:** Template/process change. No engine changes. Affects /challenge --deep skill procedure.
 
 **Risk:** Some legitimate proposals are genuinely exploratory and don't have a thesis yet. The "data report" tier handles this — they get challenged but not refined, which is appropriate.
 
@@ -90,7 +89,7 @@ The remediate step would:
   - `data-analysis`: skeptical-statistician, engineering-vp, risk-officer
   - `architecture`: architect, security, pm (current default)
   - `product`: pm, designer, user-advocate
-- Update /challenge and /debate skills to select persona set based on proposal domain
+- Update /challenge and /challenge --deep skills to select persona set based on proposal domain
 
 **Blast radius:** Config and documentation. Persona prompts in debate.py. No engine changes.
 
@@ -100,7 +99,7 @@ The remediate step would:
 
 - Slack/comms data integration — this is project-specific, not a debate system change
 - Mandatory plan-level challenge — already addressed by existing /challenge gate in the pipeline
-- Removing model diversity — three families still provide value for review (/review) even if persona design matters more for challenge
+- Removing model diversity — three families still provide value for review (/check) even if persona design matters more for challenge
 
 ## Cost Estimate
 
@@ -115,6 +114,6 @@ The remediate step would:
 ## Verification
 
 - Re-run the velocity analysis with closed-loop pipeline, compare output to original
-- Run /refine on a 300+ line document with and without --chunk, verify no truncation
+- Run /polish on a 300+ line document with and without --chunk, verify no truncation
 - Run /challenge with --audience ceo on a technical proposal, verify challenge focus shifts
 - Create a thesis-less proposal, verify it routes to "data report" tier

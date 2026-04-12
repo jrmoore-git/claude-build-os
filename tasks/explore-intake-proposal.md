@@ -1,9 +1,9 @@
 ---
 scope: Explore intake question design + context composition
-surfaces_affected: [config/prompts/preflight-adaptive.md, config/prompts/preflight-tracks.md, .claude/skills/debate/SKILL.md, scripts/debate.py]
+surfaces_affected: [config/prompts/preflight-adaptive.md, config/prompts/preflight-tracks.md, .claude/skills/explore/SKILL.md, scripts/debate.py]
 verification_commands: ["python3.11 scripts/debate.py explore --help"]
 rollback: Revert preflight-adaptive.md to v5, remove preflight-tracks.md
-review_tier: /challenge then /review
+review_tier: /challenge then /check
 verification_evidence: pending
 ---
 
@@ -279,10 +279,10 @@ From the research, ranked by likelihood:
 
 1. Rewrite `config/prompts/preflight-adaptive.md` to v6 with the slot sequence, delivery rules, and composition rules
 2. Remove the planned `config/prompts/preflight-tracks.md` (replaced by adaptive slots)
-3. Update `.claude/skills/debate/SKILL.md` Step 3a to reference the new slot structure
+3. Update `.claude/skills/explore/SKILL.md` Step 3a to reference the new slot structure
 4. Add the ASSUMPTIONS TO CHALLENGE section to the context block format in preflight-adaptive.md
 5. Update the adaptive question count logic in SKILL.md (classify input clarity, select slot count)
-6. Test end-to-end with a real /debate --explore run
+6. Test end-to-end with a real /explore run
 
 ## Sources (key references)
 

@@ -2,8 +2,8 @@
 scope: "Integrate Perplexity Sonar Deep Research into BuildOS skills pipeline"
 surfaces_affected:
   - .claude/skills/research/SKILL.md (new)
-  - .claude/skills/define/SKILL.md (Phase 2.75)
-  - .claude/skills/debate/SKILL.md (explore pre-flight)
+  - .claude/skills/think/SKILL.md (Phase 2.75)
+  - .claude/skills/explore/SKILL.md (pre-flight)
 verification_commands:
   - "python3.11 scripts/research.py --help"
   - "python3.11 scripts/research.py --sync --model sonar 'test query' 2>&1 | head -5"
@@ -29,7 +29,7 @@ Create `.claude/skills/research/SKILL.md`:
 - Privacy gate before sending queries to Perplexity
 - System prompt option for structured output
 
-## Track 2: /define discover Phase 2.75 (MODIFY)
+## Track 2: /think discover Phase 2.75 (MODIFY)
 
 Replace the broken web_search.py + WebSearch fallback chain with research.py:
 - Keep the privacy gate (already exists)
@@ -38,7 +38,7 @@ Replace the broken web_search.py + WebSearch fallback chain with research.py:
 - Keep the landscape write to `tasks/<topic>-landscape.md`
 - Remove references to web_search.py and YOU_COM_API_KEY
 
-## Track 3: /debate explore pre-flight (MODIFY)
+## Track 3: /explore pre-flight (MODIFY)
 
 Add optional research step between pre-flight questions and debate.py explore call:
 - After Step 3b (compose context), before Step 4 (route to mode)
@@ -52,5 +52,5 @@ Add optional research step between pre-flight questions and debate.py explore ca
 
 - /challenge — enrich_context.py already handles context. Adding research would slow a quick gate.
 - /elevate — strategic judgment, not evidence gathering. Would over-engineer.
-- /review, /ship, /plan — codebase work, not web research.
+- /check, /ship, /plan — codebase work, not web research.
 - debate.py itself — no code changes needed. --context already works.

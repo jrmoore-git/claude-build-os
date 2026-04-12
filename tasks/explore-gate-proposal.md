@@ -15,7 +15,7 @@ Both are partially addressed in the debate/review workflow (explore mode, pre-fl
 - Decomposition gate (`hook-decompose-gate.py`) blocks `Write|Edit` until decomposition is assessed — proves the pattern works
 - `workflow.md` says "read code before proposing changes" — advisory, not enforced
 - `--enable-tools` gives debate engine challengers read-only tools — but only applies to external model calls through LiteLLM
-- Explore mode with pre-flight discovery in `/debate` — but only for debate workflow, not general coding
+- Explore mode with pre-flight discovery in `/explore` — but only for explore workflow, not general coding
 
 ### What's missing
 - No hook blocking edits until target files are read

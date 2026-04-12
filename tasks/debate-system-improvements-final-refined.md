@@ -61,7 +61,7 @@ The current revision is substantially improved: it identifies the core architect
 Remaining issues are mostly about precision and consistency:
 
 1. **A few implementation boundaries were still implicit.**
-   - The document said no behavior changes to `/challenge`, `/refine`, or `/review` individually, but other sections proposed prompt changes and skill updates for challenge/refine. That is a contradiction. I resolved it by distinguishing the closed-loop scope from the broader proposal scope.
+   - The document said no behavior changes to `/challenge`, `/polish`, or `/check` individually, but other sections proposed prompt changes and skill updates for challenge/polish. That is a contradiction. I resolved it by distinguishing the closed-loop scope from the broader proposal scope.
 
 2. **The routing logic for thesis-less proposals needed a bit more clarity.**
    - The current version introduced a “data report tier,” but did not fully explain that this is a process classification, not necessarily a new engine mode. I clarified that to reduce implementation ambiguity.
@@ -111,9 +111,8 @@ tier: T1
 thesis: "The debate system finds problems but doesn't fix them. A closed-loop architecture — where judge-accepted findings trigger data collection and remediation before refinement — is the single highest-leverage change. Secondary improvements (chunked refinement, audience context, thesis-required proposals) compound on the closed loop."
 surfaces_affected:
   - scripts/debate.py
-  - .claude/skills/debate/SKILL.md
-  - .claude/skills/refine/SKILL.md
   - .claude/skills/challenge/SKILL.md
+  - .claude/skills/polish/SKILL.md
   - config/debate-models.json
 origin: "Post-mortem from velocity analysis project (downstream). Full adversarial pipeline ran against a real 336-repo engineering analysis. Compared output to a human analyst (Scott) who produced a more useful document. 8 structural failures identified."
 ---
@@ -221,7 +220,7 @@ Automated data collection increases the risk of oversharing sensitive artifacts 
 
 #### E. Scope, Risk, and Implementation Notes
 
-**Scope of change:** New `remediate` subcommand in `debate.py`; new step in the `/debate` skill. This closed-loop change does not require changing `/challenge` or `/review` behavior in isolation, though other proposal items below introduce separate prompt and skill updates for challenge/refine.
+**Scope of change:** New `remediate` subcommand in `debate.py`; new step in the `/challenge --deep` skill. This closed-loop change does not require changing `/challenge` or `/check` behavior in isolation, though other proposal items below introduce separate prompt and skill updates for challenge/polish.
 
 **Risk:** Remediation increases API and data-collection cost. The v1 design bounds this through a strict one-pass limit, explicit approval gates, and narrow tool permissions.
 
@@ -285,18 +284,18 @@ it to an appendix.
 
 When flags are omitted, no context block is injected and behavior is unchanged.
 
-**Scope of change:** New optional flags in `debate.py`, prompt changes to challenge/refine system prompts, and skill updates to `.claude/skills/challenge/SKILL.md` and `.claude/skills/refine/SKILL.md`.
+**Scope of change:** New optional flags in `debate.py`, prompt changes to challenge/polish system prompts, and skill updates to `.claude/skills/challenge/SKILL.md` and `.claude/skills/polish/SKILL.md`.
 **Risk:** Low. Optional flags with no behavior change when omitted.
 
 ### 4. Thesis-Required Proposal Template (Process Change)
 
 **Problem:** The velocity analysis proposal was deliberately neutral. This made refinement ineffective: there was no argument to improve, only data to annotate.
 
-**Proposed fix:** Update the proposal template used by `/debate` to require:
+**Proposed fix:** Update the proposal template used by `/challenge --deep` to require:
 - A `## Thesis` section with a falsifiable claim.
 - A `## Recommendations` section with specific actions.
 
-**Detection and routing logic:** When a proposal enters the `/debate` pipeline, the system checks for the presence of a `## Thesis` section (or a section containing an explicit falsifiable claim, detected via a simple LLM classification call). Proposals without a thesis are classified as **data reports** and routed accordingly:
+**Detection and routing logic:** When a proposal enters the `/challenge --deep` pipeline, the system checks for the presence of a `## Thesis` section (or a section containing an explicit falsifiable claim, detected via a simple LLM classification call). Proposals without a thesis are classified as **data reports** and routed accordingly:
 
 - **Data reports:** Pass through challenge → judge for rigor and completeness. Refinement is skipped by default because there is no argument to sharpen. The user sees a message: *"No thesis detected. This proposal will be treated as a data report. Refinement skipped. Use `--force-refine` to override."*
 - **Thesis-bearing proposals:** Follow the full pipeline including refinement (and remediation, if the closed loop is enabled).
@@ -314,7 +313,7 @@ When flags are omitted, no context block is injected and behavior is unchanged.
   - `data-analysis`: skeptical-statistician, engineering-vp, risk-officer
   - `architecture`: architect, security-engineer, product-manager
   - `product`: product-manager, designer, user-advocate
-- Update `/challenge` and `/debate` skills to select a persona set based on proposal domain (detected from frontmatter tags or inferred from content).
+- Update `/challenge` and `/challenge --deep` skills to select a persona set based on proposal domain (detected from frontmatter tags or inferred from content).
 
 **Persona prompt structure:** Each persona is defined as a system prompt prefix that establishes the challenger's perspective, expertise, and priorities. For example:
 
@@ -335,7 +334,7 @@ Persona sets are stored in `config/debate-models.json` alongside model configura
 
 - **Slack or comms-data integration** — Project-specific, not a general debate-system change.
 - **Mandatory second challenge gate** — The existing pipeline already includes a challenge step before execution, and v1 of the closed loop should remain bounded. Users who want a second round can invoke `/challenge` again manually.
-- **Removing model diversity** — Multiple model families may still provide value for `/review`, even if persona design is the stronger lever for `/challenge`.
+- **Removing model diversity** — Multiple model families may still provide value for `/check`, even if persona design is the stronger lever for `/challenge`.
 - **Automated remediation quality assessment** — v1 relies on user review of remediation results (Section 1B) rather than an automated quality gate. A future version could add LLM-based assessment of whether remediated data actually closes the identified gap.
 
 ## Operational Context
@@ -368,9 +367,9 @@ Each test maps to a specific failure observed in the velocity analysis post-mort
 | Observed failure | Test | Success criterion |
 |---|---|---|
 | Accepted data-gap findings became caveats, not fixes | Re-run the velocity analysis with the closed-loop pipeline; compare output to the original open-loop result. | At least one previously-caveated gap now contains collected data (e.g., quality metrics from `git log`) in the final document. Access-constrained gaps produce an explicit user-facing prompt or a specific caveat naming the missing data source. |
-| Refinement truncated a contributor table at ~200 lines | Run `/refine` on a 300+ line document with and without `--chunk`. | Chunked path completes without truncation; all tables and lists remain intact; row counts match between input and output. |
+| Refinement truncated a contributor table at ~200 lines | Run `/polish` on a 300+ line document with and without `--chunk`. | Chunked path completes without truncation; all tables and lists remain intact; row counts match between input and output. |
 | Challenges targeted technical accuracy instead of decision relevance | Run `/challenge` with `--audience ceo --decision "where to invest engineering resources"` on a technical proposal. | At least one challenge finding explicitly references the decision context or audience needs, rather than only methodological correctness. |
-| Neutral proposal produced ineffective refinement | Create a thesis-less proposal and run it through `/debate`. | Proposal is automatically classified as a data report; refinement is skipped by default; `--force-refine` overrides the skip and produces a refined output. |
+| Neutral proposal produced ineffective refinement | Create a thesis-less proposal and run it through `/challenge --deep`. | Proposal is automatically classified as a data report; refinement is skipped by default; `--force-refine` overrides the skip and produces a refined output. |
 | Three model families converged on identical issues | Run `/challenge` with domain-specific personas vs. default personas on the same proposal. | Persona-driven challenges surface at least one materially different concern (different category or framing) not present in default-persona output. |
 
 ## Recommended Implementation Order

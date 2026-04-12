@@ -80,7 +80,7 @@ The agent pattern itself is fine -- it's the WebSearch/WebFetch throughput that'
 A `/research` capability (script, MCP server, or skill) that:
 - Takes a research question + desired output structure
 - Returns a sourced research document in <5 minutes
-- Can be called from skills (like /debate --explore pre-flight) or directly
+- Can be called from skills (like /explore pre-flight) or directly
 - Costs <$2 per deep research task
 
 ## Evaluation (2026-04-11)
@@ -145,8 +145,8 @@ All three phases completed in a single session:
 
 ### Integrated
 1. **`/research` skill** (`.claude/skills/research/SKILL.md`) — standalone user-invocable skill
-2. **`/define discover` Phase 2.75** — replaced broken web_search.py with research.py sonar
-3. **`/debate` explore Step 3c** — research enrichment before divergent exploration
+2. **`/think discover` Phase 2.75** — replaced broken web_search.py with research.py sonar
+3. **`/explore` Step 3c** — research enrichment before divergent exploration
 
 ### Benchmark results
 | Metric | 3-Agent Pattern | Perplexity Deep Research |

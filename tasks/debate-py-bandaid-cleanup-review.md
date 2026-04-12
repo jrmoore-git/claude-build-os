@@ -10,7 +10,7 @@ findings_count: 0
 spec_compliance: true
 rounds: 2
 ---
-# /review — debate-py-bandaid-cleanup
+# /check — debate-py-bandaid-cleanup
 
 Cross-model review of the debate.py band-aid cleanup commit, run via `scripts/debate.py challenge` with three independent reviewer lenses (architect/security/pm) on Opus 4.6, GPT 5.4, and Gemini 3.1 Pro.
 
