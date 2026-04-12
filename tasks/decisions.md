@@ -83,3 +83,15 @@ Settled architectural and product decisions. Each entry records what was decided
 **Rationale:** Explore intake eval took ~75 min wall-clock. Root cause: 18 serial API calls (6 rounds × 3 models) when each round's 3 calls are independent. `review-panel` already parallelizes via ThreadPoolExecutor. 5 persona sims ran mostly serial when all 5 are independent. Rounds 16-17 chased edge cases after 3/3 register consensus in Round 15. Estimated savings: ~55 min (75→20 min) from orchestration changes alone, zero code changes.
 **Alternatives considered:** (a) Add `--parallel` flag to `refine` (rejected: rounds are inherently serial — each depends on previous output), (b) Automate triage between eval rounds (rejected: human judgment on "real issue vs. model taste" is the key sensor), (c) Combine register+flow eval into one prompt per model (considered: low-risk, halves calls per round, but secondary to the parallel vs. serial fix), (d) Batch multiple fixes per round (risky: compounds regressions, loses the triage sensor between fixes)
 **Date:** 2026-04-11
+
+### D14: /check renamed to /review because the name should match the action
+**Decision:** Rename `/check` to `/review` across the entire codebase (directory, SKILL.md, 193 cross-references in 39 files). The skill is a cross-model code review — "check" undersells it and sounds like a lint check.
+**Rationale:** Users reach for "review my code" not "check my code." The modes (`--qa`, `--governance`, `--second-opinion`) are all review sub-modes. The old name was `/review` before the D12 consolidation — this restores clarity.
+**Alternatives considered:** (a) `/code-review` (rejected: 11 chars + hyphen, too much friction for frequent use), (b) Keep `/check` (rejected: ambiguous with lint/status checks)
+**Date:** 2026-04-11
+
+### D15: /review auto-detects content type — code gets personas, documents get cross-model refinement
+**Decision:** `/review` now detects whether the input is code (git diff) or a non-code document (design doc, strategy, explore output). Code routes to PM/Security/Architecture persona review. Documents route to cross-model refinement (3 rounds via `debate.py refine`) — no personas.
+**Rationale:** PM/Security/Architecture lenses are designed for code. Sending a strategy doc through a security reviewer produces irrelevant findings. Cross-model refinement is the right tool for improving non-code documents.
+**Alternatives considered:** (a) Always use personas regardless of content (rejected: produces bad reviews for non-code), (b) Require users to choose mode explicitly (rejected: adds friction, the skill should be smart enough to route), (c) Create a separate `/review-doc` skill (rejected: proliferates skills)
+**Date:** 2026-04-11

@@ -9,8 +9,10 @@ Patterns blocked:
   - rm .git/index.lock (without investigating what holds it)
   - kill -9 / pkill (without identifying the process)
   - rm *.lock / *.pid glob deletions (without checking lsof/fuser)
+  - Serial debate.py review calls (use review-panel instead) [D13]
 """
 import json
+import os
 import re
 import sys
 
@@ -52,6 +54,36 @@ def check_command(cmd):
             "Check whether the file is still in use: "
             "lsof <file> or fuser <file>."
         )
+
+    # 5. Serial debate.py review calls — should use review-panel (D13)
+    review_match = re.search(
+        r'debate\.py\s+review\b(?!\s*-panel)', cmd
+    )
+    if review_match:
+        input_match = re.search(r'--input\s+(\S+)', cmd)
+        input_file = input_match.group(1) if input_match else "unknown"
+        tracker = "/tmp/debate-review-serial-tracker.json"
+        history = {}
+        if os.path.exists(tracker):
+            try:
+                with open(tracker) as f:
+                    history = json.load(f)
+            except (json.JSONDecodeError, OSError):
+                history = {}
+        count = history.get(input_file, 0) + 1
+        history[input_file] = count
+        try:
+            with open(tracker, "w") as f:
+                json.dump(history, f)
+        except OSError:
+            pass
+        if count >= 2:
+            return (
+                f"[D13] You've called `debate.py review` {count}x on {input_file}. "
+                "Use `debate.py review-panel --personas ...` instead — it runs "
+                "all models in parallel. Serial review calls waste minutes per "
+                "round. If this is intentionally a single-persona review, proceed."
+            )
 
     return None
 

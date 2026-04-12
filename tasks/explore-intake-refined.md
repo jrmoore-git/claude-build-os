@@ -503,20 +503,19 @@ Same prompt run with full intake vs. raw input only, scored by blind evaluator.
 
 **5-persona simulation results:**
 
-| Persona | Style | Register | Flow | Register failure | Flow failure |
-|---------|-------|----------|------|------------------|--------------|
-| Elena, 38, Series B CEO | Shifts mid-conversation (decisive→uncertain) | 4/5 | 5/5 | Missed filler words ("honestly") she uses when uncertain | — |
-| Raj, 44, CTO | Dense technical, parentheticals, zero filler | 5/5 | 5/5 | — | — |
-| Kenji, 31, solo founder | Stream-of-consciousness, dashes, self-corrections | 4/5 | 5/5 | Interviewer too clean — missing scattered filler density | — |
-| Maya, 50, VP Product | Polished, numbered lists, corporate-formal | 4/5 | 4/5 | Didn't mirror numbered-list structural tic | Sufficiency should have fired after A4 — one question too many |
-| Dara, 27, first-time PM | Qualifiers, hedging, confidence bursts | 4/5 | 5/5 | One question slightly too polished/assertive for her register | — |
-| **Average** | | **4.2/5** | **4.8/5** | | |
+| Persona | Problem | Register | Flow | Failure mode |
+|---------|---------|----------|------|-------------|
+| Elena, 38, Series B CEO | SMB-to-enterprise GTM pivot | 4/5 | 5/5 | One filler word missed in uncertain territory |
+| Raj, 44, CTO | Monolith-to-microservices timing | 5/5 | 5/5 | — |
+| Kenji, 31, solo founder | Take VC or stay bootstrapped | 4/5 | 5/5 | Interviewer slightly too clean for the input |
+| Maya, 50, VP Product | Developer ecosystem vs. first-party features | 4/5 | 4/5 | One question too many — sufficiency should have fired earlier |
+| Dara, 27, first-time PM | Kill underperforming feature or iterate | 4/5 | 5/5 | One question slightly too polished for the input |
+| **Average** | | **4.2/5** | **4.8/5** | |
 
 **Findings:**
-- Register 4/5 failures are all single-feature misses (filler density, structural tics, one over-confident question). No type-classification errors — the feature-based approach prevents them.
-- Flow 4/5 failure (Maya) is a sufficiency-test timing error, not a thread-following failure. All 5 personas had natural thread progression with no announced transitions.
-- Raj (densest technical register) scored 5/5 on both — the hardest register case is handled cleanly.
-- Elena (mid-conversation style shift) maintained flow through the shift — the protocol's "re-extract if user shifts by 2+ features" works.
+- Register 4/5 failures are single-feature misses per turn, not systematic. No type-classification errors.
+- Flow 4/5 failure (Maya) is a sufficiency-test timing error, not a thread-following failure. All 5 had natural thread progression.
+- All conversations stayed on the user's problem. No announced transitions, no checklist feel.
 
 ## Sources (key references)
 

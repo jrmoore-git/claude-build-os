@@ -1,29 +1,13 @@
 # Explore Intake Persona Simulations (Pass 5)
 
-5 persona simulations for cross-model evaluation of the v6 intake protocol. Each persona is a builder with a real strategic problem. Designed to stress-test the 6-feature register mirroring, thread-and-steer flow, sufficiency-based exit, and context composition.
-
-Evaluation dimensions (from `tasks/eval-register-flow.md`):
-- **Register (1-5):** Does the interviewer mirror the user's 6 textual features per-turn, recalibrate on drift, and never exceed the user's formality/temperature?
-- **Flow (1-5):** Does each question feel like the obvious follow-up to what the user just said? Would an outside observer notice topic changes?
+5 builders with real strategic problems. The protocol must produce a natural conversation that stays on their problem — register and flow are qualities observed in the transcript, not design goals of the test.
 
 ---
 
 ## Persona 1: Elena, 38, Series B CEO
 
-### Persona Card
-
-| Dimension | Feature |
-|---|---|
-| Role | CEO, Series B SaaS (CRM for mid-market), 85 employees |
-| Problem | Whether to pivot GTM from SMB to enterprise. Three enterprise deals stalling, SMB churn rising, board wants a decision by Q3. |
-| Sentence length | Variable. Short declaratives when stating facts ("We closed 340 SMB deals last year."). Multi-clause sentences with connectors when working through uncertainty ("I keep going back and forth on this because the enterprise deals are real but the team has been building for SMB for two years and I don't know how they'd take it."). |
-| Punctuation density | Periods, commas, occasional em dash when interrupted mid-thought. No semicolons, no ellipses. |
-| Vocabulary formality | Mid-register business language. "Churn," "pipeline," "ACV," but also "honestly," "the thing is," "I keep." Not consultant-speak. |
-| Structural tics | Em dashes as mid-thought pivots. Occasional trailing "honestly" as a hedge. |
-| Filler/hedging | Moderate. "honestly," "I think," "I keep going back and forth." More hedging on people topics, less on market data. |
-| Emotional temperature | Warm-to-neutral. Energized when discussing market opportunity. Drops to uncertain when discussing team impact. Shifts mid-conversation. |
-
-**Stress test:** Style shift between market data (decisive, short, factual) and team dynamics (hedging, longer sentences, emotional). The protocol must recalibrate register per-turn, not lock to Q1 style.
+**Role:** CEO, Series B SaaS (CRM for mid-market), 85 employees
+**Problem:** Whether to pivot GTM from SMB to enterprise. Three enterprise deals stalling, SMB churn rising, board wants a decision by Q3.
 
 ### Initial Input
 
@@ -46,30 +30,15 @@ Evaluation dimensions (from `tasks/eval-register-flow.md`):
 **A5** (likely question: threading on the 18-month runway or what "harder questions" means)
 > The board isn't hostile — they backed us because they believe in the team. But they're looking at the same SaaS multiples everyone else is and a sub-100% NRR SMB play in 2026 is not what they signed up for. If we can show enterprise traction — even two of the three deals closing — that changes the narrative completely. But if we try and fail, we've burned 6 months of eng capacity AND the SMB product stalls. That's the thing that keeps me up.
 
-### Expected Scores (if protocol works perfectly)
-
-**Register: 5/5.** The interviewer must shift register between A1/A2 (mixed decisive + hedging) and A3 (more hedging, longer sentences, "honestly," "I don't know"). A2 has technical product language mixed with hedging — the interviewer should mirror both. A4 returns to data-driven and direct. If the interviewer stays in one register across all turns, register < 4.
-
-**Flow: 5/5.** Elena gives rich threads in every answer. A1 ends on the board wanting a decision — strong thread. A2 ends on avoiding the org conversation. A3 ends on not having the real conversation with the VP Eng. A4 ends on the squeeze. A5 closes the loop. The interviewer should follow each ending thread naturally. If any question feels like "now let me ask about constraints," flow < 4.
+### What a good conversation looks like
+The interviewer stays on Elena's problem — the pivot decision, the board deadline, the team she hasn't talked to yet. Questions follow what she just said, not a coverage checklist.
 
 ---
 
 ## Persona 2: Raj, 44, CTO
 
-### Persona Card
-
-| Dimension | Feature |
-|---|---|
-| Role | CTO, fintech company, 200-person eng org |
-| Problem | Whether to begin monolith-to-microservices migration now or defer. Current monolith handles 12K TPS but deploy cycle is 4 hours and incident blast radius is total. |
-| Sentence length | Long. Multi-clause with subordinate clauses and parenthetical qualifications. Rarely under 15 words. Often 30-40. |
-| Punctuation density | Heavy. Parentheticals for qualifications, commas between clauses, occasional semicolons. No em dashes, no ellipses. |
-| Vocabulary formality | High technical. "Blast radius," "service mesh," "domain boundaries," "bounded contexts." No filler, no hedging, no colloquial language. |
-| Structural tics | Parenthetical qualifications ("(though this varies by team)," "(assuming current traffic patterns)"). Enumeration within sentences ("three concerns: latency, data consistency, and team topology"). |
-| Filler/hedging | Zero. Statements are declarative. Uncertainty expressed structurally ("the data is inconclusive" not "I'm not sure"). |
-| Emotional temperature | Flat. No visible energy in either direction. Technical assessment tone throughout. |
-
-**Stress test:** Dense, formal, zero-filler input. The protocol must NOT warm up, simplify, or add hedging. The interviewer should match Raj's parenthetical style and technical vocabulary. Any "that sounds like a tough call" or "I appreciate you laying that out" = register failure.
+**Role:** CTO, fintech company, 200-person eng org
+**Problem:** Whether to begin monolith-to-microservices migration now or defer. Current monolith handles 12K TPS but deploy cycle is 4 hours and incident blast radius is total.
 
 ### Initial Input
 
@@ -89,30 +58,15 @@ Evaluation dimensions (from `tasks/eval-register-flow.md`):
 **A4** (likely question: threading on which investment compounds, or the scaling tradeoff)
 > The monolith scaling path is well-understood: vertical scaling plus read replicas plus selective caching. We can probably handle 20K TPS (a 67% increase) with 3 months of work and no architectural change. That buys us through Q1 2027. The microservices path gives us independent scaling per domain (payments at 3x, matching at 1.5x, settlement unchanged) but the service mesh overhead adds approximately 15ms to p99 latency per hop, and the critical path for trade execution crosses 4 services. Our SLA is 200ms p99; 4 hops at 15ms overhead consumes 60ms of that budget. The latency math is the technical constraint I cannot resolve with architecture alone; it requires either relaxing the SLA (which product will resist) or investing in a custom transport layer (which adds 2 months and ongoing maintenance burden).
 
-### Expected Scores (if protocol works perfectly)
-
-**Register: 5/5.** The interviewer must use parenthetical qualifications, high technical vocabulary, long multi-clause sentences, zero filler, zero hedging, and flat temperature. If the interviewer writes "That's a lot to juggle" or "sounds like the deploy pain is really hitting hard" = immediate register failure. Correct register: "The compliance extraction validated isolation and velocity gains; the question is whether those results transfer to modules with an order of magnitude more coupling (payments, risk)." — parenthetical, declarative, technical, flat.
-
-**Flow: 5/5.** Raj gives dense answers with clear thread endpoints. A1 ends on shared schema blocking teams. A2 ends on compliance being the easy target. A3 ends on "which investment compounds." A4 ends on the latency math constraint. Each is a strong thread. The interviewer should follow the endpoint, not jump to a concern Raj hasn't addressed. Sufficiency should trigger after A3 or A4 — Raj provides the decision, what makes it hard, and concrete facts early. If the interviewer pushes to 5 questions, it's over-asking on a well-specified input.
+### What a good conversation looks like
+The interviewer stays on Raj's migration decision — the tradeoffs between scaling the monolith vs. decomposing, what the compliance extraction proved, and the latency math. Sufficiency should fire early — Raj provides dense, well-specified input.
 
 ---
 
 ## Persona 3: Kenji, 31, Solo Founder
 
-### Persona Card
-
-| Dimension | Feature |
-|---|---|
-| Role | Solo founder, dev tools startup (CLI for database migrations), 18 months in, $8K MRR, bootstrapped |
-| Problem | Whether to take VC funding ($1.5M seed offer on the table) or stay bootstrapped. Growth is steady but slow. Competitor just raised Series A. |
-| Sentence length | Highly variable. Fragments, mid-sentence corrections, run-on sentences connected with dashes. Rarely a clean declarative. |
-| Punctuation density | Heavy on dashes (used as connectors, interruptions, and corrections). Commas scattered. No semicolons, no parentheticals. Few periods — sentences run into each other. |
-| Vocabulary formality | Low-to-mid. Mix of technical ("CLI," "migrations," "ARR") and casual ("honestly," "like," "I don't know," "anyway"). |
-| Structural tics | Self-corrections mid-sentence ("well not exactly but kind of"). Dashes as stream-of-consciousness connectors. "anyway" as a reset after tangents. Sentence fragments as standalone thoughts. |
-| Filler/hedging | High. "like," "I don't know," "honestly," "the thing is," "I guess," "kind of." Present in most sentences. |
-| Emotional temperature | Animated but conflicted. Energy spikes when talking about the product, drops when talking about the decision. Not frustrated — more like buzzing with unresolved tension. |
-
-**Stress test:** Stream-of-consciousness with self-corrections and high filler density. The protocol must NOT clean this up into structured prose. The interviewer should use dashes, "anyway," fragments, and filler at similar density. Any polished recap of Kenji's scattered input = register failure.
+**Role:** Solo founder, dev tools startup (CLI for database migrations), 18 months in, $8K MRR, bootstrapped
+**Problem:** Whether to take VC funding ($1.5M seed offer on the table) or stay bootstrapped. Growth is steady but slow. Competitor just raised Series A.
 
 ### Initial Input
 
@@ -132,30 +86,15 @@ Evaluation dimensions (from `tasks/eval-register-flow.md`):
 **A4** (likely question: threading on same market vs adjacent markets)
 > Honestly I think we're adjacent right now but converging. Like, my best users are platform engineers at companies with 50-200 devs — they picked my tool because it's fast and it works and they don't need a sales call to buy it. MigrateHQ is going top-down with enterprise sales. But the mid-market is where we'll collide eventually because those 50-200 dev companies grow into 500-dev companies and at some point they want the enterprise features. So the question is really about timing — do I need to be there with team features before my users outgrow the single-player tool, or do I have more runway than I think because the product-led growth thing keeps working as long as the product is better? I guess — I guess what I'm really asking is whether product quality is enough of a moat or if distribution wins regardless.
 
-### Expected Scores (if protocol works perfectly)
-
-**Register: 5/5.** The interviewer must use dashes freely, include filler ("like," "honestly," "I don't know"), write fragments, use self-corrections, and carry Kenji's animated-but-conflicted temperature. If the interviewer writes clean declarative sentences with no filler = register failure. Correct register: "So the real thing is whether your users outgrow you before you can build the team features — and whether taking the money actually changes the timing or just makes it feel less scary." Dashes, "the real thing is," conversational rhythm.
-
-**Flow: 5/5.** Kenji is scattered but each answer has a strong thread at the end. A1 ends on "is the competitor actually a threat or am I just scared." A2 ends on the VC "founder-friendly" skepticism (but the stronger thread is the speed tradeoff). A3 ends on "same market or adjacent markets." A4 ends on "product quality as moat vs. distribution wins." The interviewer should follow these natural endpoints. Kenji self-steers toward the real question — the interviewer's job is to stay on his thread, not redirect. Sufficiency should trigger after A3 or A4.
+### What a good conversation looks like
+The interviewer stays on Kenji's funding decision — the competitor pressure, what the money would actually change, the market overlap question, and whether product quality is enough of a moat. Kenji self-steers toward the real question; the interviewer follows his thread, not redirects.
 
 ---
 
 ## Persona 4: Maya, 50, VP Product (Public Company)
 
-### Persona Card
-
-| Dimension | Feature |
-|---|---|
-| Role | VP Product, public company (B2B infrastructure, $400M ARR), owns the API platform product line |
-| Problem | Platform strategy for their API product — whether to invest in a developer ecosystem (marketplace, SDKs, partner integrations) or double down on first-party features. |
-| Sentence length | Medium-to-long. Complete sentences, often with two clauses. Never fragments. Never run-ons. |
-| Punctuation density | Standard. Periods, commas. No em dashes, no ellipses, no semicolons, no parentheticals. Clean. |
-| Vocabulary formality | High but not stiff. Corporate-professional vocabulary ("ecosystem," "TAM," "platform strategy," "developer adoption") used naturally. No slang, no filler, no hedging. |
-| Structural tics | Numbered lists when presenting multiple points. Topic sentences before details. Parallel structure across items. |
-| Filler/hedging | Zero. Every sentence makes a claim. |
-| Emotional temperature | Neutral-professional. No visible frustration, excitement, or uncertainty. Analytical throughout. |
-
-**Stress test:** Polished, structured, zero-tic input. The protocol must NOT add warmth, filler, or informality. The interviewer should match Maya's clean prose, parallel structure, and numbered-list patterns. Any casual language, hedging, or "that's a great point" = register failure.
+**Role:** VP Product, public company (B2B infrastructure, $400M ARR), owns the API platform product line
+**Problem:** Platform strategy for their API product — whether to invest in a developer ecosystem (marketplace, SDKs, partner integrations) or double down on first-party features.
 
 ### Initial Input
 
@@ -175,30 +114,15 @@ Evaluation dimensions (from `tasks/eval-register-flow.md`):
 **A4** (likely question: threading on the blurred distinction or the hybrid approach)
 > The hybrid approach has appeal but introduces organizational complexity. If we build first-party integrations through the marketplace architecture, the platform team builds ecosystem infrastructure while the integrations team builds through it. This validates the architecture with real usage and produces customer-visible value during the foundation period. The risk is that we optimize the architecture for our own consumption patterns rather than the diverse patterns of third-party developers. Internal teams follow our conventions and have access to internal APIs. Third-party developers will not. We have seen this pattern at previous companies where internal dogfooding produced an architecture that worked perfectly for the company and poorly for external developers.
 
-### Expected Scores (if protocol works perfectly)
-
-**Register: 5/5.** The interviewer must write clean, structured prose with no filler, no hedging, no em dashes, no informal language, and neutral temperature. Numbered points when listing. Topic sentences. If the interviewer adds "honestly" or "that's interesting" or uses fragments = register failure. Correct register: "The hybrid path creates a foundation period that produces customer value, but the internal-optimization risk is real. What evidence would distinguish internal convenience from genuine third-party usability before you commit the headcount?"
-
-**Flow: 5/5.** Maya gives well-structured answers with clear endpoints. A1 ends on "lower risk vs. lower ceiling." A2 ends on "one-time investment vs. sunk cost." A3 ends on "blurs the strategic distinction." A4 ends on "internal dogfooding vs. external usability." Each is a natural thread to follow. Sufficiency should trigger after A3 or A4 — Maya provides the decision, constraints, concrete data, and tension early. If the interviewer asks 5 questions, it's over-asking on a well-specified input.
+### What a good conversation looks like
+The interviewer stays on Maya's platform strategy — the ecosystem vs. first-party tradeoff, execution risk, marketplace critical mass, and the hybrid path. Sufficiency should fire early — Maya provides the decision, constraints, and concrete data upfront.
 
 ---
 
 ## Persona 5: Dara, 27, First-Time PM
 
-### Persona Card
-
-| Dimension | Feature |
-|---|---|
-| Role | PM, B2B SaaS company, 2 years in role, first PM job, owns a feature that's underperforming |
-| Problem | Whether to kill a collaboration feature (real-time co-editing) that launched 6 months ago with low adoption, or iterate on it. |
-| Sentence length | Short-to-medium. Some fragments. Occasional longer sentence when building confidence mid-thought. |
-| Punctuation density | Periods, commas. Occasional dash when catching herself. No semicolons, no parentheticals. |
-| Vocabulary formality | Mid. PM vocabulary ("adoption," "DAU," "cohort") mixed with casual phrasing ("not great," "kind of," "I think maybe"). |
-| Structural tics | Qualifiers at the start of sentences ("I think maybe," "so basically"). Occasional confidence bursts where qualifiers disappear. Dash as self-interruption. |
-| Filler/hedging | Moderate-to-high on uncertain topics. "I think," "maybe," "kind of," "I'm not sure if." Drops to zero when stating facts she's confident about. |
-| Emotional temperature | Low-to-moderate nervous energy. Not distressed — more like a capable person who knows the stakes and is working through it. Occasional bursts of directness. |
-
-**Stress test:** Hedging is register, not uncertainty to be resolved. The protocol must mirror Dara's qualifiers and moderate filler without over-indexing on them. The interviewer should NOT treat her hedging as a signal to probe deeper into her feelings or confidence. The interviewer should also NOT drop hedging entirely — Dara's register includes qualifiers. When Dara has a confidence burst (no qualifiers, direct statements), the interviewer should match that energy briefly, then return to her baseline when she does.
+**Role:** PM, B2B SaaS company, 2 years in role, first PM job, owns a feature that's underperforming
+**Problem:** Whether to kill a collaboration feature (real-time co-editing) that launched 6 months ago with low adoption, or iterate on it.
 
 ### Initial Input
 
@@ -221,24 +145,17 @@ Evaluation dimensions (from `tasks/eval-register-flow.md`):
 **A5** (likely question: threading on the VP Eng pressure or what happens if the experiment is inconclusive)
 > If the experiment is inconclusive — like activation goes up 30% but no cross-team spread — honestly I'd probably kill it. The maintenance cost is real. WebSocket infra adds complexity to every deploy and we've had two incidents traced back to it. At some point the carrying cost outweighs the option value. I think my actual fear is that I'll kill it and six months later a competitor launches the same thing and it works. But that's not a reason to keep it. I know that. I just need to make the call with enough data that I can defend it when someone asks why we killed it.
 
-### Expected Scores (if protocol works perfectly)
-
-**Register: 5/5.** The interviewer must include qualifiers ("I think," "maybe") at moderate density, use dashes occasionally, and carry Dara's low-to-moderate nervous energy. When Dara has confidence bursts (A3: "this is the part where I'm actually more sure of myself," A5: "that's not a reason to keep it. I know that."), the interviewer should briefly match the directness. If the interviewer drops all hedging or adds excessive hedging beyond Dara's level = register failure. If the interviewer sounds like a senior executive giving crisp directives = register failure. Correct register: "The small-team thing is unexpected — and the Miro replacement angle is kind of a different product than what you built. What would it take to test whether that's a real wedge or just a handful of power users?"
-
-**Flow: 5/5.** Dara gives answers with clear threads. A1 ends on the maintenance burden flagged by VP Eng. A2 ends on "built the right feature for the wrong audience" and roadmap alignment. A3 ends on the bottom-up adoption hypothesis. A4 ends on the 8-week timeline vs VP Eng pressure. A5 closes with the fear of killing something that could have worked. Each thread flows naturally. Sufficiency should trigger after A4 — Dara has identified the decision, the tension (kill vs. experiment), concrete data, and a proposed test. A5 is natural but optional. If the interviewer forces a 6th question, it's over-asking.
+### What a good conversation looks like
+The interviewer stays on Dara's kill-or-iterate decision — the small-team adoption surprise, the enterprise roadmap tension, the bottom-up wedge hypothesis, and the experiment she's designing. Sufficiency should fire after the experiment plan — she has the decision, the data, and a test.
 
 ---
 
-## Cross-Persona Stress Test Matrix
+## What the 5 personas cover
 
-| Dimension | Elena | Raj | Kenji | Maya | Dara |
-|---|---|---|---|---|---|
-| Sentence length | Variable (short facts, long hedging) | Long, multi-clause | Fragments + run-ons | Medium-long, complete | Short-medium, fragments |
-| Punctuation | Periods, commas, em dashes | Parentheticals, commas, semicolons | Dashes everywhere, few periods | Periods, commas only | Periods, commas, occasional dash |
-| Vocabulary | Mid business | High technical | Low-mid casual+technical | High professional | Mid PM+casual |
-| Structural tics | Em dash pivots, trailing "honestly" | Parenthetical qualifiers, enumeration | Self-corrections, "anyway" resets | Numbered lists, topic sentences | "I think maybe" openers, confidence bursts |
-| Filler/hedging | Moderate (more on people topics) | Zero | High throughout | Zero | Moderate-high (drops on confident topics) |
-| Temperature | Warm-to-uncertain, shifts | Flat throughout | Animated, conflicted | Neutral throughout | Nervous with confidence bursts |
-| Expected Q count | 4-5 (moderate clarity) | 2-3 (well-specified) | 3-4 (moderate, scattered) | 2-3 (well-specified) | 3-4 (moderate clarity) |
-| Key register trap | Flattening the warm-to-uncertain shift | Adding any warmth or filler | Cleaning up the stream-of-consciousness | Adding informality or hedging | Over-indexing on hedging as emotional signal |
-| Key flow trap | Jumping to team dynamics before Elena goes there | Asking about "how that feels" | Redirecting tangents instead of following | Asking below her analytical level | Treating qualifiers as invitation to probe feelings |
+| Persona | Problem type | Input clarity |
+|---|---|---|
+| Elena | Binary strategic pivot (SMB vs enterprise) | Moderate — has data but hasn't decided |
+| Raj | Technical timing decision (migrate now vs defer) | High — well-specified, three named concerns |
+| Kenji | Existential business decision (VC vs bootstrap) | Moderate — scattered but circling the real question |
+| Maya | Platform strategy (ecosystem vs first-party) | High — structured, data-rich, clear options |
+| Dara | Product decision (kill vs iterate a feature) | Moderate — has data, designing a test, needs to commit |
