@@ -2,6 +2,38 @@
 
 ---
 
+## 2026-04-11 (session 2) — Explore intake register+flow cross-model convergence
+
+**Focus:** Push register and flow scores from 3.x to 4/5 cross-model consensus via iterative cross-model evaluation (Rounds 12-17, 6 rounds this session + 11 prior).
+
+**Decided:**
+- Sufficiency test runs BEFORE drafting next question (not after) — prevents over-asking
+- Classification table moved to design-notes comment block — not for LLM consumption
+- "Ending Intake" section eliminated — last question follows same rule as every other
+- Coverage audit moved entirely to composition phase (Composition Rule 12)
+- Mandatory recap replaced with "continuity signal" — lexical anchor preferred but not required
+- Escape hatches (deep-thread, narrow-focus, new dimension) collapsed into one "when to stop" rule
+- Anti-pattern examples rewritten from type-keyed to feature-keyed headers
+- Emotional temperature: match minimum their words justify, not "default cooler"
+- Filler mirroring: density/informality not quota ("at least one")
+- Skip path: honor explicit skip even with generic input
+
+**Result:** Register 4/5 across all 3 models (converged Round 15, stable through 17). Flow 4/5 from Claude+Gemini, 3/5 from GPT (GPT oscillates on design-taste issues: lexical anchor rigidity, sufficiency sequencing, inference polish). 2/3 consensus at 4/5 on both dimensions.
+
+**NOT Finished:**
+- 5-persona simulations (Elena CEO, Raj CTO, Kenji solo founder, Maya VP Product, Dara PM)
+- Implementation into production files (preflight-adaptive.md v6, SKILL.md Step 3a, delete preflight-tracks.md)
+- Commit the protocol changes
+
+**Next Session Should:**
+- Run 5-persona simulations against the refined protocol
+- Implement into production files
+- Commit + ship
+
+**Commit:** pending
+
+---
+
 ## 2026-04-08 — /polish skill + full BuildOS-downstream sync
 
 **Decided:**

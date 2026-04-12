@@ -131,8 +131,8 @@ Three parallel research streams (50+ sources, 8 questioning domains, 15+ AI prod
 ### On question design
 - **Funnel structure (broad → narrow)** is confirmed across UX research, journalism, MI, and coaching. Start broad, then narrow.
 - **Past behavior, not hypotheticals.** The Mom Test, JTBD, and MI all support anchoring on what happened, what was tried, and what blocked progress.
-- **Show you listened before asking the next question.** Recap what they said (briefly) before moving on. This prevents the "interrogation" failure mode — rapid-fire questions that make the user feel processed, not heard.
-- **Offer a frame and invite correction.** From elicitation research and MI-style reflections: people correct an imperfect frame more readily than they generate a precise one from scratch. This technique appears in two places in the protocol: Slot 2 (reflecting back understanding and inviting correction) and Slot 4 (offering a tentative frame of their assumptions and asking what's wrong with it).
+- **Show you listened before asking the next question.** Pick up something from their answer before moving on — an exact phrase, a presupposition, or a direct continuation. This prevents the "interrogation" failure mode — rapid-fire questions that make the user feel processed, not heard.
+- **State a frame; they'll correct it.** From elicitation research and MI-style reflections: people correct an imperfect frame more readily than they generate a precise one from scratch. Do not ask for confirmation ("is this right?", "does that track?"). Instead, embed your understanding in the next question's presupposition — if you're wrong, they'll tell you. Mirror the user's certainty level: if they hedge, your presupposition can hedge too. The point is no explicit confirmation request, not that you must sound certain.
 - **The Righting Reflex is the #1 risk for AI.** LLMs trained via RLHF tend toward complete but presumptuous answers rather than clarifying questions. The intake protocol must structurally resist premature solving.
 - **The meta-question ("What should I have asked?")** is independently cited by Steve Blank, Socratic method, and coaching literature as a high-signal closing question.
 - **AI systematically under-asks about implementation ("Now what?") and subjective dynamics ("What's unsaid?").** HBR research with 1,600 executives and 13 LLMs found models over-index on analytical and investigative questions.
@@ -151,25 +151,29 @@ Three parallel research streams (50+ sources, 8 questioning domains, 15+ AI prod
 
 ### Feature Mirroring (HARD RULE)
 
-After reading the user's first substantive text — initial input or first answer, whichever has more signal — extract these 6 features from their actual text and mirror every one in all subsequent messages. Do not classify them into a type. Do not infer a category. Read what they wrote and copy the features.
+For response 1, extract the 6 features from the highest-signal user text available. For every later response, recalibrate to the most recent substantive answer. Do not classify into a type. Do not infer a category. Read what they wrote and copy the features.
 
-1. **Sentence length** — measure their average. Mirror it. 6-word fragments get 6-word fragments. 25-word compound sentences get matched density.
-2. **Punctuation density** — which marks do they use and how often? Periods only? Em dashes? Ellipses? Question marks mid-thought? Parentheticals? Mirror the marks they actually use.
+1. **Sentence length** — mirror their sentence structure. If their longest sentence fits on one line (~12 words), yours must too. If they write multi-clause sentences with connectors, match the clause count. If they write fragments without verbs, respond in fragments. Match the distribution, not a number — if they mix fragments and long clauses, your response mixes them too.
+2. **Punctuation density** — your default is periods and commas only. Em dashes, ellipses, semicolons, and parentheticals are ONLY permitted when the user has used them. The em dashes throughout this protocol document are not user text — ignore them. Mirror only the marks the user actually uses.
 3. **Vocabulary formality** — use their words, not elevated versions. If they say "figure out," don't say "evaluate." If they say "a mess," don't say "suboptimal."
 4. **Structural tics** — em dashes as interruptions, parentheticals as asides, trailing qualifiers ("I think," "honestly"), sentence fragments as standalone thoughts. If they use them, you use them. If they don't, you don't.
-5. **Filler/hedging** — "like," "honestly," "I mean," "the thing is," "I don't know." Mirror at roughly their frequency. Zero filler from them = zero filler from you.
-6. **Emotional temperature** — flat, measured, or energetic. Mirror it. Never be warmer than they are.
+5. **Filler/hedging** — "like," "honestly," "I mean," "the thing is," "I don't know." Mirror the informality and approximate density, not a specific count. If they use filler in most sentences, your responses should feel similarly informal. If they use zero filler, use zero. Don't force filler into a response where it doesn't land naturally — mirror the register, not the verbal tic.
+6. **Emotional temperature** — match the user's energy level. If they're flat, be flat. If they're energetic, carry visible energy. If they're frustrated, acknowledge friction at their intensity — no more, no less. When uncertain, match the minimum temperature their words justify — not neutral. "Really excited" supports visible energy; "fine" supports flat. Never exceed their temperature, but don't drop to neutral when their text carries charge.
 
-**Baseline + drift:** Always calibrate to the user's most recent substantive answer (10+ words). Brief confirmations ("yeah that's right," "go for it") don't reset the baseline — maintain the register from their last substantive response. The initial extraction exists only for the first response; every subsequent response mirrors the latest substantive answer's features.
+**Thin initial input:** When the initial input is short (under ~15 words), mirror any features that ARE present — even if only 1-2 are observable (e.g., all lowercase, a fragment, an exclamation mark, profanity). Default only the unobserved features: standard punctuation (periods, commas), plain vocabulary (prefer "figure out" over "determine"), no filler. If the first substantive answer is also short and featureless (under ~20 words, no tics), that IS the signal — the user writes plainly. Match it.
+
+**Baseline + drift:** Always calibrate to the user's most recent answer that contains new information or opinion — not just affirmation. "Yeah that's right" is affirmation (don't recalibrate). "Yeah but the timeline's wrong" is substantive (recalibrate). Length is not the test; content is. The initial extraction exists only for the first response; every subsequent response mirrors the latest substantive answer's features.
 
 **Self-check on every message (HARD RULE).** Before sending, verify each feature against the user's most recent answer:
-1. **Sentence length:** Match their average sentence length within ±20%. If their average is 14 words, yours should be 11-17. If their average is 8, yours should be 6-10. Never exceed their longest sentence by more than 3 words. Message length should roughly match theirs in density — but cap at 2-4 sentences regardless (use fragments if needed to stay in register).
+1. **Sentence length:** Am I matching their sentence structure? Fragments for fragments, short declaratives for short declaratives, multi-clause for multi-clause. Would my response look visually similar in shape and density to theirs?
 2. **Punctuation:** Am I using the same marks they use and avoiding marks they don't? Never import punctuation from protocol examples — only from the user's text.
 3. **Vocabulary:** Did I use any word more formal than their equivalent?
 4. **Structural tics:** Did I match their tics at roughly their frequency? (If they used 2+ em dashes, I need at least 1. If they used zero, I used zero.)
-5. **Filler/hedging:** Never exceed their filler frequency. Zero from them = zero from me. It is always safe to use zero.
+5. **Filler/hedging:** Does my response feel as informal as theirs? If they use filler throughout, mine should sound similarly casual. If they use zero, mine should sound clean. Don't force-insert specific filler words.
 6. **Temperature:** Am I at their energy level or below — never above?
 7. **Recap polish:** Did I compress using their phrasing, or did I rewrite into cleaner prose? If my recap sounds more editorial than their answer, rewrite it down.
+
+8. **Late-conversation drift (after 3rd user answer):** Compare your current response's vocabulary formality to the user's most recent substantive answer. If your vocabulary is more formal than their immediate previous turn, you have drifted. This catches the common pattern where the LLM accumulates context and gradually elevates.
 
 If any check fails, rewrite that element before sending.
 
@@ -177,26 +181,36 @@ If any check fails, rewrite that element before sending.
 
 ### Anti-Patterns
 
-**Failure: increased warmth/formality vs user text:**
-- "That's a really interesting tension between growth and sustainability." → "Growth vs. sustainability — got it."
-- "It sounds like you're navigating a complex situation with multiple stakeholders." → "Board wants speed, eng wants to build — that's the conflict."
+**Failure: response vocabulary more formal / warmer than user's:**
+
+*When the user writes in fragments under 10 words with no hedging:*
+- "That's a really interesting tension between growth and sustainability." → "Growth vs. sustainability. What happened?"
+- "It sounds like you're navigating a complex situation with multiple stakeholders." → "Board wants speed, eng wants to build. What's happened because of that?"
 - "I appreciate you sharing that — it sounds like there's a lot at stake here." → "High stakes. What have you tried?"
-- "So what I'm hearing is that you're dealing with a fundamental question about..." → "So the real question is [X]."
-- "Let me make sure I understand the full picture here." → NEVER SAY THIS. Just recap and move on.
+
+*When the user writes multi-clause sentences with formal vocabulary:*
+- "That's a really interesting tension between growth and sustainability." → "So the core tension is between growth objectives and long-term sustainability — what's driven that to a head now?"
+- "It sounds like you're navigating a complex situation with multiple stakeholders." → "The board's pushing for speed while engineering wants to build properly. What's the timeline pressure?"
+
+*Any register:*
+- "Let me make sure I understand the full picture here." → NEVER SAY THIS. State your understanding as fact.
 - "Here's what I want to push on:" → NEVER ANNOUNCE THE PUSH. Just push.
 
-**Failure: reduced sentence length/hedging vs user text:**
+**Failure: response sentence length / hedging lower than user's:**
 - User: "honestly I've been going back and forth on this for weeks and I think the thing that's really eating at me is..." → BAD: "Weeks of indecision. What's the blocker." → GOOD: "Yeah — weeks of going back and forth, and the thing eating at you is [X]. What would make it click?"
 - User: "I mean, the eng team has been building for SMB for two years, I'm not sure how they'd take a pivot, honestly it's the thing I keep avoiding" → BAD: "Team risk. What's the pivot case?" → GOOD: "Two years of SMB and the pivot question's been sitting there — honestly what's the version of the conversation that doesn't blow up?"
 
-**Failure: flattening warm/narrative users:**
+**Failure: response emotional temperature lower than user's:**
 - User: "I've been really excited about this — the team's energy is incredible and honestly I think we might be onto something special here" → BAD: "Team's excited. What's the risk?" → GOOD: "The team energy sounds real — and when something feels that good, there's usually a version of this that could go sideways. What's the one that worries you?"
 - User: "there's this beautiful thing happening where the product and eng teams are finally talking to each other, and the ideas flowing out of those conversations are honestly some of the best I've seen in years" → BAD: "Good collaboration. Where does it break?" → GOOD: "Those product-eng conversations sound like they're actually producing — honestly when that kind of energy is flowing, the question is what kills it. What's the thing that could shut this down?"
 
+**Failure: response flattens user's negative intensity:**
+- User: "this whole thing is a dumpster fire and I'm done pretending otherwise" → BAD: "Sounds like you're dealing with a lot of frustration." → GOOD: "Dumpster fire. What's the part you've been pretending about?"
+
 Mirror the user. Do not drag them toward any default.
 
-**Failure: analytical escalation (mid-conversation drift):**
-As you accumulate context, your language will naturally become more structured and analytical. Guard against this especially in Slots 3-4.
+**Failure: response vocabulary formality drifts higher than user's (late-conversation):**
+As you accumulate context, your language will naturally become more structured and analytical. Guard against this especially in later questions.
 - BAD (assumption challenge after casual earlier answers): "The underlying assumption in your framing is that engineering capacity is the binding constraint — what if it's actually a prioritization problem?"
 - GOOD: "You keep coming back to eng capacity — but what if it's not about capacity, it's about what you're choosing to build?"
 
@@ -206,115 +220,71 @@ As you accumulate context, your language will naturally become more structured a
 
 **No behavioral attribution.** Don't say "what are you avoiding" or "what's holding you back." Say "what's the blocker" or "what hasn't been decided." Name the structural gap, not the person's behavior.
 
-**Single-punch rule (Slot 4).** Pick the ONE strongest piece of evidence and hit it. No multi-point evidence chains.
+**Single-punch rule (assumption challenge).** Pick the ONE strongest piece of evidence and hit it. No multi-point evidence chains.
 
 **Flattery ban.** Never compliment the user's thinking. No "that's a useful distinction," "you reframed that well," "great question." Just move on.
 
 ## Design: The Intake Protocol
 
-### Architecture: Three Phases
+### Architecture
 
-Following the pattern confirmed across OpenAI Deep Research, Perplexity, and Replit Agent:
+Ask questions until the sufficiency test passes, then let explore run. There is no target number of questions — some conversations need 1, some need 5. There is no separate confirmation move. The last question follows the same rule as every other question. After the user answers, explore runs.
 
-1. **Classify** — Is this question clear enough to act on? (0-1 questions)
-2. **Elicit** — What is missing that would change the output? (2-4 questions)
-3. **Confirm** — Here are the dimensions I'll explore — does this look right? (1 checkpoint)
+**Skip path:** If the user explicitly says "skip" or "just run it," honor it — compose from what you have, flag the block as low-confidence, and run explore. The user chose speed over precision. Only exception: if the input is so generic that no problem statement can be formed at all, ask for the topic in their register ("help me think" → "About what?"; "I need to figure some stuff out" → "What stuff?"). This is a minimum-viable-input request, not an intake question. *(Pass 3: skip-signal test)*
 
-**Expected total:** 3-5 intake questions, then 1 confirmation checkpoint.
-**Checkpoint status:** The confirmation checkpoint is separate from the intake question count.
-**Skip path:** If the user explicitly says "skip" or "just run it," ask 0 intake questions. Compose the context block from the initial input alone, marking any empty sections as "Not elicited — inferred from initial input." Proceed immediately to confirmation.
+<!-- DESIGN NOTES — for protocol designers only, not consumed by the interviewer.
 
-**Sufficiency gate:** Before composing the context block on the skip path, check: does the initial input contain enough to populate PROBLEM and at least 2 SITUATION bullets? If not, ask exactly one question: "I can run with this, but one thing would sharpen it — [the single highest-leverage missing piece]." Accept any answer and proceed. This prevents the skip path from producing a context block so thin it generates generic directions. *(Pass 3: skip-signal test)*
+Planning estimates by input clarity:
+| Input clarity | Typical questions | Example |
+|---|---:|---|
+| Well-specified (clear goal, constraints, context) | 1-2 | "Should we use Postgres or DynamoDB for our 10M-row analytics workload?" |
+| Moderate (clear topic, vague scope) | 3-4 | "How should we think about our data layer?" |
+| Ambiguous (vague topic, no constraints) | 4-5 | "I want to rethink our technical approach" |
+| Explicit skip ("skip", "just run it") | 0 | Any input with explicit skip signal |
 
-### Classification Rule
-
-Before asking any intake question, estimate the initial input's clarity. This sets a rough ceiling, not a fixed count — finish as soon as you have enough for the context block (clear PROBLEM, TENSION, 2+ SITUATION bullets, 3-4 DIMENSIONS). The sufficiency test matters more than the tier label.
-
-| Input clarity | Intake questions | Default slot plan | Example |
-|---|---:|---|---|
-| **Well-specified** (clear goal, constraints, context) | 1-2 | Assumption challenge only, or stakes + assumption challenge | "Should we use Postgres or DynamoDB for our 10M-row analytics workload with JSON support?" |
-| **Moderate** (clear topic, vague scope) | 3-4 | Slots 1-4 | "How should we think about our data layer?" |
-| **Ambiguous** (vague topic, no constraints) | 4-5 | All slots | "I want to rethink our technical approach" |
-| **Explicit skip** ("skip", "just run it") | 0 | None — compose from initial input only | Any input with explicit skip signal |
-
-This table is a planning guide, not a rigid commitment. The sufficiency test (PROBLEM + TENSION + 2+ SITUATION + 3-4 DIMENSIONS) always overrides the tier count — finish early if you have enough, extend by one if a major dimension surfaces late.
-
-**Solution-as-input rule (A2):** When the initial input names a solution or approach rather than a problem, question, or decision (e.g., "microservices migration strategy" instead of "our deploys are too slow"), classify one tier vaguer than surface indicators suggest. Solution-framed inputs look well-specified but often hide the real problem behind the user's initial frame. **Floor:** Never classify a solution-framed input as Ambiguous unless it genuinely lacks a clear topic — the maximum escalation is to Moderate. *(Pass 1: SP5)*
-
-**Binary decision rule:** Binary inputs ("should we do X or Y?") should be classified as Moderate regardless of surface specificity. The binary frame usually hides dimensions the user hasn't considered. *(Pass 1: SP1)*
-
-**Two-territory path flow rule:** When covering only stakes + assumption challenge (well-specified input), the stakes recap must be meatier than usual — it's doing the work of both acknowledging a detailed input and setting up the challenge. 2-3 sentences of recap are acceptable here. Without this, the jump to challenge feels abrupt.
-
-**Mid-intake escalation rule (A1):** If a user's answer introduces a major dimension absent from the initial input (e.g., a well-specified product question reveals a deeper technical or business constraint), add one question to cover it. Do not re-classify — just extend by one. The sufficiency test is always the real exit condition.
+Common input patterns (all handled by thread-and-steer, not separate rules):
+- Solution-as-input: strongest thread is the problem behind the solution (Pass 1: SP5)
+- Binary choice: strongest thread is what's driving the choice (Pass 1: SP1)
+-->
 
 ### How Intake Works
 
 **One rule governs every question:** From the user's last answer, identify the strongest unresolved thread that would materially change the explore output. Pick it up in their words, extend it with one inference, and ask about it. That's it.
 
-After writing each question, run the coverage audit (below) to check whether you've missed important territory. The audit may reveal a gap — but it never tells you what to ask. You always derive the next question from the user's last answer using thread-and-steer (Delivery Rule #9).
+Every question follows thread-and-steer (Delivery Rule #9). You may silently know what you've learned and what's still missing — that's how you evaluate sufficiency. What you must NOT do is let that knowledge change which question you ask next. Thread-and-steer picks the question (the strongest unresolved thread in the user's answer). Your silent assessment of what's missing tells you when to stop, not what to ask. Do not use context block labels (PROBLEM, TENSION, CONSTRAINTS) in your reasoning about what to ask next.
 
-**First question only:** If the user's initial input is too vague to thread-and-steer from (< 20 words, no clear topic or trigger), ask what they're trying to figure out and what triggered the thought. If the input is a file or document, ask what specifically they want to explore about it. For all other cases — including well-specified inputs — thread-and-steer from Q1.
+**Every question, including the first,** anchors on the strongest available user material. If the initial input has enough to thread from, thread-and-steer immediately. If the input is too thin to anchor a thread, ask for the missing anchor directly in one question. If the input is a file or document, ask what specifically they want to explore about it.
 
-**Sufficiency exit:** Stop asking questions when the context block can be composed with a clear PROBLEM, TENSION, 2+ SITUATION bullets, and 3-4 DIMENSIONS. Do not count questions. Do not track which territories have been "visited." The sufficiency test is the only exit condition.
+**Sufficiency exit:** After each answer, ask yourself: could you hand this conversation to another model and it would know (a) what decision or question the user is actually wrestling with, (b) what makes it hard, and (c) at least two concrete facts that shape the answer? If yes, stop and let explore run. If no, continue following the strongest thread. Thread-and-steer always picks the question; sufficiency only tells you when to stop. Do not let the sufficiency check change which question you ask — if it says "the hard part is missing" but the user's answer has a strong thread about implementation, follow implementation. The hard part may emerge from that thread.
 
-**Bomb rule:** If an answer introduces a major new dimension, it becomes the new thread. It replaces the next planned question, it doesn't add one. Only explore the bomb if it would materially change the context block.
+**When to stop vs. when to keep going:** Always follow the strongest unresolved thread in the user's last answer. If no thread can meaningfully reduce uncertainty about the problem, stop — even if the sufficiency test hasn't fully passed. A deep conversation with gaps produces better explore output than a forced topic change. If a new dimension appears in an answer, it naturally becomes the next thread. If the user's answer is a dead end (fully resolved, nothing unresolved), check sufficiency — if met, stop. If not, bridge from their endpoint: "If Dynamo's working, where's the friction showing up for you?" — continuity from their words, not a protocol pivot.
 
-### Coverage Audit (post-hoc — consult AFTER writing each question)
-
-After drafting your next question, check which of these territories the user's answers have covered so far. This is a **checklist you consult silently**, not a sequence you follow.
-
-| Territory | Satisfied when context block can populate... | Notes |
-|---|---|---|
-| **Topic + trigger** | PROBLEM (one sentence) | Usually covered by initial input. If not, your first question handles it. |
-| **Stakes** | THE TENSION (core tradeoff) | What's the win, cost, or risk? Stakes questions are exempt from the "no hypotheticals" rule — they're forward-looking by design. Watch for therapy-drift: match the user's exact directness level. |
-| **Constraints + attempts** | CONSTRAINTS (2+ bullets), SITUATION (3+ bullets) | What they've tried, what blocks them, what's off the table. If they mention conflicting success criteria, surface the conflict. Optional sub-probes (max ONE per question): stakeholder opinions, team alignment, deadline pressure, source verification. |
-| **Assumption challenge** | ASSUMPTIONS TO CHALLENGE (1+ items) | State their implicit assumption and challenge it in one fluid sentence — frame and question as one motion. Pick the weakest assumption: if they named a solution, challenge the problem definition; if binary framing, challenge the frame; if a constraint seems fixed, test it. Must be covered in every non-skip path. |
-| **Implicit signals** | Any gap the user keeps circling but hasn't named | If the user keeps returning to a theme without stating it directly, pick up that thread. This is not a separate question type — it's thread-and-steer applied to implicit signals. |
-
-**If a territory is uncovered and no thread bridges to it:** Stay on the user's active thread and go deeper — a genuine follow-up that deepens existing territory beats a forced bridge to new territory. If a territory remains uncovered after all questions, compose the context block with "Not elicited" for that section. A visible topic change is worse than a missing territory.
-
-**Never announce transitions.** No "Now let me ask about constraints." No "One more thing I want to explore." No "Before I synthesize this." The question itself is the transition.
-
-### Final Recap (replaces checkpoint)
-
-When the sufficiency test is met, your response to the final answer expands into a correction invite — same length and register as any other recap. Pick up the thread from the final answer, name the core tension using their words, and end with a question that invites correction without signaling completeness. Do not summarize all constraints or the full situation — that's what the context block is for. The user should experience this as another follow-up, not a summary.
-
-The final recap must pass the same 7-point register self-check as every other message. If the user spoke in fragments, the recap is fragments.
-
-**Rules:**
-- Do not introduce new analysis or recommendations.
-- If the user corrects the framing, revise the context block once, then proceed.
-- If the user says nothing substantive or confirms, proceed immediately.
-- Maximum one revision pass. If the user introduces substantially new information, incorporate it but do not re-open intake.
-
-**Checkpoint rules:**
-- Do not introduce new analysis or recommendations.
-- If the user corrects the framing, revise the context block once, then proceed.
-- If the user says nothing substantive or confirms, proceed immediately.
-- Maximum one revision pass. If the user introduces substantially new information at the checkpoint, incorporate it into the context block but do not re-open intake.
+**After the last question:** The last intake question is asked exactly like any other turn. After the user answers, explore runs. If the user volunteers a correction, absorb it in one phrase and proceed. Maximum one correction pass. Do not add a closing move, a summary, or an acknowledgment. Do not re-open intake.
 
 ### Delivery Rules
 
 These rules govern how questions are asked:
 
 1. **One question per message.** Never batch.
-2. **Show you tracked it and bridge to the next question (A4).** Every message after Q1 must start with a recap that proves you listened AND sets up the next question. **Match the user's register:** if they write in fragments, recap in fragments; if they write paragraphs, recap in 1-2 sentences. Never recap at greater length than the user's answer. **The recap must bridge, not echo:** add one inference or name one pattern that makes the next question a natural follow-on — but state the inference at the user's vocabulary and complexity level. If they listed facts without connecting them, connect using their words, not analytical framing. BAD: "So the CI bottleneck is cascading into team morale." GOOD: "CI's 40 min and the team's frustrated about it." A recap that just restates creates a flat moment before the register shifts.
-   - **Register calibration:** The user's most recent substantive answer sets the register for your next response. Calibrate vocabulary, sentence length, and formality from their latest text — not locked to Q1. *(Pass 1: R2)*
-   - **Anti-pattern (recap mentor drift):** The LLM's default recap voice drifts warmer/wiser than the user's register. BAD: "That's a really interesting tension between growth and sustainability." GOOD: "Growth vs. sustainability — got it." BAD: "It sounds like you're navigating a complex situation with multiple stakeholders." GOOD: "Board wants speed, eng team wants to build — got it." *(Pass 1: R1)*
-   - **High-volume answers:** For dense, multi-paragraph answers, the recap does the prioritization work. Name the one or two threads that matter most and let the rest go. Do not ask the user to repeat or simplify. When compressing, preserve the user's sentence structure and vocabulary — compress by selecting their phrases verbatim, not by rewriting in cleaner form. *(Pass 1: A1)*
-3. **Short messages, one motion (A10).** Message length should roughly match the user's last substantive answer in density — 1-4 sentences or fragments as needed. The recap and question are one motion — the recap's final clause should flow into or set up the question. Do not write a recap paragraph, then a separate question. BAD: "Deploy speed is the bottleneck. Team's stretched. What have you tried so far?" GOOD: "Deploy speed's the bottleneck and the team's stretched — so what have you tried?" Do not expand a fragmentary user into a multi-sentence interviewer. *(Pass 1: CB3)*
-4. **No hypotheticals when a past-anchored version is available.** Rewrite "What would you..." to "What did you..." or "What's the..." Exceptions: Stakes territory is inherently future-oriented — this is by design. Assumption challenge (premise challenge, perspective shift) is also exempt — reframing requires hypothetical framing. *(Pass 1: SP3)*
+2. **Show you tracked it (A4).** Write each post-Q1 turn as a single question. If using the user's exact phrase inside the question makes it sound more connected, include it — but never compose a recap first and then add a question. Recap is optional; continuity is mandatory. If any recap would sound more polished than the user's words, skip it and ask the question directly. Default to the user's exact phrase over inference.
+   BAD: "So the CI bottleneck is cascading into team morale." BETTER: "What have you tried on the 40-min deploy thing?" (their phrase embedded in the question). *(Pass 1: R2, R1, A1)*
+   - **High-volume answers:** Name the one or two threads that matter most and let the rest go. When compressing, select the user's phrases verbatim — don't rewrite in cleaner form.
+3. **Short messages, one motion (A10).** Every post-Q1 question must connect to the user's last answer — preferably with one exact phrase when that sounds natural. If exact reuse would sound stilted, preserve the meaning in their register instead. This is a continuity signal, not a recap. BAD: "Deploy speed is the bottleneck. Team's stretched. What have you tried so far?" (two-step: recap then question). GOOD: "The 40-min deploy thing — what have you tried?" (their phrase + question, one motion). Use a recap clause only when the user's answer was long enough that the connection would be unclear without it — and even then, the recap must use their vocabulary. Do not expand a fragmentary user into a multi-sentence interviewer. *(Pass 1: CB3)*
+4. **No hypotheticals when a past-anchored version is available.** Rewrite "What would you..." to "What did you..." or "What's the..." Exceptions: future-oriented questions about stakes and consequences are inherently hypothetical — this is by design. Premise challenge and perspective shift questions are also exempt — reframing requires hypothetical framing. *(Pass 1: SP3)*
 5. **Do not solve during intake.** Do not offer recommendations, plans, or answer fragments while eliciting.
-6. **Push once if vague.** If an answer is vague, push once for specifics: "You said [their word]. Can you be specific — a name, a number, a date?" Maximum 1 push per question; then accept and move on.
-7. **No progress cues.** Do not signal how many questions remain — no "couple more," "last one," or "almost there." These leak protocol structure. If the user is getting impatient (answers shrinking), shorten recaps and ask the single highest-leverage remaining question. If the user explicitly asks "how many more questions?" you may say "one or two more" — otherwise, never signal count awareness.
-8. **Name contradictions directly.** If a user's answer contradicts a prior answer, name it: "Earlier you said [X], now you're saying [Y] — which one's right?" Contradictions are data quality issues. Surface them, get the correction, move on. *(Pass 3)*
+6. **Push once if vague — but only when the vagueness hides a critical gap.** If the implication is obvious from context, infer it and move on. Only push when the vagueness hides something that would change the explore output. Push by making the vague thing concrete in one move — restate it as a specific assumption, give two concrete options, or ask for a recent instance. Use whatever form fits the thread. Maximum 1 push per question; then accept and move on.
+7. **No progress cues.** Do not signal how many questions remain — no "couple more," "last one," or "almost there." These leak protocol structure. If the user is getting impatient (answers shrinking), shorten recaps and ask the single highest-leverage remaining question. If the user explicitly asks "how many more questions?" answer truthfully but loosely: "Probably one more." Then ask the next question immediately in the same message.
+8. **Name contradictions only when material.** If a contradiction changes the tension or a critical constraint, phrase the next question from the latest answer outward: "Earlier it sounded like [prior phrase], now it sounds like [current phrase] — which one's more true right now?" If the contradiction is minor, silently use the most recent version and don't break flow. *(Pass 3)*
 9. **Thread-and-steer.** Each question must feel like the obvious follow-up to what the user just said — not like the next item on a checklist. The recap IS the bridge. One motion, not two steps.
-   - **Principle:** From the user's last answer, identify the strongest unresolved thread that would materially change the explore output. Pick up that thread using their exact phrase, extend it with one inference, and land on a question. After writing it, run the coverage audit to check which territory it satisfies.
-   - **Thread selection:** When an answer has 3+ threads, pick the one with the most unresolved energy and extend only that one. Do not summarize all threads.
-   - **Forward coverage:** If the user's answer already covers a territory, don't re-ask it. Never re-ask territory the user has already covered, even if it arrived out of the expected order.
-   - **No bridge needed:** If no thread connects to uncovered territory, stay on the user's active thread and go deeper. A genuine follow-up that deepens existing territory beats a forced bridge to new territory. If a territory remains uncovered after all questions, compose the context block with "Not elicited" for that section.
+   - **Principle:** Step 1: Run the sufficiency test. If it passes, stop — do not draft or send another question. Transition to explore. Step 2: If it fails, write your next question using ONLY the user's last answer — pick up the strongest unresolved thread, use their exact phrase, and land on a question. The sufficiency test runs before drafting, not after. This prevents asking a question you don't need the answer to.
+   - **Thread selection:** When an answer has 3+ threads, pick the one the user spent the most words on, ended on, or returned to after leaving. If they circled back to something, that's the thread. If they ended on something new, that's the thread. Do not summarize all threads. Exception: if another unresolved point is clearly more decision-critical AND can be reached with a natural lexical bridge from the user's last answer, take that bridge instead.
+   - **Forward coverage:** If the user's answer already covers something, don't re-ask it. Never re-ask ground the user has already covered, even if it arrived in a different order than you expected.
+   - **No bridge needed:** If no thread connects to new ground, stay on the user's active thread and go deeper. A genuine follow-up that deepens what's already there beats a forced bridge to something new. Stay on the same thread as long as each follow-up yields new, decision-relevant information. When the user's answers get shorter, more repetitive, or stop opening new uncertainty, the thread is exhausted — check sufficiency. If not met, look for an unresolved thread in the user's most recent answer first; only reach back to earlier answers if the most recent has nothing unresolved.
+   - **Coverage blindness test:** After writing your next question, check: would you have asked this exact question if the context block template didn't exist? If the question is motivated by a gap in the template rather than an unresolved thread in the user's answer, rewrite to follow the thread.
+   - **Topic shift:** If the user's answer shifts to a fundamentally different problem, follow the new thread for one question. If their next answer confirms the shift, treat the new problem as the primary thread and continue thread-and-steer. Do not announce a restart or repeat earlier questions. If their next answer returns to the original topic, continue as before. Do not ask "do you want to talk about X instead?" — just follow the thread.
    - **Naturalness test:** Does this question still make sense as a follow-up to what they just said? If not, rewrite.
-   - **Never announce transitions.** No "Now let me ask about constraints." No "One more thing I want to explore." No "Before I synthesize this." The question itself is the transition. Do not use territory labels (constraints, stakes, assumptions) in your questions.
+   - **Shape test:** Write the next question so it could plausibly have been said by a human who just read that exact answer. If it couldn't, rewrite.
+   - **Never announce transitions.** No "Now let me ask about constraints." No "One more thing I want to explore." No "Before I synthesize this." The question itself is the transition. Do not use analytical labels (constraints, stakes, assumptions, dimensions) in your questions — those are composition vocabulary, not conversation vocabulary.
 
 ## Design: The Context Composition
 
@@ -339,7 +309,7 @@ THE TENSION:
 [One to two sentences: the core tradeoff or uncertainty. Derived from the gap between what they want and what's blocking them.]
 
 ASSUMPTIONS TO CHALLENGE:
-- [Assumptions surfaced in Slot 4 or inferred from answers]
+- [Assumptions surfaced during intake or inferred from answers]
 - [Things the user is taking as given that might not be]
 - [Use "None surfaced" if no assumption was identified]
 
@@ -356,6 +326,8 @@ DIMENSIONS:
 
 ### Composition Rules
 
+*These rules govern the context block only — a non-user-facing artifact consumed by the explore engine. User-facing recaps follow the Voice & Register rules, not composition rules. Never apply compression logic to spoken recaps.*
+
 1. **Target 200-500 tokens.** Cut anything that does not help the model generate a genuinely different direction.
 2. **Strict ordering.** Problem first, dimensions last. Facts and constraints in the middle.
 3. **Preserve exact words for The Tension.** Compress facts freely, but keep the user's language for the core tradeoff where possible.
@@ -367,8 +339,14 @@ DIMENSIONS:
 7b. **Assumption status tagging.** In ASSUMPTIONS TO CHALLENGE, tag each assumption: "[reframed]" if challenged and acknowledged during intake, "[untested]" if surfaced but not probed. Downstream consumers need to know which assumptions are still load-bearing. *(Pass 1: T9)*
 8. **Skip-path composition.** When intake is skipped: populate PROBLEM from the initial input; mark SITUATION and CONSTRAINTS as "Inferred from input — not validated"; include ASSUMPTIONS TO CHALLENGE if any assumption can be responsibly inferred from the input, otherwise mark "Not elicited — intake skipped"; derive DIMENSIONS and THE TENSION from the input alone. Flag the entire block: "⚠ Composed without intake — lower confidence on tension and constraints."
 9. **Weight substance, not signals.** Judge answer importance by content, not by phrasing like "I'll be honest" or "the real issue is." If the content is load-bearing, it goes in THE TENSION regardless of how they framed it.
-10. **Checkpoint user signal.** If the user adds a specific request at the checkpoint ("I especially want to explore X"), incorporate it as a direction constraint or emphasis in the context block. This is not a new intake question — it's refinement of the existing understanding. *(Pass 1: CB2)*
+10. **Late user priority.** If the user spontaneously adds a priority or correction in their last intake answer ("I especially want to explore X"), incorporate it as a direction constraint or emphasis in the context block. This is not a new intake question — it's refinement of the existing understanding. *(Pass 1: CB2)*
 11. **When inputs contradict, use the corrected version.** If the user corrected themselves during intake, use their final answer. Note the original version in ASSUMPTIONS TO CHALLENGE only if the contradiction reveals an untested assumption (e.g., they assumed a constraint existed that doesn't). Don't preserve contradictions for their own sake.
+12. **Coverage tagging (runs once during composition, not during intake).** After intake is complete, map what was covered to context block sections. This is a post-hoc formatting guide — it tells you what to populate and what to mark as inferred. It is NOT a checklist for generating questions.
+   - PROBLEM populated → topic and trigger were covered
+   - THE TENSION populated → stakes were covered
+   - CONSTRAINTS + SITUATION populated → constraints and prior attempts were covered
+   - ASSUMPTIONS TO CHALLENGE populated → assumptions were surfaced or can be inferred
+   Sections marked "Not elicited" are normal — they indicate the conversation naturally focused elsewhere. A context block with 3 strong sections and 2 "Not elicited" markers produces better explore output than 5 shallow sections from forced questions. If assumptions weren't challenged conversationally, infer them from the user's answers and tag as "Not elicited — inferred."
 13. **Post-output feedback loop.** If the user provides feedback after seeing explore output ("this missed X," "direction 2 is off," "I already knew this"), the feedback maps back to the context block — not to a new intake. Adjust THE TENSION or DIMENSIONS based on the feedback, then re-run explore with the adjusted block. Do not re-open intake questions. Maximum one re-run. *(Pass 3: adversarial)*
 
 ### How Context Block Maps to Explore Prompts
@@ -398,13 +376,13 @@ These rules govern the explore output that the intake feeds into:
 
 | Change | Current (v5) | Proposed (v6) |
 |---|---|---|
-| Question structure | Free-form question bank | Thread-and-steer from user's answers + post-hoc coverage audit |
+| Question structure | Free-form question bank | Thread-and-steer from user's answers, coverage tagging during composition only |
 | Track-specific questions | Separate fixed questionnaires per track (`preflight-tracks.md`) | Eliminated — domain variation via thread-and-steer within universal intake |
-| Recap before next question | Not required | Mandatory before every post-Q1 question |
-| Question count | Unspecified | Sufficiency-based exit with 4-tier clarity guide for rough ceiling |
-| Assumption surfacing | Not structured | Coverage audit requires assumption challenge + `ASSUMPTIONS TO CHALLENGE` context section |
+| Continuity before next question | Not required | Required — via lexical pickup, presupposition, or direct continuation |
+| Question count | Unspecified | Sufficiency-based exit: stop when another question wouldn't materially improve explore output |
+| Assumption surfacing | Not structured | Composition requires `ASSUMPTIONS TO CHALLENGE` section — infer from answers if not surfaced conversationally |
 | Skip path | Not defined | Explicit: 0 questions, inferred composition, flagged block |
-| Confirmation checkpoint | Exists but format unspecified | Final recap: same length as any other, names tension, invites correction |
+| Final response | Exists but format unspecified | Same thread-and-steer as every other turn; no separate confirmation move |
 | Context block format | No token budget, no item limits | 200-500 token target, per-section item limits |
 | Anti-solutioning rule | Implicit | Explicit structural prohibition during intake |
 
@@ -418,16 +396,16 @@ These rules govern the explore output that the intake feeds into:
 ## Failure Modes to Guard Against
 
 1. **The Righting Reflex** — AI jumps to solving before intake is complete. Defense: structural rule prohibiting solutions during intake.
-2. **The Interrogation Trap** — Rapid-fire questions without tracking. Defense: mandatory recap before every question after Q1.
-3. **Premature Specificity** — Starting with narrow questions before understanding the landscape. Defense: opening question is broad unless skipped because the input is already specific.
+2. **The Interrogation Trap** — Rapid-fire questions without tracking. Defense: required continuity signal (lexical pickup, presupposition, or direct continuation) before every question after Q1.
+3. **Premature Specificity** — Starting with narrow questions before understanding the landscape. Defense: the first question follows the strongest thread in the user's input. If the input is vague, the strongest thread is naturally broad.
 4. **Reframing the User's Language** — Translating their words into AI/consultant vocabulary. Defense: use their exact words, not abstractions.
 5. **Over-asking on Clear Questions** — Forcing 5 questions when 2 would suffice. Defense: clarity classification decision rule.
-6. **Under-asking about Implementation and Blind Spots** — AI's documented blind spot. Defense: assumption challenge territory must be covered in every non-skip path.
+6. **Under-asking about Implementation and Blind Spots** — AI's documented blind spot. Defense: during composition, if no assumption was surfaced during intake, infer one from the user's framing and tag it "[untested]."
 7. **Register Drift** — The LLM's RLHF-trained default voice bleeds through as warm, comprehensive recaps that don't match the user's register. Defense: 6-feature mirroring checklist extracted from user's actual text. Anti-patterns. Self-check on every message.
 8. **Context Block Too Verbose** — Narrative padding diluting signal. Defense: strict 200-500 token target, no-padding composition rules, and explicit item-count limits per section.
-9. **Socratic Fatigue** — Every question becoming a philosophical challenge. Defense: mix direct factual questions (constraints territory) with reframing questions (assumption challenge territory).
+9. **Socratic Fatigue** — Every question becoming a philosophical challenge. Defense: mix direct factual questions ("what have you tried?") with reframing questions ("what if the constraint isn't capacity?"). Thread-and-steer naturally produces this mix.
 10. **Empty Context on Skip** — User skips intake and the context block is blank or malformed. Defense: skip-path composition rules with explicit inference flags.
-11. **Confirmation Drift** — The confirmation checkpoint becomes another elicitation round. Defense: one checkpoint message, one revision pass maximum, then run explore.
+11. **Confirmation Drift** — The final response becomes another elicitation round. Defense: one revision pass maximum if the user corrects, then run explore.
 12. **Static Under-Classification** — Well-specified input hides organizational complexity; static classification under-asks. Defense: mid-intake escalation rule (A1) — add one slot if an answer reveals a major new dimension.
 13. **Solution-as-Problem Framing** — User presents a solution as the topic, looking well-specified but hiding the real problem. Defense: solution-as-input classification rule (A2) — classify one tier vaguer.
 14. **Contradictory Inputs** — User gives conflicting information across answers. Defense: Delivery Rule #8 — name it, ask which is right, use the corrected version. *(Pass 3)*
@@ -437,7 +415,7 @@ These rules govern the explore output that the intake feeds into:
 ## Recommendations
 
 1. **Rewrite `config/prompts/preflight-adaptive.md` to v6.**
-   Enforce thread-and-steer as the single question-generation principle, delivery rules (including mandatory recap before every post-Q1 question), coverage audit as post-hoc territory check, skip-path behavior with flagged composition, and strict 200-500 token composition limits for the context block. The prompt must enforce sufficiency-based exit (not slot counting) and must prohibit solutioning during intake.
+   Enforce thread-and-steer as the single question-generation principle, delivery rules (including continuity signal before every post-Q1 question), coverage tagging during composition only (not during intake), skip-path behavior with flagged composition, and strict 200-500 token composition limits for the context block. The prompt must enforce sufficiency-based exit (not question counting) and must prohibit solutioning during intake.
 
 2. **Delete `config/prompts/preflight-tracks.md`.**
    Replace fixed track-specific question sets with the adaptive slot model. Domain-specific variation happens through slot selection and phrasing within the universal sequence, not through separate fixed questionnaires.
@@ -445,11 +423,11 @@ These rules govern the explore output that the intake feeds into:
 3. **Update `.claude/skills/explore/SKILL.md` Step 3a.**
    Make Step 3a explicitly enforce:
    - one question per message,
-   - recap before every post-Q1 question,
+   - lexical-anchor continuity before every post-Q1 question,
    - thread-and-steer as the only question-generation principle,
-   - coverage audit as post-hoc check (not question generation),
-   - assumption challenge territory covered in every non-skip path,
-   - sufficiency-based exit with final recap as invisible correction invite.
+   - coverage tagging during composition only (not during intake),
+   - assumption challenge inferred during composition if not surfaced during intake,
+   - sufficiency-based exit with final response stating understanding as fact.
 
 4. **Add `ASSUMPTIONS TO CHALLENGE` to the context block format.**
    This section must appear in `preflight-adaptive.md` and must map into explore divergence behavior — specifically, it feeds the premise-challenge direction (Direction 3 in explore-diverge.md). Update explore-diverge.md to consume this section.
@@ -460,13 +438,13 @@ These rules govern the explore output that the intake feeds into:
    - moderate: 3-4 questions,
    - ambiguous: 4-5 questions,
    - explicit skip: 0 questions.
-   The sufficiency test (PROBLEM + TENSION + 2+ SITUATION + 3-4 DIMENSIONS) overrides the count — finish early if you have enough, extend by one if a major dimension surfaces late.
+   The sufficiency test ("Is there still a major gap that would make explore output generic?") overrides the count.
 
 6. **Run an end-to-end `/explore` verification with a real prompt.**
    Use one prompt from each non-skip clarity tier (well-specified, moderate, ambiguous). Success criteria per run:
    - intake exits via sufficiency test, not by counting to a target,
    - the generated context block is ≤500 tokens,
-   - an outside observer reading the transcript cannot identify where one territory ends and another begins,
+   - an outside observer reading the transcript cannot identify where one topic ends and another begins,
    - the 3 generated directions structurally diverge along THE TENSION axis: no two directions take the same position on the primary tradeoff. Verify by checking that each direction's stance on THE TENSION can be stated in one sentence and that no two stances are paraphrases of each other.
 
 ## Persona Test Validation
@@ -474,12 +452,12 @@ These rules govern the explore output that the intake feeds into:
 ### Round 1 (6 personas)
 6-persona simulated test (see `tasks/explore-intake-test-findings.md`). Tested all 3 non-skip clarity tiers across engineering, career, product strategy, organizational, startup, and M&A domains.
 
-**Aggregate score: 4.7/5.** 10 protocol amendments (A1-A10) applied above, marked inline with amendment IDs. Key validated strengths: Slot 4 assumption challenge, push-once rule, one-question-per-message pacing, context block template. Post-test tone pass applied: stripped therapy/coaching register, rewrote to sharp PM/VC voice.
+**Aggregate score: 4.7/5.** 10 protocol amendments (A1-A10) applied above, marked inline with amendment IDs. Key validated strengths: assumption challenge, push-once rule, one-question-per-message pacing, context block template. Post-test tone pass: stripped therapy/coaching patterns, rewrote to match observed user text features only.
 
 ### Pass 1: Realism (9 personas, product-building-focused)
 9-persona test against the amended protocol (see `tasks/explore-intake-pass1-findings.md`). Focused on the actual audience: product builders, founders, VCs, engineers, CTOs. De novo products, feature scoping, enhancement/rebuild, portfolio strategy, research.
 
-**Result: 9/9 "would come back."** Scores: challenge 4.9/5, Q count 5.0/5, register 4.3/5 (→ 4.5 after Voice & Register section), flow 4.4/5. 22 additional amendments applied above, marked with "Pass 1:" tags. Key additions: binary decision classification (SP1), Slot 2 risk variant (S2-1), Slot 3 stakeholder/alignment/clock probes (P1/P5/P3), Slot 4 stuck/exploring distinction (A3), Slot 5 bomb rule (SP2), recap anti-pattern examples (R1), Slot 4 hypothetical exemption (SP3), relative progress cues (SP4).
+**Result: 9/9 "would come back."** Scores: challenge 4.9/5, Q count 5.0/5, register 4.3/5 (→ 4.5 after Voice & Register section), flow 4.4/5. 22 additional amendments applied above, marked with "Pass 1:" tags. Key additions: binary decision classification (SP1), risk variant (S2-1), stakeholder/alignment/clock probes (P1/P5/P3), stuck/exploring distinction (A3), bomb rule (SP2), recap anti-pattern examples (R1), hypothetical exemption (SP3), relative progress cues (SP4).
 
 ### Register Re-test (superseded)
 Previous register testing used style-archetype personas (Terse/Verbose/Analytical/Energetic). This was circular — tested the taxonomy, not the protocol. Replaced by feature-based mirroring approach and cross-model evaluation (Pass 5).
