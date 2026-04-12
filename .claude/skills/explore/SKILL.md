@@ -77,7 +77,7 @@ Capture the output. If the search succeeds, append it to PREFLIGHT_CONTEXT:
 PREFLIGHT_CONTEXT += "\n\nRESEARCH CONTEXT:\n" + <research output>
 ```
 
-If PERPLEXITY_API_KEY is not set or the search fails: proceed without research context. Do not block the explore run. Do not narrate this step to the user.
+If PERPLEXITY_API_KEY is not set or the search fails: fall back to Claude's built-in WebSearch tool. Run 1-2 targeted web searches on the user's question, capture key facts, and append them to PREFLIGHT_CONTEXT as `RESEARCH CONTEXT`. If WebSearch is also unavailable, proceed without research context. Do not block the explore run. Do not narrate this step to the user.
 
 ### Step 4: Run explore
 

@@ -1237,16 +1237,27 @@ def cmd_verdict(args):
     results = {}
     all_warnings = []
 
-    for label, model in mapping.items():
+    def _run_verdict(label, model):
         print(f"Calling {label} for verdict...", file=sys.stderr)
         try:
             response = _call_litellm(model, system_prompt, resolution, litellm_url, api_key)
-            results[label] = response
+            return label, response, None
         except LLM_SAFE_EXCEPTIONS as e:
             msg = f"Challenger {label} ({model}): {e}"
             print(f"WARNING: {msg}", file=sys.stderr)
-            results[label] = f"[ERROR: {msg}]"
-            all_warnings.append(msg)
+            return label, f"[ERROR: {msg}]", msg
+
+    # Run verdicts in parallel — each hits an independent model API.
+    with concurrent.futures.ThreadPoolExecutor(max_workers=len(mapping)) as pool:
+        futures = {
+            pool.submit(_run_verdict, label, model): label
+            for label, model in mapping.items()
+        }
+        for fut in concurrent.futures.as_completed(futures):
+            label, response, warning = fut.result()
+            results[label] = response
+            if warning:
+                all_warnings.append(warning)
 
     successful = sum(1 for v in results.values() if not v.startswith("[ERROR:"))
     if successful == 0:

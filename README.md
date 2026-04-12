@@ -176,7 +176,7 @@ Powers the `/research` skill — deep, sourced web research with citations. Two 
 PERPLEXITY_API_KEY=pplx-...
 ```
 
-**Fallback:** Without this, `/research` is unavailable and `/explore` skips research enrichment. Other skills are unaffected.
+**Fallback:** Without this, `/research`, `/explore`, `/elevate`, and `/design consult` fall back to Claude's built-in WebSearch tool for web research. If WebSearch is also unavailable, they proceed with Claude's training knowledge only. The core pipeline (`/challenge`, `/review`, `/ship`) never uses web search.
 
 ### Optional: Semantic Search (Ollama)
 

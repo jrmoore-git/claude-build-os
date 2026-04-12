@@ -1,5 +1,11 @@
 # Current State — 2026-04-11
 
+## ⚠ STALE — auto-captured session ended without /wrap-session
+**Auto-capture date:** 2026-04-11 20:05 PT
+**Files changed this session:** 5 files in .claude, scripts, tasks
+**WARNING:** The "Next Action" below may be outdated. Cross-check with `git log --oneline -10` and recent session-log entries.
+
+
 ## What Changed This Session
 - Explore intake protocol register+flow convergence via 6 rounds of cross-model evaluation (Rounds 12-17)
 - Register: converged to 4/5 across all 3 models (Claude, GPT, Gemini)

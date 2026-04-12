@@ -494,13 +494,29 @@ Same prompt run with full intake vs. raw input only, scored by blind evaluator.
 
 ### Pass 5: Cross-Model Evaluation + Persona Simulations
 
-**Pending.** Previous pass 5 used style-archetype personas (Terse/Verbose/Analytical/Energetic) — circular testing that validated the taxonomy, not the protocol. Replaced with:
+**Method:** Feature-based mirroring (6-feature extraction from actual text, no type classification) + thread-and-steer flow (single conversational principle, no slot-to-slot templates). Cross-model evaluation (Rounds 12-17) converged to 2/3+ consensus at 4/5 on both dimensions. Then 5 real-persona simulations run via Claude Opus 4.6.
 
-1. Feature-based mirroring (6-feature extraction from actual text, no type classification)
-2. Thread-and-steer flow (single conversational principle, no slot-to-slot templates)
-3. Real persona simulations (see below)
+**Cross-model evaluation (Rounds 12-17):**
+- Register: 3/3 consensus at 4/5 (Claude, GPT, Gemini) — Rounds 15-16
+- Flow: 2/3 consensus at 4/5 (Claude + Gemini; GPT oscillated 3-4) — Rounds 15-17
+- GPT's flow dissent: wants radically simpler protocol (one rule, zero sub-rules). Design-taste difference, not a fixable bug.
 
-Results will be populated after cross-model review-panel evaluation and 5-persona simulation.
+**5-persona simulation results:**
+
+| Persona | Style | Register | Flow | Register failure | Flow failure |
+|---------|-------|----------|------|------------------|--------------|
+| Elena, 38, Series B CEO | Shifts mid-conversation (decisive→uncertain) | 4/5 | 5/5 | Missed filler words ("honestly") she uses when uncertain | — |
+| Raj, 44, CTO | Dense technical, parentheticals, zero filler | 5/5 | 5/5 | — | — |
+| Kenji, 31, solo founder | Stream-of-consciousness, dashes, self-corrections | 4/5 | 5/5 | Interviewer too clean — missing scattered filler density | — |
+| Maya, 50, VP Product | Polished, numbered lists, corporate-formal | 4/5 | 4/5 | Didn't mirror numbered-list structural tic | Sufficiency should have fired after A4 — one question too many |
+| Dara, 27, first-time PM | Qualifiers, hedging, confidence bursts | 4/5 | 5/5 | One question slightly too polished/assertive for her register | — |
+| **Average** | | **4.2/5** | **4.8/5** | | |
+
+**Findings:**
+- Register 4/5 failures are all single-feature misses (filler density, structural tics, one over-confident question). No type-classification errors — the feature-based approach prevents them.
+- Flow 4/5 failure (Maya) is a sufficiency-test timing error, not a thread-following failure. All 5 personas had natural thread progression with no announced transitions.
+- Raj (densest technical register) scored 5/5 on both — the hardest register case is handled cleanly.
+- Elena (mid-conversation style shift) maintained flow through the shift — the protocol's "re-extract if user shifts by 2+ features" works.
 
 ## Sources (key references)
 

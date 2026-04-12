@@ -60,7 +60,11 @@ Check that `PERPLEXITY_API_KEY` is available before running. Read it from `.env`
 grep -q PERPLEXITY_API_KEY .env 2>/dev/null
 ```
 
-If missing, stop immediately: "BLOCKED: PERPLEXITY_API_KEY not found in .env. Add it and retry."
+If missing, fall back to WebSearch:
+
+> Perplexity API key not configured — falling back to Claude's built-in WebSearch. Results will be less comprehensive (no multi-source synthesis or citations), but still grounded in live web data.
+
+Use Claude's built-in WebSearch tool to research the question. Make 2-3 targeted searches, synthesize results, and write to `tasks/<topic>-research.md` in the same format as Perplexity output. Then skip to Step 5.
 
 **Deep mode (default):**
 

@@ -129,3 +129,13 @@ python3.11 scripts/debate.py pre-mortem \
 ```bash
 python3.11 scripts/debate.py check-models
 ```
+
+## Parallelism Rules (D13)
+
+**Never use 3× serial `review` calls when `review-panel` exists.** If you need 3 independent models to evaluate the same document, use `review-panel` (parallel via ThreadPoolExecutor). Using `review` 3 times serially costs 3× the wall-clock time for the same result.
+
+**Persona simulations are embarrassingly parallel.** When running N persona simulations against a protocol, launch all N as parallel Agent calls (or parallel `review-panel` personas). Never run them serially.
+
+**Stop on consensus.** When a cross-model evaluation loop reaches the target score (e.g., 3/3 models at 4/5), stop. Do not run additional rounds to chase edge-case improvements — the marginal value drops faster than the time cost rises.
+
+**What's inherently serial:** `refine` rounds (output N = input N+1), triage between eval rounds (human judgment on real issue vs. model taste). Don't try to parallelize these.
