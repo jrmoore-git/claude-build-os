@@ -1,22 +1,23 @@
 # Current State — 2026-04-11
 
 ## What Changed This Session
-- Built learning system health infrastructure: three-depth healthcheck (counts/targeted/full), differentiated /start vs /wrap checks
-- Created `scripts/lesson_events.py` — structured event logger + velocity metrics (avg resolution time, recurrence rate, stale rate)
-- Added auto-verify stale lessons via cross-model panel in healthcheck Step 5b
-- Added governance pruning with `Enforced-By:` tag convention on rule files
-- Fixed `/challenge` conservatism: added PROCEED-WITH-FIXES recommendation, implementation cost tags in challenger prompts, symmetric risk evaluation
-- Fixed L23: `--models` challenger path now applies security posture modifier
-- Improved `hook-stop-autocommit.py` with 10-minute dedup window (amends recent auto-commits instead of creating new ones)
-- Iterated explore intake eval harness to 5/5 persona passes, backported to production (parallel session)
+- Built discoverability infrastructure: natural language is now the primary interface, slash commands are power-user shortcuts
+- Created /guide skill (intent-based skill map organized by "I want to...")
+- Built hook-intent-router.py (UserPromptSubmit, 13 intent patterns, nag prevention, proactive /investigate on recurring errors)
+- Built hook-error-tracker.py (PostToolUse:Bash, passive observer, normalizes error signatures for recurrence detection)
+- Added natural-language-routing.md rule (18 intent-to-skill mappings + 8 proactive observation patterns)
+- Fixed 6 skills with broken YAML multiline descriptions (design, elevate, investigate, research, sync, think)
+- Updated README, getting-started, cheat-sheet, hooks docs for discoverability
+- Added L22 (YAML description format) and D16 (natural language routing architecture)
+- Parallel sessions also landed: healthcheck infrastructure, /challenge conservatism fix, explore intake v7
 
 ## Current Blockers
-- Gemini 3.1 Pro at daily quota limit (250 requests) — cross-model runs degraded to 2/3 challengers
+- None identified
 
 ## Next Action
-Test improved `/challenge` on a real new proposal to verify PROCEED-WITH-FIXES calibration works in practice.
+Test intent router and error tracker live in a fresh session to verify routing works end-to-end.
 
 ## Recent Commits
-fcb0498 [auto] Session work captured 2026-04-11 22:21 PT
-42768cf [auto] Session work captured 2026-04-11 22:04 PT
-606c8f7 [auto] Session work captured 2026-04-11 22:02 PT
+6a407c5 Fix recurring Write failures during /wrap — read-before-write adjacency rule
+66ef999 Session wrap 2026-04-11: healthcheck infrastructure + /challenge conservatism fix
+aa89a43 Session wrap 2026-04-11: explore intake v7 — 5/5 persona passes, backported to production

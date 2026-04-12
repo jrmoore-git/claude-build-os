@@ -1,37 +1,38 @@
 # Handoff — 2026-04-11
 
 ## Session Focus
-Built learning system health infrastructure and fixed `/challenge` conservatism — the system can now measure governance health and challenge doesn't over-defer trivially-fixable work.
+Built discoverability infrastructure so users never need to memorize skills — natural language routing with deterministic hooks, /guide skill, and YAML description fixes.
 
 ## Decided
-- Three healthcheck depths (counts/targeted/full) with differentiated /start vs /wrap checks
-- Structured event logging (`lesson-events.jsonl`) over git log parsing for velocity metrics
-- `Enforced-By:` tag convention in rule files for pruning redundancy detection
-- PROCEED-WITH-FIXES as new challenge recommendation between PROCEED and SIMPLIFY
-- Implementation cost tags (TRIVIAL/SMALL/MEDIUM/LARGE) required on all MATERIAL challenge findings
+- Natural language is the primary interface; slash commands are power-user shortcuts (D16)
+- Three-layer routing: advisory rule → deterministic intent hook → proactive error tracker
+- Hook-based routing is advisory (suggest, not block) — nag prevention via session-scoped tracker files
+- YAML multiline `|` in skill descriptions breaks Claude Code's `/` menu — use single-line quoted strings only (L22)
 
 ## Implemented
-- `scripts/lesson_events.py` — event logger + velocity metrics (seeded with 20 events)
-- Healthcheck SKILL.md: three depths, auto-verify, velocity metrics, pruning
-- Start/wrap SKILL.md: governance checks wired in
-- Challenge SKILL.md: proceed-with-fixes, cost assessment, symmetric risk
-- debate.py: IMPLEMENTATION_COST_INSTRUCTION, --models posture fix (L23)
-- hook-stop-autocommit.py: 10-min dedup window
-- Enforced-By tags on 4 rule files, security reference extraction
+- `hooks/hook-intent-router.py` — UserPromptSubmit hook, 13 compiled regex patterns, proactive /investigate on recurring errors
+- `hooks/hook-error-tracker.py` — PostToolUse:Bash hook, passive observer, error signature normalization
+- `.claude/skills/guide/SKILL.md` — intent-based skill map ("I want to...")
+- `.claude/rules/natural-language-routing.md` — 18 intent-to-skill mappings + 8 proactive patterns
+- Fixed YAML descriptions on 6 skills (design, elevate, investigate, research, sync, think)
+- Updated README, getting-started, cheat-sheet, hooks docs
+- Added L22, D16, wrap skill read-before-write rule
 
 ## NOT Finished
-- L13/L14/L15 staleness not verified (healthcheck only verified top 3: L10, L11, L16)
-- Live test of /challenge on a genuinely new proposal (re-test on learning-velocity confirmed improvement)
+- Live test of intent router in a fresh session (all 20/20 in unit tests, not yet exercised end-to-end)
+- Parallel session left: L13/L14/L15 staleness unverified, live /challenge test on new proposal
 
 ## Next Session Should
-1. Pick next BuildOS improvement area
-2. Optionally verify L13/L14/L15 staleness (healthcheck only checked top 3)
+1. Start a fresh session to test intent routing end-to-end (hook fires on real user messages)
+2. Optionally verify L13/L14/L15 staleness, test /challenge on a real proposal
 
 ## Key Files Changed
-scripts/debate.py, scripts/lesson_events.py, hooks/hook-stop-autocommit.py
-.claude/skills/healthcheck/SKILL.md, .claude/skills/challenge/SKILL.md
-.claude/skills/start/SKILL.md, .claude/skills/wrap/SKILL.md
-tasks/lessons.md, tasks/learning-velocity-*.md, stores/lesson-events.jsonl, CLAUDE.md
+hooks/hook-intent-router.py, hooks/hook-error-tracker.py
+.claude/skills/guide/SKILL.md, .claude/rules/natural-language-routing.md
+.claude/skills/{design,elevate,investigate,research,sync,think}/SKILL.md
+.claude/settings.json, CLAUDE.md, README.md
+docs/getting-started.md, docs/cheat-sheet.md, docs/hooks.md
+tasks/lessons.md (L22), tasks/decisions.md (D16)
 
 ## Doc Hygiene Warnings
 None
