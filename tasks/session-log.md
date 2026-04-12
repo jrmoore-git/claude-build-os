@@ -896,3 +896,24 @@ ended without running `/wrap`. Review and enrich in the next session.
 
 **Next Session:** Verify all 18 skills resolve in a fresh session, then wire explore intake into preflight-adaptive.md v6
 
+---
+
+## 2026-04-11 — Full doc audit: skill counts, dead refs, design pipeline
+
+**Decided:**
+- None (continuation of rename session)
+
+**Implemented:**
+- Corrected skill count 15→18 across 8 files (explore, pressure-test, audit were uncounted)
+- Replaced dead web_search.py refs with research.py in design + elevate skills and infrastructure.md
+- Removed obsolete You.com API section, replaced with Perplexity Sonar
+- Added 3 missing skills to README table (/research, /audit, /setup)
+- Wired /design consult + /design review as first-class pipeline stages for UI work
+- Fixed model roles in README (Claude=architect, not PM)
+- Updated all prose docs and task files with current skill names
+- Explore intake register matching refinements
+
+**Not Finished:** Fresh session verification; explore intake not wired to prompt files yet
+
+**Next Session:** Run /start in fresh session to verify all 18 skills resolve, then wire explore intake into preflight-adaptive.md v6
+

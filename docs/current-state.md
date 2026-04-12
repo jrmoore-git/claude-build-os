@@ -1,12 +1,15 @@
 # Current State — 2026-04-11
 
 ## What Changed This Session
-- Consolidated 25 skills to 18 with clean renames, merges, and deletions (no alias layer)
-- Updated all cross-references across 40+ files (skills, rules, docs, README, CLAUDE.md)
-- Added `--deep` flag to `/challenge` (absorbs old `/debate --validate`)
-- Added `--auto` flag to `/plan` (absorbs old `/autoplan`)
-- Created merged skills: `/start`, `/check`, `/design`, `/explore`, `/pressure-test`
-- Continued explore intake refinement (register mirroring, domain-agnostic dimensions)
+- Full documentation audit: corrected skill count from 15 to 18 across all docs (explore, pressure-test, audit were uncounted in the rename)
+- Replaced all web_search.py references with research.py (design SKILL.md, elevate SKILL.md, infrastructure.md)
+- Removed obsolete You.com API section from README and .env.example, replaced with Perplexity Sonar
+- Added /research, /audit, /setup to README skills table (were missing)
+- Wired /design consult and /design review into pipeline tier flows as first-class stages for UI work
+- Added Perplexity Sonar as optional dependency in README with model role explanations
+- Fixed model role assignments in README (Claude=architect, GPT=security+judge, Gemini=staff+PM)
+- Updated all prose docs and task files with current skill names from the 25→18 rename
+- Refined explore intake register matching (sentence length, message density)
 
 ## Current Blockers
 - None identified
@@ -15,6 +18,6 @@
 Verify the rename works end-to-end: start a fresh session, run `/start`, confirm all 18 skills resolve correctly and cross-references are clean.
 
 ## Recent Commits
-23bc40d Skill rename: remaining unstaged files (CLAUDE.md, README.md, hook, explore doc)
-9d24a2e [auto] Session work captured 2026-04-11 17:17 PT
-ea9770a Session wrap 2026-04-11: explore intake design (5-track routing, fixed questions)
+3c304a0 Explore intake: register matching refinements (sentence length, message density)
+dbb7e25 Fix remaining skill count in changelog (15→18)
+6ea0939 Capture debate log entries and explore intake refinements from earlier session work

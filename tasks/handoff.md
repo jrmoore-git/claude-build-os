@@ -1,34 +1,39 @@
 # Handoff — 2026-04-11
 
 ## Session Focus
-Executed the full 25→18 skill rename and restructure: renames, merges, flag additions, old directory deletions, and cross-reference updates across 40+ files.
+Full documentation audit and accuracy sweep after the 25→18 skill rename — fixed skill counts, replaced dead web_search.py references, wired design into pipeline flows, and pushed everything to GitHub.
 
 ## Decided
-- D12: Rip-and-replace with no aliases — solo user means zero backward-compat overhead
-- D11: Explore mode is domain-agnostic with adaptive dimensions (from earlier in session)
+- None (continuation of prior session's rename work)
 
 ## Implemented
-- 5 simple renames: define→think, refine→polish, wrap-session→wrap, capture→log, doc-sync→sync
-- 5 merged skills: recall+status→start, review+review-x+qa+governance→check, 4 design skills→design, debate explore→explore, debate pressure-test→pressure-test
-- challenge --deep flag (old debate validate), plan --auto flag (old autoplan)
-- 12 old directories deleted
-- All cross-references updated in rules, docs, README, CLAUDE.md, cheat-sheet
+- Corrected skill count 15→18 in 8 files (README, CLAUDE.md, changelog, current-state, handoff, session-log)
+- Replaced web_search.py→research.py in design SKILL.md (5 refs), elevate SKILL.md (3 refs), infrastructure.md
+- Removed obsolete You.com API section from README and .env.example
+- Added 3 missing skills (/research, /audit, /setup) to README skills table
+- Added Feature+UI pipeline tier with /design consult and /design review as first-class stages
+- Added Perplexity Sonar dependency section and cross-model "why it matters" explanation to README
+- Fixed model role assignments in README (were wrong for Claude)
+- Updated all prose docs (7 files) and task files (11 files) with current skill names
+- Explore intake register matching refinements
 
 ## NOT Finished
 - Fresh session verification that all 18 skills resolve correctly
-- Explore intake refinement not yet wired into actual prompt files (preflight-adaptive.md v6)
+- Explore intake not yet wired into actual prompt files (preflight-adaptive.md v6)
 
 ## Next Session Should
 1. Run `/start` in fresh session — verify skill resolution and cross-references
 2. Implement explore intake protocol into `config/prompts/preflight-adaptive.md` v6
-3. Run end-to-end test through `debate.py explore` with the new adaptive pre-flight
 
 ## Key Files Changed
-CLAUDE.md, README.md, docs/cheat-sheet.md, docs/infrastructure.md, docs/model-routing-guide.md
-docs/how-it-works.md, docs/hooks.md, docs/file-ownership.md
-.claude/rules/workflow.md, .claude/rules/review-protocol.md, .claude/rules/session-discipline.md
-.claude/skills/{think,polish,wrap,log,sync,challenge,plan,elevate,ship,check,research,setup}/SKILL.md
-hooks/hook-decompose-gate.py, tasks/explore-intake-refined.md
+README.md, CLAUDE.md, .env.example
+docs/changelog-april-2026.md, docs/current-state.md, docs/infrastructure.md
+docs/getting-started.md, docs/cheat-sheet.md, docs/review-protocol.md, docs/platform-features.md, docs/project-prd.md
+.claude/skills/design/SKILL.md, .claude/skills/elevate/SKILL.md
+.claude/rules/workflow.md
+tasks/handoff.md, tasks/session-log.md, tasks/decisions.md
+tasks/explore-intake-refined.md
+11 task artifact files (skill name updates)
 
 ## Doc Hygiene Warnings
-None — decisions.md updated with D12
+None
