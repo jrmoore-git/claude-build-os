@@ -38,7 +38,7 @@ python3.11 scripts/debate.py refine \
 
 Each stage is independently valuable — stop at the step that fails. Partial artifacts are valid.
 
-After `--deep`, suggest: "Build the implementation, then run `/check`"
+After `--deep`, suggest: "Build the implementation, then run `/review`"
 
 ## When to run
 

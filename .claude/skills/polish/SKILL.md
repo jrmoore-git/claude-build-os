@@ -10,7 +10,7 @@ user-invocable: true
 
 Use standalone on any input, or as the final phase of `/challenge --deep`.
 
-Defers to `/pressure-test` when you need adversarial pressure-testing. Defers to `/check` for post-implementation code review.
+Defers to `/pressure-test` when you need adversarial pressure-testing. Defers to `/review` for post-implementation code review.
 
 ## Procedure
 

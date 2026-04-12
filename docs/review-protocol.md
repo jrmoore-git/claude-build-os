@@ -43,7 +43,7 @@ A full adversarial pipeline that produces a refined specification. The flow is: 
 - `tasks/<topic>-judgment.md` -- the judge's ruling with rationale
 - `tasks/<topic>-refined.md` -- the refined spec incorporating the judgment
 
-### Stage 3: `/check` -- Is the implementation correct?
+### Stage 3: `/review` -- Is the implementation correct?
 
 Cross-model code review where three models examine the diff through independent lenses, each with a specific focus:
 - **Architecture:** System design, component boundaries, data flow, scaling, integration risks
@@ -55,9 +55,9 @@ Each reviewer tags quantitative claims with an evidence basis: **EVIDENCED** (ci
 **Spec compliance:** If `tasks/<topic>-refined.md` exists from a prior debate, the PM lens escalates to strict spec compliance. This includes **negative compliance** — extracting all EXCEPTION, MUST NOT, and EXPLICITLY EXCLUDED clauses from the spec and verifying the diff does not contradict them. Violations are tagged `[MATERIAL] SPEC VIOLATION:`.
 
 **Modes:**
-- `/check` — read-only findings report
-- `/check --fix` — after review, auto-fix mechanical issues and present judgment calls for approval
-- `/check --fix-loop` — automated fix → re-review cycle (max 3 iterations). Each iteration: apply fixes, re-run cross-model review. Stops when no material findings remain or after 3 iterations (whichever comes first). Escalates to manual review if findings persist.
+- `/review` — read-only findings report
+- `/review --fix` — after review, auto-fix mechanical issues and present judgment calls for approval
+- `/review --fix-loop` — automated fix → re-review cycle (max 3 iterations). Each iteration: apply fixes, re-run cross-model review. Stops when no material findings remain or after 3 iterations (whichever comes first). Escalates to manual review if findings persist.
 
 **When to run:** Every non-trivial change, before commit.
 
@@ -67,9 +67,9 @@ Each reviewer tags quantitative claims with an evidence basis: **EVIDENCED** (ci
 
 | Change type | Path |
 |---|---|
-| Bugfix | `/plan --skip-challenge` -> build -> `/check` -> `/ship` |
-| Small feature | `/challenge` -> `/plan` -> build -> `/check` -> `/ship` |
-| Architectural change | `/challenge` -> `/plan` -> `/challenge --deep` -> build -> `/check` -> `/ship` |
+| Bugfix | `/plan --skip-challenge` -> build -> `/review` -> `/ship` |
+| Small feature | `/challenge` -> `/plan` -> build -> `/review` -> `/ship` |
+| Architectural change | `/challenge` -> `/plan` -> `/challenge --deep` -> build -> `/review` -> `/ship` |
 
 ## The Cross-Model Debate Engine
 
@@ -137,7 +137,7 @@ A change is done when:
 - Audit log shows expected events
 - Rollback plan exists and has been documented
 - Negative tests have been run (what should NOT happen)
-- Review completed via `/check`
+- Review completed via `/review`
 
 ## Rule Enforcement
 

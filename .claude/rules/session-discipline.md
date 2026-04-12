@@ -43,7 +43,7 @@ Priority when context is low: 1. Session summary → 2. Phase review → 3. Impl
 
 Enforced by `scripts/hook-plan-gate.sh`. Protected paths require a `tasks/<topic>-plan.md` with valid YAML frontmatter (`scope`, `surfaces_affected`, `verification_commands`, `rollback`, `review_tier`, `verification_evidence`) before commit. Config: `config/protected-paths.json`. `[TRIVIAL]` blocked for protected paths; `[EMERGENCY]` allowed with warning.
 
-**Review requirement:** No commit without the appropriate review tier. See `.claude/rules/reference/review-protocol.md` for the 3-stage chain (`/challenge` → `/challenge --deep` → `/check`) and tier classification.
+**Review requirement:** No commit without the appropriate review tier. See `.claude/rules/reference/review-protocol.md` for the 3-stage chain (`/challenge` → `/challenge --deep` → `/review`) and tier classification.
 
 ## Verification
 - Never mark a task complete without proving it works

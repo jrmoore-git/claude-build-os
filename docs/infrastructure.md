@@ -14,7 +14,7 @@ Any recent Python 3 (3.9+) works. No third-party Python packages are required fo
 
 ### LiteLLM
 
-The cross-model debate engine (`/challenge`, `/challenge --deep`, `/check`) calls models from multiple provider families through a single API. LiteLLM is the routing layer that makes this possible. Scripts call LiteLLM's OpenAI-compatible API at `http://localhost:4000` via stdlib `urllib.request` — no pip install needed in your project.
+The cross-model debate engine (`/challenge`, `/challenge --deep`, `/review`) calls models from multiple provider families through a single API. LiteLLM is the routing layer that makes this possible. Scripts call LiteLLM's OpenAI-compatible API at `http://localhost:4000` via stdlib `urllib.request` — no pip install needed in your project.
 
 ```bash
 # Copy and configure

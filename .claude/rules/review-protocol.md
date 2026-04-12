@@ -34,7 +34,7 @@ Full adversarial pipeline: challenge -> judge -> refine. Produces a refined spec
 
 Output: `tasks/<topic>-debate.md`, `tasks/<topic>-judgment.md`, `tasks/<topic>-refined.md`.
 
-### Stage 3: `/check` -- Is the implementation correct?
+### Stage 3: `/review` -- Is the implementation correct?
 
 Cross-model code review. Three models review the diff through independent lenses (PM, Security, Architecture). If `tasks/<topic>-refined.md` exists, PM lens escalates to strict spec compliance.
 
@@ -55,16 +55,16 @@ Note: `/polish` also runs as the final phase of `/challenge --deep`. The standal
 
 ### Typical paths by change type
 
-- **Bugfix:** `/plan --skip-challenge` -> build -> `/check` -> `/ship`
-- **Small feature:** `/challenge` -> `/plan` -> build -> `/check` -> `/ship`
+- **Bugfix:** `/plan --skip-challenge` -> build -> `/review` -> `/ship`
+- **Small feature:** `/challenge` -> `/plan` -> build -> `/review` -> `/ship`
 - **Improve a plan/design:** `/polish` (standalone, no adversarial framing)
-- **Architectural change:** `/challenge` -> `/plan` -> `/challenge --deep` -> build -> `/check` (with spec compliance) -> `/ship`
+- **Architectural change:** `/challenge` -> `/plan` -> `/challenge --deep` -> build -> `/review` (with spec compliance) -> `/ship`
 
 ## Cross-Model Debate Engine
 
 Tool: `scripts/debate.py`. Run `debate.py --help` for full usage.
 
-Both `/challenge` and `/challenge --deep` invoke `debate.py`. The `/check` skill also uses it for cross-model code review.
+Both `/challenge` and `/challenge --deep` invoke `debate.py`. The `/review` skill also uses it for cross-model code review.
 
 Models: Claude Opus 4.6 (architect), Gemini 3.1 Pro (staff + PM), GPT-5.4 (security + judge). Refinement rotates all three (gemini -> gpt -> claude). Before judging, multi-challenger findings are automatically consolidated (deduplicated and merged with corroboration notes). Use `--no-consolidate` to skip consolidation.
 
@@ -72,7 +72,7 @@ Models: Claude Opus 4.6 (architect), Gemini 3.1 Pro (staff + PM), GPT-5.4 (secur
 
 ## Legacy Tier Classification
 
-`scripts/tier_classify.py` is used by the plan gate hook and `/ship` for protected path enforcement. `/check` no longer routes by tier -- it always runs cross-model review.
+`scripts/tier_classify.py` is used by the plan gate hook and `/ship` for protected path enforcement. `/review` no longer routes by tier -- it always runs cross-model review.
 
 **`[TRIVIAL]` bypass:** Include in commit message for typo/doc-only changes. Hook logs the bypass.
 
@@ -86,7 +86,7 @@ The essential eight invariants apply to every change: idempotency, approval gati
 
 ## Definition of Done
 
-Behavior matches spec. Tests pass. Audit log shows expected events. Rollback plan exists. Negative tests run. Review completed via `/check`.
+Behavior matches spec. Tests pass. Audit log shows expected events. Rollback plan exists. Negative tests run. Review completed via `/review`.
 
 ## Rule Enforcement
 

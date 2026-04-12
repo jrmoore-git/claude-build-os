@@ -130,11 +130,11 @@ Evaluate conditions **in order** — first match wins.
 | 3 | `tasks/<topic>-design.md` exists, no challenge artifact | Design ready | "`/challenge` before planning" |
 | 4 | Changed files introduce new abstraction/dependency | Scope expansion | "`/challenge` — new abstraction detected" |
 | 5 | Plan exists, touches protected paths, no plan file with valid frontmatter | Plan gate gap | "`/plan` — protected paths need a plan file" |
-| 6 | Multiple files edited (3+), no review artifact for current topic | Build in progress | "`/check` on this diff" |
-| 7 | Changes detected (1-2 files), no review artifact | Small build | "When ready: `/check`" |
+| 6 | Multiple files edited (3+), no review artifact for current topic | Build in progress | "`/review` on this diff" |
+| 7 | Changes detected (1-2 files), no review artifact | Small build | "When ready: `/review`" |
 | 8 | Review exists, status=passed | Ready to ship | "`/ship` to deploy" |
-| 9 | Review exists, status=revise | Findings to address | "N open findings. Address them, then `/check` again." |
-| 10 | Review exists, status=degraded | Degraded review | "`/ship` to deploy or `/check` to retry" |
+| 9 | Review exists, status=revise | Findings to address | "N open findings. Address them, then `/review` again." |
+| 10 | Review exists, status=degraded | Degraded review | "`/ship` to deploy or `/review` to retry" |
 | 11 | Recent deploy (deploy_all.sh ran today) | Post-ship | "`/sync` to update docs" |
 | 12 | No changes, no recent artifacts | Clean slate | "What are we building?" |
 
@@ -147,8 +147,8 @@ After the primary recommendation, append any matching suggestions:
 | No design doc for active topic | "`/think` would structure this" |
 | Design doc exists, no challenge artifact | "`/challenge` before `/plan`?" |
 | Plan exists, unstarted (no code changes since plan) | "Ready to build, or `/elevate` to check ambition?" |
-| Code changed since last review | "`/check` to validate" |
-| Diff touches protected paths | "`/check --qa` recommended" |
+| Code changed since last review | "`/review` to validate" |
+| Diff touches protected paths | "`/review --qa` recommended" |
 | Session long, context above 55% | "Consider `/wrap` soon" |
 | User's last message is an open question | "`/explore` to think across models" |
 | Strategy language ("should we", "thesis", "bet", "direction") | "`/pressure-test` for strategic challenge" |

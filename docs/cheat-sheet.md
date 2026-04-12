@@ -3,11 +3,11 @@
 
 ```
 SPIKE:       build
-BUGFIX:      /plan --skip-challenge → build → /check → /ship
-FEATURE:     /think refine → /plan → build → /check → /ship
-NEW FEATURE: /think discover → /challenge → /plan → build → /check → /ship
-FEATURE+UI:  /think discover → /design consult → /challenge → /plan → build → /design review → /check → /ship
-BIG BET:     /think discover → /elevate → /challenge → /plan → build → /check → /ship
+BUGFIX:      /plan --skip-challenge → build → /review → /ship
+FEATURE:     /think refine → /plan → build → /review → /ship
+NEW FEATURE: /think discover → /challenge → /plan → build → /review → /ship
+FEATURE+UI:  /think discover → /design consult → /challenge → /plan → build → /design review → /review → /ship
+BIG BET:     /think discover → /elevate → /challenge → /plan → build → /review → /ship
 ```
 
 If it has a UI, wire in `/design consult` (before plan) and `/design review` (before ship). Optional: `/polish` on any plan or design. `/challenge --deep` for architectural uncertainty. `/plan --auto` to auto-chain the full pipeline.
@@ -39,10 +39,10 @@ If it has a UI, wire in `/design consult` (before plan) and `/design review` (be
 | Refiner | `/polish` | 6-round cross-model improvement on any document |
 | Lead Eng | `/plan` | Write implementation plan with valid frontmatter |
 | Lead Eng | `/plan --auto` | Auto-detect tier, chain skills, surface taste decisions |
-| Reviewer | `/check` | Cross-model code review (PM + Security + Architecture) |
-| Reviewer | `/check --second-opinion` | Second opinion from a different model family |
-| Reviewer | `/check --qa` | Domain-specific QA validation |
-| Reviewer | `/check --governance` | Governance hygiene scan |
+| Reviewer | `/review` | Cross-model code review (PM + Security + Architecture) |
+| Reviewer | `/review --second-opinion` | Second opinion from a different model family |
+| Reviewer | `/review --qa` | Domain-specific QA validation |
+| Reviewer | `/review --governance` | Governance hygiene scan |
 | Release | `/ship` | Pre-flight gates (tests + review + verify) then deploy |
 | Release | `/sync` | Sync docs to match what shipped |
 | Research | `/research` | Deep web research via Perplexity Sonar |

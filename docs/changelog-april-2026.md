@@ -58,8 +58,8 @@ The cross-model debate engine (`debate.py`) got the most significant changes:
 | `/plan --auto` | Auto-detects pipeline tier from task description, chains skills with auto-decisions, surfaces taste decisions at final approval gate. |
 | `/design variants` | Generate multiple AI design variants, open comparison board, collect structured feedback, iterate. |
 | `/sync` | Cross-references git diff against all project docs. Fixes drift, polishes changelog voice, checks cross-doc consistency. |
-| `/check --governance` | Qualitative governance hygiene scan. |
-| `/check --qa` | Domain-specific QA validation. Go/no-go gate before `/ship`. |
+| `/review --governance` | Qualitative governance hygiene scan. |
+| `/review --qa` | Domain-specific QA validation. Go/no-go gate before `/ship`. |
 
 ## PRD Generation (Phase 6.5 of `/think discover`)
 

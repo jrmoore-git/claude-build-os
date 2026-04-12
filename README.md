@@ -49,18 +49,18 @@ flowchart LR
 | **Plan** | Lead Engineer | `/plan` (`--auto` for full pipeline) | Implementation plan — the *how* |
 | **Polish** | Cross-model panel | `/polish` | 6-round iterative improvement across 3 model families |
 | **Build** | Engineer | *(you + Claude Code)* | Working code against the plan |
-| **Check** | Cross-model panel | `/check` | Three models review through PM, Security, and Architecture lenses |
+| **Check** | Cross-model panel | `/review` | Three models review through PM, Security, and Architecture lenses |
 | **Ship** | Release Engineer | `/ship` | Pre-flight gates (tests, review, verify, QA) → deploy → post-deploy smoke |
 
 Not every task uses every stage. The framework scales with risk:
 
 | Task type | Pipeline |
 |---|---|
-| **Bugfix** | `/plan` → build → `/check` → `/ship` |
-| **Small feature** | `/think refine` → `/plan` → build → `/check` → `/ship` |
-| **New feature** | `/think discover` → `/challenge` → `/plan` → build → `/check` → `/ship` |
-| **New feature (UI)** | `/think discover` → `/design consult` → `/challenge` → `/plan` → build → `/design review` → `/check` → `/ship` |
-| **Big bet** | `/think discover` → `/elevate` → `/challenge` → `/plan` → build → `/check` → `/ship` |
+| **Bugfix** | `/plan` → build → `/review` → `/ship` |
+| **Small feature** | `/think refine` → `/plan` → build → `/review` → `/ship` |
+| **New feature** | `/think discover` → `/challenge` → `/plan` → build → `/review` → `/ship` |
+| **New feature (UI)** | `/think discover` → `/design consult` → `/challenge` → `/plan` → build → `/design review` → `/review` → `/ship` |
+| **Big bet** | `/think discover` → `/elevate` → `/challenge` → `/plan` → build → `/review` → `/ship` |
 
 **If it has a UI, design is not optional.** `/design consult` establishes the design system and visual direction before engineering begins. `/design review` runs visual QA with a 94-item checklist before shipping. `/design plan-check` rates implementation plans 0-10 on design completeness. `/design variants` generates multiple visual directions when you're exploring options. These aren't nice-to-haves — building a UI without a design system produces AI slop (purple gradients, 3-column feature grids, centered-everything layouts).
 
@@ -99,7 +99,7 @@ Skills that work out of the box: `/think`, `/elevate`, `/plan`, `/ship`, `/start
 
 ### Tier 2+: Cross-Model Review
 
-The `/challenge`, `/challenge --deep`, `/polish`, and `/check` skills send proposals to three different model families for independent review. Different model families disagree in useful ways — models from the same family tend to agree with each other (self-preference bias), so cross-family review produces stronger signals. When all three families flag the same concern, it's almost certainly real.
+The `/challenge`, `/challenge --deep`, `/polish`, and `/review` skills send proposals to three different model families for independent review. Different model families disagree in useful ways — models from the same family tend to agree with each other (self-preference bias), so cross-family review produces stronger signals. When all three families flag the same concern, it's almost certainly real.
 
 **You need:**
 
@@ -163,7 +163,7 @@ If `check-models` shows all three models as reachable, cross-model skills will w
 
 | Setup level | What works |
 |---|---|
-| **Claude Code + git only** | All skills except `/challenge` (cross-model), `/challenge --deep`, `/polish`, `/check`. Full governance framework, session management, planning, design, and shipping. |
+| **Claude Code + git only** | All skills except `/challenge` (cross-model), `/challenge --deep`, `/polish`, `/review`. Full governance framework, session management, planning, design, and shipping. |
 | **+ LiteLLM + API keys** | Cross-model review and refinement. Three models independently challenge, judge, refine, and review your work. |
 
 You can start at Tier 0 and add cross-model review later. The framework doesn't break without it — you just won't have multi-model review until you set it up.
@@ -185,7 +185,7 @@ PERPLEXITY_API_KEY=pplx-...
 Gives governance search semantic similarity matching for finding conceptually related lessons and decisions, even when they don't share exact keywords. Two systems use this:
 
 - **`/start`** — session bootstrap. Loads prior context (PRD, decisions, lessons, last handoff) at the start of each session via `recall_search.py`.
-- **Context enrichment** — debate pipeline. Before `/challenge`, `/challenge --deep`, or `/check` runs, `enrich_context.py` extracts keywords from the proposal, searches governance files via `recall_search.py`, and feeds structured prior context to the cross-model reviewers. This prevents challengers from fabricating numbers by grounding them in real project history.
+- **Context enrichment** — debate pipeline. Before `/challenge`, `/challenge --deep`, or `/review` runs, `enrich_context.py` extracts keywords from the proposal, searches governance files via `recall_search.py`, and feeds structured prior context to the cross-model reviewers. This prevents challengers from fabricating numbers by grounding them in real project history.
 
 The two are separate concerns: `/start` orients *you* at session start; `enrich_context.py` orients *the debate models* before review. Both share the same search backend (`recall_search.py`).
 
@@ -368,17 +368,17 @@ Build OS ships with 18 skills — slash commands that implement the pipeline sta
 | **Architect** | `/challenge`, `/explore`, `/pressure-test` | Cross-model gate, divergent options, adversarial analysis |
 | **Refiner** | `/polish` | 6-round cross-model collaborative improvement on any document |
 | **Lead Engineer** | `/plan` (`--auto` for full pipeline) | Implementation planning, auto-tier detection |
-| **Reviewer** | `/check` | Cross-model code review (3 lenses: PM, Security, Architecture). `--fix` auto-fixes mechanical issues. `--fix-loop` runs fix → re-review cycles (max 3 iterations). `--qa`, `--governance`, `--second-opinion`, `--all` for additional checks. |
+| **Reviewer** | `/review` | Cross-model code review (3 lenses: PM, Security, Architecture). `--fix` auto-fixes mechanical issues. `--fix-loop` runs fix → re-review cycles (max 3 iterations). `--qa`, `--governance`, `--second-opinion`, `--all` for additional checks. |
 | **Researcher** | `/research` | Deep web research via Perplexity Sonar with citations (async deep + sync quick) |
 | **Release** | `/ship`, `/sync` | Pre-flight gates (verify + QA + tests + review) → deploy → doc sync |
 | **Session** | `/start`, `/wrap`, `/log`, `/triage` | Bootstrap + routing, session close, knowledge capture, info routing |
 | **Bootstrap** | `/setup`, `/audit` | Interactive project setup, two-phase blind discovery audit |
 
-Running `/think` → `/challenge` → `/plan` → build → `/check` → `/ship` gives you the equivalent of a PM defining scope, an architect stress-testing the approach, engineers building, a cross-model review panel checking quality, and a release engineer running pre-flight gates before deploying. `/ship` includes verification (adversarial probes), QA dimensions, and all other gates inline — the standard path is `/check` → `/ship`, not a longer chain. Each skill writes artifacts to disk so the next stage (or session) picks up where the last one left off. Pipeline progress is tracked in manifest files (`tasks/<topic>-manifest.json`) so you can see which stages have completed for any topic.
+Running `/think` → `/challenge` → `/plan` → build → `/review` → `/ship` gives you the equivalent of a PM defining scope, an architect stress-testing the approach, engineers building, a cross-model review panel checking quality, and a release engineer running pre-flight gates before deploying. `/ship` includes verification (adversarial probes), QA dimensions, and all other gates inline — the standard path is `/review` → `/ship`, not a longer chain. Each skill writes artifacts to disk so the next stage (or session) picks up where the last one left off. Pipeline progress is tracked in manifest files (`tasks/<topic>-manifest.json`) so you can see which stages have completed for any topic.
 
-**Recent additions (v3.1):** Challengers get optional read-only verifier tools (`--enable-tools`) to check claims against the actual codebase. Quantitative claims must be tagged as EVIDENCED, ESTIMATED, or SPECULATIVE — speculative claims alone can't drive material verdicts. `/check --fix-loop` automates the fix → re-review cycle. Proposals use a structured template with mandatory sections (Current System Failures, Operational Context, Baseline Performance) to prevent challengers from fabricating numbers.
+**Recent additions (v3.1):** Challengers get optional read-only verifier tools (`--enable-tools`) to check claims against the actual codebase. Quantitative claims must be tagged as EVIDENCED, ESTIMATED, or SPECULATIVE — speculative claims alone can't drive material verdicts. `/review --fix-loop` automates the fix → re-review cycle. Proposals use a structured template with mandatory sections (Current System Failures, Operational Context, Baseline Performance) to prevent challengers from fabricating numbers.
 
-You don't need all of them. Start with `/plan` and `/check`. Add the rest as your workflow matures.
+You don't need all of them. Start with `/plan` and `/review`. Add the rest as your workflow matures.
 
 ---
 

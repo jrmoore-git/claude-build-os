@@ -11,11 +11,11 @@ Which skill owns which file, and in what order skills run at session close.
 | `docs/current-state.md` | `/wrap` | `hook-stop-autocommit.py` injects a `⚠ STALE` marker on unclean session exit. |
 | `tasks/decisions.md` | `/log` or `/sync` | Append only. Entries are numbered and never modified after writing. |
 | `tasks/lessons.md` | `/log` or `/sync` | Append only. Promote recurring lessons to `.claude/rules/` and archive. |
-| `docs/project-prd.md` | `/sync` | Read by `/start`, `/plan`, `/check`. |
+| `docs/project-prd.md` | `/sync` | Read by `/start`, `/plan`, `/review`. |
 | `.claude/rules/*.md` | Manual or `/setup` | Read by Claude automatically. Promoted from lessons.md when recurring. |
 | `CLAUDE.md` | Manual or `/setup` | Read by Claude automatically on every turn. |
-| `tasks/plan-*.md` | `/plan` | Read by `/check`. Deleted after successful implementation (optional). |
-| `tasks/review-*.md` | `/check` | Read by `/check --second-opinion`. |
+| `tasks/plan-*.md` | `/plan` | Read by `/review`. Deleted after successful implementation (optional). |
+| `tasks/review-*.md` | `/review` | Read by `/review --second-opinion`. |
 | `tasks/*-challenge.md` | `/challenge` | Read by `/plan` Phase 0. Stale after 7 days. |
 
 ## Session-log vs handoff

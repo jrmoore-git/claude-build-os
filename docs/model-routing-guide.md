@@ -45,7 +45,7 @@ These are the built-in routing decisions. Override per-skill via `model:` in SKI
 
 | Skill | Task Type | Model Tier | Rationale |
 |-------|-----------|-----------|-----------|
-| `/challenge`, `/challenge --deep`, `/check` | Strategic reasoning | Premium (cross-model) | Adversarial review needs frontier judgment across model families |
+| `/challenge`, `/challenge --deep`, `/review` | Strategic reasoning | Premium (cross-model) | Adversarial review needs frontier judgment across model families |
 | `/polish` | Iterative improvement | Premium (rotating) | 6-round rotation across 3 model families |
 | `/plan`, `/think` | Analysis + synthesis | Standard | Needs reasoning but not adversarial pressure |
 | `/start` | Summarization | Standard | Assembly from multiple sources |

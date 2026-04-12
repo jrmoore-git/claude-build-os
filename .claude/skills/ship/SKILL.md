@@ -112,9 +112,9 @@ Status: READY TO SHIP  /  BLOCKED
 
 If any HARD gate fails, display what's missing and suggest the fix:
 - Tests fail → "Fix failing tests, then `/ship` again."
-- Review missing → "Run `/check` first."
-- Review stale → "Changes since last review. Run `/check` again."
-- Open findings → "N accepted findings unaddressed. Fix them, then `/check` again."
+- Review missing → "Run `/review` first."
+- Review stale → "Changes since last review. Run `/review` again."
+- Open findings → "N accepted findings unaddressed. Fix them, then `/review` again."
 - Verify fail → "Adversarial probe failed: <detail>. Fix and `/ship` again."
 - Plan missing → "Protected paths modified without a plan. Create `tasks/<topic>-plan.md`."
 - BuildOS out of sync → "N files diverged. Run `bash scripts/buildos-sync.sh --push`."
@@ -188,4 +188,4 @@ Warn the user and suggest investigating. Do NOT auto-rollback.
 - Verification (adversarial probes) is NEVER bypassed, even with --force. The whole point is to catch what happy-path testing misses.
 - Degraded review status (from failed debate) is allowed — `/ship` will note it but not block.
 - SOFT gates (QA dimensions, docs, git) are advisory. They appear in the dashboard but never block.
-- The standard pipeline is `/check` → `/ship`. Use `/check --qa` for isolated QA checks.
+- The standard pipeline is `/review` → `/ship`. Use `/review --qa` for isolated QA checks.

@@ -1,6 +1,6 @@
 ---
-name: check
-description: "Unified quality check. Default: cross-model code review (3 lenses). Modes: --second-opinion (cross-model second opinion), --qa (5-dimension QA gate), --governance (governance hygiene scan), --all (run everything), --fix (review + auto-fix), --fix-loop (iterative fix cycle). Defers to /ship for deployment, /think for problem definition, /challenge --deep for adversarial design review."
+name: review
+description: "Cross-model code review. Default: 3 lenses (PM, Security, Architecture). Modes: --second-opinion (cross-model second opinion), --qa (5-dimension QA gate), --governance (governance hygiene scan), --all (run everything), --fix (review + auto-fix), --fix-loop (iterative fix cycle). Defers to /ship for deployment, /think for problem definition, /challenge --deep for adversarial design review."
 user-invocable: true
 allowed-tools:
   - Bash
@@ -37,7 +37,7 @@ These rules apply to EVERY AskUserQuestion call in this skill:
    lowercase alphanumeric + hyphens only (`[a-z0-9-]`). Strip `/`, `..`, spaces, and
    special characters. This prevents path traversal in file writes.
 
-# /check — Unified Quality Check
+# /review — Unified Quality Check
 
 ## Mode Routing
 
@@ -45,15 +45,15 @@ Parse the user's invocation to determine which mode to run:
 
 | Invocation | Mode | Description |
 |---|---|---|
-| `/check` (no flags) | **code-review** | Cross-model code review (3 lenses). Smart context: if `tasks/<topic>-refined.md` exists, review against spec. If pre-ship context detected (review + qa artifacts already exist), suggest `--all`. |
-| `/check --second-opinion` | **second-opinion** | Get a second model's opinion on an existing review. Requires a prior `/check` review artifact. |
-| `/check --qa` | **qa** | 5-dimension QA validation (test coverage, regression risk, plan compliance, negative tests, integration). |
-| `/check --governance` | **governance** | Governance hygiene scan (lessons, decisions, rules, cross-references, escalation ladder). |
-| `/check --all` | **all** | Run code-review, then QA, then governance. Aggregate results. |
-| `/check --fix` | **fix** | Code review + auto-fix mode. Apply mechanical fixes, ask about judgment calls. |
-| `/check --fix-loop` | **fix-loop** | Iterative fix cycle: review -> fix -> re-review, max 3 iterations. |
+| `/review` (no flags) | **code-review** | Cross-model code review (3 lenses). Smart context: if `tasks/<topic>-refined.md` exists, review against spec. If pre-ship context detected (review + qa artifacts already exist), suggest `--all`. |
+| `/review --second-opinion` | **second-opinion** | Get a second model's opinion on an existing review. Requires a prior `/review` review artifact. |
+| `/review --qa` | **qa** | 5-dimension QA validation (test coverage, regression risk, plan compliance, negative tests, integration). |
+| `/review --governance` | **governance** | Governance hygiene scan (lessons, decisions, rules, cross-references, escalation ladder). |
+| `/review --all` | **all** | Run code-review, then QA, then governance. Aggregate results. |
+| `/review --fix` | **fix** | Code review + auto-fix mode. Apply mechanical fixes, ask about judgment calls. |
+| `/review --fix-loop` | **fix-loop** | Iterative fix cycle: review -> fix -> re-review, max 3 iterations. |
 
-If the user passes a topic argument (e.g., `/check my-feature`), use it as the topic. Otherwise infer per Step 2 below.
+If the user passes a topic argument (e.g., `/review my-feature`), use it as the topic. Otherwise infer per Step 2 below.
 
 ## Output Contract
 
@@ -253,7 +253,7 @@ Below the frontmatter, write findings grouped by lens:
 
 ### Step 8: Status and next action
 
-- **Any MATERIAL findings** -> `status: revise`. Tell user: "N material findings. Address them, then `/check` again."
+- **Any MATERIAL findings** -> `status: revise`. Tell user: "N material findings. Address them, then `/review` again."
 - **No MATERIAL findings** -> `status: passed`. Tell user: "Review passed. Run `/ship` when ready."
 - **LiteLLM down** -> `status: degraded`. Tell user: "Cross-model review unavailable. Single-model review completed with degraded status. `/ship` will note the degraded status but won't block."
 
@@ -280,15 +280,15 @@ python3.11 scripts/pipeline_manifest.py add <topic> --skill check --artifact tas
 ## Important Notes (Code Review)
 
 - No tier classification. No debate orchestration. Just "three models look at your diff from three angles."
-- If `tasks/<topic>-refined.md` exists, the PM lens automatically checks spec compliance. This is the key linkage: `/challenge --deep` produces a spec, `/check` enforces it.
+- If `tasks/<topic>-refined.md` exists, the PM lens automatically checks spec compliance. This is the key linkage: `/challenge --deep` produces a spec, `/review` enforces it.
 - Degraded mode is advisory, not blocking. `/ship` will note it.
-- Re-running `/check` overwrites the previous review artifact.
+- Re-running `/review` overwrites the previous review artifact.
 
 ---
 
 ## Fix-First Mode (opt-in: `--fix`)
 
-When the user runs `/check --fix` or `/check <topic> --fix`, enable Fix-First mode after the standard review completes:
+When the user runs `/review --fix` or `/review <topic> --fix`, enable Fix-First mode after the standard review completes:
 
 ### Fix-First Heuristic
 
@@ -324,7 +324,7 @@ Without `--fix`, review remains read-only — findings are reported but no code 
 
 ## Fix-Loop Mode (opt-in: `--fix-loop`)
 
-When the user runs `/check --fix-loop` or `/check <topic> --fix-loop`, enable an automated fix -> re-review cycle:
+When the user runs `/review --fix-loop` or `/review <topic> --fix-loop`, enable an automated fix -> re-review cycle:
 
 ### Procedure
 
@@ -364,11 +364,11 @@ Review passed after 3 iterations. Artifact: tasks/<topic>-review.md
 
 ## Mode: Second Opinion (`--second-opinion`)
 
-Get a second model's opinion on an existing `/check` review. Requires a prior review artifact at `tasks/<topic>-review.md`.
+Get a second model's opinion on an existing `/review` review. Requires a prior review artifact at `tasks/<topic>-review.md`.
 
 ### Prerequisites
 
-A completed `/check` review artifact must exist at `tasks/<topic>-review.md` before running this mode.
+A completed `/review` review artifact must exist at `tasks/<topic>-review.md` before running this mode.
 
 ### Procedure
 
@@ -465,7 +465,7 @@ Show the user the merged findings. Highlight:
 3. Any **disputes** that need human judgment
 
 ### Rules (Second Opinion)
-- This mode is optional. `/check` code review is complete without it.
+- This mode is optional. `/review` code review is complete without it.
 - Only consensus findings auto-block. Singleton findings from the second model are concerns, not blockers.
 - Disputed findings are never auto-resolved. Surface both positions and let the human decide.
 - **Anonymous labels only.** The cross-model prompt must not reveal which model performed the primary review. Use "primary reviewer" / "Reviewer A" / "Reviewer B" — never model names. This prevents anchoring bias.
@@ -571,11 +571,11 @@ Tests: PASS (N passed) / FAIL (N failed)
 #### Step 6: Handoff
 
 If `go`:
-- "QA passed. Run `/check` then `/ship`."
+- "QA passed. Run `/review` then `/ship`."
 
 If `no-go`:
 - List the failing dimensions with specific fix suggestions.
-- "Fix these, then `/check --qa` again."
+- "Fix these, then `/review --qa` again."
 
 ### Notes (QA)
 - QA is a SOFT gate in `/ship` — advisory, not blocking. But a `no-go` is a strong signal.
@@ -586,7 +586,7 @@ If `no-go`:
 
 ## Mode: Governance (`--governance`)
 
-Governance hygiene scan: lessons, decisions, rules, cross-references, escalation ladder. Report findings with concrete recommendations. Defers to `/check` code review for code, `/ship` for deployment.
+Governance hygiene scan: lessons, decisions, rules, cross-references, escalation ladder. Report findings with concrete recommendations. Defers to `/review` code review for code, `/ship` for deployment.
 
 ### Procedure
 
@@ -733,7 +733,7 @@ Run all checks in sequence: code review -> QA -> governance.
 4. Aggregate into a single summary:
 
 ```
-## /check --all Summary
+## /review --all Summary
 
 | Check       | Verdict         | Blocking | Non-blocking |
 |-------------|-----------------|----------|--------------|
@@ -751,14 +751,14 @@ Suggested next action: <what to do>
 
 | Situation | Recommended mode |
 |---|---|
-| Before `/ship` | `/check` (default code review) |
-| Architectural change with spec | `/check` (auto-detects spec, enables compliance) |
-| Want mechanical fixes applied | `/check --fix` |
-| Want full fix cycle | `/check --fix-loop` |
-| Low confidence in review | `/check --second-opinion` |
-| Before first commit on a feature | `/check --qa` |
-| Governance counts approaching limits | `/check --governance` |
-| Pre-ship, want everything | `/check --all` |
+| Before `/ship` | `/review` (default code review) |
+| Architectural change with spec | `/review` (auto-detects spec, enables compliance) |
+| Want mechanical fixes applied | `/review --fix` |
+| Want full fix cycle | `/review --fix-loop` |
+| Low confidence in review | `/review --second-opinion` |
+| Before first commit on a feature | `/review --qa` |
+| Governance counts approaching limits | `/review --governance` |
+| Pre-ship, want everything | `/review --all` |
 
 ## Cost
 

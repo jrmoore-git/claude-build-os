@@ -155,7 +155,7 @@ Only write the file after user approval.
 After writing:
 - "Plan written to `tasks/<topic>-plan.md`."
 - "This satisfies the plan gate for protected paths."
-- "Build the changes, then run `/check` when ready."
+- "Build the changes, then run `/review` when ready."
 
 Update the pipeline manifest:
 
@@ -210,5 +210,5 @@ After the pipeline completes, present ALL deferred decisions in a single AskUser
 ## Important Notes
 
 - The plan artifact MUST have valid YAML frontmatter with all required fields — `hook-plan-gate.sh` validates this.
-- `verification_evidence` starts as "PENDING" — it gets filled in during `/check --qa` or `/ship`.
+- `verification_evidence` starts as "PENDING" — it gets filled in during `/review --qa` or `/ship`.
 - If the user already has a plan in mind, don't fight it. Use the three lenses to sanity-check, not to redesign.

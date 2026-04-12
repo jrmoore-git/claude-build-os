@@ -6,7 +6,7 @@ A guided first-hour tutorial. By the end, you'll have a defined product, an impl
 
 ## 1. Prerequisites
 
-You need [Claude Code](https://claude.ai/claude-code), git, and Python 3.11+. For cross-model review (`/challenge`, `/challenge --deep`, `/check`), you also need LiteLLM and API keys from Anthropic, OpenAI, and Google AI. See the [README](../README.md) for full setup details.
+You need [Claude Code](https://claude.ai/claude-code), git, and Python 3.11+. For cross-model review (`/challenge`, `/challenge --deep`, `/review`), you also need LiteLLM and API keys from Anthropic, OpenAI, and Google AI. See the [README](../README.md) for full setup details.
 
 ## 2. Clone and Setup (~5 min)
 
@@ -68,7 +68,7 @@ This is normal Claude Code usage. Ask Claude to implement the plan. The framewor
 ## 6. Review (~5 min)
 
 ```
-/check
+/review
 ```
 
 This sends your diff to three models from different families. Each reviews through a different lens:
@@ -79,7 +79,7 @@ This sends your diff to three models from different families. Each reviews throu
 
 The review writes to `tasks/<topic>-review.md`. Fix any issues flagged, then proceed.
 
-**Note:** `/check` requires LiteLLM and API keys. If you haven't set those up yet, do a manual review instead -- the framework doesn't block you.
+**Note:** `/review` requires LiteLLM and API keys. If you haven't set those up yet, do a manual review instead -- the framework doesn't block you.
 
 ## 7. Ship
 
@@ -95,11 +95,11 @@ Match the pipeline to the task:
 
 | Task | Pipeline |
 |---|---|
-| Bugfix | `/plan` --> build --> `/check` --> `/ship` |
-| Small feature | `/think refine` --> `/plan` --> build --> `/check` --> `/ship` |
-| New feature | `/think discover` --> `/challenge` --> `/plan` --> build --> `/check` --> `/ship` |
-| New feature (UI) | `/think discover` --> `/design consult` --> `/challenge` --> `/plan` --> build --> `/design review` --> `/check` --> `/ship` |
-| Big bet | `/think discover` --> `/elevate` --> `/challenge` --> `/plan` --> build --> `/check` --> `/ship` |
+| Bugfix | `/plan` --> build --> `/review` --> `/ship` |
+| Small feature | `/think refine` --> `/plan` --> build --> `/review` --> `/ship` |
+| New feature | `/think discover` --> `/challenge` --> `/plan` --> build --> `/review` --> `/ship` |
+| New feature (UI) | `/think discover` --> `/design consult` --> `/challenge` --> `/plan` --> build --> `/design review` --> `/review` --> `/ship` |
+| Big bet | `/think discover` --> `/elevate` --> `/challenge` --> `/plan` --> build --> `/review` --> `/ship` |
 
 A typo fix doesn't need `/think discover`. A new product does. If it has a UI, wire in `/design consult` before planning and `/design review` before shipping. Use the tier that matches your risk.
 
@@ -114,4 +114,4 @@ A typo fix doesn't need `/think discover`. A new product does. If it has a UI, w
 
 ---
 
-You don't need to learn everything. Start with `/think` --> `/plan` --> build --> `/check` --> `/ship`. Add the rest as your workflow matures.
+You don't need to learn everything. Start with `/think` --> `/plan` --> build --> `/review` --> `/ship`. Add the rest as your workflow matures.

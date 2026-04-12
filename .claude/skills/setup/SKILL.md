@@ -53,7 +53,7 @@ Based on the chosen tier, create these files:
 
 ## Step 4: Copy skills
 
-Tell the user: "Copy the `.claude/skills/` directory from the Build OS repo to your project. These provide session operations: `/start`, `/plan`, `/check`, `/log`, `/wrap`, `/triage`, and this `/setup` command."
+Tell the user: "Copy the `.claude/skills/` directory from the Build OS repo to your project. These provide session operations: `/start`, `/plan`, `/review`, `/log`, `/wrap`, `/triage`, and this `/setup` command."
 
 ## Step 5: Install design tools
 

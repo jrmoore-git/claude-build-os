@@ -7,7 +7,7 @@ description: |
   HOLD SCOPE (maximum rigor), SCOPE REDUCTION (strip to essentials).
   Use when asked to "think bigger", "expand scope", "rethink this", or
   "is this ambitious enough". Run after /plan to stress-test scope and ambition.
-  Defers to: /think (problem discovery), /plan (implementation spec), /check (code review).
+  Defers to: /think (problem discovery), /plan (implementation spec), /review (code review).
   Benefits from: /think discover (reads design doc from tasks/).
 user-invocable: true
 allowed-tools:

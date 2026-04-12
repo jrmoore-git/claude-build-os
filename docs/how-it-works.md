@@ -30,7 +30,7 @@ Personas map to models via `config/debate-models.json`. The default assignments 
 
 The judge defaults to gpt-5.4 (different family from the typical Claude author avoids self-preference bias). The refinement rotation cycles all three families: gemini → gpt → claude.
 
-Each persona gets a role-specific adversarial prompt (architecture concerns, security focus, operational feasibility, or user value). Note that personas sharing a model are deduplicated — `--personas architect,staff` produces one challenger since both map to gemini-3.1-pro. Alternatively, pass `--models gpt-5.4,gemini-3.1-pro` directly with a generic adversarial prompt. An optional `--system-prompt` flag (takes a string or file path) overrides the default prompt entirely — used by `/check` to replace adversarial challenge prompts with review-specific persona lens definitions.
+Each persona gets a role-specific adversarial prompt (architecture concerns, security focus, operational feasibility, or user value). Note that personas sharing a model are deduplicated — `--personas architect,staff` produces one challenger since both map to gemini-3.1-pro. Alternatively, pass `--models gpt-5.4,gemini-3.1-pro` directly with a generic adversarial prompt. An optional `--system-prompt` flag (takes a string or file path) overrides the default prompt entirely — used by `/review` to replace adversarial challenge prompts with review-specific persona lens definitions.
 
 **`--enable-tools`** gives challengers access to read-only verifier tools (check_function_exists, check_test_coverage, count_records, get_recent_costs). These let challengers verify claims against the actual codebase rather than speculating. Tools are sandboxed to read-only operations.
 
@@ -318,14 +318,14 @@ Keyword extraction: up to 8 keywords from frontmatter `scope:` field, first head
 
 ### Used by
 
-Called by `/challenge`, `/challenge --deep`, and `/check` skills to enrich context before sending to cross-model reviewers. Also usable as a standalone CLI tool. Calls `recall_search.py` internally with `--json` output.
+Called by `/challenge`, `/challenge --deep`, and `/review` skills to enrich context before sending to cross-model reviewers. Also usable as a standalone CLI tool. Calls `recall_search.py` internally with `--json` output.
 
 
 ## pipeline_manifest.py
 
 Tracks pipeline stage completion for a topic. Records which skills have run, what artifacts they produced, and their status.
 
-The problem it solves: a topic may pass through `/challenge` → `/plan` → build → `/check` across multiple sessions. Without a manifest, you have to manually check for each artifact file. This script provides a single query point for pipeline progress.
+The problem it solves: a topic may pass through `/challenge` → `/plan` → build → `/review` across multiple sessions. Without a manifest, you have to manually check for each artifact file. This script provides a single query point for pipeline progress.
 
 ### Subcommands
 
@@ -357,7 +357,7 @@ Manifests are written to `tasks/<topic>-manifest.json`. The `show` and `validate
 
 ### Used by
 
-`/challenge`, `/challenge --deep`, `/plan`, and `/check` skills call `add` after completing their stage. `/ship` calls `validate` to check pipeline completeness.
+`/challenge`, `/challenge --deep`, `/plan`, and `/review` skills call `add` after completing their stage. `/ship` calls `validate` to check pipeline completeness.
 
 
 ## artifact_check.py
