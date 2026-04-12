@@ -302,7 +302,7 @@ These rules govern how questions are asked:
    - **Register calibration:** The user's most recent substantive answer sets the register for your next response. Calibrate vocabulary, sentence length, and formality from their latest text — not locked to Q1. *(Pass 1: R2)*
    - **Anti-pattern (recap mentor drift):** The LLM's default recap voice drifts warmer/wiser than the user's register. BAD: "That's a really interesting tension between growth and sustainability." GOOD: "Growth vs. sustainability — got it." BAD: "It sounds like you're navigating a complex situation with multiple stakeholders." GOOD: "Board wants speed, eng team wants to build — got it." *(Pass 1: R1)*
    - **High-volume answers:** For dense, multi-paragraph answers, the recap does the prioritization work. Name the one or two threads that matter most and let the rest go. Do not ask the user to repeat or simplify. When compressing, preserve the user's sentence structure and vocabulary — compress by selecting their phrases verbatim, not by rewriting in cleaner form. *(Pass 1: A1)*
-3. **Short messages, one motion (A10).** Total message: 2-4 sentences. The recap and question are one motion — the recap's final clause should flow into or set up the question. Do not write a recap paragraph, then a separate question. BAD: "Deploy speed is the bottleneck. Team's stretched. What have you tried so far?" GOOD: "Deploy speed's the bottleneck and the team's stretched — so what have you tried?" Assumption challenge may use up to 4 sentences when the frame requires setup. *(Pass 1: CB3)*
+3. **Short messages, one motion (A10).** Message length should roughly match the user's last substantive answer in density — 1-4 sentences or fragments as needed. The recap and question are one motion — the recap's final clause should flow into or set up the question. Do not write a recap paragraph, then a separate question. BAD: "Deploy speed is the bottleneck. Team's stretched. What have you tried so far?" GOOD: "Deploy speed's the bottleneck and the team's stretched — so what have you tried?" Do not expand a fragmentary user into a multi-sentence interviewer. *(Pass 1: CB3)*
 4. **No hypotheticals when a past-anchored version is available.** Rewrite "What would you..." to "What did you..." or "What's the..." Exceptions: Stakes territory is inherently future-oriented — this is by design. Assumption challenge (premise challenge, perspective shift) is also exempt — reframing requires hypothetical framing. *(Pass 1: SP3)*
 5. **Do not solve during intake.** Do not offer recommendations, plans, or answer fragments while eliciting.
 6. **Push once if vague.** If an answer is vague, push once for specifics: "You said [their word]. Can you be specific — a name, a number, a date?" Maximum 1 push per question; then accept and move on.
@@ -398,13 +398,13 @@ These rules govern the explore output that the intake feeds into:
 
 | Change | Current (v5) | Proposed (v6) |
 |---|---|---|
-| Question structure | Free-form question bank | 5-slot adaptive sequence with fixed purposes |
-| Track-specific questions | Separate fixed questionnaires per track (`preflight-tracks.md`) | Eliminated — domain variation via slot selection within universal sequence |
+| Question structure | Free-form question bank | Thread-and-steer from user's answers + post-hoc coverage audit |
+| Track-specific questions | Separate fixed questionnaires per track (`preflight-tracks.md`) | Eliminated — domain variation via thread-and-steer within universal intake |
 | Recap before next question | Not required | Mandatory before every post-Q1 question |
-| Question count | Unspecified | Decision rule tied to 4-tier clarity classification |
-| Assumption surfacing | Not structured | Slot 4 default + `ASSUMPTIONS TO CHALLENGE` context section |
+| Question count | Unspecified | Sufficiency-based exit with 4-tier clarity guide for rough ceiling |
+| Assumption surfacing | Not structured | Coverage audit requires assumption challenge + `ASSUMPTIONS TO CHALLENGE` context section |
 | Skip path | Not defined | Explicit: 0 questions, inferred composition, flagged block |
-| Confirmation checkpoint | Exists but format unspecified | Specified format: summary + dimensions + single correction prompt |
+| Confirmation checkpoint | Exists but format unspecified | Final recap: same length as any other, names tension, invites correction |
 | Context block format | No token budget, no item limits | 200-500 token target, per-section item limits |
 | Anti-solutioning rule | Implicit | Explicit structural prohibition during intake |
 
@@ -419,25 +419,25 @@ These rules govern the explore output that the intake feeds into:
 
 1. **The Righting Reflex** — AI jumps to solving before intake is complete. Defense: structural rule prohibiting solutions during intake.
 2. **The Interrogation Trap** — Rapid-fire questions without tracking. Defense: mandatory recap before every question after Q1.
-3. **Premature Specificity** — Starting with narrow questions before understanding the landscape. Defense: Slot 1 is broad unless skipped because the input is already specific.
+3. **Premature Specificity** — Starting with narrow questions before understanding the landscape. Defense: opening question is broad unless skipped because the input is already specific.
 4. **Reframing the User's Language** — Translating their words into AI/consultant vocabulary. Defense: use their exact words, not abstractions.
 5. **Over-asking on Clear Questions** — Forcing 5 questions when 2 would suffice. Defense: clarity classification decision rule.
-6. **Under-asking about Implementation and Blind Spots** — AI's documented blind spot. Defense: Slot 4 included by default on every non-skip path.
+6. **Under-asking about Implementation and Blind Spots** — AI's documented blind spot. Defense: assumption challenge territory must be covered in every non-skip path.
 7. **Register Drift** — The LLM's RLHF-trained default voice bleeds through as warm, comprehensive recaps that don't match the user's register. Defense: 6-feature mirroring checklist extracted from user's actual text. Anti-patterns. Self-check on every message.
 8. **Context Block Too Verbose** — Narrative padding diluting signal. Defense: strict 200-500 token target, no-padding composition rules, and explicit item-count limits per section.
-9. **Socratic Fatigue** — Every question becoming a philosophical challenge. Defense: mix direct factual questions (Slot 3) with reframing questions (Slot 4).
+9. **Socratic Fatigue** — Every question becoming a philosophical challenge. Defense: mix direct factual questions (constraints territory) with reframing questions (assumption challenge territory).
 10. **Empty Context on Skip** — User skips intake and the context block is blank or malformed. Defense: skip-path composition rules with explicit inference flags.
 11. **Confirmation Drift** — The confirmation checkpoint becomes another elicitation round. Defense: one checkpoint message, one revision pass maximum, then run explore.
 12. **Static Under-Classification** — Well-specified input hides organizational complexity; static classification under-asks. Defense: mid-intake escalation rule (A1) — add one slot if an answer reveals a major new dimension.
 13. **Solution-as-Problem Framing** — User presents a solution as the topic, looking well-specified but hiding the real problem. Defense: solution-as-input classification rule (A2) — classify one tier vaguer.
 14. **Contradictory Inputs** — User gives conflicting information across answers. Defense: Delivery Rule #8 — name it, ask which is right, use the corrected version. *(Pass 3)*
-15. **"I Already Knew This"** — Explore output didn't add value. Defense: directions must build on the Slot 4 reframe, not circle back to the pre-reframe framing. If the user says output was obvious, ask: "Which part — the directions or the synthesis? What angle would be useful?" Re-run with adjusted TENSION and DIMENSIONS. One re-run maximum. *(Pass 3)*
+15. **"I Already Knew This"** — Explore output didn't add value. Defense: directions must build on the assumption challenge reframe, not circle back to the pre-reframe framing. If the user says output was obvious, ask: "Which part — the directions or the synthesis? What angle would be useful?" Re-run with adjusted TENSION and DIMENSIONS. One re-run maximum. *(Pass 3)*
 16. **Solution-Seeking User** — User wants answers, not questions. Defense: the fixed question backbone IS the redirect. Don't explain why you're not solving — just ask the next question. The structure creates forward momentum. *(Pass 3)*
 
 ## Recommendations
 
 1. **Rewrite `config/prompts/preflight-adaptive.md` to v6.**
-   Enforce the 5-slot sequence, delivery rules (including mandatory recap before every post-Q1 question), skip-path behavior with flagged composition, the confirmation checkpoint format, and strict 200-500 token composition limits for the context block. The prompt must distinguish classify, elicit, and confirm phases and must prohibit solutioning during intake.
+   Enforce thread-and-steer as the single question-generation principle, delivery rules (including mandatory recap before every post-Q1 question), coverage audit as post-hoc territory check, skip-path behavior with flagged composition, and strict 200-500 token composition limits for the context block. The prompt must enforce sufficiency-based exit (not slot counting) and must prohibit solutioning during intake.
 
 2. **Delete `config/prompts/preflight-tracks.md`.**
    Replace fixed track-specific question sets with the adaptive slot model. Domain-specific variation happens through slot selection and phrasing within the universal sequence, not through separate fixed questionnaires.
@@ -446,26 +446,27 @@ These rules govern the explore output that the intake feeds into:
    Make Step 3a explicitly enforce:
    - one question per message,
    - recap before every post-Q1 question,
-   - adaptive slot skipping based on the clarity classification table (well-specified: 1-2, moderate: 3-4, ambiguous: 4-5, skip: 0),
-   - Slot 4 included by default on every non-skip path,
-   - the confirmation checkpoint after the final intake slot.
+   - thread-and-steer as the only question-generation principle,
+   - coverage audit as post-hoc check (not question generation),
+   - assumption challenge territory covered in every non-skip path,
+   - sufficiency-based exit with final recap as invisible correction invite.
 
 4. **Add `ASSUMPTIONS TO CHALLENGE` to the context block format.**
    This section must appear in `preflight-adaptive.md` and must map into explore divergence behavior — specifically, it feeds the premise-challenge direction (Direction 3 in explore-diverge.md). Update explore-diverge.md to consume this section.
 
 5. **Update the adaptive question-count logic in `SKILL.md`.**
-   Map input clarity directly to the classification table:
-   - well-specified: 1-2 slots,
-   - moderate: 3-4 slots,
-   - ambiguous: 4-5 slots,
-   - explicit skip: 0 slots.
-   The mapping must be a decision rule, not a guideline — the system classifies input clarity first, then commits to the corresponding slot count.
+   Use the clarity table as a rough planning guide, not a rigid commitment:
+   - well-specified: 1-2 questions,
+   - moderate: 3-4 questions,
+   - ambiguous: 4-5 questions,
+   - explicit skip: 0 questions.
+   The sufficiency test (PROBLEM + TENSION + 2+ SITUATION + 3-4 DIMENSIONS) overrides the count — finish early if you have enough, extend by one if a major dimension surfaces late.
 
 6. **Run an end-to-end `/explore` verification with a real prompt.**
    Use one prompt from each non-skip clarity tier (well-specified, moderate, ambiguous). Success criteria per run:
-   - intake completes within the slot count specified by the clarity table,
+   - intake exits via sufficiency test, not by counting to a target,
    - the generated context block is ≤500 tokens,
-   - the confirmation checkpoint appears exactly once before explore runs,
+   - an outside observer reading the transcript cannot identify where one territory ends and another begins,
    - the 3 generated directions structurally diverge along THE TENSION axis: no two directions take the same position on the primary tradeoff. Verify by checking that each direction's stance on THE TENSION can be stated in one sentence and that no two stances are paraphrases of each other.
 
 ## Persona Test Validation
