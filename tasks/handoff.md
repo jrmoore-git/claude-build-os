@@ -1,35 +1,37 @@
 # Handoff — 2026-04-11
 
 ## Session Focus
-Iterated explore intake eval harness to 5/5 persona passes, then backported validated improvements to production files.
+Built learning system health infrastructure and fixed `/challenge` conservatism — the system can now measure governance health and challenge doesn't over-defer trivially-fixable work.
 
 ## Decided
-- Thread-and-steer replaces question-bank approach for explore pre-flight (v7)
-- Sufficiency is three-gate (strategy + implementation + declaration), always invisible
-- Reframe must be thesis-form (25 words max, user's vocabulary), not practical alternatives
-- Terse-user trigger is mandatory options format for ALL remaining questions, not optional
-- CONFIDENCE field is always present (HIGH/MEDIUM/LOW), not conditional
+- Three healthcheck depths (counts/targeted/full) with differentiated /start vs /wrap checks
+- Structured event logging (`lesson-events.jsonl`) over git log parsing for velocity metrics
+- `Enforced-By:` tag convention in rule files for pruning redundancy detection
+- PROCEED-WITH-FIXES as new challenge recommendation between PROCEED and SIMPLIFY
+- Implementation cost tags (TRIVIAL/SMALL/MEDIUM/LARGE) required on all MATERIAL challenge findings
 
 ## Implemented
-- Eval harness iteration: system prompt, per-turn reminders, temperature tuning (0.3->0.15), reminder threshold (turn 4->turn 2)
-- Backport to config/prompts/preflight-adaptive.md (v5->v7 full rewrite)
-- Backport to .claude/skills/explore/SKILL.md (Step 2a rewritten with 7-step intake)
-- Backport to tasks/explore-intake-refined.md (v6->v7)
+- `scripts/lesson_events.py` — event logger + velocity metrics (seeded with 20 events)
+- Healthcheck SKILL.md: three depths, auto-verify, velocity metrics, pruning
+- Start/wrap SKILL.md: governance checks wired in
+- Challenge SKILL.md: proceed-with-fixes, cost assessment, symmetric risk
+- debate.py: IMPLEMENTATION_COST_INSTRUCTION, --models posture fix (L23)
+- hook-stop-autocommit.py: 10-min dedup window
+- Enforced-By tags on 4 rule files, security reference extraction
 
 ## NOT Finished
-- Optional: Gemini cross-model confirmation run (quota resets in ~19h from session)
-- End-to-end test of /explore skill with live user input through updated prompt
+- L13/L14/L15 staleness not verified (healthcheck only verified top 3: L10, L11, L16)
+- Live test of /challenge on a genuinely new proposal (re-test on learning-velocity confirmed improvement)
 
 ## Next Session Should
-1. Optionally run Gemini confirmation if cross-model assurance desired
-2. Pick next BuildOS improvement area
+1. Pick next BuildOS improvement area
+2. Optionally verify L13/L14/L15 staleness (healthcheck only checked top 3)
 
 ## Key Files Changed
-- config/prompts/preflight-adaptive.md (v5->v7 full rewrite)
-- .claude/skills/explore/SKILL.md (Step 2a rewritten)
-- tasks/explore-intake-refined.md (v6->v7)
-- scripts/eval_intake.py (extensive iteration)
-- tasks/eval-results/* (5 final eval results + summary)
+scripts/debate.py, scripts/lesson_events.py, hooks/hook-stop-autocommit.py
+.claude/skills/healthcheck/SKILL.md, .claude/skills/challenge/SKILL.md
+.claude/skills/start/SKILL.md, .claude/skills/wrap/SKILL.md
+tasks/lessons.md, tasks/learning-velocity-*.md, stores/lesson-events.jsonl, CLAUDE.md
 
 ## Doc Hygiene Warnings
-- None
+None

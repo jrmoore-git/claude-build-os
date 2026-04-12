@@ -1684,3 +1684,27 @@ ended without running `/wrap-session`. Review and enrich in the next session.
 **Next Session:** Optional Gemini confirmation run; pick next improvement area
 
 **Commit:** 31c6b1b
+
+---
+
+## 2026-04-11 — Learning system health + /challenge conservatism fix
+
+**Decided:**
+- Three healthcheck depths (counts/targeted/full) with differentiated /start vs /wrap checks
+- Structured event logging over git log parsing for velocity metrics
+- Enforced-By tag convention for rule-hook redundancy detection
+- PROCEED-WITH-FIXES recommendation + implementation cost tags for /challenge
+
+**Implemented:**
+- lesson_events.py (structured event logger + velocity metrics)
+- Healthcheck SKILL.md: three depths, auto-verify, velocity, pruning
+- Start/wrap SKILL.md: governance checks wired in
+- Challenge SKILL.md: proceed-with-fixes, cost assessment, symmetric risk
+- debate.py: IMPLEMENTATION_COST_INSTRUCTION, --models posture fix (L23)
+- hook-stop-autocommit.py: 10-min dedup window
+- Enforced-By tags on 4 rule files, security reference extraction
+
+**Not Finished:** L13/L14/L15 staleness unverified; live challenge test on genuinely new proposal
+
+**Next Session:** Test /challenge on a real new proposal; run /healthcheck to verify full pipeline
+
