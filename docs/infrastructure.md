@@ -10,7 +10,7 @@ What each dependency does and why the Build OS needs it.
 
 All Build OS scripts are Python. `debate.py`, `tier_classify.py`, `recall_search.py`, `finding_tracker.py`, `enrich_context.py`, and `artifact_check.py` all require Python 3.
 
-Any recent Python 3 (3.9+) works. No third-party Python packages are required for the pipeline skills themselves.
+Python 3.11+ is required (`setup.sh` enforces this). No third-party Python packages are required for the pipeline skills themselves.
 
 ### LiteLLM
 

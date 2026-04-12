@@ -70,7 +70,7 @@ Read each file below. Skip missing files silently.
 | `docs/current-state.md` | Current phase, active work, next action |
 | `tasks/handoff.md` | Handoff notes from prior session |
 | `tasks/session-log.md` | Last 5 entries (separated by `---`) |
-| `docs/build-plan.md` | Only the section for the current in-progress phase |
+| `tasks/<topic>-plan.md` | Only the section for the current in-progress topic (if a plan artifact exists) |
 | `tasks/decisions.md` | Only undecided/blocked entries |
 | `tasks/lessons.md` | Last 10 rows (highest lesson numbers) |
 

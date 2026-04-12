@@ -232,11 +232,6 @@ Next:
 - address findings first   (if pause/reject)
 ```
 
-After displaying the result, update the pipeline manifest:
-
-```bash
-python3.11 scripts/pipeline_manifest.py add <slug> --skill challenge --artifact tasks/<slug>-challenge.md --status complete --recommendation <PROCEED|SIMPLIFY|PAUSE|REJECT>
-```
 
 ## Recommendation guidance
 

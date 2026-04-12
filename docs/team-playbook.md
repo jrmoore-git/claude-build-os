@@ -123,7 +123,7 @@ Minimum spawn prompt contents:
 - File ownership boundary — which files this agent may edit
 - Interface contracts relevant to that agent
 - Acceptance criteria — how to know when done
-- Pointer to the relevant PRD or build-plan section
+- Pointer to the relevant PRD or `tasks/<topic>-plan.md` section
 
 **Write the prompt like a briefing for a smart colleague who just walked into the room.** They haven't seen the conversation, don't know what you've tried, don't know why this task matters. Include enough context that they can make judgment calls rather than just following narrow instructions.
 

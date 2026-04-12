@@ -289,11 +289,6 @@ Spec compliance: <yes (tasks/<topic>-refined.md)|no spec found>
 Artifact: tasks/<topic>-review.md
 ```
 
-After displaying the result, update the pipeline manifest:
-
-```bash
-python3.11 scripts/pipeline_manifest.py add <topic> --skill check --artifact tasks/<topic>-review.md --status complete
-```
 
 ## Important Notes (Code Review)
 

@@ -1,5 +1,11 @@
 # Current State — 2026-04-11
 
+## ⚠ STALE — auto-captured session ended without /wrap-session
+**Auto-capture date:** 2026-04-11 22:40 PT
+**Files changed this session:** 11 files in .claude, docs
+**WARNING:** The "Next Action" below may be outdated. Cross-check with `git log --oneline -10` and recent session-log entries.
+
+
 ## What Changed This Session
 - Built discoverability infrastructure: natural language is now the primary interface, slash commands are power-user shortcuts
 - Created /guide skill (intent-based skill map organized by "I want to...")

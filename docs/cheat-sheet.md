@@ -7,8 +7,8 @@
 ```
 SPIKE:       build
 BUGFIX:      /plan --skip-challenge → build → /review → /ship
-FEATURE:     /think refine → /plan → build → /review → /ship
-NEW FEATURE: /think discover → /challenge → /plan → build → /review → /ship
+SMALL FEATURE: /think refine → /plan → build → /review → /ship
+NEW FEATURE:   /think discover → /challenge → /plan → build → /review → /ship
 FEATURE+UI:  /think discover → /design consult → /challenge → /plan → build → /design review → /review → /ship
 BIG BET:     /think discover → /elevate → /challenge → /plan → build → /review → /ship
 ```
@@ -39,6 +39,7 @@ If it has a UI, wire in `/design consult` (before plan) and `/design review` (be
 | Architect | `/challenge --deep` | Full adversarial pipeline: challenge → judge → refine |
 | Architect | `/explore` | 3+ divergent directions with cross-model synthesis |
 | Architect | `/pressure-test` | Counter-thesis or pre-mortem failure analysis |
+| Architect | `/investigate` | Structured root-cause analysis (symptom, drift, claim modes) |
 | Refiner | `/polish` | 6-round cross-model improvement on any document |
 | Lead Eng | `/plan` | Write implementation plan with valid frontmatter |
 | Lead Eng | `/plan --auto` | Auto-detect tier, chain skills, surface taste decisions |
@@ -53,6 +54,7 @@ If it has a UI, wire in `/design consult` (before plan) and `/design review` (be
 | Session | `/wrap` | Write handoff, session log, current state |
 | Session | `/log` | Extract decisions/lessons from conversation |
 | Session | `/triage` | Classify and route incoming information |
+| System | `/healthcheck` | Learning system health check (scans lessons, decisions, rules) |
 | Bootstrap | `/setup` | Interactive project setup |
 | Bootstrap | `/audit` | Two-phase blind discovery audit |
 | Discovery | `/guide` | Intent-based skill map — "what can I do?" |
@@ -61,7 +63,7 @@ If it has a UI, wire in `/design consult` (before plan) and `/design review` (be
 
 ```
 PRD:              docs/project-prd.md
-Build plan:       docs/build-plan.md
+Plans:            tasks/<topic>-plan.md
 Current state:    docs/current-state.md
 Decisions:        tasks/decisions.md
 Lessons:          tasks/lessons.md

@@ -94,6 +94,84 @@ python3.11 scripts/debate.py verdict \
     --output tasks/auth-redesign-verdict.md
 ```
 
+**review** — Single-persona review of a document or plan. One model evaluates the input through a role-specific lens (architect, staff, security, or pm). Use for quick feedback from a single perspective without the full panel overhead.
+
+```
+python3.11 scripts/debate.py review \
+    --persona pm \
+    --prompt "Review this plan for completeness" \
+    --input tasks/auth-redesign-plan.md
+```
+
+Accepts `--prompt-file` for longer prompts from a file instead of inline `--prompt`.
+
+**review-panel** — Multi-persona parallel review. Runs multiple reviewers concurrently via `ThreadPoolExecutor`, with anonymous output (reviewers are labeled A, B, C to eliminate position and identity bias). Accepts either `--personas` (routes to models via config) or `--models` (direct LiteLLM model names, bypasses persona lookup). The two flags are mutually exclusive.
+
+```
+# With personas (code review — persona framing)
+python3.11 scripts/debate.py review-panel \
+    --personas architect,security,pm \
+    --prompt "Review this diff for production readiness" \
+    --input tasks/auth-redesign-diff.md
+
+# With direct models (document evaluation — no persona framing)
+python3.11 scripts/debate.py review-panel \
+    --models claude-opus-4-6,gemini-3.1-pro,gpt-5.4 \
+    --prompt-file /tmp/eval-prompt.md \
+    --input tasks/auth-redesign-doc.md
+```
+
+When using `--models`, the caller's prompt is the only system prompt — no persona framing is injected. `--enable-tools` gives reviewers read-only verifier tools.
+
+**explore** — Generate 3+ divergent directions with cross-model synthesis. Each direction is developed independently by a different model, then a synthesis pass identifies common themes, complementary ideas, and contradictions across directions.
+
+```
+python3.11 scripts/debate.py explore \
+    --question "What are the options for X?" \
+    --directions 4 \
+    --context "additional market/tech context here" \
+    --output tasks/auth-redesign-explore.md
+```
+
+**pressure-test** — Counter-thesis or pre-mortem failure analysis. In `challenge` frame (default), generates a strategic counter-thesis arguing against the proposal. In `premortem` frame, assumes the plan has already failed and writes the post-mortem from the future.
+
+```
+python3.11 scripts/debate.py pressure-test \
+    --proposal tasks/auth-redesign-plan.md \
+    --frame challenge \
+    --output tasks/auth-redesign-pressure-test.md
+```
+
+Use `--frame premortem` for prospective failure analysis instead of adversarial counter-thesis.
+
+**premortem** — Dedicated pre-mortem subcommand. Assumes the plan failed and writes a post-mortem from the future, identifying the most likely failure modes, warning signs that were missed, and what should have been done differently.
+
+```
+python3.11 scripts/debate.py pre-mortem \
+    --plan tasks/auth-redesign-plan.md \
+    --output tasks/auth-redesign-premortem.md
+```
+
+**check-models** — Verify that configured models in `config/debate-models.json` are reachable via the LiteLLM proxy. Tests connectivity to each model and reports which are available and which are failing.
+
+```
+python3.11 scripts/debate.py check-models
+```
+
+**outcome-update** — Update debate outcomes after implementation. Records whether accepted challenges were actually addressed, linking debate findings to implementation results for retrospective analysis.
+
+```
+python3.11 scripts/debate.py outcome-update \
+    --debate-id auth-redesign \
+    --outcome implemented
+```
+
+**stats** — Show debate activity statistics. Reads from `stores/debate-log.jsonl` and reports run counts by phase, model usage, and recent activity.
+
+```
+python3.11 scripts/debate.py stats
+```
+
 ### The standard pipeline
 
 The recommended three-step pipeline (via `/challenge --deep`):
@@ -321,45 +399,6 @@ Keyword extraction: up to 8 keywords from frontmatter `scope:` field, first head
 Called by `/challenge`, `/challenge --deep`, and `/review` skills to enrich context before sending to cross-model reviewers. Also usable as a standalone CLI tool. Calls `recall_search.py` internally with `--json` output.
 
 
-## pipeline_manifest.py
-
-Tracks pipeline stage completion for a topic. Records which skills have run, what artifacts they produced, and their status.
-
-The problem it solves: a topic may pass through `/challenge` → `/plan` → build → `/review` across multiple sessions. Without a manifest, you have to manually check for each artifact file. This script provides a single query point for pipeline progress.
-
-### Subcommands
-
-**add** — Record a completed pipeline stage.
-
-```
-python3.11 scripts/pipeline_manifest.py add auth-redesign \
-    --skill challenge \
-    --artifact tasks/auth-redesign-challenge.md \
-    --status complete \
-    --recommendation PROCEED
-```
-
-**show** — Display pipeline progress for a topic.
-
-```
-python3.11 scripts/pipeline_manifest.py show auth-redesign
-```
-
-**validate** — Check whether all required stages for a given tier are complete.
-
-```
-python3.11 scripts/pipeline_manifest.py validate auth-redesign --tier T1
-```
-
-### Output
-
-Manifests are written to `tasks/<topic>-manifest.json`. The `show` and `validate` subcommands output JSON to stdout.
-
-### Used by
-
-`/challenge`, `/challenge --deep`, `/plan`, and `/review` skills call `add` after completing their stage. `/ship` calls `validate` to check pipeline completeness.
-
-
 ## artifact_check.py
 
 Artifact integrity and staleness checker. Given a topic name, checks whether plan, challenge, judgment, and review artifacts exist, are valid, and are current relative to the source files.
@@ -451,49 +490,32 @@ When not stale: `{"is_stale": false}`.
 The `/start` skill calls this in step 0c. When `is_stale` is true, `/start` adds a warning to the session brief and derives its "Next" recommendations from git log + session-log instead of the frozen current-state doc.
 
 
-## verify_state.py
+## lesson_events.py
 
-Parallel health check runner. Reads a configurable list of health checks from `config/health-checks.json`, runs all checks concurrently with per-check timeouts, and reports pass/fail.
+Lesson lifecycle event logger and velocity metrics. Tracks lesson creation, promotion, resolution, and archival events, and computes velocity metrics (lessons created per week, promotion rate, median time-to-resolution).
 
-The problem it solves: session-close and deployment need a single command that verifies the system is healthy — databases accessible, services running, governance counts within limits. This script makes that check fast (parallel execution), reliable (per-check timeouts prevent hangs), and configurable (JSON-driven check list).
-
-### How it works
-
-1. Reads `config/health-checks.json` — each check has an `id`, `name`, shell `cmd`, `ok_text`, `fail_text`, and optional `timeout_s` (default: 10s)
-2. Runs all checks in parallel using `ThreadPoolExecutor`
-3. Each check runs its shell command; exit code 0 = pass, non-zero = fail, timeout = fail
-4. Writes results atomically to `/tmp/verify-state-output.json`
-5. Prints a summary to stdout: `verify-state: N/M OK` or `verify-state: N/M OK, K FAILING` with details
+The problem it solves: lessons accumulate in `tasks/lessons.md` but without tracking when they were created, promoted, or resolved, there is no way to measure whether the learning system is healthy. This script provides the event log and metrics that `/healthcheck` uses to assess learning velocity.
 
 ### Usage
 
 ```
-# Run all checks (excludes test suite by default)
-python3.11 scripts/verify_state.py
+# Log a lesson event
+python3.11 scripts/lesson_events.py log --lesson-id L42 --event created
 
-# Include the test suite check
-python3.11 scripts/verify_state.py --include-tests
+# Log promotion to a rule
+python3.11 scripts/lesson_events.py log --lesson-id L42 --event promoted --detail "Promoted to .claude/rules/code-quality.md"
+
+# Show velocity metrics
+python3.11 scripts/lesson_events.py metrics
 ```
 
-### Output
+### Events
 
-JSON written to `/tmp/verify-state-output.json`:
-
-```json
-{
-  "timestamp": "2026-04-02T16:00:00.000000",
-  "pass": 5,
-  "fail": 1,
-  "total": 6,
-  "checks": [
-    {"id": "db_accessible", "name": "Database accessible", "status": "ok", "detail": "Database responds"},
-    {"id": "rules_size", "name": "Rules under 50KB", "status": "fail", "detail": "Rules exceed 50KB limit"}
-  ]
-}
-```
-
-Exit code: 0 if all pass, 1 if any fail.
+- `created` — New lesson added to `tasks/lessons.md`
+- `promoted` — Lesson promoted to a rule in `.claude/rules/`
+- `resolved` — Lesson marked resolved (code fix shipped)
+- `archived` — Lesson moved to `tasks/lessons-archived.md`
 
 ### Used by
 
-`hook-stop-autocommit.py` and `/wrap` call this at session close. Also used by `/ship` as a pre-deploy health check. The `--include-tests` flag adds the full test suite — excluded by default to keep session-close fast.
+The `/healthcheck` skill calls `metrics` to assess learning system health — lesson creation rate, promotion rate, and staleness of open lessons.

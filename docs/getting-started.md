@@ -6,7 +6,7 @@ A guided first-hour tutorial. By the end, you'll have a defined product, an impl
 
 ## The Only Thing You Need to Know
 
-**Just describe what you want to do.** You don't need to memorize any commands. Build OS has 19 skills, but the primary interface is natural language — tell Claude what you're building, what's broken, or what you need, and it routes you to the right tool.
+**Just describe what you want to do.** You don't need to memorize any commands. Build OS has 21 skills, but the primary interface is natural language — tell Claude what you're building, what's broken, or what you need, and it routes you to the right tool.
 
 If you ever feel lost, type `/guide` for a quick map organized by intent, or `/start` to get oriented in your current project.
 
@@ -105,6 +105,7 @@ Match the pipeline to the task:
 
 | Task | Pipeline |
 |---|---|
+| **Spike / prototype** | build (no pipeline) |
 | Bugfix | `/plan` --> build --> `/review` --> `/ship` |
 | Small feature | `/think refine` --> `/plan` --> build --> `/review` --> `/ship` |
 | New feature | `/think discover` --> `/challenge` --> `/plan` --> build --> `/review` --> `/ship` |

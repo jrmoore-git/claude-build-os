@@ -157,11 +157,6 @@ After writing:
 - "This satisfies the plan gate for protected paths."
 - "Build the changes, then run `/review` when ready."
 
-Update the pipeline manifest:
-
-```bash
-python3.11 scripts/pipeline_manifest.py add <topic> --skill plan --artifact tasks/<topic>-plan.md --status complete
-```
 
 ## `--auto` Mode (Auto-Planning Pipeline)
 

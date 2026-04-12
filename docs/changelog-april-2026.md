@@ -102,7 +102,7 @@ After problem discovery, `/think` now offers to generate a PRD from the conversa
 ## Onboarding Docs (new)
 
 - **`docs/getting-started.md`** — guided tutorial: clone → think → plan → build → check → ship
-- **`docs/cheat-sheet.md`** — quick reference: pipeline tiers, all 18 skills, key files, governance shortcuts
+- **`docs/cheat-sheet.md`** — quick reference: pipeline tiers, all 21 skills, key files, governance shortcuts
 - **`examples/pulse/`** — complete worked example project (PRD, decisions, lessons, current-state)
 - **`docs/why-build-os.md`** — explains the problem BuildOS solves
 - **`docs/PERSONAS.md`** — model persona assignments and routing rationale
