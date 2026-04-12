@@ -46,7 +46,7 @@ The cross-model debate engine (`debate.py`) got the most significant changes:
 - Retries transient errors (429, 5xx, network) with exponential backoff (3 attempts)
 - Rollback path via `BUILDOS_LLM_LEGACY=1` env var
 
-## New Skills (8 added, later consolidated to 15 total)
+## New Skills (8 added, later consolidated to 18 total)
 
 > **Note:** Skills were renamed and consolidated on 2026-04-11 (D12). The names below reflect the current skill names.
 
