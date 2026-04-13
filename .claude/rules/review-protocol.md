@@ -21,7 +21,7 @@ Quality assurance maps to lifecycle stages. The user chooses which stages to run
 Cross-model gate before `/plan`. Three models independently evaluate whether proposed work is necessary and appropriately scoped.
 
 **When to run:** New features, abstractions, scope expansion, new dependencies.
-**When to skip:** Bugfixes, test additions, docs, trivial refactors -> `/plan --skip-challenge`.
+**Skip conditions:** Defined authoritatively in CLAUDE.md. Do not maintain a separate list here.
 
 Output: `tasks/<topic>-challenge.md` with recommendation (proceed / simplify / pause / reject).
 
@@ -55,10 +55,7 @@ Note: `/polish` also runs as the final phase of `/challenge --deep`. The standal
 
 ### Typical paths by change type
 
-- **Bugfix:** `/plan --skip-challenge` -> build -> `/review` -> `/ship`
-- **Small feature:** `/challenge` -> `/plan` -> build -> `/review` -> `/ship`
-- **Improve a plan/design:** `/polish` (standalone, no adversarial framing)
-- **Architectural change:** `/challenge` -> `/plan` -> `/challenge --deep` -> build -> `/review` (with spec compliance) -> `/ship`
+Tier definitions and full pipeline routes: see CLAUDE.md.
 
 ## Cross-Model Debate Engine
 
@@ -72,7 +69,7 @@ Advisory warnings (not hard blocks) for commits touching `skills/`, `*_tool.py`,
 
 ## Contract Tests
 
-The essential eight invariants apply to every change: idempotency, approval gating, audit completeness, degraded mode visible, state machine validation, rollback path exists, version pinning enforced, exactly-once scheduling. Add domain-specific invariants on top.
+The essential eight invariants (6 applicable to BuildOS — see CLAUDE.md for applicability) guide every change. Add domain-specific invariants on top.
 
 ## Definition of Done
 

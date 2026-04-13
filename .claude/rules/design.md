@@ -8,7 +8,7 @@ globs:
 
 ## AI Slop Checklist
 
-Watch for these anti-patterns in generated UI and content. Any match = rewrite.
+**Any listed anti-pattern detected => rewrite.**
 
 1. Purple/violet gradient backgrounds
 2. 3-column feature grid (icon-in-circle + title + description x3)

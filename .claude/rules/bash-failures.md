@@ -17,8 +17,6 @@ When a command fails, diagnose the root cause and apply a permanent fix. Do not 
 
 **Hook files must be real files in `hooks/`, never symlinks.** Settings.json references `hooks/hook-*` directly. If the real file is elsewhere and linked, deleting the target = total lockout.
 
-*Origin: 2026-03-30 — hooks lived in `hooks/` with symlinks from `scripts/`. `rm -rf hooks/` broke all symlinks. Four sessions deadlocked.*
-
 ## Prohibited Patterns (Hook-Enforced)
 
 These commands are blocked by `hook-bash-fix-forward.py` until investigation is performed:

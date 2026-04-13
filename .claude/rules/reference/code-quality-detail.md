@@ -4,8 +4,6 @@ description: Domain-specific code quality rules — bulk mutations, SQLite pitfa
 
 # Code Quality — Domain-Specific Rules
 
-These rules apply when working in specific domains. They are NOT loaded by default — read this file when working with databases, data pipelines, or test infrastructure.
-
 ## Bulk Data Mutations
 
 Before executing any operation that modifies or deletes >10 records:
@@ -14,8 +12,6 @@ Before executing any operation that modifies or deletes >10 records:
 3. **Explicit confirmation:** Get the user's approval before executing.
 4. **Pre-execution audit:** Log the operation to audit.db BEFORE executing (action_type, record count, WHERE clause summary).
 5. **Prefer soft deletes:** Use state changes (e.g., `state='dismissed'`) over `DELETE` where schema supports it.
-
-*Origin: D82 debate — bulk records dismissed without preview or confirmation. Both challengers + judge agreed human confirmation alone is insufficient; structural safeguards required.*
 
 ## Ad-hoc Database Queries
 
@@ -33,12 +29,9 @@ Every pipeline filter rule MUST have a corresponding test proving it fires in th
 
 **Pattern:** When adding a filter (e.g., `should_skip_draft`, contact exclusion, dedup gate), write a test that exercises the full path from input to filtered output — not just the filter function in isolation.
 
-*Origin: L19 — three separate filter rules existed but none were tested in the draft creation path, so none actually fired.*
-
 ## Testing — Module-Level Constants
 
 Do not monkeypatch module-level constants (DB paths, API URLs, feature flags) in tests. Monkeypatch coverage is fragile — missing one constant silently uses production resources. Instead, read configuration from environment variables at module load time and set those env vars in the test fixture.
 
 **Pattern:** Replace `PREFS_DB = "/path/to/production.db"` with `PREFS_DB = os.environ.get("APP_STORE_DIR", "/default/path") + "/preferences.db"`. Tests set `APP_STORE_DIR` to `tmp_path` before import. Add a boundary test proving the safety gate actually blocks (e.g., verify `_send_email` is a no-op when `TEST_MODE=1`).
 
-*Origin: L268 — test suite sent 40 real emails because one DB path wasn't patched; monkeypatch covered 4 of 5 paths.*

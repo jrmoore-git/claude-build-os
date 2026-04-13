@@ -6,8 +6,8 @@ description: Session management, documentation-first, context budgeting
 # Session Discipline Rules
 
 ## Document First, Execute Second
-- Every correction, decision, or process change must be persisted to the correct document BEFORE implementation
-- If session ends after documenting but before implementing, nothing is lost
+- Decide, then document, then implement. Persist corrections and decisions after deciding on them and before implementing them.
+- If session ends after documenting but before implementing, nothing is lost.
 - Instructions given in chat but not written to docs get lost between sessions. The document is the deliverable.
 
 ## What Goes Where
@@ -44,22 +44,16 @@ Priority when context is low: 1. Session summary → 2. Phase review → 3. Impl
 
 Enforced by `scripts/hook-plan-gate.sh`. Protected paths require a `tasks/<topic>-plan.md` with valid YAML frontmatter (`scope`, `surfaces_affected`, `verification_commands`, `rollback`, `review_tier`, `verification_evidence`) before commit. Config: `config/protected-paths.json`. `[TRIVIAL]` blocked for protected paths; `[EMERGENCY]` allowed with warning.
 
-**Review requirement:** No commit without the appropriate review tier. See `.claude/rules/reference/review-protocol.md` for the 3-stage chain (`/challenge` → `/challenge --deep` → `/review`) and tier classification.
+Do not commit without the appropriate review. See review-protocol.md for review types and thresholds.
 
 ## Verification
-- Never mark a task complete without proving it works
-- Run tests, check logs, demonstrate correctness
-- Ask: "Would a staff engineer approve this?"
-- **Sanity-check data volumes, not just success codes.** A pipeline can return valid JSON with no errors and still be wrong. If the output count is inconsistent with what you know should exist, stop and investigate before proceeding.
+Prove it works before calling it done. See review-protocol.md Definition of Done. Additionally: sanity-check data volumes, not just success codes — a pipeline can return valid JSON with no errors and still be wrong.
 
 ## Context Budget
 - Every LLM call must log the actual model that responded, not the model that was requested (fallback detection)
 - **What survives compaction** is controlled by the `## Compact Instructions` section in CLAUDE.md — update it if your session has unusual context needs
 
-**Compaction protocol (three stages):**
-1. **At 55%**: Start writing working state to disk proactively between tasks (current-state.md, session-log, in-progress analysis). No compaction yet — just insurance.
-2. **55–70%**: Compact at the next **natural breakpoint** — task completion, commit, review boundary. Never mid-thought or mid-edit.
-3. **At 70%**: Hard compact. If mid-thought, write the thought to disk first (even rough notes to `tasks/working-notes.md`), then `/compact` immediately.
+**Compaction protocol:** 55%: write state to disk proactively. 55–70%: compact at natural breakpoint. 70%: hard compact immediately (write thoughts to disk first).
 
 ## Presenting Options
 

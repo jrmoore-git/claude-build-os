@@ -16,12 +16,7 @@ Agent Teams + subagents is the default orchestration model (D103). Do not use a 
 
 ## Decomposition Gate (Hook-Enforced)
 
-`hooks/hook-decompose-gate.py` blocks the first `Write|Edit` call in each session until you assess decomposability. When the gate fires:
-
-1. **Assess the task.** Count **independent logical components** — groups of 1-3 tightly coupled files that can be edited without knowing the others' changes. This is the fan-out count.
-2. **If 3+ components — decompose:** One agent per component. Output a plan listing each component, its file scope, and dependencies. Then write the flag: `echo '{"plan_submitted": true}' > /tmp/claude-decompose-{SESSION_ID}.json`. Dispatch parallel agents with worktree isolation.
-3. **If 1-2 components — bypass:** Write: `echo '{"bypass": true}' > /tmp/claude-decompose-{SESSION_ID}.json`. Proceed normally.
-4. **User override:** If the user says "skip" or "just do it", write the bypass flag immediately.
+`hooks/hook-decompose-gate.py` blocks the first `Write|Edit` call in each session until you assess decomposability. Count independent components. 3+: decompose (one agent per component, output plan with file scopes, write flag: `echo '{"plan_submitted": true}' > /tmp/claude-decompose-{SESSION_ID}.json`, dispatch with worktree isolation). 1-2: bypass (`echo '{"bypass": true}' > /tmp/claude-decompose-{SESSION_ID}.json`). User says "skip" or "just do it": bypass immediately.
 
 **Maximize fan-out, not minimize it.** The default failure mode is under-parallelization (grouping by "theme" into 3 large agents instead of 6-8 focused ones). Ask: "how many independent components exist?" not "can I get to 3 subtasks?" Trivial multi-file edits (rename, import change) that share no logical coupling can stay in one agent — but edits requiring different reasoning should split.
 
@@ -33,20 +28,11 @@ The gate fires once per session. After the flag file exists, all writes proceed 
 
 ## Isolation Default
 
-All parallel agents MUST use `isolation: "worktree"` unless the task is read-only (no file writes). Worktree isolation gives each agent its own git checkout, eliminating file collisions and index.lock contention. This is not optional.
-
-Read-only agents (searching, analyzing, summarizing) may skip worktree isolation since they don't create collision risk.
+Parallel agents MUST use `isolation: "worktree"` unless read-only. Eliminates file collisions and index.lock contention. Read-only agents (searching, analyzing) may skip worktree isolation.
 
 ## File References in Worktree Agent Prompts
 
-When dispatching a worktree agent, **use only relative paths** in the prompt:
-
-- **Wrong:** "Edit `/home/user/myproject/src/synthesis.py`" — absolute path points to main checkout, bypasses worktree entirely
-- **Right:** "Edit `src/synthesis.py`" — relative to cwd, which is the worktree root
-
-Absolute paths silently defeat isolation: the agent writes to the shared main checkout instead of its isolated copy. This was discovered when multiple worktree agents all wrote to main because dispatch prompts used absolute paths. The worktrees appeared empty and were auto-cleaned.
-
-This is convention-enforced (not hooked) because it requires correct prompt authorship.
+Worktree agent prompts: relative paths only (`src/file.py`, not `/home/.../src/file.py`). Absolute paths bypass isolation — the agent writes to the main checkout instead of the worktree.
 
 ## After Parallel Agents Complete
 

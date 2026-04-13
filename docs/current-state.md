@@ -1,5 +1,11 @@
 # Current State — 2026-04-11
 
+## ⚠ STALE — auto-captured session ended without /wrap-session
+**Auto-capture date:** 2026-04-12 20:12 PT
+**Files changed this session:** 4 files in tasks
+**WARNING:** The "Next Action" below may be outdated. Cross-check with `git log --oneline -10` and recent session-log entries.
+
+
 ## What Changed This Session
 - Full documentation audit: 8 parallel agents audited all docs against actual system (skills, hooks, scripts, config)
 - Fixed skill count across 5 files (19/18 → 21): README, getting-started, cheat-sheet, changelog

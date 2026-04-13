@@ -21,9 +21,9 @@ globs:
 - LIKE wildcards (`%`, `_`) need separate escaping from SQL injection. Escape as `\%`, `\_` with `ESCAPE '\'` on all LIKE clauses that include user input.
 - Audit log `summary` fields must never include untrusted content (meeting titles, email subjects, transcript excerpts). These fields are later read by LLMs and injected into prompts — stored untrusted content becomes prompt injection persistence. Store only metadata: IDs, counts, dates, contact names.
 - Never put API keys in `curl -u ":$KEY"` or `curl -H "Authorization: $KEY"` as shell arguments. The key is visible in `ps`, `top`, and process listings. Use Python `urllib.request` with the key in an `Authorization` header set via code, or write the key to a temp file and pass `-K @file`.
-- Allowlist check pattern: use `if allowlist is not None and value not in allowlist` — NOT `if allowlist and value and value not in allowlist`. The latter has two bypasses: empty string (`value=""`) passes because `bool("")` is False, and `None` value passes because `bool(None)` is False. The correct check explicitly tests membership.
-- `csv.DictWriter` with `QUOTE_MINIMAL` (the default) does not protect against spreadsheet formula injection. Cells starting with `=`, `+`, `-`, or `@` are treated as formulas by Excel/Sheets. If the CSV will be opened in a spreadsheet, sanitize: prefix any such values with a single quote, or use `quoting=csv.QUOTE_ALL`.
-- Trust boundary enforcement must be consistent across ALL access paths. If a restricted user can reach the same data via a different command or skill, the boundary is bypassed. Check every path, not just the obvious one.
+- Allowlist check: `if allowlist is not None and value not in allowlist` — NOT `if allowlist and value...` (empty string and None bypass).
+- CSV formula injection: prefix cells starting with `=`, `+`, `-`, `@` with single quote, or use `csv.QUOTE_ALL`.
+- Trust boundaries must be consistent across ALL access paths — a boundary bypassed via alternate skill is not a boundary.
 
 ## Safety Rules Block Pattern
 

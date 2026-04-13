@@ -28,15 +28,9 @@
 
 ## How to Route
 
-1. **Match intent, not keywords.** "We need auth" is a `/think discover` task, not a literal search for "auth".
-2. **Invoke the skill directly.** Don't explain what the skill does first — just run it. The user said what they want; deliver it.
-3. **When ambiguous, ask one question.** "Are you starting fresh on this, or do you already have a plan?" routes between `/think` and `/plan`.
-4. **Chain automatically.** If `/think` produces a design doc, suggest `/challenge` next. The pipeline is the default — let it flow.
-5. **Slash commands are power-user shortcuts.** Users who know `/challenge --deep` can type it directly. Everyone else just describes what they need.
+Match intent, not keywords. Invoke directly — don't explain the skill first. When ambiguous, ask one question. Chain skills automatically when one outputs another's input. One suggestion per pattern per session.
 
 ## Proactive Routing — Pattern Recognition
-
-Don't wait for the user to ask. Watch for these signals during a session and suggest the appropriate skill:
 
 | You observe... | Suggest |
 |---|---|

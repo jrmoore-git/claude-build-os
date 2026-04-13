@@ -14,8 +14,6 @@ Avoid over-engineering. Only make changes that are directly requested or clearly
 - No nesting deeper than 3 levels. Use guard clauses.
 - Write boring code. Explicit loops over nested comprehensions. Named variables over inline expressions.
 
-**Core principles:** Simplicity first. No laziness — root causes only. Senior developer standards. Don't over-engineer.
-
 ## Anti-Slop Vocabulary
 
 Never use these words in output, docs, commit messages, or generated content: delve, crucial, robust, comprehensive, nuanced, leverage, facilitate, utilize, streamline, cutting-edge, state-of-the-art, paradigm, synergy, holistic, empower, innovative, seamless, transformative. Use plain, direct language instead.
@@ -38,8 +36,6 @@ This applies to any skill that accepts IDs from humans and retrieves records by 
 ## Identity Resolution — No Heuristic Aliasing
 
 Don't build identity resolution on heuristics. An email address is a lookup key — use it exactly as given. Alias tables that pick "canonical" emails via shortest-string or domain-priority heuristics silently remap to wrong addresses. If someone queries `alice@example.com`, look up that exact address. The cost of duplicate cache entries is negligible; the cost of wrong lookups is high.
-
-*Origin: alias-table heuristics returned wrong email addresses for contact lookups.*
 
 ## Domain-Specific Rules
 
