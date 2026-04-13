@@ -379,7 +379,7 @@ Review passed after 3 iterations. Artifact: tasks/<topic>-review.md
 
 When the content-type detection identifies the input as a non-code document (design doc, strategy, explore output, plan, proposal), use cross-model evaluation with content-appropriate prompts instead of persona-based code review. PM/Security/Architecture lenses are designed for code diffs — applying them to a strategy doc or design proposal produces irrelevant findings.
 
-**Key distinction:** `/review` evaluates. `/polish` improves. Document review uses `review-panel --models` (parallel independent evaluation), not `refine` (iterative improvement).
+**Key distinction:** `/review` evaluates. `/polish` improves. Document review uses `review --models` (parallel independent evaluation), not `refine` (iterative improvement).
 
 ### Step 1: Identify the document
 
@@ -413,10 +413,10 @@ Write the prompt to a temp file.
 
 ### Step 3: Run cross-model evaluation
 
-Use `review-panel --models` to get 3 independent models evaluating with the same prompt — no persona framing injected:
+Use `review --models` to get 3 independent models evaluating with the same prompt — no persona framing injected:
 
 ```bash
-python3.11 scripts/debate.py review-panel \
+python3.11 scripts/debate.py review \
   --models claude-opus-4-6,gemini-3.1-pro,gpt-5.4 \
   --prompt-file <temp eval prompt> \
   --input <path to document>

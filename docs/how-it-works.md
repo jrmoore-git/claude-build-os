@@ -94,34 +94,35 @@ python3.11 scripts/debate.py verdict \
     --output tasks/auth-redesign-verdict.md
 ```
 
-**review** — Single-persona review of a document or plan. One model evaluates the input through a role-specific lens (architect, staff, security, or pm). Use for quick feedback from a single perspective without the full panel overhead.
+**review** — Unified review command: single persona/model or multi-model panel. Accepts four mutually exclusive model-selection flags: `--persona` (single, with persona framing), `--personas` (parallel panel, with persona framing), `--model` (single, no persona framing), `--models` (parallel panel, no persona framing). Multiple reviewers run concurrently via `ThreadPoolExecutor` with anonymous output (labeled A, B, C to eliminate position and identity bias).
 
 ```
+# Single persona (code review)
 python3.11 scripts/debate.py review \
     --persona pm \
     --prompt "Review this plan for completeness" \
     --input tasks/auth-redesign-plan.md
-```
 
-Accepts `--prompt-file` for longer prompts from a file instead of inline `--prompt`.
+# Single model (no persona framing)
+python3.11 scripts/debate.py review \
+    --model gemini-3.1-pro \
+    --prompt "Review this brief for implementability" \
+    --input tasks/auth-redesign-brief.md
 
-**review-panel** — Multi-persona parallel review. Runs multiple reviewers concurrently via `ThreadPoolExecutor`, with anonymous output (reviewers are labeled A, B, C to eliminate position and identity bias). Accepts either `--personas` (routes to models via config) or `--models` (direct LiteLLM model names, bypasses persona lookup). The two flags are mutually exclusive.
-
-```
-# With personas (code review — persona framing)
-python3.11 scripts/debate.py review-panel \
+# Multiple personas (parallel panel)
+python3.11 scripts/debate.py review \
     --personas architect,security,pm \
     --prompt "Review this diff for production readiness" \
     --input tasks/auth-redesign-diff.md
 
-# With direct models (document evaluation — no persona framing)
-python3.11 scripts/debate.py review-panel \
+# Multiple models (parallel panel, no persona framing)
+python3.11 scripts/debate.py review \
     --models claude-opus-4-6,gemini-3.1-pro,gpt-5.4 \
     --prompt-file /tmp/eval-prompt.md \
     --input tasks/auth-redesign-doc.md
 ```
 
-When using `--models`, the caller's prompt is the only system prompt — no persona framing is injected. `--enable-tools` gives reviewers read-only verifier tools.
+When using `--model` or `--models`, no persona framing is injected — the caller's prompt is the only system prompt. `--enable-tools` gives reviewers read-only verifier tools (works with all model-selection flags). `review-panel` is a deprecated alias that maps to `review`.
 
 **explore** — Generate 3+ divergent directions with cross-model synthesis. Each direction is developed independently by a different model, then a synthesis pass identifies common themes, complementary ideas, and contradictions across directions.
 

@@ -6,8 +6,7 @@ Subcommands:
     challenge     Send proposal to challenger models for adversarial review
     judge         Independent judgment: non-author model evaluates challenges
     refine        Iterative cross-model refinement (guided by judgment)
-    review        Single-model review via persona (for skill inline reviews)
-    review-panel  Multi-persona panel review (3 models, anonymous labels)
+    review        Model review: single persona/model or multi-model panel
     check-models  Compare LiteLLM available models against config
     compare       Compare two review methods on the same document
     verdict       Send resolution back to challengers for final verdict (legacy)
@@ -2776,28 +2775,68 @@ def cmd_compare(args):
 # ── Single-model review ──────────────────────────────────────────────────────
 
 
+def _resolve_reviewers(args, config):
+    """Normalize all model-selection flags to a list of (label, model, persona_framing) tuples.
+
+    Handles --persona, --personas, --model, --models. Exactly one must be set
+    (enforced by argparse mutually exclusive group).
+    """
+    pmap = config["persona_model_map"]
+
+    if args.persona:
+        persona = args.persona.strip().lower()
+        if persona not in pmap:
+            print(f"ERROR: unknown persona '{persona}'. "
+                  f"Valid: {', '.join(sorted(pmap))}",
+                  file=sys.stderr)
+            return None
+        return [(persona, pmap[persona], True)]
+
+    if args.personas:
+        personas = [p.strip().lower() for p in args.personas.split(",") if p.strip()]
+        if not personas:
+            print("ERROR: no personas specified", file=sys.stderr)
+            return None
+        for p in personas:
+            if p not in pmap:
+                print(f"ERROR: unknown persona '{p}'. Valid: {', '.join(sorted(pmap))}",
+                      file=sys.stderr)
+                return None
+        return [(p, pmap[p], True) for p in personas]
+
+    if args.model:
+        return [("reviewer", args.model.strip(), False)]
+
+    if args.models:
+        model_list = [m.strip() for m in args.models.split(",") if m.strip()]
+        if not model_list:
+            print("ERROR: no models specified", file=sys.stderr)
+            return None
+        return [(f"model-{i+1}", m, False) for i, m in enumerate(model_list)]
+
+    print("ERROR: specify --persona, --personas, --model, or --models",
+          file=sys.stderr)
+    return None
+
+
 def cmd_review(args):
-    """Single-model review for inline skill use (e.g., /define, /elevate)."""
+    """Unified review: single persona/model or multi-model panel with anonymous labels."""
+    import random
+
+    # Deprecation notice for review-panel alias
+    if getattr(args, 'command', None) == "review-panel":
+        print("NOTE: 'review-panel' is now 'review' — this alias will be "
+              "removed in a future version.", file=sys.stderr)
+
     _cost_snapshot = get_session_costs()
     api_key, litellm_url, _is_fallback = _load_credentials()
     if api_key is None:
         return 1
     config = _load_config()
 
-    # Resolve model from persona or explicit --model
-    if args.persona:
-        persona = args.persona.strip().lower()
-        pmap = config["persona_model_map"]
-        if persona not in pmap:
-            print(f"ERROR: unknown persona '{persona}'. "
-                  f"Valid: {', '.join(sorted(pmap))}",
-                  file=sys.stderr)
-            return 1
-        model = pmap[persona]
-    elif args.model:
-        model = args.model
-    else:
-        print("ERROR: specify --persona or --model", file=sys.stderr)
+    # Resolve reviewers from flags
+    reviewers = _resolve_reviewers(args, config)
+    if reviewers is None:
         return 1
 
     # Load prompt
@@ -2815,75 +2854,37 @@ def cmd_review(args):
         print("ERROR: input file is empty", file=sys.stderr)
         return 1
 
-    print(f"Calling reviewer ({args.persona or 'explicit'})...", file=sys.stderr)
-    try:
-        response = _call_litellm(model, prompt, input_text, litellm_url, api_key)
-    except LLM_SAFE_EXCEPTIONS as e:
-        print(f"ERROR: review call failed — {e}", file=sys.stderr)
-        return 1
+    enable_tools = getattr(args, 'enable_tools', False)
+    is_panel = len(reviewers) > 1 or enable_tools
 
-    if not response or not response.strip():
-        print("ERROR: model returned empty response", file=sys.stderr)
-        return 1
-
-    # Output with anonymous label — no model name
-    print(f"## Reviewer\n\n{response}")
-
-    _log_debate_event({
-        "phase": "review",
-        "persona": args.persona or None,
-        "model": model,
-        "input_file": args.input.name if hasattr(args.input, 'name') else "stdin",
-        "success": True,
-        "response_length": len(response),
-    }, cost_snapshot=_cost_snapshot)
-    return 0
-
-
-def cmd_review_panel(args):
-    """Multi-persona panel review: 3 models review independently, anonymous labels."""
-    import random
-
-    _cost_snapshot = get_session_costs()
-    api_key, litellm_url, _is_fallback = _load_credentials()
-    if api_key is None:
-        return 1
-    config = _load_config()
-
-    # Resolve --personas or --models to a list of (label, model) pairs
-    direct_models_mode = False
-    if args.personas:
-        personas = [p.strip().lower() for p in args.personas.split(",") if p.strip()]
-        if not personas:
-            print("ERROR: no personas specified", file=sys.stderr)
+    # ── Single reviewer, no tools — simple path ─────────────────────────
+    if not is_panel:
+        label, model, _persona_framing = reviewers[0]
+        print(f"Calling reviewer ({label})...", file=sys.stderr)
+        try:
+            response = _call_litellm(model, prompt, input_text, litellm_url, api_key)
+        except LLM_SAFE_EXCEPTIONS as e:
+            print(f"ERROR: review call failed — {e}", file=sys.stderr)
             return 1
-        pmap = config["persona_model_map"]
-        for p in personas:
-            if p not in pmap:
-                print(f"ERROR: unknown persona '{p}'. Valid: {', '.join(sorted(pmap))}",
-                      file=sys.stderr)
-                return 1
-    elif args.models:
-        direct_models_mode = True
-        model_list = [m.strip() for m in args.models.split(",") if m.strip()]
-        if not model_list:
-            print("ERROR: no models specified", file=sys.stderr)
-            return 1
-        # Synthesize personas list and pmap from model names
-        personas = [f"model-{i+1}" for i in range(len(model_list))]
-        pmap = {label: model for label, model in zip(personas, model_list)}
-    else:
-        print("ERROR: specify --personas or --models", file=sys.stderr)
-        return 1
 
-    # Load prompt
-    if args.prompt:
-        prompt = args.prompt
-    elif args.prompt_file:
-        prompt = args.prompt_file.read()
-    else:
-        print("ERROR: specify --prompt or --prompt-file", file=sys.stderr)
-        return 1
+        if not response or not response.strip():
+            print("ERROR: model returned empty response", file=sys.stderr)
+            return 1
+
+        print(f"## Reviewer\n\n{response}")
+
+        _log_debate_event({
+            "phase": "review",
+            "persona": label if _persona_framing else None,
+            "model": model,
+            "input_file": args.input.name if hasattr(args.input, 'name') else "stdin",
+            "success": True,
+            "response_length": len(response),
+        }, cost_snapshot=_cost_snapshot)
+        return 0
+
+    # ── Panel path: parallel execution, anonymous labels, tool support ──
+    direct_models_mode = not reviewers[0][2]  # persona_framing == False
 
     # Inject security posture modifier into review prompt
     posture = getattr(args, 'security_posture', 3)
@@ -2891,20 +2892,19 @@ def cmd_review_panel(args):
     if posture_mod:
         prompt = prompt + posture_mod
 
-    input_text = args.input.read()
-    if not input_text.strip():
-        print("ERROR: input file is empty", file=sys.stderr)
-        return 1
+    # Build label→model mapping for panel execution
+    pmap = {label: model for label, model, _ in reviewers}
+    personas = [label for label, _, _ in reviewers]
 
     # Prepare tool support if enabled
     tool_defs = None
     tool_exec = None
     all_tool_calls = {}
-    if getattr(args, 'enable_tools', False) and _is_fallback:
+    if enable_tools and _is_fallback:
         print("WARNING: --enable-tools disabled in fallback mode "
               "(requires LiteLLM proxy)", file=sys.stderr)
-        args.enable_tools = False
-    if getattr(args, 'enable_tools', False):
+        enable_tools = False
+    if enable_tools:
         import debate_tools
         tool_defs = debate_tools.TOOL_DEFINITIONS
         tool_exec = debate_tools.execute_tool
@@ -2918,7 +2918,7 @@ def cmd_review_panel(args):
                     return json.dumps({"error": f"tool not allowed: {name}"})
                 return _original_exec(name, targs)
 
-    # Call each persona's model in parallel — each hits an independent model API.
+    # Call each reviewer's model in parallel
     def _run_reviewer(persona):
         model = pmap[persona]
         print(f"Calling {persona}...", file=sys.stderr)
@@ -2973,16 +2973,19 @@ def cmd_review_panel(args):
 
     successful = [r for r in reviews if r[3]]
     if not successful:
-        print("ERROR: all panel reviewers failed", file=sys.stderr)
+        print("ERROR: all reviewers failed", file=sys.stderr)
         return 1
 
-    # Position randomization (Zheng et al.) — shuffle before labeling
-    random.shuffle(successful)
-
-    # Output with anonymous labels — no model names
-    for i, (persona, model, response, _) in enumerate(successful):
-        label = CHALLENGER_LABELS[i]
-        print(f"## Reviewer {label}\n\n{response}\n\n---\n")
+    # N=1 with tools: single-review output format (no label suffix)
+    if len(reviewers) == 1:
+        _persona, _model, response, _ = successful[0]
+        print(f"## Reviewer\n\n{response}")
+    else:
+        # Position randomization (Zheng et al.) — shuffle before labeling
+        random.shuffle(successful)
+        for i, (persona, model, response, _) in enumerate(successful):
+            label = CHALLENGER_LABELS[i]
+            print(f"## Reviewer {label}\n\n{response}\n\n---\n")
 
     failed = [r for r in reviews if not r[3]]
     if failed:
@@ -2991,11 +2994,14 @@ def cmd_review_panel(args):
 
     # Build mapping for audit (not visible in output)
     mapping = {}
-    for i, (persona, model, _, _) in enumerate(successful):
-        mapping[CHALLENGER_LABELS[i]] = model
+    if len(reviewers) == 1:
+        mapping["Reviewer"] = successful[0][1]
+    else:
+        for i, (persona, model, _, _) in enumerate(successful):
+            mapping[CHALLENGER_LABELS[i]] = model
 
     log_entry = {
-        "phase": "review-panel",
+        "phase": "review-panel" if len(reviewers) > 1 else "review",
         "personas": personas,
         "mapping": mapping,
         "successful": len(successful),
@@ -3006,8 +3012,7 @@ def cmd_review_panel(args):
         log_entry["mode"] = "direct-models"
     if all_tool_calls:
         log_entry["tool_calls"] = all_tool_calls
-    if getattr(args, 'enable_tools', False):
-        # Track per-persona tool delivery for diagnostics
+    if enable_tools:
         persona_model_map = {p: pmap[p] for p in personas}
         log_entry["tool_delivery"] = {
             p: {
@@ -3559,41 +3564,55 @@ def main():
     rf.add_argument("--early-stop", action="store_true", default=False,
                      help="Stop early when a round makes minimal changes (< 5%% character delta)")
 
-    # review (single-model)
+    # review (unified — replaces both review and review-panel)
     rv = sub.add_parser("review",
-                        help="Single-model review via persona (for skill inline reviews)")
-    rv.add_argument("--persona", default=None,
-                    help="Persona name (architect, staff, security, pm). "
+                        help="Model review: single persona/model or multi-model panel")
+    rv_model_group = rv.add_mutually_exclusive_group(required=True)
+    rv_model_group.add_argument("--persona", default=None,
+                    help="Single persona name (architect, staff, security, pm). "
                          "Resolves to model via config.")
-    rv.add_argument("--model", default=None,
-                    help="Explicit model override (debug/admin only)")
-    rv.add_argument("--prompt", default=None,
+    rv_model_group.add_argument("--personas", default=None,
+                    help="Comma-separated persona names (e.g., architect,security,pm). "
+                         "Runs in parallel with anonymous labels.")
+    rv_model_group.add_argument("--model", default=None,
+                    help="Single explicit LiteLLM model name (no persona framing).")
+    rv_model_group.add_argument("--models", default=None,
+                    help="Comma-separated LiteLLM model names (e.g., claude-opus-4-6,gemini-3.1-pro). "
+                         "Runs in parallel, no persona framing.")
+    rv_prompt_group = rv.add_mutually_exclusive_group(required=True)
+    rv_prompt_group.add_argument("--prompt", default=None,
                     help="Review prompt string")
-    rv.add_argument("--prompt-file", type=argparse.FileType("r"), default=None,
+    rv_prompt_group.add_argument("--prompt-file", type=argparse.FileType("r"), default=None,
                     help="Review prompt file")
     rv.add_argument("--input", required=True, type=argparse.FileType("r"),
                     help="Document to review")
-
-    # review-panel (multi-persona)
-    rp = sub.add_parser("review-panel",
-                        help="Multi-persona panel review (anonymous labels)")
-    rp_model_group = rp.add_mutually_exclusive_group(required=True)
-    rp_model_group.add_argument("--personas",
-                    help="Comma-separated persona names (e.g., architect,security,pm). "
-                         "Routes to models via config. Alternative to --models.")
-    rp_model_group.add_argument("--models",
-                    help="Comma-separated LiteLLM model names (e.g., claude-opus-4-6,gemini-3.1-pro,gpt-5.4). "
-                         "Bypasses persona lookup — caller's --prompt is the only system prompt.")
-    rp.add_argument("--prompt", default=None,
-                    help="Review prompt string (used as system prompt for all reviewers)")
-    rp.add_argument("--prompt-file", type=argparse.FileType("r"), default=None,
-                    help="Review prompt file (used as system prompt for all reviewers)")
-    rp.add_argument("--input", required=True, type=argparse.FileType("r"),
-                    help="Document to review")
-    rp.add_argument("--enable-tools", action="store_true", default=False,
-                    help="Give panel reviewers read-only verifier tools")
-    rp.add_argument("--allowed-tools", default=None,
+    rv.add_argument("--enable-tools", action="store_true", default=False,
+                    help="Give reviewers read-only verifier tools")
+    rv.add_argument("--allowed-tools", default=None,
                     help="Comma-separated tool names to allow (default: all)")
+
+    # review-panel — deprecated alias for review
+    rp = sub.add_parser("review-panel", help=argparse.SUPPRESS)
+    rp_model_group = rp.add_mutually_exclusive_group(required=True)
+    rp_model_group.add_argument("--persona", default=None,
+                    help=argparse.SUPPRESS)
+    rp_model_group.add_argument("--personas", default=None,
+                    help=argparse.SUPPRESS)
+    rp_model_group.add_argument("--model", default=None,
+                    help=argparse.SUPPRESS)
+    rp_model_group.add_argument("--models", default=None,
+                    help=argparse.SUPPRESS)
+    rp_prompt_group = rp.add_mutually_exclusive_group(required=True)
+    rp_prompt_group.add_argument("--prompt", default=None,
+                    help=argparse.SUPPRESS)
+    rp_prompt_group.add_argument("--prompt-file", type=argparse.FileType("r"), default=None,
+                    help=argparse.SUPPRESS)
+    rp.add_argument("--input", required=True, type=argparse.FileType("r"),
+                    help=argparse.SUPPRESS)
+    rp.add_argument("--enable-tools", action="store_true", default=False,
+                    help=argparse.SUPPRESS)
+    rp.add_argument("--allowed-tools", default=None,
+                    help=argparse.SUPPRESS)
 
     # check-models
     cm = sub.add_parser("check-models",
@@ -3701,7 +3720,7 @@ def main():
     elif args.command == "review":
         return cmd_review(args)
     elif args.command == "review-panel":
-        return cmd_review_panel(args)
+        return cmd_review(args)
     elif args.command == "check-models":
         return cmd_check_models(args)
     elif args.command == "compare":

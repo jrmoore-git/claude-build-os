@@ -249,9 +249,9 @@ if [ ${#REQUESTED[@]} -eq 0 ] || printf '%s\n' "${REQUESTED[@]}" | grep -qx 4; t
 fi
 
 # ════════════════════════════════════════════════════════════════════════════
-# TEST 5: Review-Panel (multi-persona anonymous panel)
+# TEST 5: Review (multi-persona anonymous panel)
 #   Domain: auth migration proposal
-#   Exercises: review-panel with architect,security,pm,product personas
+#   Exercises: review --personas (uses deprecated review-panel alias to test backward compat)
 # ════════════════════════════════════════════════════════════════════════════
 
 run_test 5 "review-panel" "Review-panel: 4-persona panel on auth migration"

@@ -72,8 +72,11 @@ python3.11 scripts/debate.py refine \
   --output tasks/<topic>-refined.md
 ```
 
-## Review (single persona)
+## Review (unified — single or multi-model)
 
+The `review` command handles all review modes. Pass one of four mutually exclusive model-selection flags:
+
+**Single persona** (code review — persona routes to model via config):
 ```bash
 python3.11 scripts/debate.py review \
   --persona pm \
@@ -81,30 +84,36 @@ python3.11 scripts/debate.py review \
   --input tasks/<topic>-plan.md
 ```
 
-- `--persona` options: architect, staff, security, pm.
-- `--prompt-file` for longer prompts from a file.
-
-## Review Panel (multi-persona, anonymous)
-
-**With personas** (code review — personas route to models via config):
+**Single model** (no persona framing):
 ```bash
-python3.11 scripts/debate.py review-panel \
+python3.11 scripts/debate.py review \
+  --model gemini-3.1-pro \
+  --prompt "Review this brief for implementability" \
+  --input tasks/<topic>-brief.md
+```
+
+**Multiple personas** (parallel panel, anonymous labels):
+```bash
+python3.11 scripts/debate.py review \
   --personas architect,security,pm \
   --prompt "Review this diff for production readiness" \
   --input tasks/<topic>-diff.md
 ```
 
-**With direct models** (document evaluation — no persona framing, caller's prompt is the only system prompt):
+**Multiple models** (parallel panel, no persona framing):
 ```bash
-python3.11 scripts/debate.py review-panel \
+python3.11 scripts/debate.py review \
   --models claude-opus-4-6,gemini-3.1-pro,gpt-5.4 \
   --prompt-file /tmp/eval-prompt.md \
   --input tasks/<topic>-doc.md
 ```
 
-- `--personas` and `--models` are mutually exclusive (one required).
+- `--persona`, `--personas`, `--model`, `--models` are mutually exclusive (exactly one required).
 - `--models` bypasses persona lookup entirely — use for non-code evaluation where code-review personas are inappropriate.
-- `--enable-tools` gives reviewers read-only verifier tools.
+- `--enable-tools` gives reviewers read-only verifier tools (works with all model-selection flags).
+- `--prompt` and `--prompt-file` are mutually exclusive (exactly one required).
+- Plural flags accept one or more items (`--models gemini-3.1-pro` is valid single-reviewer mode).
+- `review-panel` is a deprecated alias — use `review` instead.
 
 ## Explore (divergent directions + synthesis)
 
@@ -143,9 +152,9 @@ python3.11 scripts/debate.py check-models
 
 ## Parallelism Rules (D13)
 
-**Never use 3× serial `review` calls when `review-panel` exists.** If you need 3 independent models to evaluate the same document, use `review-panel` (parallel via ThreadPoolExecutor). Using `review` 3 times serially costs 3× the wall-clock time for the same result.
+**Never use 3× serial `review --persona` calls when `review --personas` exists.** If you need 3 independent models to evaluate the same document, use `review --personas` or `review --models` (parallel via ThreadPoolExecutor). Using single-persona review 3 times serially costs 3× the wall-clock time for the same result.
 
-**Persona simulations are embarrassingly parallel.** When running N persona simulations against a protocol, launch all N as parallel Agent calls (or parallel `review-panel` personas). Never run them serially.
+**Persona simulations are embarrassingly parallel.** When running N persona simulations against a protocol, launch all N as parallel Agent calls (or parallel `review --personas`). Never run them serially.
 
 **Stop on consensus.** When a cross-model evaluation loop reaches the target score (e.g., 3/3 models at 4/5), stop. Do not run additional rounds to chase edge-case improvements — the marginal value drops faster than the time cost rises.
 

@@ -617,7 +617,7 @@ Run a multi-persona review panel on the design doc. The panel provides independe
 perspectives from different reviewer archetypes — anonymized and position-randomized.
 
 ```bash
-/opt/homebrew/bin/python3.11 scripts/debate.py review-panel \
+/opt/homebrew/bin/python3.11 scripts/debate.py review \
   --models claude-opus-4-6,gemini-3.1-pro,gpt-5.4 \
   --enable-tools \
   --allowed-tools check_code_presence,read_config_value \
