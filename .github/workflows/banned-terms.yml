@@ -26,11 +26,9 @@ jobs:
             --exclude-dir=".git"
             --exclude-dir="__pycache__"
             --exclude-dir="_archive"
+            --exclude-dir="tasks"
             --exclude="*.sample"
             --exclude=".env.example"
-            --exclude="docs/infrastructure.md"
-            --exclude="tests/test_llm_client.py"
-            --exclude="tasks/litellm-fallback-*.md"
           )
 
           echo "Scanning for project-specific term leaks..."

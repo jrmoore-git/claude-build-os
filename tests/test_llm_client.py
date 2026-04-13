@@ -176,8 +176,8 @@ def test_load_anthropic_key_from_env():
     """ANTHROPIC_API_KEY env var is returned by _load_anthropic_key."""
     old = os.environ.get("ANTHROPIC_API_KEY")
     try:
-        os.environ["ANTHROPIC_API_KEY"] = "sk-ant-test-key-123"
-        assert _load_anthropic_key() == "sk-ant-test-key-123"
+        os.environ["ANTHROPIC_API_KEY"] = "test-anthropic-key-123"
+        assert _load_anthropic_key() == "test-anthropic-key-123"
     finally:
         if old is None:
             os.environ.pop("ANTHROPIC_API_KEY", None)

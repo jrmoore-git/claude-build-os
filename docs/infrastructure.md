@@ -55,7 +55,7 @@ Copy `.env.example` to `.env` and fill in your keys. Model-to-role assignments a
 If you don't have LiteLLM configured, BuildOS can fall back to single-model review using your Anthropic API key directly:
 
 ```bash
-export ANTHROPIC_API_KEY=sk-ant-...   # enables /review, /challenge without LiteLLM
+export ANTHROPIC_API_KEY=your-key-here   # enables /review, /challenge without LiteLLM
 ```
 
 This gives you structured review through PM/Security/Architecture lenses using Claude, but all reviews come from the same model. For cross-model review (stronger disagreement signals), set up LiteLLM with multiple providers above.

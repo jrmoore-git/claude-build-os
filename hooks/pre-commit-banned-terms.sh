@@ -19,9 +19,7 @@ SKIP_PATTERNS=(
   ".env.example"                       # contains example API key placeholders
   "*.sample"
   ".git/*"
-  "docs/infrastructure.md"             # documents ANTHROPIC_API_KEY placeholder format
-  "tests/test_llm_client.py"           # uses fake sk-ant- key in tests
-  "tasks/litellm-fallback-*.md"        # debate artifacts reference key format
+  "tasks/*"                            # generated debate/review artifacts
 )
 
 _should_skip() {
