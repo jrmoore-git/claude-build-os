@@ -1,35 +1,35 @@
-# Handoff — 2026-04-11
+# Handoff — 2026-04-13
 
 ## Session Focus
-Full documentation accuracy audit — verified all README, docs, and prose files match actual system implementation, then fixed every discrepancy found.
+LiteLLM graceful degradation: single-model fallback via ANTHROPIC_API_KEY. Full adversarial pipeline (challenge → judge → refine → implement → review → ship).
 
 ## Decided
-- None (doc fixes only, no architectural decisions)
+- Fallback transport: urllib to Anthropic Messages API (zero new deps)
+- Pre-activation when no LITELLM_MASTER_KEY (skip wasted proxy connection)
+- Fallback model configurable via ANTHROPIC_FALLBACK_MODEL env var
+- grep --exclude only matches basenames — CI excluded tasks/ dir via --exclude-dir instead
 
 ## Implemented
-- Audited 7 domains in parallel: skill counts, hook counts, scripts, pipeline tiers, cross-references, setup flow, narrative docs, config files
-- Fixed 12 files across docs/, skills/, rules/
-- Removed phantom script references (pipeline_manifest.py, verify_state.py) from docs and skill files
-- Fixed all stale counts (skills 19→21, hooks 15→17)
-- Corrected file tree paths in README (docs/prd.md → docs/project-prd.md, decisions/lessons → tasks/)
-- Added missing /investigate and /healthcheck to user-facing docs
-- Added T0/spike tier to pipeline tables
-- Fixed Python version requirement in infrastructure.md (3.9+ → 3.11+)
+- `scripts/llm_client.py`: fallback transport, connection-refused detection, state management
+- `scripts/debate.py`: _load_credentials helper (replaces 10 hard-exit checks), artifact metadata, judge degradation
+- `docs/infrastructure.md`: fallback documentation
+- `tests/test_llm_client.py`: 18 tests (7 new), all pass
+- Cross-model review: pass-with-warnings (0 material after investigation)
+- CI banned-terms fix: removed sk-ant- from source files, excluded tasks/ dir
 
 ## NOT Finished
-- Nothing outstanding from this session
 - Prior session work still pending: live test of intent router end-to-end, L13/L14/L15 staleness
 
 ## Next Session Should
-1. Read through the updated README end-to-end to verify it reads well as a cohesive document
-2. Resume prior work: test intent router in fresh session, verify L13/L14/L15
+1. Verify CI is green after banned-terms fix (commit 137d904)
+2. Resume prior work: test intent router, verify L13/L14/L15 in lessons.md
+3. Consider: streamline-rules challenge artifacts exist (tasks/streamline-rules-*.md) but were not acted on
 
 ## Key Files Changed
-README.md
-docs/cheat-sheet.md, docs/how-it-works.md, docs/getting-started.md
-docs/infrastructure.md, docs/changelog-april-2026.md, docs/team-playbook.md
-.claude/rules/workflow.md, .claude/skills/start/SKILL.md
-.claude/skills/challenge/SKILL.md, .claude/skills/plan/SKILL.md, .claude/skills/review/SKILL.md
+scripts/llm_client.py, scripts/debate.py
+docs/infrastructure.md, tests/test_llm_client.py
+hooks/pre-commit-banned-terms.sh, .github/workflows/banned-terms.yml
+tasks/litellm-fallback-{proposal,challenge,judgment,refined,review-debate,review}.md
 
 ## Doc Hygiene Warnings
 None

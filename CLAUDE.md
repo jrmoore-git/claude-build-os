@@ -1,9 +1,5 @@
 # CLAUDE.md
 
-<!-- Target: under 200 lines. Every line loads into every turn and consumes context. -->
-<!-- These rules are advisory — Claude reads them and tries to follow them, but compliance -->
-<!-- is not guaranteed. For rules that must be enforced, use hooks (see docs/platform-features.md). -->
-
 ## What this project is
 <!-- Replace this section with a one-paragraph description of what you're building and why. -->
 [Describe your project here. What are you building? Who is it for? What problem does it solve?]
@@ -26,21 +22,16 @@
 
 ### Simplicity is the override rule
 <!-- Why: Claude over-engineers by default. This phrase is from Anthropic's own docs and Claude responds to it reliably. -->
-Avoid over-engineering. Only make changes that are directly requested or clearly necessary. Keep solutions simple and focused.
-- Don't add features, refactor code, or make "improvements" beyond what was asked.
-- Don't add error handling, fallbacks, or validation for scenarios that can't happen.
-- Don't create helpers, utilities, or abstractions for one-time operations.
-- Don't design for hypothetical future requirements.
+Avoid over-engineering. Only make changes that are directly requested or clearly necessary. The simplest version wins unless there's evidence otherwise. No speculative abstraction. No premature generalization. See code-quality.md for specific constraints.
 
 ### The model may decide; software must act
 <!-- Why: Prevents the most dangerous class of AI bugs — LLM-driven state changes. -->
-LLMs classify, summarize, and draft. Deterministic code performs state transitions, API calls, and data mutations.
-If the LLM can cause irreversible state changes, it must not be the actor.
+LLMs classify, summarize, and draft. Deterministic code performs state transitions. If the LLM can cause irreversible state changes, it must not be the actor. See security.md for the full boundary specification.
 
 ### Inspect before acting
 <!-- Why: The model defaults to training knowledge over available tools, especially under context pressure. -->
 <!-- Why: Editing code you haven't read produces confident-looking but wrong changes. -->
-Read handoff.md and current-state.md before starting work. Read relevant lessons and decisions before touching risky areas. Don't load everything — load what's relevant.
+Minimum required at session start: read handoff.md and current-state.md. Before proposing a plan, also complete the full orient-before-planning checklist in workflow.md (project-prd.md, project-map.md, lessons.md, session-log.md). Skipping the full checklist before planning is a violation, not an optimization.
 - Before editing a file: read it and its immediate context (tests, callers, related modules).
 - Before answering "can we do X" or "does this support Y": Grep/Read the relevant code first. Answer from what you found, not from memory. If you didn't inspect the code, say so explicitly instead of implying certainty.
 - Never say "I don't think this supports..." or "this probably doesn't..." without checking.
@@ -54,9 +45,10 @@ Skip both for: bugfixes, test-only changes, docs, `[TRIVIAL]` (≤2 files, no ne
 
 ### Document results
 <!-- Why: Decisions and lessons that stay in conversation history are lost on the next session. Disk is durable memory. -->
-Update decisions.md after material decisions.
+Update decisions.md after making material decisions and before implementing them.
 Update lessons.md after surprises or mistakes.
 Update handoff.md before ending incomplete work.
+See session-discipline.md for the full what-goes-where table.
 
 ### Verify before declaring done
 <!-- Why: "It should work" is not evidence. Claude will claim completion confidently even when things are broken. -->
@@ -67,8 +59,6 @@ Prove it works. Tests, logs, evidence. A claim of completion is not evidence.
 If `[CHALLENGE-SKIPPED]` or `[TRIVIAL]` appears more than 3 times in a sprint, the trigger criteria may be miscalibrated — review and adjust.
 
 ## Infrastructure reference
-
-<!-- These point at the enforcement and tooling layers that back the rules above. -->
 - **Hooks (17):** `hook-intent-router.py` (UserPromptSubmit), `hook-plan-gate.sh`, `hook-review-gate.sh`, `hook-tier-gate.sh`, `hook-decompose-gate.py`, `hook-agent-isolation.py`, `hook-guard-env.sh`, `hook-pre-edit-gate.sh`, `hook-memory-size-gate.py`, `hook-post-tool-test.sh`, `hook-prd-drift-check.sh`, `hook-pre-commit-tests.sh`, `hook-ruff-check.sh`, `hook-syntax-check-python.sh`, `hook-bash-fix-forward.py`, `hook-error-tracker.py` (PostToolUse:Bash), `hook-stop-autocommit.py` — all in `hooks/`, wired in `.claude/settings.json` (see [Hooks Reference](docs/hooks.md))
 - **Scripts:** `scripts/debate.py` (cross-model engine: challenge, judge, refine, review, review-panel, check-models — config-driven via `config/debate-models.json`; **read [invocation reference](.claude/rules/reference/debate-invocations.md) before calling directly**), `scripts/browse.sh` (thin wrapper around gstack's headless browser binary — used by `/design review`, `/design consult`, `/design variants`; requires gstack installed at `~/.claude/skills/gstack/`), `scripts/tier_classify.py` (file tier classification), `scripts/recall_search.py` (governance search), `scripts/finding_tracker.py` (finding lifecycle), `scripts/enrich_context.py` (context enrichment), `scripts/artifact_check.py` (artifact validation), `scripts/lesson_events.py` (lesson lifecycle event logger + velocity metrics — used by `/healthcheck`) — see [How It Works](docs/how-it-works.md)
 - **Config:** `config/protected-paths.json` defines protected globs, exempt paths, and required plan fields. `config/debate-models.json` maps personas to LiteLLM models (fallback to hardcoded defaults if missing).
