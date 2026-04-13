@@ -11,6 +11,7 @@ the pattern matches, regardless of Claude's context pressure or mood.
 Output: plain text to stdout (injected as additional context).
 Empty output = no suggestion.
 """
+import glob as globmod
 import json
 import os
 import re
@@ -20,6 +21,10 @@ import sys
 SESSION_ID = os.environ.get("CLAUDE_SESSION_ID", str(os.getppid()))
 ERROR_TRACKER_FILE = f"/tmp/claude-error-tracker-{SESSION_ID}.json"
 SUGGESTION_TRACKER_FILE = f"/tmp/claude-intent-suggestions-{SESSION_ID}.json"
+
+# Project root for artifact detection
+PROJECT_ROOT = os.environ.get("CLAUDE_PROJECT_DIR", os.getcwd())
+TASKS_DIR = os.path.join(PROJECT_ROOT, "tasks")
 
 # Intent patterns: (compiled_regex, skill_route, context_message)
 # Order matters — first match wins.
@@ -126,34 +131,39 @@ INTENT_PATTERNS = [
             "with cross-model synthesis."
         ),
     ),
-    # Challenge / scope gate
+    # Challenge / scope gate — explicit "should we build this?" language
     (
         re.compile(
-            r'\b(is this worth|should we (even |really )?do|'
+            r'\b(is this worth|should we (even |really )?(do|build|add|implement|create)|'
             r'evaluate this|worth building|scope check|'
             r'do we really need)\b',
             re.IGNORECASE,
         ),
         "challenge",
-        (
-            "ROUTING SUGGESTION: The user is questioning whether this work "
-            "is necessary. Consider running /challenge for a cross-model "
-            "evaluation of whether to proceed."
-        ),
+        None,  # dynamic — filled by pipeline-aware logic
     ),
-    # Pressure test / devil's advocate
+    # Pressure test / devil's advocate — explicit adversarial language
     (
         re.compile(
             r'\b(what could go wrong|devil.s advocate|poke holes|'
-            r'stress.?test|pre.?mortem|what if .+ fails|risks?)\b',
+            r'stress.?test|pre.?mortem|what if .+ fails)\b',
             re.IGNORECASE,
         ),
         "pressure-test",
-        (
-            "ROUTING SUGGESTION: The user wants adversarial analysis. "
-            "Consider running /pressure-test for counter-thesis or "
-            "pre-mortem failure analysis."
+        None,  # dynamic — filled by pipeline-aware logic
+    ),
+    # Ambiguous evaluation — could be either challenge or pressure-test
+    (
+        re.compile(
+            r'\b(is this (a )?(good|solid|sound|right|ready) |'
+            r'is this (idea|approach|plan|direction) (good|solid|sound)|'
+            r'what do you think (about|of) this|'
+            r'sanity check|gut check|does this make sense|'
+            r'am I (over|under)thinking|risks?)\b',
+            re.IGNORECASE,
         ),
+        "challenge-or-pressure-test",
+        None,  # dynamic — resolved by pipeline state
     ),
     # Design
     (
@@ -213,6 +223,63 @@ INTENT_PATTERNS = [
 ]
 
 
+def detect_pipeline_state():
+    """Detect what artifacts exist to infer pipeline position.
+
+    Returns a dict with booleans for each artifact type found,
+    plus the most recent topic slug if detectable.
+    """
+    state = {
+        "has_proposal": False,
+        "has_challenge": False,
+        "has_plan": False,
+        "has_pressure_test": False,
+        "has_premortem": False,
+        "topic": None,
+    }
+    if not os.path.isdir(TASKS_DIR):
+        return state
+
+    # Find the most recent topic by looking at proposals and plans
+    proposals = sorted(
+        globmod.glob(os.path.join(TASKS_DIR, "*-proposal.md")),
+        key=os.path.getmtime,
+        reverse=True,
+    )
+    plans = sorted(
+        globmod.glob(os.path.join(TASKS_DIR, "*-plan.md")),
+        key=os.path.getmtime,
+        reverse=True,
+    )
+
+    # Derive topic from most recent proposal or plan
+    topic = None
+    if proposals:
+        topic = os.path.basename(proposals[0]).replace("-proposal.md", "")
+    elif plans:
+        topic = os.path.basename(plans[0]).replace("-plan.md", "")
+
+    if topic:
+        state["topic"] = topic
+        state["has_proposal"] = os.path.exists(
+            os.path.join(TASKS_DIR, f"{topic}-proposal.md")
+        )
+        state["has_challenge"] = os.path.exists(
+            os.path.join(TASKS_DIR, f"{topic}-challenge.md")
+        )
+        state["has_plan"] = os.path.exists(
+            os.path.join(TASKS_DIR, f"{topic}-plan.md")
+        )
+        state["has_pressure_test"] = os.path.exists(
+            os.path.join(TASKS_DIR, f"{topic}-pressure-test.md")
+        )
+        state["has_premortem"] = os.path.exists(
+            os.path.join(TASKS_DIR, f"{topic}-premortem.md")
+        )
+
+    return state
+
+
 def load_tracker(path):
     """Load a JSON tracker file, return empty dict on failure."""
     if not os.path.exists(path):
@@ -256,6 +323,155 @@ def record_suggestion(skill):
     save_tracker(SUGGESTION_TRACKER_FILE, tracker)
 
 
+def resolve_challenge_vs_pressure_test(skill, pipeline):
+    """Use pipeline state to pick the right skill and generate a message.
+
+    Returns (resolved_skill, message) or (None, None) to skip.
+    """
+    topic = pipeline["topic"]
+    topic_label = f" (topic: {topic})" if topic else ""
+
+    # Explicit /challenge language
+    if skill == "challenge":
+        if pipeline["has_challenge"]:
+            # Already challenged — they probably want pressure-test
+            return (
+                "pressure-test",
+                f"ROUTING SUGGESTION: A challenge artifact already exists{topic_label}. "
+                "The user may want /pressure-test to stress-test the approach, "
+                "or /pressure-test --premortem if a plan exists. "
+                "If they truly want to re-challenge, run /challenge."
+            )
+        return (
+            "challenge",
+            "ROUTING SUGGESTION: The user is questioning whether this work "
+            "is necessary. Run /challenge for a cross-model go/no-go evaluation."
+        )
+
+    # Explicit /pressure-test language
+    if skill == "pressure-test":
+        if pipeline["has_plan"]:
+            existing = ""
+            if pipeline["has_premortem"]:
+                existing = (
+                    f" Note: a premortem already exists at "
+                    f"tasks/{topic}-premortem.md — re-run to update or "
+                    "review the existing one."
+                )
+            elif pipeline["has_pressure_test"]:
+                existing = (
+                    f" Note: a pressure-test already exists at "
+                    f"tasks/{topic}-pressure-test.md — re-run to update or "
+                    "review the existing one."
+                )
+            return (
+                "pressure-test",
+                f"ROUTING SUGGESTION: A plan exists{topic_label}. "
+                "Run /pressure-test --premortem to assume the plan failed "
+                f"and write the post-mortem from the future.{existing}"
+            )
+        if pipeline["has_proposal"] and not pipeline["has_challenge"]:
+            return (
+                "pressure-test",
+                f"ROUTING SUGGESTION: The user wants adversarial analysis{topic_label}. "
+                "Note: no /challenge artifact exists yet — consider whether "
+                "/challenge (multi-model go/no-go gate) would be more valuable "
+                "at this stage. If the user wants to stress-test the direction "
+                "rather than gate it, run /pressure-test."
+            )
+        return (
+            "pressure-test",
+            "ROUTING SUGGESTION: The user wants adversarial analysis. "
+            "Run /pressure-test for counter-thesis or pre-mortem failure analysis."
+        )
+
+    # Ambiguous — "is this a good idea?", "sanity check", "risks"
+    if skill == "challenge-or-pressure-test":
+        if pipeline["has_plan"]:
+            # Post-plan: pressure-test (premortem) is more useful
+            existing = ""
+            if pipeline["has_premortem"]:
+                existing = (
+                    f" A premortem already exists at tasks/{topic}-premortem.md"
+                    " — review it or re-run with updated context."
+                )
+            return (
+                "pressure-test",
+                f"ROUTING SUGGESTION: Ambiguous evaluation request, but a plan "
+                f"exists{topic_label}. At this pipeline stage, /pressure-test "
+                "--premortem is likely more useful (assumes plan failed, writes "
+                f"post-mortem). /challenge is a pre-plan go/no-go gate.{existing}"
+            )
+        if pipeline["has_challenge"]:
+            # Already challenged, no plan yet: pressure-test the approach
+            return (
+                "pressure-test",
+                f"ROUTING SUGGESTION: Ambiguous evaluation request. A challenge "
+                f"artifact already exists{topic_label} but no plan yet. "
+                "/pressure-test would stress-test the approach. "
+                "/challenge would re-run the go/no-go gate."
+            )
+        if pipeline["has_proposal"]:
+            # Proposal exists, not yet challenged: /challenge is the gate
+            return (
+                "challenge",
+                f"ROUTING SUGGESTION: Ambiguous evaluation request. A proposal "
+                f"exists{topic_label} but hasn't been challenged yet. "
+                "/challenge runs a multi-model go/no-go evaluation (should we "
+                "build this?). /pressure-test stress-tests the approach "
+                "(what could go wrong?)."
+            )
+        # No artifacts — default to challenge as the first gate
+        return (
+            "challenge",
+            "ROUTING SUGGESTION: Ambiguous evaluation request with no pipeline "
+            "artifacts on disk. Defaulting to /challenge (should we build this?) "
+            "as the first gate. If the user already decided to build and wants "
+            "adversarial analysis, run /pressure-test instead."
+        )
+
+    return (None, None)
+
+
+def check_proactive_pipeline_routing(pipeline):
+    """Generate proactive suggestions based on artifact gaps.
+
+    Returns a list of (skill, message) tuples.
+    """
+    proactive = []
+    topic = pipeline["topic"]
+    if not topic:
+        return proactive
+
+    # Proposal exists, no challenge yet → suggest /challenge
+    if (
+        pipeline["has_proposal"]
+        and not pipeline["has_challenge"]
+    ):
+        proactive.append((
+            "challenge-proactive",
+            f"PROACTIVE ROUTING: A proposal exists (tasks/{topic}-proposal.md) "
+            "but hasn't been challenged yet. If the user is about to plan or "
+            "build, consider suggesting /challenge first as the go/no-go gate."
+        ))
+
+    # Plan exists, no pressure-test or premortem → suggest /pressure-test
+    if (
+        pipeline["has_plan"]
+        and not pipeline["has_pressure_test"]
+        and not pipeline["has_premortem"]
+    ):
+        proactive.append((
+            "pressure-test-proactive",
+            f"PROACTIVE ROUTING: A plan exists (tasks/{topic}-plan.md) "
+            "but hasn't been pressure-tested. If the user is about to build, "
+            "consider suggesting /pressure-test --premortem to surface failure "
+            "scenarios before execution."
+        ))
+
+    return proactive
+
+
 def main():
     try:
         data = json.loads(sys.stdin.read())
@@ -267,6 +483,7 @@ def main():
         return
 
     suggestions = []
+    pipeline = detect_pipeline_state()
 
     # Check for recurring errors (proactive routing)
     recurring = check_recurring_errors()
@@ -279,10 +496,24 @@ def main():
         )
         record_suggestion("investigate-proactive")
 
+    # Proactive pipeline routing (artifact-driven)
+    for skill_key, message in check_proactive_pipeline_routing(pipeline):
+        if not already_suggested(skill_key):
+            suggestions.append(message)
+            record_suggestion(skill_key)
+
     # Match user intent (reactive routing)
     for pattern, skill, message in INTENT_PATTERNS:
         if pattern.search(prompt):
-            if not already_suggested(skill):
+            # Dynamic routing for challenge/pressure-test/ambiguous
+            if skill in ("challenge", "pressure-test", "challenge-or-pressure-test"):
+                resolved_skill, resolved_msg = resolve_challenge_vs_pressure_test(
+                    skill, pipeline
+                )
+                if resolved_skill and not already_suggested(resolved_skill):
+                    suggestions.append(resolved_msg)
+                    record_suggestion(resolved_skill)
+            elif message and not already_suggested(skill):
                 suggestions.append(message)
                 record_suggestion(skill)
             break  # first match wins
