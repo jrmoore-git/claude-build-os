@@ -62,6 +62,20 @@ def _load_api_key():
     return None
 
 
+def _load_anthropic_key():
+    """Load ANTHROPIC_API_KEY from env, falling back to .env file."""
+    key = os.environ.get("ANTHROPIC_API_KEY")
+    if key:
+        return key
+    env_path = _PROJECT_ROOT / ".env"
+    if env_path.exists():
+        for line in env_path.read_text().splitlines():
+            line = line.strip()
+            if line.startswith("ANTHROPIC_API_KEY=") and not line.startswith("#"):
+                return line.split("=", 1)[1].strip().strip("'\"")
+    return None
+
+
 def _get_base_url():
     """Get LiteLLM base URL."""
     url = os.environ.get("LITELLM_URL", "http://localhost:4000")
@@ -71,6 +85,16 @@ def _get_base_url():
         url += "/v1"
     return url
 
+
+# ---------------------------------------------------------------------------
+# Anthropic fallback state
+# ---------------------------------------------------------------------------
+
+_FALLBACK_ACTIVE = False
+_FALLBACK_WARNED = False
+_FALLBACK_MODEL = os.environ.get("ANTHROPIC_FALLBACK_MODEL", "claude-sonnet-4-20250514")
+_ANTHROPIC_API_URL = "https://api.anthropic.com/v1/messages"
+_ANTHROPIC_VERSION = "2023-06-01"
 
 # ---------------------------------------------------------------------------
 # Retry logic
@@ -88,8 +112,36 @@ _RETRYABLE_OPENAI_CLASS_NAMES = frozenset({
 })
 
 
+def _is_connection_refused(exc):
+    """Check if exc represents TCP connection-refused (proxy not running).
+
+    OpenAI SDK: APIConnectionError wrapping httpx/httpcore with 'Connection refused'
+    urllib: URLError with .reason being ConnectionRefusedError
+    """
+    if isinstance(exc, ConnectionRefusedError):
+        return True
+    # urllib path
+    if isinstance(exc, urllib.error.URLError):
+        return isinstance(getattr(exc, "reason", None), ConnectionRefusedError)
+    # OpenAI SDK path: walk cause chain looking for connection refused
+    for cls in type(exc).__mro__:
+        if cls.__name__ == "APIConnectionError":
+            cause = exc.__cause__
+            while cause:
+                if isinstance(cause, ConnectionRefusedError):
+                    return True
+                if "Connection refused" in str(cause):
+                    return True
+                cause = cause.__cause__
+            return False
+    return False
+
+
 def _is_retryable(exc):
     """Check if an exception is transient and worth retrying."""
+    # Connection refused means proxy isn't running — retrying won't help
+    if _is_connection_refused(exc):
+        return False
     # OpenAI SDK errors with status codes
     if hasattr(exc, "status_code") and exc.status_code in (429, 500, 502, 503, 504):
         return True
@@ -285,6 +337,56 @@ def _legacy_call(system, user, *, model, temperature, max_tokens, timeout,
 
 
 # ---------------------------------------------------------------------------
+# Anthropic fallback path (direct Messages API via urllib)
+# ---------------------------------------------------------------------------
+
+def _anthropic_call(system, user, *, model, temperature, max_tokens, timeout,
+                    api_key):
+    """Direct Anthropic Messages API call. Returns (content, model_used, usage).
+
+    Used when LiteLLM proxy is unavailable and ANTHROPIC_API_KEY is set.
+    Mirrors _legacy_call pattern but targets Anthropic's Messages API format.
+    """
+    payload = {
+        "model": model,
+        "system": system,
+        "messages": [{"role": "user", "content": user}],
+        "temperature": temperature,
+        "max_tokens": max_tokens if max_tokens is not None else 4096,
+    }
+
+    req = urllib.request.Request(
+        _ANTHROPIC_API_URL,
+        data=json.dumps(payload).encode(),
+        headers={
+            "Content-Type": "application/json",
+            "x-api-key": api_key,
+            "anthropic-version": _ANTHROPIC_VERSION,
+        },
+    )
+
+    resp = urllib.request.urlopen(req, timeout=timeout)
+    body = json.loads(resp.read().decode())
+    try:
+        content = body["content"][0]["text"]
+    except (KeyError, IndexError, TypeError) as exc:
+        raise LLMError(
+            f"Unexpected Anthropic API response structure: {list(body.keys())}",
+            category="parse",
+        ) from exc
+    model_used = body.get("model", model)
+    usage = {}
+    if "usage" in body:
+        usage = {
+            "prompt_tokens": body["usage"].get("input_tokens", 0),
+            "completion_tokens": body["usage"].get("output_tokens", 0),
+            "total_tokens": (body["usage"].get("input_tokens", 0)
+                            + body["usage"].get("output_tokens", 0)),
+        }
+    return content, model_used, usage
+
+
+# ---------------------------------------------------------------------------
 # OpenAI SDK path (default)
 # ---------------------------------------------------------------------------
 
@@ -370,15 +472,63 @@ def _normalize_url(url):
 
 def _dispatch(system, user, *, model, temperature, max_tokens, timeout,
               base_url, api_key):
-    """Route to SDK or legacy based on feature flag."""
+    """Route to SDK, legacy, or Anthropic fallback."""
+    global _FALLBACK_ACTIVE, _FALLBACK_WARNED
+
+    # If fallback already activated, go directly to Anthropic
+    if _FALLBACK_ACTIVE:
+        anthropic_key = _load_anthropic_key()
+        if not anthropic_key:
+            raise LLMError(
+                "LiteLLM proxy unavailable and ANTHROPIC_API_KEY not found.\n"
+                "Set ANTHROPIC_API_KEY for single-model fallback, or start LiteLLM.\n"
+                "See docs/infrastructure.md for setup instructions.",
+                category="network",
+            )
+        if not _FALLBACK_WARNED:
+            print(
+                "LiteLLM proxy unavailable — running single-model review.\n"
+                "For cross-model review, see docs/infrastructure.md",
+                file=sys.stderr,
+            )
+            _FALLBACK_WARNED = True
+        return _anthropic_call(system, user, model=_FALLBACK_MODEL,
+                               temperature=temperature, max_tokens=max_tokens,
+                               timeout=timeout, api_key=anthropic_key)
+
+    # Normal path: try proxy
     base_url = _normalize_url(base_url)
-    if os.environ.get("BUILDOS_LLM_LEGACY") == "1":
-        return _legacy_call(system, user, model=model, temperature=temperature,
-                            max_tokens=max_tokens, timeout=timeout,
-                            base_url=base_url, api_key=api_key)
-    return _sdk_call(system, user, model=model, temperature=temperature,
-                     max_tokens=max_tokens, timeout=timeout,
-                     base_url=base_url, api_key=api_key)
+    try:
+        if os.environ.get("BUILDOS_LLM_LEGACY") == "1":
+            return _legacy_call(system, user, model=model, temperature=temperature,
+                                max_tokens=max_tokens, timeout=timeout,
+                                base_url=base_url, api_key=api_key)
+        return _sdk_call(system, user, model=model, temperature=temperature,
+                         max_tokens=max_tokens, timeout=timeout,
+                         base_url=base_url, api_key=api_key)
+    except Exception as exc:
+        if not _is_connection_refused(exc):
+            raise
+        # Connection refused — try Anthropic fallback
+        anthropic_key = _load_anthropic_key()
+        if not anthropic_key:
+            raise LLMError(
+                "LiteLLM proxy unavailable and ANTHROPIC_API_KEY not found.\n"
+                "Set ANTHROPIC_API_KEY for single-model fallback, or start LiteLLM.\n"
+                "See docs/infrastructure.md for setup instructions.",
+                category="network",
+            ) from exc
+        _FALLBACK_ACTIVE = True
+        if not _FALLBACK_WARNED:
+            print(
+                "LiteLLM proxy unavailable — running single-model review.\n"
+                "For cross-model review, see docs/infrastructure.md",
+                file=sys.stderr,
+            )
+            _FALLBACK_WARNED = True
+        return _anthropic_call(system, user, model=_FALLBACK_MODEL,
+                               temperature=temperature, max_tokens=max_tokens,
+                               timeout=timeout, api_key=anthropic_key)
 
 
 # ---------------------------------------------------------------------------
@@ -394,7 +544,13 @@ def llm_call(system, user, *, model=_DEFAULT_MODEL, temperature=0.0,
     base_url = base_url or _get_base_url()
     api_key = api_key or _load_api_key()
     if not api_key:
-        raise LLMError("LITELLM_MASTER_KEY not set", category="auth")
+        if not _load_anthropic_key():
+            raise LLMError(
+                "No LLM credentials found. Set LITELLM_MASTER_KEY or ANTHROPIC_API_KEY.\n"
+                "See docs/infrastructure.md for setup instructions.",
+                category="auth",
+            )
+        api_key = "fallback-pending"  # _dispatch will use ANTHROPIC_API_KEY
 
     content, _, _ = _call_with_retry(
         _dispatch, system, user, model=model, temperature=temperature,
@@ -431,7 +587,13 @@ def llm_call_raw(system, user, *, model=_DEFAULT_MODEL, temperature=0.0,
     base_url = base_url or _get_base_url()
     api_key = api_key or _load_api_key()
     if not api_key:
-        raise LLMError("LITELLM_MASTER_KEY not set", category="auth")
+        if not _load_anthropic_key():
+            raise LLMError(
+                "No LLM credentials found. Set LITELLM_MASTER_KEY or ANTHROPIC_API_KEY.\n"
+                "See docs/infrastructure.md for setup instructions.",
+                category="auth",
+            )
+        api_key = "fallback-pending"  # _dispatch will use ANTHROPIC_API_KEY
 
     content, model_used, usage = _call_with_retry(
         _dispatch, system, user, model=model, temperature=temperature,
@@ -443,6 +605,29 @@ def llm_call_raw(system, user, *, model=_DEFAULT_MODEL, temperature=0.0,
         "model": model_used,
         "usage": usage,
     }
+
+
+def is_fallback_active():
+    """Return True if Anthropic fallback is active (LiteLLM proxy unavailable)."""
+    return _FALLBACK_ACTIVE
+
+
+def get_fallback_model():
+    """Return the fallback model name, or None if not in fallback mode."""
+    return _FALLBACK_MODEL if _FALLBACK_ACTIVE else None
+
+
+def activate_fallback():
+    """Pre-activate fallback mode (e.g., when LITELLM_MASTER_KEY is absent)."""
+    global _FALLBACK_ACTIVE
+    _FALLBACK_ACTIVE = True
+
+
+def _reset_fallback_state():
+    """Reset fallback state. For testing only."""
+    global _FALLBACK_ACTIVE, _FALLBACK_WARNED
+    _FALLBACK_ACTIVE = False
+    _FALLBACK_WARNED = False
 
 
 # ---------------------------------------------------------------------------
@@ -484,7 +669,17 @@ def llm_tool_loop(
     base_url = _normalize_url(base_url or _get_base_url())
     api_key = api_key or _load_api_key()
     if not api_key:
-        raise LLMError("LITELLM_MASTER_KEY not set", category="auth")
+        if _FALLBACK_ACTIVE or _load_anthropic_key():
+            raise LLMError(
+                "Tool-use loops require LiteLLM proxy "
+                "(Anthropic fallback does not support tools).",
+                category="network",
+            )
+        raise LLMError(
+            "No LLM credentials found. Set LITELLM_MASTER_KEY or ANTHROPIC_API_KEY.\n"
+            "See docs/infrastructure.md for setup instructions.",
+            category="auth",
+        )
 
     client = OpenAI(base_url=base_url, api_key=api_key)
     messages = [

@@ -50,6 +50,28 @@ You need API keys for at least two of (all three recommended):
 
 Copy `.env.example` to `.env` and fill in your keys. Model-to-role assignments are in `config/debate-models.json`.
 
+### Single-Credential Fallback (No LiteLLM Required)
+
+If you don't have LiteLLM configured, BuildOS can fall back to single-model review using your Anthropic API key directly:
+
+```bash
+export ANTHROPIC_API_KEY=sk-ant-...   # enables /review, /challenge without LiteLLM
+```
+
+This gives you structured review through PM/Security/Architecture lenses using Claude, but all reviews come from the same model. For cross-model review (stronger disagreement signals), set up LiteLLM with multiple providers above.
+
+**Note:** Claude Code's built-in OAuth authentication does not expose an API key for this path. You need a separately provisioned `ANTHROPIC_API_KEY` from [console.anthropic.com](https://console.anthropic.com/).
+
+**What works in fallback mode:**
+- `/challenge`, `/review`, `/judge`, `/refine` — all produce artifacts in standard format
+- Structured review lenses (PM, Security, Architecture) via prompt engineering
+- Artifact frontmatter with accurate model provenance (`execution_mode: fallback_single_model`)
+
+**What you lose:**
+- Cross-family disagreement (no GPT/Gemini perspectives)
+- Independent judge evaluation (recorded as `independence: degraded_single_model`)
+- `--enable-tools` (tool-use loops require LiteLLM proxy)
+
 ---
 
 ## Optional Dependencies

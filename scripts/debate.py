@@ -900,7 +900,7 @@ def _challenger_temperature(model):
 # ── Frontmatter ──────────────────────────────────────────────────────────────
 
 
-def _build_frontmatter(debate_id, mapping):
+def _build_frontmatter(debate_id, mapping, extras=None):
     """Build YAML frontmatter string with debate metadata."""
     now = datetime.now(PROJECT_TZ)
     lines = [
@@ -911,6 +911,9 @@ def _build_frontmatter(debate_id, mapping):
     ]
     for label, model in mapping.items():
         lines.append(f"  {label}: {model}")
+    if extras:
+        for key, value in extras.items():
+            lines.append(f"{key}: {value}")
     lines.append("---")
     return "\n".join(lines)
 
@@ -1015,18 +1018,43 @@ def _log_debate_event(event, log_path=None, cost_snapshot=None):
         f.write(json.dumps(event) + "\n")
 
 
+def _load_credentials():
+    """Load LLM credentials, supporting fallback to ANTHROPIC_API_KEY.
+
+    Returns (api_key, litellm_url, is_fallback).
+    On failure, prints actionable error to stderr and returns (None, None, False).
+    """
+    api_key = os.environ.get("LITELLM_MASTER_KEY")
+    if api_key:
+        litellm_url = os.environ.get("LITELLM_URL", DEFAULT_LITELLM_URL)
+        return api_key, litellm_url, False
+
+    anthropic_key = os.environ.get("ANTHROPIC_API_KEY")
+    if anthropic_key:
+        from llm_client import activate_fallback
+        activate_fallback()
+        litellm_url = os.environ.get("LITELLM_URL", DEFAULT_LITELLM_URL)
+        return anthropic_key, litellm_url, True
+
+    print(
+        "ERROR: No LLM credentials found.\n"
+        "Set LITELLM_MASTER_KEY for full cross-model review,\n"
+        "or set ANTHROPIC_API_KEY for single-model fallback.\n"
+        "See docs/infrastructure.md for setup instructions.",
+        file=sys.stderr,
+    )
+    return None, None, False
+
+
 # ── Subcommands ──────────────────────────────────────────────────────────────
 
 
 def cmd_challenge(args):
     """Round 2: send proposal to challenger models, write anonymized output."""
     _cost_snapshot = get_session_costs()
-    api_key = os.environ.get("LITELLM_MASTER_KEY")
-    if not api_key:
-        print("ERROR: LITELLM_MASTER_KEY not set", file=sys.stderr)
+    api_key, litellm_url, _is_fallback = _load_credentials()
+    if api_key is None:
         return 1
-
-    litellm_url = os.environ.get("LITELLM_URL", DEFAULT_LITELLM_URL)
 
     proposal_raw = args.proposal.read()
     proposal = _redact_author(proposal_raw)
@@ -1092,6 +1120,12 @@ def cmd_challenge(args):
     debate_id = os.path.splitext(os.path.basename(args.output))[0]
     if debate_id.endswith("-challenge"):
         debate_id = debate_id[:-10]
+
+    # Disable tool use in fallback mode (OpenAI SDK can't call Anthropic tool API)
+    if getattr(args, "enable_tools", False) and _is_fallback:
+        print("WARNING: --enable-tools disabled in fallback mode "
+              "(requires LiteLLM proxy)", file=sys.stderr)
+        args.enable_tools = False
 
     mapping = {}
     all_warnings = []
@@ -1175,7 +1209,8 @@ def cmd_challenge(args):
         return 2
 
     # Build output
-    frontmatter = _build_frontmatter(debate_id, mapping)
+    fm_extras = {"execution_mode": "fallback_single_model"} if _is_fallback else None
+    frontmatter = _build_frontmatter(debate_id, mapping, extras=fm_extras)
     sections = [frontmatter, f"# {debate_id} — Challenger Reviews", ""]
     for label in sorted(results.keys()):
         sections.append(f"## Challenger {label} — Challenges")
@@ -1225,12 +1260,9 @@ def cmd_challenge(args):
 def cmd_verdict(args):
     """Round 4: send resolution back to original challengers for final verdict."""
     _cost_snapshot = get_session_costs()
-    api_key = os.environ.get("LITELLM_MASTER_KEY")
-    if not api_key:
-        print("ERROR: LITELLM_MASTER_KEY not set", file=sys.stderr)
+    api_key, litellm_url, _is_fallback = _load_credentials()
+    if api_key is None:
         return 1
-
-    litellm_url = os.environ.get("LITELLM_URL", DEFAULT_LITELLM_URL)
 
     challenge_text = args.challenge.read()
     meta, _ = _parse_frontmatter(challenge_text)
@@ -1280,7 +1312,8 @@ def cmd_verdict(args):
         return 2
 
     # Build output — reuse same frontmatter format
-    frontmatter = _build_frontmatter(debate_id, mapping)
+    fm_extras = {"execution_mode": "fallback_single_model"} if _is_fallback else None
+    frontmatter = _build_frontmatter(debate_id, mapping, extras=fm_extras)
     sections = [frontmatter, f"# {debate_id} — Final Verdicts", ""]
     for label in sorted(results.keys()):
         sections.append(f"## Challenger {label} — Verdict")
@@ -1470,12 +1503,9 @@ def _consolidate_challenges(challenge_body, litellm_url, api_key, model=None):
 def cmd_judge(args):
     """Independent judge: evaluate challenges without author self-resolution."""
     _cost_snapshot = get_session_costs()
-    api_key = os.environ.get("LITELLM_MASTER_KEY")
-    if not api_key:
-        print("ERROR: LITELLM_MASTER_KEY not set", file=sys.stderr)
+    api_key, litellm_url, _is_fallback = _load_credentials()
+    if api_key is None:
         return 1
-
-    litellm_url = os.environ.get("LITELLM_URL", DEFAULT_LITELLM_URL)
 
     proposal = _redact_author(args.proposal.read())
     if not proposal.strip():
@@ -1498,7 +1528,16 @@ def cmd_judge(args):
     # 2026-04-09, do NOT route through config — false configurability would
     # mask the deployment fact behind config indirection.
     author_models = {"claude-opus-4-6", "litellm/claude-opus-4-6"}
-    if judge_model in author_models:
+    judge_independence = "standard"
+    if _is_fallback:
+        judge_independence = "degraded_single_model"
+        print(
+            "WARNING: Judge independence degraded — using same model family "
+            "for author and judge.\nResults may have correlated blind spots. "
+            "For independent judging, enable LiteLLM.",
+            file=sys.stderr,
+        )
+    elif judge_model in author_models:
         print("WARNING: judge model matches author model — self-preference bias risk",
               file=sys.stderr)
 
@@ -1723,7 +1762,11 @@ def cmd_judge(args):
     # Build output
     mapping = {"Judge": judge_model}
     mapping.update(meta["mapping"])
-    frontmatter = _build_frontmatter(debate_id, mapping)
+    fm_extras = {}
+    if _is_fallback:
+        fm_extras["execution_mode"] = "fallback_single_model"
+        fm_extras["independence"] = judge_independence
+    frontmatter = _build_frontmatter(debate_id, mapping, extras=fm_extras or None)
     consolidation_note = ""
     if consolidation_stats:
         cs = consolidation_stats
@@ -2389,12 +2432,9 @@ def _parse_refine_response(text):
 def cmd_refine(args):
     """Iterative cross-model refinement: each model improves the document in turn."""
     _cost_snapshot = get_session_costs()
-    api_key = os.environ.get("LITELLM_MASTER_KEY")
-    if not api_key:
-        print("ERROR: LITELLM_MASTER_KEY not set", file=sys.stderr)
+    api_key, litellm_url, _is_fallback = _load_credentials()
+    if api_key is None:
         return 1
-
-    litellm_url = os.environ.get("LITELLM_URL", DEFAULT_LITELLM_URL)
     config = _load_config()
 
     document = args.document.read()
@@ -2431,6 +2471,10 @@ def cmd_refine(args):
     round_notes = []
     all_refine_tool_calls = {}
     enable_tools = getattr(args, "enable_tools", False)
+    if enable_tools and _is_fallback:
+        print("WARNING: --enable-tools disabled in fallback mode "
+              "(requires LiteLLM proxy)", file=sys.stderr)
+        enable_tools = False
 
     for i in range(rounds):
         model = models[i % len(models)]
@@ -2639,12 +2683,9 @@ def cmd_refine(args):
 def cmd_compare(args):
     """Compare two review methods on the same original document."""
     _cost_snapshot = get_session_costs()
-    api_key = os.environ.get("LITELLM_MASTER_KEY")
-    if not api_key:
-        print("ERROR: LITELLM_MASTER_KEY not set", file=sys.stderr)
+    api_key, litellm_url, _is_fallback = _load_credentials()
+    if api_key is None:
         return 1
-
-    litellm_url = os.environ.get("LITELLM_URL", DEFAULT_LITELLM_URL)
 
     original = args.original.read()
     method_a = args.method_a.read()
@@ -2738,12 +2779,9 @@ def cmd_compare(args):
 def cmd_review(args):
     """Single-model review for inline skill use (e.g., /define, /elevate)."""
     _cost_snapshot = get_session_costs()
-    api_key = os.environ.get("LITELLM_MASTER_KEY")
-    if not api_key:
-        print("ERROR: LITELLM_MASTER_KEY not set", file=sys.stderr)
+    api_key, litellm_url, _is_fallback = _load_credentials()
+    if api_key is None:
         return 1
-
-    litellm_url = os.environ.get("LITELLM_URL", DEFAULT_LITELLM_URL)
     config = _load_config()
 
     # Resolve model from persona or explicit --model
@@ -2807,12 +2845,9 @@ def cmd_review_panel(args):
     import random
 
     _cost_snapshot = get_session_costs()
-    api_key = os.environ.get("LITELLM_MASTER_KEY")
-    if not api_key:
-        print("ERROR: LITELLM_MASTER_KEY not set", file=sys.stderr)
+    api_key, litellm_url, _is_fallback = _load_credentials()
+    if api_key is None:
         return 1
-
-    litellm_url = os.environ.get("LITELLM_URL", DEFAULT_LITELLM_URL)
     config = _load_config()
 
     # Resolve --personas or --models to a list of (label, model) pairs
@@ -2865,6 +2900,10 @@ def cmd_review_panel(args):
     tool_defs = None
     tool_exec = None
     all_tool_calls = {}
+    if getattr(args, 'enable_tools', False) and _is_fallback:
+        print("WARNING: --enable-tools disabled in fallback mode "
+              "(requires LiteLLM proxy)", file=sys.stderr)
+        args.enable_tools = False
     if getattr(args, 'enable_tools', False):
         import debate_tools
         tool_defs = debate_tools.TOOL_DEFINITIONS
@@ -2992,11 +3031,12 @@ def cmd_review_panel(args):
 def cmd_check_models(args):
     """Compare LiteLLM available models against config."""
     config = _load_config()
-    litellm_url = os.environ.get("LITELLM_URL", DEFAULT_LITELLM_URL)
-    api_key = os.environ.get("LITELLM_MASTER_KEY")
-
-    if not api_key:
-        print("ERROR: LITELLM_MASTER_KEY not set", file=sys.stderr)
+    api_key, litellm_url, _is_fallback = _load_credentials()
+    if api_key is None:
+        return 1
+    if _is_fallback:
+        print("check-models requires a running LiteLLM proxy. "
+              "Currently in Anthropic fallback mode.", file=sys.stderr)
         return 1
 
     # Fetch available models from LiteLLM
@@ -3175,12 +3215,9 @@ def cmd_explore(args):
     """Divergent exploration: single model generates N distinct directions,
     then a synthesis pass maps the solution space."""
     _cost_snapshot = get_session_costs()
-    api_key = os.environ.get("LITELLM_MASTER_KEY")
-    if not api_key:
-        print("ERROR: LITELLM_MASTER_KEY not set", file=sys.stderr)
+    api_key, litellm_url, _is_fallback = _load_credentials()
+    if api_key is None:
         return 1
-
-    litellm_url = os.environ.get("LITELLM_URL", DEFAULT_LITELLM_URL)
     config = _load_config()
 
     model = args.model or config.get("single_review_default", "gpt-5.4")
@@ -3359,12 +3396,9 @@ def cmd_pressure_test(args):
     """
     frame = getattr(args, 'frame', 'challenge')
     _cost_snapshot = get_session_costs()
-    api_key = os.environ.get("LITELLM_MASTER_KEY")
-    if not api_key:
-        print("ERROR: LITELLM_MASTER_KEY not set", file=sys.stderr)
+    api_key, litellm_url, _is_fallback = _load_credentials()
+    if api_key is None:
         return 1
-
-    litellm_url = os.environ.get("LITELLM_URL", DEFAULT_LITELLM_URL)
     config = _load_config()
 
     model = args.model or config.get("single_review_default", "gpt-5.4")

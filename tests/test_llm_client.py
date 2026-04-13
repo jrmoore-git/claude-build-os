@@ -21,8 +21,12 @@ from llm_client import (
     LLMError,
     _categorize_error,
     _get_base_url,
+    _is_connection_refused,
     _is_retryable,
+    _load_anthropic_key,
     _load_api_key,
+    _reset_fallback_state,
+    is_fallback_active,
 )
 
 
@@ -131,6 +135,62 @@ def test_no_credential_leakage_in_error():
     assert fake_key in str(err)
 
 
+def test_is_connection_refused_direct():
+    """Direct ConnectionRefusedError is detected."""
+    assert _is_connection_refused(ConnectionRefusedError(61, "Connection refused")) is True
+
+
+def test_is_connection_refused_urllib():
+    """URLError wrapping ConnectionRefusedError is detected."""
+    inner = ConnectionRefusedError(61, "Connection refused")
+    outer = urllib.error.URLError(inner)
+    assert _is_connection_refused(outer) is True
+
+
+def test_is_connection_refused_openai_style():
+    """APIConnectionError wrapping 'Connection refused' chain is detected."""
+    inner = Exception("[Errno 61] Connection refused")
+
+    class FakeAPIConnectionError(Exception):
+        pass
+    FakeAPIConnectionError.__name__ = "APIConnectionError"
+    outer = FakeAPIConnectionError("Connection error.")
+    outer.__cause__ = inner
+    assert _is_connection_refused(outer) is True
+
+
+def test_is_connection_refused_timeout_false():
+    """Timeout errors are NOT connection refused."""
+    assert _is_connection_refused(TimeoutError("timed out")) is False
+    assert _is_connection_refused(urllib.error.URLError("timeout")) is False
+
+
+def test_connection_refused_not_retryable():
+    """Connection refused should skip the retry loop."""
+    inner = ConnectionRefusedError(61, "Connection refused")
+    outer = urllib.error.URLError(inner)
+    assert _is_retryable(outer) is False
+
+
+def test_load_anthropic_key_from_env():
+    """ANTHROPIC_API_KEY env var is returned by _load_anthropic_key."""
+    old = os.environ.get("ANTHROPIC_API_KEY")
+    try:
+        os.environ["ANTHROPIC_API_KEY"] = "sk-ant-test-key-123"
+        assert _load_anthropic_key() == "sk-ant-test-key-123"
+    finally:
+        if old is None:
+            os.environ.pop("ANTHROPIC_API_KEY", None)
+        else:
+            os.environ["ANTHROPIC_API_KEY"] = old
+
+
+def test_fallback_state_default():
+    """Fallback should not be active by default."""
+    _reset_fallback_state()
+    assert is_fallback_active() is False
+
+
 TESTS = [
     test_llm_error_has_category,
     test_categorize_error_timeout,
@@ -143,6 +203,13 @@ TESTS = [
     test_get_base_url_normalization,
     test_load_api_key_from_env,
     test_no_credential_leakage_in_error,
+    test_is_connection_refused_direct,
+    test_is_connection_refused_urllib,
+    test_is_connection_refused_openai_style,
+    test_is_connection_refused_timeout_false,
+    test_connection_refused_not_retryable,
+    test_load_anthropic_key_from_env,
+    test_fallback_state_default,
 ]
 
 
