@@ -865,7 +865,7 @@ def _call_litellm(model, system_prompt, user_content, litellm_url, api_key,
     if max_tokens is None:
         max_tokens = LLM_CALL_DEFAULTS["max_tokens"]
     if timeout is None:
-        timeout = LLM_CALL_DEFAULTS["timeout"]
+        timeout = MODEL_TIMEOUTS.get(model, LLM_CALL_DEFAULTS["timeout"])
     raw = llm_call_raw(system_prompt, user_content, model=model,
                        temperature=temperature, max_tokens=max_tokens,
                        timeout=timeout, base_url=litellm_url, api_key=api_key)
@@ -894,6 +894,35 @@ def _challenger_temperature(model):
     """
     per_model = LLM_CALL_DEFAULTS["challenger_temperature_per_model"]
     return per_model.get(model, LLM_CALL_DEFAULTS["challenger_temperature_default"])
+
+
+def _is_timeout_error(exc):
+    """Check if an exception is a timeout (LLMError with category=timeout, or TimeoutError)."""
+    if isinstance(exc, LLMError) and exc.category == "timeout":
+        return True
+    if isinstance(exc, TimeoutError):
+        return True
+    return False
+
+
+def _call_with_model_fallback(primary_model, fallback_model, system_prompt,
+                              user_content, litellm_url, api_key, **kwargs):
+    """Call primary model; on timeout, fall back to fallback_model.
+
+    Returns (response_text, model_used). Non-timeout errors are re-raised.
+    """
+    try:
+        text = _call_litellm(primary_model, system_prompt, user_content,
+                             litellm_url, api_key, **kwargs)
+        return text, primary_model
+    except LLM_SAFE_EXCEPTIONS as e:
+        if _is_timeout_error(e) and fallback_model and fallback_model != primary_model:
+            print(f"FALLBACK: {primary_model} timed out ({e}), "
+                  f"trying {fallback_model}", file=sys.stderr)
+            text = _call_litellm(fallback_model, system_prompt, user_content,
+                                 litellm_url, api_key, **kwargs)
+            return text, fallback_model
+        raise
 
 
 # ── Frontmatter ──────────────────────────────────────────────────────────────
@@ -1924,6 +1953,15 @@ LLM_CALL_DEFAULTS = {
     "pressure_test_temperature": 0.8,   # slightly creative for counter-thesis generation
 }
 
+# Per-model timeout overrides. Preview/reasoning models with extreme tail
+# latency get shorter timeouts to fail fast and fall back.
+# Gemini 3.1 Pro Preview: TTFT ~29s by design (reasoning model), p99=542s,
+# 2.2% of calls >5 min. 120s gives it time for normal reasoning but cuts
+# the multi-minute tail that blocks serial pipelines (refine, judge).
+MODEL_TIMEOUTS = {
+    "gemini-3.1-pro": 120,
+}
+
 # LLM_SAFE_EXCEPTIONS — recoverable errors from LLM calls. Network, API,
 # parsing, and protocol-level failures from llm_client + urllib + the LLM
 # itself. Does NOT include KeyboardInterrupt or SystemExit (those inherit
@@ -2832,7 +2870,13 @@ def cmd_refine(args):
                 if tool_log:
                     print(f"  Round {round_num}: {len(tool_log)} tool calls", file=sys.stderr)
             else:
-                response = _call_litellm(model, system_prompt, current_doc, litellm_url, api_key)
+                fallback = models[(i + 1) % len(models)] if len(models) > 1 else None
+                response, actual_model = _call_with_model_fallback(
+                    model, fallback, system_prompt, current_doc, litellm_url, api_key)
+                if actual_model != model:
+                    print(f"  Round {round_num}: used fallback {actual_model} "
+                          f"(primary {model} timed out)", file=sys.stderr)
+                    model = actual_model  # update for round_notes logging
 
             notes, revised = _parse_refine_response(response)
 
