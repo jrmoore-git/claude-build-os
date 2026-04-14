@@ -1,35 +1,38 @@
-# Handoff — 2026-04-13
+# Handoff — 2026-04-14
 
 ## Session Focus
-LiteLLM graceful degradation: single-model fallback via ANTHROPIC_API_KEY. Full adversarial pipeline (challenge → judge → refine → implement → review → ship).
+Gemini timeout hardening, compaction protocol refinement (research-grounded), healthcheck gap fix.
 
 ## Decided
-- Fallback transport: urllib to Anthropic Messages API (zero new deps)
-- Pre-activation when no LITELLM_MASTER_KEY (skip wasted proxy connection)
-- Fallback model configurable via ANTHROPIC_FALLBACK_MODEL env var
-- grep --exclude only matches basenames — CI excluded tasks/ dir via --exclude-dir instead
+- D18: Keep Gemini 3.1 Pro with timeout/fallback (not Grok 4, not 2.5 downgrade)
+- D19: compactPrompt is not a valid settings.json field — only CLAUDE.md Compact Instructions works
+- Compaction thresholds replaced: old 55/70% aspirational → research-grounded protocol (context rot is continuous from ~25%)
+- /wrap now auto-triggers full healthcheck when >7d overdue (same marker as /start)
 
 ## Implemented
-- `scripts/llm_client.py`: fallback transport, connection-refused detection, state management
-- `scripts/debate.py`: _load_credentials helper (replaces 10 hard-exit checks), artifact metadata, judge degradation
-- `docs/infrastructure.md`: fallback documentation
-- `tests/test_llm_client.py`: 18 tests (7 new), all pass
-- Cross-model review: pass-with-warnings (0 material after investigation)
-- CI banned-terms fix: removed sk-ant- from source files, excluded tasks/ dir
+- Per-model timeout (120s for Gemini) + _call_with_model_fallback in debate.py
+- Code review fixes: used_model variable (loop mutation bug), fallback failure logging
+- `## Compact Instructions` section in CLAUDE.md
+- Research-grounded compaction protocol in session-discipline.md
+- Healthcheck >7d auto-trigger added to /wrap skill
+- Documentation: infrastructure.md (timeout table), how-it-works.md (challenge synthesis + fallback)
 
 ## NOT Finished
-- Prior session work still pending: live test of intent router end-to-end, L13/L14/L15 staleness
+- Nothing outstanding
 
 ## Next Session Should
-1. Verify CI is green after banned-terms fix (commit 137d904)
-2. Resume prior work: test intent router, verify L13/L14/L15 in lessons.md
-3. Consider: streamline-rules challenge artifacts exist (tasks/streamline-rules-*.md) but were not acted on
+1. Run `/start` — first session with healthcheck auto-trigger, verify it works
+2. Consider running manual `/healthcheck` — no `[healthcheck]` marker exists in session-log yet
 
 ## Key Files Changed
-scripts/llm_client.py, scripts/debate.py
-docs/infrastructure.md, tests/test_llm_client.py
-hooks/pre-commit-banned-terms.sh, .github/workflows/banned-terms.yml
-tasks/litellm-fallback-{proposal,challenge,judgment,refined,review-debate,review}.md
+- scripts/debate.py
+- CLAUDE.md
+- .claude/rules/session-discipline.md
+- .claude/skills/healthcheck/SKILL.md
+- .claude/skills/wrap/SKILL.md
+- docs/infrastructure.md
+- docs/how-it-works.md
+- tasks/decisions.md
 
 ## Doc Hygiene Warnings
-None
+- None

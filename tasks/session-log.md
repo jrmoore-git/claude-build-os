@@ -1810,3 +1810,27 @@ ended without running `/wrap-session`. Review and enrich in the next session.
 - **tasks/**: context-aware-skills-design.md, debate-engine-upgrades-plan.md
 
 **Auto-committed:** 2026-04-13 22:33 PT
+
+---
+
+## 2026-04-14 — Gemini hardening, compaction protocol, healthcheck gap
+
+**Decided:**
+- D18: Keep Gemini 3.1 Pro with timeout/fallback over Grok 4 swap or 2.5 downgrade
+- D19: compactPrompt not valid in settings.json — only CLAUDE.md Compact Instructions works
+- Compaction protocol rewritten with Chroma research (context rot continuous from ~25%)
+- /wrap auto-triggers full healthcheck when >7d overdue
+
+**Implemented:**
+- Per-model timeout (120s Gemini) + automatic fallback in debate.py
+- Code review fixes: used_model variable, fallback failure logging
+- `## Compact Instructions` in CLAUDE.md (5-tier preservation priority)
+- Research-grounded compaction protocol in session-discipline.md
+- Healthcheck >7d auto-trigger in /wrap (closes gap when /start is skipped)
+- Docs: infrastructure.md (timeout table), how-it-works.md (challenge synthesis + fallback)
+
+**Not Finished:** Nothing outstanding.
+
+**Next Session:** Run `/start` to verify healthcheck auto-trigger works — no `[healthcheck]` marker in session-log yet.
+
+**Commits:** 87e7404, 69d1688, 3211c6e, 69b6947

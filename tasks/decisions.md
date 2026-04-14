@@ -107,3 +107,15 @@ Settled architectural and product decisions. Each entry records what was decided
 **Rationale:** Refine rounds on the Brady VP sales memo turned a sharp pressure-test ("is this a methodology problem or a GTM focus problem?") into a 120-day pilot plan with fabricated success criteria and owner assignments. Root cause: two prompt rules (REFINE_STRATEGIC_POSTURE_RULE, REFINE_RECOMMENDATION_PRESERVATION_RULE) assume all documents are proposals. On critiques, "more specific" means "more actionable" which means "consulting deliverable." A/B test on Brady: proposal mode +127% size, critique mode -21%. Full audit of 10 prior refined docs showed proposals refine correctly (7/10 sharpened, 3/10 same), confirming the fix is correctly scoped to critique inputs only.
 **Alternatives considered:** (a) Prompt-only fix without mode detection (rejected: users forget --mode flag, same failure), (b) Universal prompt change (rejected: proposal mode works correctly, don't break it), (c) Post-processing output filter (rejected: too blunt, can't distinguish legitimate specificity from drift)
 **Date:** 2026-04-13
+
+### D18: Keep Gemini 3.1 Pro with timeout hardening — not worth swapping to Grok 4 or downgrading to 2.5
+**Decision:** Keep Gemini 3.1 Pro Preview in the debate rotation. Add per-model timeout (120s vs 300s default) and automatic fallback to next model in rotation on timeout. Don't swap to Grok 4 (requires new account/API key), don't downgrade to Gemini 2.5 Pro (Intelligence Index 35 vs 53/57 for Opus/GPT — too weak).
+**Rationale:** Gemini 3.1 Pro has high TTFT (~29s, p99=542s) but strong reasoning (Intelligence Index 57). Timeout + fallback handles the latency tail without losing the quality. Grok 4 is stronger (II 73, TTFT <2-7s) but requires xAI account setup. Gemini 2.5 Pro benchmarks a full tier below (SWE-bench 73.1% vs 78.2%).
+**Alternatives considered:** (a) Swap to Grok 4 (rejected: new account friction, user chose not to), (b) Downgrade to Gemini 2.5 Pro (rejected: measurably weaker), (c) Remove Gemini entirely (rejected: cross-family diversity is the point of the debate engine)
+**Date:** 2026-04-14
+
+### D19: compactPrompt is not a valid Claude Code settings.json field — only CLAUDE.md Compact Instructions works
+**Decision:** The only lever for controlling compaction behavior is the `## Compact Instructions` section in CLAUDE.md. `compactPrompt` in `~/.claude/settings.json` does not exist in the schema — multiple web sources and model recommendations were wrong about this.
+**Rationale:** Schema validation rejected the field. Tested empirically. The `## Compact Instructions` section is re-read from disk during compaction (both auto and manual), so it reliably survives.
+**Alternatives considered:** (a) `compactPrompt` in settings.json (rejected: schema validation failure), (b) Both levers (rejected: only one exists)
+**Date:** 2026-04-14
