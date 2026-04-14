@@ -2122,6 +2122,96 @@ If you cannot make it executable, convert it to CANNOT RECOMMEND — do not
 leave it in a soft middle state where no one knows what to do.
 """
 
+CRITIQUE_REFINE_POSTURE_RULE = """
+CRITIQUE POSTURE (HARD RULE):
+Refinement means more precise, not more elaborate. Each round should tighten
+the argument, remove hedging, and strengthen the evidence for claims.
+
+DO:
+- Vague observation → sharpen to a specific, testable claim
+- Hedged verdict → commit to a position with stated confidence
+- Weak causal framing → name the mechanism, not just the correlation
+- Unsupported assertion → add a concrete example or remove it
+- Redundant points → merge or cut
+
+DO NOT add any of the following:
+- Owner assignments, timeline specifics, or success criteria rubrics
+- Pilot program designs, kill rules, or phase gates
+- Organizational assumptions the original author did not have
+- Frameworks, matrices, or taxonomies not in the original
+- Implementation plans, operating recommendations, or action items
+- Hedge words: "consider", "explore", "potentially", "evaluate whether"
+
+This critique may have been written without full organizational context.
+Preserve that honesty. Do not add implementation specifics, org-chart
+assumptions, or operating plans that require insider knowledge the original
+author did not have.
+
+The failure mode is a critique that becomes a consulting deliverable. If the
+output reads like a 90-day pilot plan with owner assignments, the refinement
+has failed. A good critique names the problem, tests the assumptions, and
+gives an honest verdict. It does not become the solution.
+"""
+
+CRITIQUE_REFINE_FIRST_ROUND_PROMPT = """\
+You are refining a strategic critique or pressure-test. Your job is to make \
+this critique sharper and more precise — not to convert it into an \
+implementation plan.
+
+Review the critique for:
+1. Precision: Are claims specific and testable, or vague and hedged?
+2. Causal strength: Does it name mechanisms, or just correlations?
+3. Honesty: Does the verdict commit to a position, or hide behind qualifiers?
+4. Economy: Is every sentence load-bearing, or is there filler?
+
+IMPORTANT: Preserve the critique's register. If the input is a counter-thesis, \
+the output must be a counter-thesis. If the input is a pre-mortem, the output \
+must be a pre-mortem. Do not shift genre.
+
+{judgment_context}
+""" + CRITIQUE_REFINE_POSTURE_RULE + """
+Produce your output in EXACTLY this format:
+
+## Review Notes
+[Your observations — what's sharp, what needs tightening, and why]
+
+## Revised Document
+[The COMPLETE revised critique — not a diff, not a summary. \
+Sharper, tighter, more honest. Same length or shorter than the input.]
+
+The following evidence-tagging rule applies only to NEW quantitative or \
+factual claims you introduce. Do not re-tag claims already in the document.""" + EVIDENCE_TAG_INSTRUCTION
+
+CRITIQUE_REFINE_SUBSEQUENT_ROUND_PROMPT = """\
+You are refining a strategic critique or pressure-test. A previous reviewer \
+has already revised this critique. Your job is to review their revision and \
+make it even sharper.
+
+Review the current revision for:
+1. Did the previous reviewer introduce any drift toward solutioning?
+2. Are observations still specific and testable?
+3. Can any section be tightened or cut without losing substance?
+4. Does the verdict still commit to a clear position?
+
+If the previous round added implementation details, owner assignments, \
+timelines, or operating recommendations — remove them. Pull the critique \
+back to its core function: naming problems, testing assumptions, giving \
+an honest verdict.
+
+{judgment_context}
+""" + CRITIQUE_REFINE_POSTURE_RULE + """
+Produce your output in EXACTLY this format:
+
+## Review Notes
+[Your observations on the current revision — what improved, what drifted]
+
+## Revised Document
+[The COMPLETE revised critique — not a diff, not a summary. \
+Sharper, tighter, more honest. Same length or shorter than the input.]
+
+The following evidence-tagging rule applies only to NEW quantitative or \
+factual claims you introduce. Do not re-tag claims already in the document.""" + EVIDENCE_TAG_INSTRUCTION
+
 
 REFINE_FIRST_ROUND_PROMPT = """\
 You are a collaborative document reviewer and improver. Your job is to make \
@@ -2441,7 +2531,84 @@ def cmd_refine(args):
         print("ERROR: document file is empty", file=sys.stderr)
         return 1
 
+    # Mode detection: explicit flag > frontmatter > content heuristic > default
+    effective_mode = args.mode
+    detection_reason = None
+    if effective_mode is None:
+        # Layer 1: Frontmatter detection (tolerant of BOM and CRLF)
+        fm_match = re.match(r'^\ufeff?\s*---\s*\r?\n(.*?)\r?\n---', document, re.DOTALL)
+        if fm_match:
+            fm_text = fm_match.group(1)
+            # Pressure-test / premortem output
+            mode_match = re.search(
+                r'^mode:\s*["\']?(pressure-test|pre-mortem|premortem)["\']?\s*$',
+                fm_text, re.MULTILINE | re.IGNORECASE
+            )
+            if mode_match:
+                effective_mode = "critique"
+                detection_reason = f"frontmatter mode: {mode_match.group(1)}"
+            # Challenge / judgment artifacts
+            if not effective_mode:
+                phase_match = re.search(
+                    r'^phase:\s*["\']?(challenge|judge|judg[e]?ment)["\']?\s*$',
+                    fm_text, re.MULTILINE | re.IGNORECASE
+                )
+                if phase_match:
+                    effective_mode = "critique"
+                    detection_reason = f"frontmatter phase: {phase_match.group(1)}"
+            # debate_id with critique-type keyword as delimited token
+            if not effective_mode:
+                debate_id_match = re.search(
+                    r'^debate_id:\s*.*(?:^|[-_])(?:challenge|judgm?ent|pressure-test|pre-?mortem)(?:$|[-_])',
+                    fm_text, re.MULTILINE | re.IGNORECASE
+                )
+                if debate_id_match:
+                    effective_mode = "critique"
+                    detection_reason = "debate_id contains critique-type keyword"
+
+        # Layer 2: Content heuristic — scan H2 headings for critique structure
+        if not effective_mode:
+            # Pressure-test / pre-mortem structure
+            critique_headings = [
+                r'##\s+The Premise Is Wrong',
+                r'##\s+Counter-Thesis',
+                r'##\s+Core Assumptions',
+                r'##\s+My Honest Take',
+                r'##\s+Blind Spots',
+                r'##\s+The Real Question',
+            ]
+            # Challenge / judgment structure — require the debate-specific
+            # "Challenger X —" heading as a strong signal, plus supporting headings
+            challenge_strong = [
+                r'##\s+Challenger\s+[A-Z]\s+[—\-]+\s+Challenges',
+            ]
+            challenge_supporting = [
+                r'##\s+Challenges\b',
+                r'##\s+Concessions\b',
+                r'##\s+Verdict\b',
+            ]
+            pt_hits = sum(1 for pat in critique_headings if re.search(pat, document, re.IGNORECASE))
+            ch_strong = sum(1 for pat in challenge_strong if re.search(pat, document))
+            ch_support = sum(1 for pat in challenge_supporting if re.search(pat, document, re.IGNORECASE))
+            # Challenge detection requires at least one strong signal + supporting
+            ch_detected = ch_strong >= 1 and ch_support >= 2
+            if pt_hits >= 3 or ch_detected:
+                effective_mode = "critique"
+                if pt_hits >= 3:
+                    detection_reason = f"content heuristic: {pt_hits}/6 pressure-test headings"
+                else:
+                    detection_reason = f"content heuristic: debate-specific heading + {ch_support} supporting"
+
+        if effective_mode and detection_reason:
+            print(f"NOTE: Auto-detected critique mode ({detection_reason}) "
+                  f"— override with --mode proposal", file=sys.stderr)
+    if effective_mode is None:
+        effective_mode = "proposal"
+
+    # Resolve rounds: explicit flag > mode default
     rounds = args.rounds
+    if rounds is None:
+        rounds = 2 if effective_mode == "critique" else 6
     models = args.models.split(",") if args.models else config["refine_rotation"]
     models = [m.strip() for m in models if m.strip()]
 
@@ -2486,10 +2653,16 @@ def cmd_refine(args):
         # later rounds operated blind, which the v2 debate flagged as a
         # MATERIAL gap — Mode2 v2 judgment Challenge #3, Evidence Grade A).
         ctx = judgment_context if judgment_context else "No specific issues flagged — use your judgment."
-        if i == 0:
-            system_prompt = REFINE_FIRST_ROUND_PROMPT.format(judgment_context=ctx)
+        if effective_mode == "critique":
+            if i == 0:
+                system_prompt = CRITIQUE_REFINE_FIRST_ROUND_PROMPT.format(judgment_context=ctx)
+            else:
+                system_prompt = CRITIQUE_REFINE_SUBSEQUENT_ROUND_PROMPT.format(judgment_context=ctx)
         else:
-            system_prompt = REFINE_SUBSEQUENT_ROUND_PROMPT.format(judgment_context=ctx)
+            if i == 0:
+                system_prompt = REFINE_FIRST_ROUND_PROMPT.format(judgment_context=ctx)
+            else:
+                system_prompt = REFINE_SUBSEQUENT_ROUND_PROMPT.format(judgment_context=ctx)
 
         if enable_tools:
             system_prompt += REFINE_TOOL_SUFFIX
@@ -2535,16 +2708,37 @@ def cmd_refine(args):
             # mid-document. Keep the round's notes but do NOT promote the
             # partial revision to current_doc — that would cascade the
             # truncation across subsequent rounds.
+            # Critique mode expects shorter output, so use a lower threshold.
+            truncation_threshold = 0.45 if effective_mode == "critique" else REFINE_TRUNCATION_RATIO
             truncated = False
             if revised and len(current_doc) > 0:
                 ratio = len(revised) / len(current_doc)
-                if ratio < REFINE_TRUNCATION_RATIO:
+                if ratio < truncation_threshold:
                     truncated = True
                     print(f"WARNING: round {round_num} ({model}) appears truncated "
                           f"(revised doc is {ratio:.0%} of input, threshold "
-                          f"{REFINE_TRUNCATION_RATIO:.0%}). Keeping round notes but "
+                          f"{truncation_threshold:.0%}). Keeping round notes but "
                           f"NOT promoting the partial revision to current_doc.",
                           file=sys.stderr)
+
+            # Critique mode drift detection: warn if proposal-mode patterns
+            # appear in critique output (not blocking — just surfacing)
+            if effective_mode == "critique" and revised and not truncated:
+                drift_patterns = [
+                    (r'(?:^|\n)###?\s*(?:Recommendation|Action Item)s?\b', "recommendations section"),
+                    (r'\b\d+[\s-]*day\s+(?:pilot|timeline|plan|window)\b', "timeline/pilot"),
+                    (r'\b(?:owner|assigned to|responsible|accountable)\s*:', "owner assignment"),
+                    (r'\b(?:success criteria|kill (?:rule|criteria)|decision rule)\s*:', "success criteria"),
+                    (r'\b(?:Phase [123]|Step [123])\s*:', "phased plan"),
+                ]
+                drift_hits = []
+                for pat, label in drift_patterns:
+                    if re.search(pat, revised, re.IGNORECASE | re.MULTILINE):
+                        drift_hits.append(label)
+                if drift_hits:
+                    print(f"NOTE: round {round_num} ({model}) critique output contains "
+                          f"proposal-mode patterns: {', '.join(drift_hits)}. "
+                          f"Review for solutioning drift.", file=sys.stderr)
 
             # Recommendation slot preservation: if the revised doc loses
             # actionable recommendations relative to the input AND the lost
@@ -3551,8 +3745,11 @@ def main():
     rf = sub.add_parser("refine", help="Iterative cross-model refinement")
     rf.add_argument("--document", required=True, type=argparse.FileType("r"),
                      help="Path to document to refine")
-    rf.add_argument("--rounds", type=int, default=6,
-                     help="Number of refinement rounds (default: 6)")
+    rf.add_argument("--mode", choices=["proposal", "critique"], default=None,
+                     help="Refine mode: proposal (add specificity) or critique (sharpen). "
+                          "Auto-detects from frontmatter if omitted.")
+    rf.add_argument("--rounds", type=int, default=None,
+                     help="Number of refinement rounds (default: 6 for proposal, 2 for critique)")
     rf.add_argument("--models", default=None,
                      help="Comma-separated model rotation (default: gemini-3.1-pro,gpt-5.4,claude-opus-4-6)")
     rf.add_argument("--judgment", type=argparse.FileType("r"), default=None,
