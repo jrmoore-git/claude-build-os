@@ -42,6 +42,7 @@ Three depths, each triggered by different signals:
 
 **From `/wrap`** — triggers targeted scan automatically when:
 1. **Session burst:** `git diff HEAD -- tasks/lessons.md tasks/decisions.md` shows 3+ new entries added this session
+2. **Time-based:** >7 days since last `[healthcheck]` marker in session-log (same marker `/start` checks — no duplication)
 
 Targeted scan escalates to full scan if the targeted check surfaces cross-ref integrity issues.
 

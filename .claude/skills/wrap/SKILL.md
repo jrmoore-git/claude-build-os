@@ -78,8 +78,9 @@ If all new items are well-formed: emit nothing.
 **Also check global limits** (cheap — always run):
 - Active count >25: "⚠ Lessons at N/30 — approaching limit."
 - Active count >30: "⚠ Lessons OVER target (N/30) — triage needed."
+- Days since last full scan >7: "⚠ Full /healthcheck overdue (N days) — auto-triggering." Same `[healthcheck]` marker in session-log that `/start` checks — whichever runs first resets the clock for both.
 
-**Auto-trigger escalation:** If this session added 3+ new governance items (`new_lessons` + `new_decisions` count ≥ 3), run the targeted `/healthcheck` scan (not full — just the items from this session plus their cross-refs). Escalate to full scan only if the targeted check finds cross-ref integrity issues.
+**Auto-trigger escalation:** If this session added 3+ new governance items (`new_lessons` + `new_decisions` count ≥ 3), run the targeted `/healthcheck` scan (not full — just the items from this session plus their cross-refs). Escalate to full scan only if the targeted check finds cross-ref integrity issues. Also auto-trigger full scan if >7 days since last `[healthcheck]` marker (catches the case where `/start` was skipped).
 
 ### Step 2 — Gather change summary
 
