@@ -66,6 +66,23 @@ If uncertain, do not bypass.
 
 Log all bypasses: `[CHALLENGE-SKIPPED] <date> <topic> reason: <classification>`
 
+## Phase 0: Context Assessment
+
+Before starting the procedure, scan the conversation for context already established.
+
+**Check each:**
+
+| Signal | Look for | If found |
+|--------|----------|----------|
+| Topic | A proposal, design, or feature discussed in conversation | Use as topic — skip topic inference in Step 1. |
+| Security posture | User mentioned risk level, production-grade, move-fast, etc. | Map to posture 1-5 — skip posture question in Step 1. |
+| Proposal content | A plan, design doc, or detailed feature description already in conversation | Use as proposal source in Step 3 instead of asking user to write one. |
+
+**Routing:**
+- Topic + posture clear → skip Step 1 questions, proceed to Step 2 with inferred values.
+- Proposal already in conversation → reference it in Step 3 instead of asking user to produce one.
+- Nothing clear → full procedure as normal.
+
 ## Procedure
 
 ### Step 1: Resolve the topic and security posture

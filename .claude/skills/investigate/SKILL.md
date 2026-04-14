@@ -50,6 +50,23 @@ no intermediate results. The ONLY user-visible output is:
 3. **Vague answer recovery:** If "whatever you think" / "up to you": state assumption
    and proceed.
 
+## Phase 0: Context Assessment
+
+Before starting the procedure, scan the conversation for context already established.
+
+**Check each:**
+
+| Signal | Look for | If found |
+|--------|----------|----------|
+| Mode | "broke"/"broken"/"error" → symptom. "changed"/"used to work" → drift. "verify"/"does X work" → claim. | Set MODE — skip mode inference in Phase 1. |
+| Topic | Specific area, file, feature, or behavior named in conversation | Set TOPIC — skip topic question in Phase 1. |
+| Evidence | Error messages, stack traces, specific behaviors already shared | Carry into Phase 2 — don't re-gather what's already known. |
+
+**Routing:**
+- Mode + topic clear → skip Phase 1 questions, proceed directly to Phase 2 evidence gathering.
+- Evidence already shared → incorporate into Phase 2 instead of starting blind.
+- Nothing clear → full sequence as normal.
+
 ## Procedure
 
 ### Phase 1: Scope

@@ -49,8 +49,8 @@ at the end of each phase and the final design doc or brief presentation.
 
 Parse the invocation argument:
 
-- `/think discover` -- full problem discovery (Phase 1-6)
-- `/think refine` -- lightweight sanity check (Phase R)
+- `/think discover` -- full problem discovery (Phase 0-6)
+- `/think refine` -- lightweight sanity check (Phase R0-R)
 - `/think` (no argument) -- output the modes as markdown text before asking:
 
   Output:
@@ -68,6 +68,39 @@ Parse the invocation argument:
 ---
 
 # DISCOVER MODE
+
+## Phase 0: Context Assessment
+
+Before running intake, scan the conversation for context already established.
+
+**Check each:**
+
+| Signal | Look for | If found |
+|--------|----------|----------|
+| Problem statement | User described what they're building/solving | State in one line. Satisfies Phase 2A Q1-Q2 or Phase 2B openers. |
+| Mode | Customers/revenue/users → Product. Hack/side-project/infra → Builder. | Skip mode question (Phase 1 step 5). |
+| Evidence | Specific data, user behaviors, failure modes, examples | Reference them. Satisfies diagnostic questions. |
+| Approach | Solution direction proposed or discussed | Include as candidate in Phase 4. |
+
+**Output before proceeding:**
+
+```
+Context from conversation:
+- Problem: {one-line summary, or "not yet clear"}
+- Mode: {Product / Builder / unclear}
+- Evidence: {what's established, or "none yet"}
+- Approach: {direction discussed, or "open"}
+- Gaps: {unanswered intake questions, or "none — all covered"}
+```
+
+**Routing:**
+- All intake questions answered → skip Phase 2A/2B entirely. Run Phase 1 → 1.5 → 3 → 4 → 5 (synthesis).
+- Some answered → ask ONLY unanswered questions in Phase 2A/2B. Smart-skip the rest.
+- No conversation context → full sequence as normal.
+
+Phase 1 (codebase context) and Phase 1.5 (governance context) always run — they pull from disk, not conversation.
+
+---
 
 ## Phase 1: Context Gathering
 
@@ -844,6 +877,35 @@ Report status: **DONE** with evidence (file path, quality score).
 ---
 
 # REFINE MODE
+
+## Phase R0: Context Assessment
+
+Before running forcing questions, scan the conversation for context already established.
+
+**Check each forcing question against conversation:**
+
+| Question | Signal that it's answered |
+|----------|--------------------------|
+| Q1: What outcome? | User stated the goal or desired behavior |
+| Q2: Current workaround? | Existing workflow or cost discussed |
+| Q3: Smallest version? | MVP or testable scope defined |
+| Q4: How does this serve the user? | Workflow impact described |
+| Q5: What does the product become? | Alignment with direction discussed |
+
+**Output before proceeding (only if conversation has relevant context):**
+
+```
+From conversation: {one-line problem summary}
+Already answered: {list of Qs with one-line answers}
+Still need: {remaining Qs, or "none — writing brief directly"}
+```
+
+**Routing:**
+- All answered → skip to Phase R step 5 (synthesis). Write the brief directly.
+- Some answered → ask only unanswered questions. Smart-skip the rest.
+- No context → full sequence as normal.
+
+---
 
 ## Phase R: Lightweight Sanity Check
 

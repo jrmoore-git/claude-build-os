@@ -83,7 +83,7 @@ Three independent improvements that came out of the 2026-04-13 review session. T
 
 ## Priority Order
 
-1. ~~**Track 3 (context-aware skills)**~~ — next if still wanted
+1. **Track 3 (context-aware skills)** — Phase 0 preamble added to `/think` (discover + refine), `/challenge`, `/explore`, `/investigate`. Needs live test to validate.
 2. **Track 1 (refine critique mode)** — DONE (87a5774). A/B tested on Brady VP sales memo. 3-model review, consensus fixes applied.
 3. **Track 2 (model routing)** — PARKED. No outcome quality data to justify routing. Revisit when debate-log tracks per-model finding quality.
 

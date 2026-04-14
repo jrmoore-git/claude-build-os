@@ -9,6 +9,24 @@ allowed-tools: Bash, Read, Write, Edit, Glob, Grep, Agent, AskUserQuestion
 
 Generate 3+ structurally different directions for a question, then synthesize. Includes adaptive pre-flight questions to break default framing before the AI runs.
 
+## Phase 0: Context Assessment
+
+Before starting pre-flight, scan the conversation for context already established.
+
+**Check each:**
+
+| Signal | Look for | If found |
+|--------|----------|----------|
+| Question/decision | User stated what they're exploring or deciding | Use as QUESTION — skip Step 1. |
+| Strategy context | Business model, user type, constraints discussed | Pre-seeds pre-flight — reduces questions needed in Step 2. |
+| Implementation context | Technical approach, stack, architecture discussed | Pre-seeds pre-flight — strategy + implementation may both be covered. |
+| Dimensions | User named specific tradeoffs or axes to explore | Pre-seed divergence dimensions in Step 2b. |
+
+**Routing:**
+- Question + both strategy and implementation context present → self-seed the pre-flight (same as "answer the questions yourself" skip condition). State assumed answers, let user correct, proceed to Step 3.
+- Question + partial context → run Step 2 pre-flight but smart-skip questions already answered by conversation.
+- No context → full sequence as normal.
+
 ## Procedure
 
 ### Step 1: Get topic
