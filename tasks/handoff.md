@@ -1,38 +1,32 @@
-# Handoff — 2026-04-14 (session 2)
+# Handoff — 2026-04-14 (session 3)
 
 ## Session Focus
-Governance healthcheck + test coverage for all untested BuildOS scripts.
+Hook testing: assessed all 17 hooks, wrote 274 tests for the 4 that warrant coverage.
 
 ## Decided
-- Healthcheck ran: archived 10 lessons, promoted 2 to rules, active count 14→2
-- All 8 untested scripts now have unit tests (pure functions only, no LLM mocking)
-- monkeypatch.setattr is the correct pattern for test isolation (not @patch with string paths)
-- Skill frontmatter rule added: use quoted strings, never YAML block scalars
+- Only 4 of 17 hooks need tests: those with complex logic + silent failure modes + likely to be edited
+- The other 13 are either too simple, delegate to already-tested code, or are thin tool wrappers
+- Two test findings (intent-router pattern ordering, fnmatch redundancy) documented but not worth fixing
 
 ## Implemented
-- 8 new test files: debate utils/fallback/tools, lesson_events, recall_search, detect-uncommitted, research, eval_intake
-- 285 tests total, all passing (up from ~103)
-- Governance: lessons.md archived section, Enforced-By annotations, skill-authoring frontmatter rule
-- [healthcheck] marker logged in session-log
+- tests/test_hook_intent_router.py (118 tests): regex matching, pipeline state, challenge/pressure-test resolution, proactive routing, tracker I/O
+- tests/test_hook_bash_fix_forward.py (40 tests): all 5 blocked patterns, serial debate tracker, main() integration
+- tests/test_hook_plan_gate.py (55 tests): glob_to_regex, protected path matching, plan validation with frontmatter
+- tests/test_hook_pre_edit_gate.py (61 tests): path classification, frontmatter parser, surface extraction, plan matching with time window
+- Suite: 559 tests, all passing (was 285)
 
 ## NOT Finished
-- Nothing outstanding
+- Nothing outstanding from this session
 
 ## Next Session Should
-1. Continue BuildOS improvements (#2-6 from prioritized list: hook testing, debate engine hardening, skill gap analysis, docs, config validation)
+1. Continue BuildOS improvements (#2-6: debate engine hardening, skill gap analysis, docs, config validation)
 2. Explore intake 5/5 still pending from prior sessions
 
 ## Key Files Changed
-- tests/test_debate_utils.py, test_debate_fallback.py, test_debate_tools.py (NEW)
-- tests/test_lesson_events.py, test_recall_search.py, test_detect_uncommitted.py (NEW)
-- tests/test_research.py, test_eval_intake.py (NEW)
-- tasks/lessons.md (archived 10, promoted 2)
-- .claude/rules/skill-authoring.md, natural-language-routing.md
-- .claude/skills/healthcheck/SKILL.md
-- .claude/skills/wrap/SKILL.md
-- docs/infrastructure.md
-- docs/how-it-works.md
-- tasks/decisions.md
+- tests/test_hook_intent_router.py (NEW)
+- tests/test_hook_bash_fix_forward.py (NEW)
+- tests/test_hook_plan_gate.py (NEW)
+- tests/test_hook_pre_edit_gate.py (NEW)
 
 ## Doc Hygiene Warnings
 - None

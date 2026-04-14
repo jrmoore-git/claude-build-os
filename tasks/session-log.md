@@ -2,6 +2,25 @@
 
 ---
 
+## 2026-04-14 (session 3) — Hook tests for 4 critical hooks
+
+**Decided:**
+- 4 of 17 hooks warrant tests: intent-router, bash-fix-forward, plan-gate, pre-edit-gate (complex logic + silent failure + likely edited)
+- Other 13 hooks: too simple, delegate to tested code, or thin tool wrappers — skip
+- Two findings (pattern ordering edge case, fnmatch redundancy) documented in tests, not worth code changes
+
+**Implemented:**
+- 4 new test files (274 tests): intent-router (118), bash-fix-forward (40), plan-gate (55), pre-edit-gate (61)
+- Suite: 559 tests, all passing (was 285)
+
+**Not Finished:** Nothing — clean wrap.
+
+**Next Session:** Continue BuildOS improvements (#2-6: debate hardening, skill gaps, docs, config validation). Explore intake 5/5 still pending.
+
+**Commit:** efadf5d
+
+---
+
 ## 2026-04-14 (session 2) — Test coverage + governance healthcheck
 
 **Decided:**

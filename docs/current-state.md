@@ -1,27 +1,17 @@
 # Current State — 2026-04-14
 
-## ⚠ STALE — auto-captured session ended without /wrap-session
-**Auto-capture date:** 2026-04-14 12:36 PT
-**Files changed this session:** 3 files in .claude, tasks
-**WARNING:** The "Next Action" below may be outdated. Cross-check with `git log --oneline -10` and recent session-log entries.
-
-
 ## What Changed This Session
-- Added per-model timeout (120s) for Gemini 3.1 Pro with automatic fallback to next model in rotation
-- Fixed loop variable mutation bug and missing fallback failure logging (code review findings)
-- Added `## Compact Instructions` to CLAUDE.md — priority-ordered preservation list for compaction
-- Replaced aspirational 55/70% compaction thresholds with research-grounded protocol in session-discipline.md
-- Added >7-day healthcheck auto-trigger to /wrap (previously only fired from /start)
-- Documented challenge synthesis mode (extract-then-classify, A/B test evidence) in how-it-works.md
-- Added per-model timeout section to infrastructure.md
+- Added 274 unit tests for 4 critical hooks: intent-router (118), bash-fix-forward (40), plan-gate (55), pre-edit-gate (61)
+- Test suite total: 559 (was 285)
+- Assessed all 17 hooks for testability; selected 4 based on complex logic + silent failure mode + likely to be edited
 
 ## Current Blockers
 - None identified
 
 ## Next Action
-Run `/start` to check governance health — no `[healthcheck]` marker exists in session-log yet.
+Continue BuildOS improvements (#2-6 from prioritized list: debate engine hardening, skill gap analysis, docs, config validation). Explore intake 5/5 still pending.
 
 ## Recent Commits
-69b6947 Healthcheck: auto-trigger full scan from /wrap when >7d overdue
-3211c6e Compaction protocol: add Compact Instructions + research-grounded thresholds
-69d1688 Code review fixes + doc updates for timeout/fallback and challenge synthesis
+efadf5d Hook tests: 274 tests for 4 critical hooks (intent-router, bash-fix-forward, plan-gate, pre-edit-gate)
+6afe4b4 Session wrap 2026-04-14: test coverage + governance healthcheck
+51e628e Test coverage: 8 new test files (182 tests) + governance cleanup
