@@ -1,5 +1,7 @@
 # Natural Language Routing
 
+<!-- Enforced-By: hooks/hook-intent-router.py -->
+
 **The primary interface is natural language, not slash commands.** Users should never need to memorize skill names. When a user describes what they want to do, route them to the right skill automatically.
 
 ## Routing Table

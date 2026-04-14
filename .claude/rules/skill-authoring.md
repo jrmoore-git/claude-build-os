@@ -26,6 +26,10 @@ Personas in skills and tests are defined by **problem and answers only**. No sty
 - Validation result columns for style adherence
 - Any persona classification dimension based on how someone communicates rather than what problem they have
 
+## Skill Frontmatter — Description Field
+
+Always use `description: "single line quoted string"` in skill frontmatter. Never use YAML `|` or `>` block scalars for the description field — Claude Code's skill loader doesn't expand them, causing the `/` menu to show literal `|` instead of the description text. Orphaned YAML lines between fields further corrupt frontmatter. After editing frontmatter, verify the `/` menu shows the correct text.
+
 ## LLM-Extracted Descriptions
 
 LLM-extracted descriptions for tasks and action items must be action-oriented. State WHAT the owner must deliver ("Send deck to X by Friday"), never narrate that they promised ("X committed to send the deck"). Direction/description mismatches confuse downstream consumers. Enforce with a deterministic coherence check that rejects mismatched direction/description.

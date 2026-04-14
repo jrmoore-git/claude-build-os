@@ -1,5 +1,11 @@
 # Current State — 2026-04-14
 
+## ⚠ STALE — auto-captured session ended without /wrap-session
+**Auto-capture date:** 2026-04-14 12:36 PT
+**Files changed this session:** 3 files in .claude, tasks
+**WARNING:** The "Next Action" below may be outdated. Cross-check with `git log --oneline -10` and recent session-log entries.
+
+
 ## What Changed This Session
 - Added per-model timeout (120s) for Gemini 3.1 Pro with automatic fallback to next model in rotation
 - Fixed loop variable mutation bug and missing fallback failure logging (code review findings)
