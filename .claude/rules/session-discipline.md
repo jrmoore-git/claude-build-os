@@ -30,8 +30,11 @@ When context reaches ~55% (stage 1 of compaction protocol), write to `tasks/sess
 
 Priority when context is low: 1. Session summary → 2. Phase review → 3. Implementation
 
-## Clear Completed Work from Carry-Forward Notes
-When completing work flagged as "NOT Finished" or "still pending" in a prior handoff, update `docs/current-state.md` and `tasks/handoff.md` to remove it in the same commit. Stale "NOT Finished" items propagate indefinitely across sessions if not actively cleared — downstream tools and summaries treat them as authoritative open work.
+## Decisions Must Propagate to All References
+Two failure modes, one rule: when a decision changes the state of something referenced in production files, the same commit must update all references.
+
+- **Completed work:** When finishing something flagged as "NOT Finished" or "still pending" in a prior handoff, remove it from `docs/current-state.md` and `tasks/handoff.md`. Stale pending items propagate indefinitely across sessions.
+- **Rejected work:** When a challenge or decision rejects a proposed feature, file, or abstraction, remove all references to it from production files (CLAUDE.md, rules, skills, config). A rejected proposal with live references is indistinguishable from a missing deliverable.
 
 ## Standing Rules
 - Do not ask for decisions already answered in the PRD.

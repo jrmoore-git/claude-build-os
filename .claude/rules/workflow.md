@@ -4,7 +4,7 @@ description: Session workflow, shipping discipline, orient-before-planning
 
 # Workflow
 
-1. **Orient before planning** — read `docs/project-prd.md` (if filled in for your project) + `docs/project-map.md` + `docs/current-state.md` + `tasks/lessons.md` (relevant domain) + `tasks/session-log.md` (last entry) before proposing any plan. Then: read code before proposing changes. Enter plan mode if task touches >3 files, affects state/security, or adds a new integration. Skip for: one-line fixes, copy edits, obvious single-file changes.
+1. **Orient before planning** — read `docs/project-prd.md` (if filled in for your project) + `docs/current-state.md` + `tasks/lessons.md` (relevant domain) + `tasks/session-log.md` (last entry) before proposing any plan. Then: read code before proposing changes. Enter plan mode if task touches >3 files, affects state/security, or adds a new integration. Skip for: one-line fixes, copy edits, obvious single-file changes.
 
 Pipeline tiers: see CLAUDE.md. Skip conditions for `/challenge`: defined authoritatively in CLAUDE.md. Tier classification still governs review depth. Decision logic:
 
