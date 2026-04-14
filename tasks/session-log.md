@@ -2,6 +2,28 @@
 
 ---
 
+## 2026-04-14 (session 2) — Test coverage + governance healthcheck
+
+**Decided:**
+- All 8 untested scripts get unit tests (pure functions only, skip LLM wrappers)
+- monkeypatch.setattr > @patch for test isolation (avoids import-order fragility)
+- Skill frontmatter must use quoted strings, never YAML block scalars
+
+**Implemented:**
+- Full /healthcheck: archived 10 lessons, promoted L20/L22 to rules, active 14→2
+- 8 new test files (182 tests): debate utils/fallback/tools, lesson_events, recall_search, detect-uncommitted, research, eval_intake
+- Suite: 285 tests, all passing
+- Enforced-By annotation on routing rule, frontmatter rule in skill-authoring.md
+- [healthcheck]
+
+**Not Finished:** Nothing — clean wrap.
+
+**Next Session:** Continue BuildOS improvements (#2-6: hook testing, debate hardening, skill gaps, docs, config validation). Explore intake 5/5 still pending.
+
+**Commit:** 51e628e
+
+---
+
 ## 2026-04-11 (session 3) — gstack browser integration: challenge → ship
 
 **Decided:**
