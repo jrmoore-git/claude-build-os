@@ -30,6 +30,9 @@ When context reaches ~55% (stage 1 of compaction protocol), write to `tasks/sess
 
 Priority when context is low: 1. Session summary → 2. Phase review → 3. Implementation
 
+## Clear Completed Work from Carry-Forward Notes
+When completing work flagged as "NOT Finished" or "still pending" in a prior handoff, update `docs/current-state.md` and `tasks/handoff.md` to remove it in the same commit. Stale "NOT Finished" items propagate indefinitely across sessions if not actively cleared — downstream tools and summaries treat them as authoritative open work.
+
 ## Standing Rules
 - Do not ask for decisions already answered in the PRD.
 - When you need credentials or OAuth clicks, STOP and say exactly what you need from the user. Don't guess or proceed without them.

@@ -19,8 +19,7 @@ Hook testing: assessed all 17 hooks, wrote 274 tests for the 4 that warrant cove
 - Nothing outstanding from this session
 
 ## Next Session Should
-1. Continue BuildOS improvements (#2-6: debate engine hardening, skill gap analysis, docs, config validation)
-2. Explore intake 5/5 still pending from prior sessions
+1. Continue BuildOS improvements (debate engine hardening, skill gap analysis, docs, config validation)
 
 ## Key Files Changed
 - tests/test_hook_intent_router.py (NEW)
