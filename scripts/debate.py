@@ -919,9 +919,14 @@ def _call_with_model_fallback(primary_model, fallback_model, system_prompt,
         if _is_timeout_error(e) and fallback_model and fallback_model != primary_model:
             print(f"FALLBACK: {primary_model} timed out ({e}), "
                   f"trying {fallback_model}", file=sys.stderr)
-            text = _call_litellm(fallback_model, system_prompt, user_content,
-                                 litellm_url, api_key, **kwargs)
-            return text, fallback_model
+            try:
+                text = _call_litellm(fallback_model, system_prompt, user_content,
+                                     litellm_url, api_key, **kwargs)
+                return text, fallback_model
+            except LLM_SAFE_EXCEPTIONS as fallback_exc:
+                print(f"FALLBACK: {fallback_model} also failed ({fallback_exc})",
+                      file=sys.stderr)
+                raise
         raise
 
 
@@ -2867,16 +2872,16 @@ def cmd_refine(args):
                 _track_tool_loop_cost(model, tool_result)
                 response = tool_result["content"]
                 all_refine_tool_calls[f"round_{round_num}"] = tool_log
+                used_model = model  # no fallback in tool-loop path
                 if tool_log:
                     print(f"  Round {round_num}: {len(tool_log)} tool calls", file=sys.stderr)
             else:
                 fallback = models[(i + 1) % len(models)] if len(models) > 1 else None
-                response, actual_model = _call_with_model_fallback(
+                response, used_model = _call_with_model_fallback(
                     model, fallback, system_prompt, current_doc, litellm_url, api_key)
-                if actual_model != model:
-                    print(f"  Round {round_num}: used fallback {actual_model} "
+                if used_model != model:
+                    print(f"  Round {round_num}: used fallback {used_model} "
                           f"(primary {model} timed out)", file=sys.stderr)
-                    model = actual_model  # update for round_notes logging
 
             notes, revised = _parse_refine_response(response)
 
@@ -2907,7 +2912,7 @@ def cmd_refine(args):
                 ratio = len(revised) / len(current_doc)
                 if ratio < truncation_threshold:
                     truncated = True
-                    print(f"WARNING: round {round_num} ({model}) appears truncated "
+                    print(f"WARNING: round {round_num} ({used_model}) appears truncated "
                           f"(revised doc is {ratio:.0%} of input, threshold "
                           f"{truncation_threshold:.0%}). Keeping round notes but "
                           f"NOT promoting the partial revision to current_doc.",
@@ -2928,7 +2933,7 @@ def cmd_refine(args):
                     if re.search(pat, revised, re.IGNORECASE | re.MULTILINE):
                         drift_hits.append(label)
                 if drift_hits:
-                    print(f"NOTE: round {round_num} ({model}) critique output contains "
+                    print(f"NOTE: round {round_num} ({used_model}) critique output contains "
                           f"proposal-mode patterns: {', '.join(drift_hits)}. "
                           f"Review for solutioning drift.", file=sys.stderr)
 
@@ -2953,7 +2958,7 @@ def cmd_refine(args):
                         f"{output_slots['cannot_recommend']} CANNOT RECOMMEND = "
                         f"{output_slots['total']} total"
                     )
-                    print(f"WARNING: round {round_num} ({model}) dropped recommendation slots "
+                    print(f"WARNING: round {round_num} ({used_model}) dropped recommendation slots "
                           f"({slot_delta_msg}). Keeping round notes but NOT promoting the "
                           f"revision to current_doc — Mode 2 preservation rule.",
                           file=sys.stderr)
@@ -2966,7 +2971,7 @@ def cmd_refine(args):
 
             round_notes.append({
                 "round": round_num,
-                "model": model,
+                "model": used_model,
                 "notes": notes + note_suffix,
                 "tool_calls": len(all_refine_tool_calls.get(f"round_{round_num}", [])),
                 "new_facts_introduced": new_facts_count,

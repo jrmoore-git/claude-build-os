@@ -72,6 +72,17 @@ This gives you structured review through PM/Security/Architecture lenses using C
 - Independent judge evaluation (recorded as `independence: degraded_single_model`)
 - `--enable-tools` (tool-use loops require LiteLLM proxy)
 
+### Per-Model Timeouts
+
+Preview/reasoning models with extreme tail latency get automatic timeout and fallback handling. Configured in `scripts/debate.py` via `MODEL_TIMEOUTS`:
+
+| Model | Timeout | Default | Reason |
+|-------|---------|---------|--------|
+| gemini-3.1-pro | 120s | 300s | Preview reasoning model — TTFT ~29s, p99=542s |
+| All others | 300s | 300s | Production models with stable latency |
+
+When a model times out, `_call_with_model_fallback` automatically tries the next model in the rotation. Both the timeout and the fallback attempt are logged to stderr. This is separate from the single-credential Anthropic fallback above — it handles per-call latency, not missing API keys.
+
 ---
 
 ## Optional Dependencies

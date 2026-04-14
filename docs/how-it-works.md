@@ -69,7 +69,11 @@ python3.11 scripts/debate.py refine \
 
 Default model rotation: gemini-3.1-pro → gpt-5.4 → claude-opus-4-6 (cycles if rounds exceed model count). All three model families participate in refinement, ensuring no single family's biases dominate the final output. Default rounds: 6 (each model refines twice). Each round produces review notes and a complete revised document; the revised document feeds into the next round.
 
+**Challenge synthesis mode:** When refine processes a multi-challenger document (output of `challenge`), it automatically switches to structured extract-then-classify synthesis instead of prose rewriting. Phase 1 extracts every distinct finding from all challengers and classifies each by diagnosticity (HIGH/MEDIUM/LOW), evidence type (CITED/REASONED/ASSERTED), and support count. Phase 2 verifies completeness. A NEVER-DROP rule ensures minority findings (1-of-3 challengers) are preserved — these are often the most valuable insights. A MERGE vs SPLIT rule prevents same-topic-different-claim findings from being incorrectly merged (e.g., a risk and its mitigation stay separate). A/B tested: 5/5 blind judge wins vs prose consolidation, Finding Recall 4.8/5 vs 3.0/5.
+
 The `--judgment` flag is optional. When provided (as in the `/challenge --deep` pipeline), the first round is seeded with accepted challenges so models know exactly what to fix. When omitted (standalone `/polish`), models use their own judgment to improve the document. The `/polish` skill can also pass user-specified focus areas via the same `--judgment` slot.
+
+**Per-model timeout with fallback:** Models with known tail latency (e.g., Gemini 3.1 Pro Preview — 29s TTFT, p99=542s) get shorter timeouts via `MODEL_TIMEOUTS`. On timeout, the refine loop automatically falls back to the next model in the rotation instead of blocking the serial pipeline. Fallback attempts are logged to stderr.
 
 Produces: `tasks/<topic>-refined.md` with per-round review notes and the final refined document.
 
