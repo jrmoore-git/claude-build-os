@@ -2153,6 +2153,130 @@ has failed. A good critique names the problem, tests the assumptions, and
 gives an honest verdict. It does not become the solution.
 """
 
+# ── Challenge synthesis prompts (multi-challenger documents) ─────────────
+# These replace prose-rewrite with structured extract-then-classify.
+# Research basis: CIA ACH (never drop evidence), Chain of Density (extract
+# then compress), multi-agent debate research (majority pressure suppresses
+# correct minorities), clinical evidence synthesis (two-phase outperforms
+# single-pass by 71% recall).
+
+CHALLENGE_SYNTH_FIRST_ROUND_PROMPT = """\
+You are synthesizing a multi-challenger critique document. The input contains \
+independent reviews from multiple AI models. Your job is to extract and \
+classify every distinct finding — not to rewrite, summarize, or editorialize.
+
+PHASE 1 — EXTRACT ALL FINDINGS:
+Read every challenger section. For each distinct claim, concern, or \
+observation, create one entry. Two findings are "the same" ONLY if they \
+make the same claim about the same thing with the same evidence. Different \
+framings of similar concerns are separate findings.
+
+PHASE 2 — CLASSIFY EACH FINDING:
+For each finding, determine:
+- Support: which challengers raised it (list labels, e.g., A, B, C)
+- Diagnosticity: HIGH (changes the go/no-go decision), MEDIUM (changes \
+implementation approach), LOW (style, preference, or minor polish)
+- Evidence: CITED (quotes or references specific code/docs), REASONED \
+(logical argument without specific evidence), ASSERTED (claim without support)
+
+ORDERING RULE: HIGH-diagnosticity findings first, regardless of support \
+count. A single-challenger HIGH finding ranks above a three-challenger LOW \
+finding. Within the same diagnosticity level, order by support count descending.
+
+NEVER-DROP RULE (HARD): Every distinct finding from the source document \
+MUST appear in your output. You may merge genuinely identical findings \
+(same claim + same evidence) but you must note which challengers raised each. \
+If in doubt whether two findings are identical, keep them separate.
+
+MERGE vs SPLIT (HARD): Findings about the same TOPIC are NOT the same finding \
+if they make different types of claims. These are always separate entries:
+- A risk ("X creates dangling pointers") vs a mitigation ("need link integrity checks")
+- A problem ("cross-file refs fail") vs an assumption challenge ("always-loaded is unverified")
+- A concern ("enforcement is weakened") vs a proposed alternative ("use inline summaries instead")
+- A diagnosis ("token estimates are speculative") vs a validation demand ("provide per-file counts")
+Same topic, different claim type = separate findings. The test: if you removed one, \
+would the other still make sense on its own? If yes, they are separate.
+
+DO NOT:
+- Paraphrase challenger arguments into new language (that's where hallucination enters)
+- Treat agreement count as a quality signal for inclusion/exclusion
+- Add your own analysis, recommendations, or implementation suggestions
+- Drop minority findings (1-of-3) — these are often the most valuable
+- Merge a challenger's unique concern into a broader finding from another challenger
+
+{judgment_context}
+
+Produce your output in EXACTLY this format:
+
+## Review Notes
+[Brief: how many challengers in the input, total distinct findings extracted, \
+any findings that were merged and why]
+
+## Revised Document
+
+### Executive Summary
+[3-5 bullet points: the highest-diagnosticity findings only]
+
+### Findings
+
+#### HIGH Diagnosticity
+[For each finding:]
+**F<N>: [one-line summary]**
+- Support: [A, B, C] ([count]/[total] challengers)
+- Evidence: [CITED/REASONED/ASSERTED]
+- Detail: [the finding in the challenger's own words, condensed but faithful. \
+When merging, preserve the most specific examples from each challenger — \
+e.g., if one names specific rules/files at risk and another argues the general case, \
+include both the general argument AND the specific examples.]
+
+#### MEDIUM Diagnosticity
+[Same format]
+
+#### LOW Diagnosticity
+[Same format]
+
+### Challenger Agreements
+[Where all challengers converge — brief summary]
+
+### Minority Concerns
+[Findings raised by only one challenger — preserved in full, not summarized away]
+"""
+
+CHALLENGE_SYNTH_SUBSEQUENT_ROUND_PROMPT = """\
+You are verifying and finalizing a challenge synthesis. The previous round \
+extracted and classified findings from a multi-challenger document. Your job \
+is to verify completeness and fix any classification errors.
+
+VERIFICATION CHECKLIST:
+1. Go back to the ORIGINAL challenger sections in the source. For each \
+challenger, confirm every distinct finding appears in the synthesis.
+2. Check diagnosticity ratings — did the previous round rate anything HIGH \
+that should be MEDIUM, or vice versa? The test: would this finding change \
+the go/no-go decision (HIGH) or just the implementation approach (MEDIUM)?
+3. Check for findings that were incorrectly merged — same topic but \
+different claims should be separate entries.
+4. Check the executive summary — does it reflect the actual HIGH findings, \
+or did it drift?
+
+FIX any errors found. If the previous round is complete and correct, make \
+only minimal improvements to clarity.
+
+{judgment_context}
+
+Produce your output in EXACTLY this format:
+
+## Review Notes
+[What you verified, what you fixed, what was already correct]
+
+## Revised Document
+[The COMPLETE verified synthesis — same structure as the input. \
+Fix errors but do not restructure or add new analysis.]
+"""
+
+# ── Pressure-test / single-voice critique prompts ────────────────────────
+# For documents with a single authorial voice (pressure-tests, pre-mortems).
+# These keep the prose-refinement approach — sharpening, not restructuring.
+
 CRITIQUE_REFINE_FIRST_ROUND_PROMPT = """\
 You are refining a strategic critique or pressure-test. Your job is to make \
 this critique sharper and more precise — not to convert it into an \
@@ -2534,6 +2658,7 @@ def cmd_refine(args):
     # Mode detection: explicit flag > frontmatter > content heuristic > default
     effective_mode = args.mode
     detection_reason = None
+    critique_subtype = None  # "challenge" or "pressure-test" — affects truncation threshold
     if effective_mode is None:
         # Layer 1: Frontmatter detection (tolerant of BOM and CRLF)
         fm_match = re.match(r'^\ufeff?\s*---\s*\r?\n(.*?)\r?\n---', document, re.DOTALL)
@@ -2546,6 +2671,7 @@ def cmd_refine(args):
             )
             if mode_match:
                 effective_mode = "critique"
+                critique_subtype = "pressure-test"
                 detection_reason = f"frontmatter mode: {mode_match.group(1)}"
             # Challenge / judgment artifacts
             if not effective_mode:
@@ -2555,6 +2681,7 @@ def cmd_refine(args):
                 )
                 if phase_match:
                     effective_mode = "critique"
+                    critique_subtype = "challenge"
                     detection_reason = f"frontmatter phase: {phase_match.group(1)}"
             # debate_id with critique-type keyword as delimited token
             if not effective_mode:
@@ -2564,6 +2691,8 @@ def cmd_refine(args):
                 )
                 if debate_id_match:
                     effective_mode = "critique"
+                    matched_kw = debate_id_match.group(0).lower()
+                    critique_subtype = "challenge" if "challenge" in matched_kw or "judgm" in matched_kw else "pressure-test"
                     detection_reason = "debate_id contains critique-type keyword"
 
         # Layer 2: Content heuristic — scan H2 headings for critique structure
@@ -2595,8 +2724,10 @@ def cmd_refine(args):
             if pt_hits >= 3 or ch_detected:
                 effective_mode = "critique"
                 if pt_hits >= 3:
+                    critique_subtype = "pressure-test"
                     detection_reason = f"content heuristic: {pt_hits}/6 pressure-test headings"
                 else:
+                    critique_subtype = "challenge"
                     detection_reason = f"content heuristic: debate-specific heading + {ch_support} supporting"
 
         if effective_mode and detection_reason:
@@ -2653,7 +2784,14 @@ def cmd_refine(args):
         # later rounds operated blind, which the v2 debate flagged as a
         # MATERIAL gap — Mode2 v2 judgment Challenge #3, Evidence Grade A).
         ctx = judgment_context if judgment_context else "No specific issues flagged — use your judgment."
-        if effective_mode == "critique":
+        if effective_mode == "critique" and critique_subtype == "challenge":
+            # Multi-challenger docs: structured extract-then-classify
+            if i == 0:
+                system_prompt = CHALLENGE_SYNTH_FIRST_ROUND_PROMPT.format(judgment_context=ctx)
+            else:
+                system_prompt = CHALLENGE_SYNTH_SUBSEQUENT_ROUND_PROMPT.format(judgment_context=ctx)
+        elif effective_mode == "critique":
+            # Single-voice critiques (pressure-tests, pre-mortems): prose refinement
             if i == 0:
                 system_prompt = CRITIQUE_REFINE_FIRST_ROUND_PROMPT.format(judgment_context=ctx)
             else:
@@ -2708,8 +2846,18 @@ def cmd_refine(args):
             # mid-document. Keep the round's notes but do NOT promote the
             # partial revision to current_doc — that would cascade the
             # truncation across subsequent rounds.
-            # Critique mode expects shorter output, so use a lower threshold.
-            truncation_threshold = 0.45 if effective_mode == "critique" else REFINE_TRUNCATION_RATIO
+            # Threshold varies by document type:
+            # - challenge docs: structured synthesis deduplicates overlapping
+            #   findings across challengers. 40-60% of input is expected;
+            #   below 35% suggests real truncation.
+            # - pressure-test/critique: moderate consolidation expected
+            # - proposal: output should be close to input size
+            if effective_mode == "critique" and critique_subtype == "challenge":
+                truncation_threshold = 0.35
+            elif effective_mode == "critique":
+                truncation_threshold = 0.45
+            else:
+                truncation_threshold = REFINE_TRUNCATION_RATIO
             truncated = False
             if revised and len(current_doc) > 0:
                 ratio = len(revised) / len(current_doc)
