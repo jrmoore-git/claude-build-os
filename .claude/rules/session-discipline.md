@@ -53,7 +53,15 @@ Prove it works before calling it done. See review-protocol.md Definition of Done
 - Every LLM call must log the actual model that responded, not the model that was requested (fallback detection)
 - **What survives compaction** is controlled by the `## Compact Instructions` section in CLAUDE.md — update it if your session has unusual context needs
 
-**Compaction protocol:** 55%: write state to disk proactively. 55–70%: compact at natural breakpoint. 70%: hard compact immediately (write thoughts to disk first).
+**Context rot is continuous, not cliff-edge.** Research (Chroma, 18 frontier models) shows meaningful degradation by ~25% context fill. At 50%, retrieval accuracy drops 30%+ for mid-context information. This cannot be hooked or gated — context % is not exposed to Claude Code hooks.
+
+**Compaction protocol (what's enforceable):**
+- **Auto-compact fires at ~95% capacity.** Built-in, cannot be changed. The `## Compact Instructions` section in CLAUDE.md controls what survives.
+- **Manual `/compact`** at natural breakpoints: after completing a subtask, before switching phases, or when responses lose track of earlier context. Use `/compact focus on [next task]`.
+- **State lives on disk, not in context.** Write decisions, progress, and blockers to `session-log.md` and `handoff.md` continuously. If it's on disk, don't carry it in context — reference the file path.
+- **Prefer fresh sessions over deep compaction.** Heavily compacted sessions are brittle (lost-in-the-middle persists after compaction). Use `/wrap` to export state and start fresh rather than compacting repeatedly.
+- **Before any review-protocol phase**, compact if the session has been long. Reviews need sharp retrieval.
+- **Human lever:** run `/compact` when switching task phases or when Claude seems to drift. Smaller focused sessions > one marathon.
 
 ## Presenting Options
 

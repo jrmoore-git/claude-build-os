@@ -75,6 +75,19 @@ If `[CHALLENGE-SKIPPED]` or `[TRIVIAL]` appears more than 3 times in a sprint, t
   - Pipeline tiers: T0 (spike) = build. T2 (standard) = `/think refine` → `/plan` → build. T1 (new feature) = `/think discover` → `/challenge` → `/plan` → build. T1+UI = `/think discover` → `/design consult` → `/challenge` → `/plan` → build → `/design review`. Big bet = `/think discover` → `/elevate` → `/challenge` → `/plan` → build. All tiers end with → `/review` → `/ship`. If it has a UI, wire in `/design consult` before plan and `/design review` before ship. Use `/plan --auto` to auto-chain the full pipeline.
 - **Rules:** `.claude/rules/` — code-quality, design, natural-language-routing, orchestration, review-protocol, session-discipline, skill-authoring, workflow (see individual files for details)
 
+## Compact Instructions
+
+When compacting this session, preserve in order of priority:
+1. **Active task**: current objective, which step I'm on, acceptance criteria, and immediate blockers
+2. **Decisions made this session**: choices, rejected alternatives, and rationale — if not yet written to disk
+3. **Dirty state**: uncommitted changes, files modified but not committed, pending git operations
+4. **Review status**: active review-protocol phase, unresolved findings, whether review is required before commit
+5. **File pointers**: paths to session-log.md, handoff.md, and any task-specific plan or artifact files
+
+Discard freely: tool output bodies, file contents re-readable from disk, resolved error traces, exploratory dead ends (unless the dead end was the decision), verbose search results. Reference disk files by path instead of carrying their contents.
+
+If handoff.md or session-log.md were updated this session, reference their paths rather than restating their contents.
+
 ## Project-specific rules
 <!-- Add rules specific to your project as you discover them. Examples: -->
 <!-- - "All API responses must be validated against the schema before processing" -->
