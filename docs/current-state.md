@@ -1,34 +1,32 @@
 # Current State — 2026-04-15
 
 ## ⚠ STALE — auto-captured session ended without /wrap-session
-**Auto-capture date:** 2026-04-15 10:09 PT
-**Files changed this session:** 6 files in docs, tasks
+**Auto-capture date:** 2026-04-15 12:27 PT
+**Files changed this session:** 3 files in docs, tasks
 **WARNING:** The "Next Action" below may be outdated. Cross-check with `git log --oneline -10` and recent session-log entries.
 
 
 ## Phase
-/simulate V2 design complete. Ready for `/think` or `/challenge` before building.
+Post-assessment. V2 sim-compiler built and evaluated. Direction set: structural lint + IR contract-diff. Ready to define canonical SKILL.md sections.
 
-## What Changed This Session (session 6)
-- Battle-tested /simulate V1: 3 smoke-tests + 1 quality-eval, all passing
-- Fixed grep pattern vulnerability across 6 skills
-- Fixed /log numbering collision bug
-- Perplexity deep research on AI user simulation (50 citations)
-- Cross-model explore: 4 architectural directions evaluated
-- Direction chosen: Skill Compiler Simulator
-- Comprehensive design brief written: `tasks/simulate-v2-design-brief.md`
+## What Changed This Session (session 9)
+- Cross-model panel (Claude+Gemini+GPT) on sim-compiler value — confirmed IR extractor is novel, sim loop is commodity
+- Perplexity research on industry landscape — no tools do IR extraction from procedures or prompt linting
+- Direction crystallized: lint is front-end pass, IR diff is semantic pass, both needed
+- Claude Opus corrected: must define canonical SKILL.md sections before lint can enforce them
+- No code changes — analysis and direction-setting only
 
 ## Current Blockers
 - None
 
 ## Next Action
-1. Commit session 6 artifacts (3 new task files + handoff + session-log + current-state)
-2. Read `tasks/simulate-v2-design-brief.md`
-3. Run `/think` or `/challenge` on V2 proposal
-4. Build compiler pilot on 3 skills (/explore, /investigate, /plan)
+1. Read `tasks/handoff.md` — full context from sessions 7-9
+2. `/think refine` on canonical SKILL.md sections (what's required vs. optional)
+3. Build structural lint hook
+4. Wire IR extractor into pre-commit diff
 
 ## Recent Commits
-6097ce8 Session wrap 2026-04-15: /simulate skill build + review-proactive enforcement
-e29d8b7 [auto] Session work captured 2026-04-15 03:06 PT
-de9ba7b [auto] Session work captured 2026-04-15 02:56 PT
-c9e4bf6 Session wrap 2026-04-14: /simulate skill pipeline (design → plan)
+5b01e16 [auto] Session work captured 2026-04-15 12:19 PT
+4be5043 [auto] Session work captured 2026-04-15 11:30 PT
+c50c7d1 [auto] Session work captured 2026-04-15 11:07 PT
+6a75922 [auto] Session work captured 2026-04-15 10:09 PT
