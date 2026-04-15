@@ -2,6 +2,30 @@
 
 ---
 
+## 2026-04-15 (session 10) — skill linter + 22 skill conformance fixes
+
+**Focus:** Built the canonical sections linter, fixed all 22 skills to pass, wired PostToolUse lint hook.
+
+**Implemented:**
+- `scripts/lint_skills.py` — tier classification, 9 validation checks, lint-exempt mechanism
+- `hooks/hook-skill-lint.py` — PostToolUse hook warns on SKILL.md violations
+- All 22 SKILL.md files: version, Use when, procedure, completion codes, safety rules, output silence, output format, debate fallback
+- 4 parallel worktree agents for skill fixes (116 violations → 0)
+- Self-review passed: 0 material, 3 advisory
+
+**Decided:**
+- PostToolUse over PreToolUse for lint hook (can't lint pre-write)
+- `tier: 1` frontmatter override for 5 utility skills
+- `lint-exempt: ["output-silence"]` for /start and /wrap
+
+**Not Finished:** IR extraction not wired. sim-compiler not reviewed. debate.py has 0 tests. Linter has no automated tests.
+
+**Next:** Test the lint system, then wire IR extraction into pre-commit diff.
+
+**Commits:** eee5872, 9174c2b, 55251fc
+
+---
+
 ## 2026-04-15 (session 9) — gstack research + canonical SKILL.md sections spec
 
 **Focus:** Studied gstack's skill validation system, ran Perplexity research on prompt quality/structured authoring/drift detection, drafted and cross-model refined the canonical SKILL.md sections spec.
