@@ -1,6 +1,7 @@
 ---
 name: design
-description: "Unified design skill with 4 modes: consult (design system builder), review (visual QA with 94-item audit), variants (AI design exploration), plan-check (designer's eye on a plan). Infers mode from context when not specified. Defers to /think for problem definition, /review for code review, /polish for iterative document refinement."
+description: "Unified design skill with 4 modes: consult, review, variants, plan-check. Use when designing UI, auditing visual quality, exploring design variants, or checking a plan for design completeness. Defers to /think for problem definition, /review for code review."
+version: 1.0.0
 user-invocable: true
 allowed-tools:
   - Bash
@@ -15,7 +16,9 @@ allowed-tools:
 
 # /design — Unified Design Skill
 
-## Mode Routing
+## Procedure
+
+### Mode Routing
 
 Parse the user's invocation to select a mode:
 
@@ -69,6 +72,7 @@ These rules apply to EVERY AskUserQuestion call in this skill:
 - NEVER add features, pages, or components — design skills produce design artifacts, not code (except in Review fix loop).
 - Respect `.claude/rules/design.md` anti-slop checklist in all recommendations.
 - No AI slop vocabulary (see `.claude/rules/code-quality.md`).
+- **Output silence** — Do not emit text between tool calls. Single formatted output at the end only.
 
 ---
 ---
@@ -2038,3 +2042,11 @@ Report status per the Completion Status Protocol:
 - **DONE_WITH_CONCERNS** -- Completed with deferred decisions or dimensions below 8. List each.
 - **BLOCKED** -- Cannot proceed (missing plan file, no UI scope, etc.).
 - **NEEDS_CONTEXT** -- Missing information. State exactly what you need.
+
+## Output Format
+
+Output varies by mode:
+- **Consult:** Writes `app/DESIGN.md` with the complete design system specification.
+- **Review:** Writes `tasks/<topic>-design-review.md` with audit scores, findings, and fix results.
+- **Variants:** Writes `tasks/<topic>-variants.md` with variant descriptions, comparison board, and selected direction.
+- **Plan-Check:** Writes updated plan file with design dimension scores and completion summary.

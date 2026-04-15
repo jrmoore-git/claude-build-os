@@ -1,12 +1,20 @@
 ---
 name: start
-description: "Session bootstrap + workflow routing. Loads working context (uncommitted work, memory staleness, current-state, infra versions, recent sessions, lessons, decisions), shows project status, and suggests the next skill based on artifact state. Replaces /recall and /status."
+description: "Session bootstrap + workflow routing. Use when starting a session, resuming work, or asking where things stand. Loads working context, shows project status, and suggests the next skill based on artifact state."
+version: 1.0.0
+lint-exempt: ["output-silence"]
 user-invocable: true
 ---
 
 # /start — Session Bootstrap + Workflow Routing
 
 Orient the session and route to the next action. Combines context loading (old `/recall`) with workflow stage detection (old `/status`). Idempotent — if context is already loaded this session, skip the bootstrap and jump to Step 2.
+
+## Safety Rules
+
+- NEVER rewrite files based on diagnostic flags without explicit user request. Flags mean report and wait.
+- Do not treat STALE markers as implicit permission to act on stale data.
+- NEVER fabricate project status — derive from git, artifacts, and session-log only.
 
 ## Procedure
 
@@ -230,3 +238,11 @@ Artifacts: <list existing for topic, or "none">
 - Do not quote raw message content from personal channels.
 - Do not surface file contents verbatim — synthesize.
 - If context is thin (files sparse), say so in one line and stop.
+
+## Completion
+
+Report status:
+- **DONE** — All steps completed successfully.
+- **DONE_WITH_CONCERNS** — Completed with issues to note.
+- **BLOCKED** — Cannot proceed. State the blocker.
+- **NEEDS_CONTEXT** — Missing information needed to continue.

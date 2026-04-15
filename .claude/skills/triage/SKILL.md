@@ -1,6 +1,8 @@
 ---
 name: triage
-description: Classify incoming information and route it to where it belongs
+description: "Classify incoming information and route it to where it belongs. Use when processing meeting notes, research findings, bug reports, or unstructured inputs."
+version: 1.0.0
+tier: 1
 user-invocable: true
 ---
 
@@ -41,3 +43,11 @@ Run when you have new inputs to process: meeting notes, research findings, brain
 - Every item is either routed, explicitly deferred with a reason, or explicitly skipped. No items are silently ignored.
 - Use assertion-style titles: "JWT cookie auth bridges Django sessions cleanly" not "Authentication notes"
 - If unsure where something belongs, ask the user rather than guessing.
+
+## Completion
+
+Report status:
+- **DONE** — All steps completed successfully.
+- **DONE_WITH_CONCERNS** — Completed with issues to note.
+- **BLOCKED** — Cannot proceed. State the blocker.
+- **NEEDS_CONTEXT** — Missing information needed to continue.

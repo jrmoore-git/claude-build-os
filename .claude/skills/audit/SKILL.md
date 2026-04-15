@@ -1,6 +1,8 @@
 ---
 name: audit
-description: Run a two-phase audit — blind discovery, then targeted questions
+description: "Run a two-phase audit — blind discovery, then targeted questions. Use when reviewing a codebase, checking for spec drift, or validating governance state."
+version: 1.0.0
+tier: 1
 user-invocable: true
 allowed-tools:
   - Read
@@ -74,3 +76,11 @@ Create `tasks/audit-[date].md`:
 - Every finding must cite specific evidence (file path, command output, line number). No findings from memory or conversation history.
 - Label each finding's source: **inspected** (direct evidence) or **inferred** (reasoning from indirect evidence). Only inspected findings can be critical severity.
 - Check `docs/audit-corrections.md` if it exists — do not repeat previously corrected false findings.
+
+## Completion
+
+Report status:
+- **DONE** — All steps completed successfully.
+- **DONE_WITH_CONCERNS** — Completed with issues to note.
+- **BLOCKED** — Cannot proceed. State the blocker.
+- **NEEDS_CONTEXT** — Missing information needed to continue.

@@ -1,6 +1,7 @@
 ---
 name: explore
 description: "3+ divergent directions with cross-model synthesis. Use when you need to explore options, generate alternatives, or think through multiple approaches. Defers to: /think (problem discovery), /plan (implementation spec), /pressure-test (adversarial challenge)."
+version: 1.0.0
 user-invocable: true
 allowed-tools: Bash, Read, Write, Edit, Glob, Grep, Agent, AskUserQuestion
 ---
@@ -100,6 +101,8 @@ If PERPLEXITY_API_KEY is not set or the search fails: fall back to Claude's buil
 
 ### Step 4: Run explore
 
+If debate.py fails or is unavailable, fall back to single-model analysis using the session model.
+
 ```bash
 python3.11 scripts/debate.py explore \
   --question "<the user's question>" \
@@ -134,3 +137,21 @@ Single call, no partial state. If the explore call fails, report the error and s
 - Always display explore output directly in the conversation.
 - Never narrate internal mechanics, cost estimates, model choices, or pipeline plumbing to the user.
 - Register: sharp PM/VC, not therapist. Business language only.
+
+## Safety Rules
+
+- NEVER commit to a direction without user selection.
+- Do not suppress minority viewpoints from explore directions.
+- **Output silence** — Do not emit text between tool calls. Single formatted output at the end only.
+
+## Output Format
+
+Primary output is `tasks/<TOPIC>-explore.md` containing 3+ divergent directions with cross-model synthesis. The conversation displays the explore output directly and a summary table with artifact paths and status.
+
+## Completion
+
+Report status:
+- **DONE** — All steps completed successfully.
+- **DONE_WITH_CONCERNS** — Completed with issues to note.
+- **BLOCKED** — Cannot proceed. State the blocker.
+- **NEEDS_CONTEXT** — Missing information needed to continue.

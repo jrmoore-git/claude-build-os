@@ -1,6 +1,8 @@
 ---
 name: setup
-description: Interactive project setup using the Build OS framework
+description: "Interactive project setup using the Build OS framework. Use when starting a new project or onboarding an existing codebase to Build OS governance."
+version: 1.0.0
+tier: 1
 user-invocable: true
 ---
 
@@ -9,6 +11,8 @@ user-invocable: true
 You are setting up a new project to use the Build OS framework. Guide the user through setup by asking questions and creating files based on their answers.
 
 **Note:** This is a reference framework, not an installer. It creates governance files and points you to templates for structured artifacts. Alternatively, run `/init` in Claude Code to generate a starter CLAUDE.md from your existing codebase, then layer governance files on top using the steps below.
+
+## Procedure
 
 ## Step 1: Understand the project
 
@@ -74,3 +78,11 @@ List every file created with a one-line description. Suggest what to do next:
 - Create only the files needed for the chosen tier. Do not create Tier 2 files for a Tier 0 project.
 - Every file created should have real content, not just placeholders. Use the project description to populate the PRD, the first decision, etc.
 - Keep it conversational. This should feel like a guided setup, not a form.
+
+## Completion
+
+Report status:
+- **DONE** — All steps completed successfully.
+- **DONE_WITH_CONCERNS** — Completed with issues to note.
+- **BLOCKED** — Cannot proceed. State the blocker.
+- **NEEDS_CONTEXT** — Missing information needed to continue.

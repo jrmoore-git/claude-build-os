@@ -1,6 +1,8 @@
 ---
 name: log
-description: Extract decisions, lessons, and action items from conversations or documents
+description: "Extract decisions, lessons, and action items from conversations or documents. Use when capturing knowledge after meetings, reviews, or design sessions."
+version: 1.0.0
+tier: 1
 user-invocable: true
 ---
 
@@ -48,3 +50,11 @@ After meetings, design sessions, code reviews, or any conversation where decisio
 - Use assertion-style titles: the title IS the takeaway.
 - If the source is ambiguous about whether something was decided, flag it as "possible decision — confirm with team."
 - Dates matter. Record when decisions were made, not just what was decided.
+
+## Completion
+
+Report status:
+- **DONE** — All steps completed successfully.
+- **DONE_WITH_CONCERNS** — Completed with issues to note.
+- **BLOCKED** — Cannot proceed. State the blocker.
+- **NEEDS_CONTEXT** — Missing information needed to continue.

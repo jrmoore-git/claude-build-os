@@ -1,6 +1,7 @@
 ---
 name: elevate
-description: "Scope and ambition review. Rethink the problem, find the 10-star product, challenge premises, expand scope when it creates a better product. Four modes: SCOPE EXPANSION (dream big), SELECTIVE EXPANSION (hold scope + cherry-pick), HOLD SCOPE (maximum rigor), SCOPE REDUCTION (strip to essentials). Benefits from /think discover. Defers to: /think (problem discovery), /plan (implementation spec), /review (code review)."
+description: "Scope and ambition review with four modes. Use when rethinking scope, challenging premises, or expanding ambition before planning. Defers to: /think (problem discovery), /plan (implementation spec), /review (code review)."
+version: 1.0.0
 user-invocable: true
 allowed-tools:
   - Read
@@ -134,7 +135,9 @@ Never skip Step 0, the system audit, the error/rescue map, or the failure modes 
 
 ---
 
-## Pre-Review System Audit
+## Procedure
+
+### Pre-Review System Audit
 
 Before doing anything else, gather context:
 
@@ -541,7 +544,7 @@ After all sections complete, output the following as markdown text, then offer v
 
 If B: skip.
 
-If A: Write the plan content to a temp file, then call debate.py review:
+If A: Write the plan content to a temp file, then call debate.py review (if debate.py fails or is unavailable, fall back to Agent tool subagent):
 
 ```bash
 TMPFILE=$(mktemp /tmp/elevate-plan-XXXXXX.md)
@@ -687,6 +690,16 @@ After the completion summary, output the following as markdown text, then use As
 > C) `/explore` -- generate divergent options before committing
 
 ---
+
+## Safety Rules
+
+- NEVER expand scope without user confirmation via AskUserQuestion.
+- NEVER silently drift to a different mode than the user selected.
+- Do not make code changes or start implementation — this skill reviews plans only.
+
+## Output Format
+
+Primary output is `tasks/<topic>-elevate.md` (for EXPANSION and SELECTIVE EXPANSION modes) plus `tasks/<topic>-elevate-scratch.md` (incremental progress). Conversation output includes the completion summary table, unresolved decisions, and handoff options.
 
 ## Completion Status Protocol
 

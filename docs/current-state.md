@@ -1,5 +1,11 @@
 # Current State — 2026-04-15
 
+## ⚠ STALE — auto-captured session ended without /wrap-session
+**Auto-capture date:** 2026-04-15 13:25 PT
+**Files changed this session:** 5 files in .claude, scripts, tasks
+**WARNING:** The "Next Action" below may be outdated. Cross-check with `git log --oneline -10` and recent session-log entries.
+
+
 ## Phase
 Canonical SKILL.md sections spec complete (drafted + cross-model refined). Ready to build the lint script and fix the 18 non-conforming skills.
 

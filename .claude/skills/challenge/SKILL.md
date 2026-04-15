@@ -1,6 +1,7 @@
 ---
 name: challenge
-description: "Cross-model challenge that pressure-tests whether proposed work is necessary and appropriately scoped before /plan."
+description: "Cross-model challenge that pressure-tests whether proposed work is necessary and appropriately scoped before /plan. Use when proposing new abstractions, dependencies, infrastructure, or scope expansion."
+version: 1.0.0
 user-invocable: true
 ---
 
@@ -291,3 +292,22 @@ Derive from concepts and reversibility, not line count:
 - Do not embed operational shell recipes; scripts own execution details.
 - Preserve the distinction between local-only (operator choice) and degraded (backend failure).
 - If risk or coverage is unclear, choose the safer path.
+
+## Safety Rules
+
+- NEVER skip challenge findings to proceed faster.
+- NEVER auto-approve proposals — all gate decisions require explicit recommendation with evidence.
+- Do not suppress minority viewpoints from challengers.
+- **Output silence** — Do not emit text between tool calls. Single formatted output at the end only.
+
+## Output Format
+
+The primary output is `tasks/<slug>-challenge.md` containing the synthesized gate artifact. The conversation output follows the format in Step 10: recommendation (PROCEED/PROCEED-WITH-FIXES/SIMPLIFY/PAUSE/REJECT), summary, inline fixes if applicable, artifact paths, and next steps.
+
+## Completion
+
+Report status:
+- **DONE** — All steps completed successfully.
+- **DONE_WITH_CONCERNS** — Completed with issues to note.
+- **BLOCKED** — Cannot proceed. State the blocker.
+- **NEEDS_CONTEXT** — Missing information needed to continue.

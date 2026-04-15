@@ -1,6 +1,7 @@
 ---
 name: simulate
-description: "Zero-config skill simulation. Two modes: smoke-test (extract and run bash blocks from SKILL.md) and quality-eval (generate scenario, execute procedure, judge output via debate.py). Say '/simulate /elevate' to test a skill. Defers to: /review (code review), /challenge (go/no-go gate)."
+description: "Zero-config skill simulation. Use when you want to validate a skill works before recommending usage. Two modes: smoke-test (extract and run bash blocks) and quality-eval (generate scenario, execute procedure, judge output). Defers to: /review (code review), /challenge (go/no-go gate)."
+version: 1.0.0
 user-invocable: true
 allowed-tools:
   - Bash
@@ -50,6 +51,8 @@ These rules apply to EVERY AskUserQuestion call in this skill:
 ---
 
 # /simulate — Zero-Config Skill Simulation
+
+## Procedure
 
 ## Step 1: Parse target and validate
 
@@ -364,6 +367,10 @@ Models: <which models played which roles>
 Duration: <wall clock time>
 Judge: <model used for evaluation>
 ```
+
+## Output Format
+
+See smoke-test report format and quality-eval report format in Step 4 for structured output templates.
 
 ## Step 5: Present results
 

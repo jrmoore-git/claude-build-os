@@ -1,6 +1,6 @@
 ---
 name: healthcheck
-description: "Learning system health check. Three layers: silent (runs in /start and /wrap automatically), auto-triggered (when conditions warrant), manual (/healthcheck). Scans lessons, decisions, rules, cross-references, and escalation ladder. Defers to: /investigate (root-cause analysis), /review (code review)."
+description: "Learning system health check. Use when governance may be stale, lessons exceed limits, or manual audit is needed. Three layers: silent, auto-triggered, manual. Defers to: /investigate (root-cause analysis), /review (code review)."
 user-invocable: true
 allowed-tools:
   - Bash
@@ -10,6 +10,7 @@ allowed-tools:
   - Write
   - Edit
   - AskUserQuestion
+version: 1.0.0
 ---
 
 # /healthcheck — Learning System Health
@@ -217,7 +218,7 @@ Check that:
 - **Recurring patterns across multiple lessons** → recommend new skill or architectural change
 - **Three-strikes threshold**: same behavior corrected 3 times → flag for immediate escalation
 
-### Step 5b: Auto-Verify Stale Lessons
+### Step 5b: Auto-Verify Stale Lessons (uses debate.py review panel; if unavailable, skip verification silently)
 
 If Step 1 found STALE lessons (>14d, no activity), auto-verify the top 3 stalest using
 `/investigate --claim`. This catches lessons with wrong information before they poison
@@ -364,6 +365,16 @@ so the next `/start` knows when the last scan ran.
 - **Does not touch** PRD, session log, or handoff documents (except the `[healthcheck]` marker).
 - **Silence = healthy.** The silent layer in `/start` and `/wrap` emits nothing when
   everything is fine. Users should never see governance output unless something needs attention.
+
+## Safety Rules
+
+- NEVER modify lesson, decision, or rule files during health scan without user confirmation.
+- NEVER auto-resolve, auto-archive, or auto-promote governance items.
+- Do not auto-fix governance issues — present findings only, user directs all mutations.
+
+## Output Format
+
+Output is the health report displayed in conversation: governance health table, learning velocity metrics, pruning candidates, recommended actions with priority tiers, and escalation ladder. No file artifacts are written — output is conversation-only.
 
 ## Completion Status
 

@@ -1,6 +1,8 @@
 ---
 name: wrap
 description: "End-of-session wrap-up. Use when the user says 'wrap up', 'end session', 'wrap it up', or 'close out'. Checks doc hygiene, writes docs/current-state.md and tasks/handoff.md, appends to tasks/session-log.md, and commits everything."
+version: 1.0.0
+lint-exempt: ["output-silence"]
 metadata:
   {
     "emoji": "📦",
@@ -206,6 +208,10 @@ For each worktree:
 
 Only auto-remove worktrees that are clean and fully merged. Report what was cleaned and what was left.
 
+## Output Format
+
+Progress bullets during each step (doc hygiene warnings, change summaries, blocker identification). Final output: commit hash and next-action recommendation.
+
 ### Step 8 — Commit
 
 Stage and commit all wrap docs:
@@ -222,3 +228,11 @@ Co-Authored-By: Claude Sonnet 4.6 <noreply@anthropic.com>"
 ```
 
 Report the commit hash and: "Session wrapped. Next: [next action from Step 3]."
+
+## Completion
+
+Report status:
+- **DONE** — Session wrapped, docs committed, next action identified.
+- **DONE_WITH_CONCERNS** — Wrapped with issues (e.g., uncommitted code changes, stale governance items).
+- **BLOCKED** — Cannot wrap. State the blocker.
+- **NEEDS_CONTEXT** — Missing information needed to write accurate wrap docs.

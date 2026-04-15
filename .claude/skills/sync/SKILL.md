@@ -1,6 +1,7 @@
 ---
 name: sync
 description: "Sync project docs to match what shipped. Cross-references the git diff against all project docs, polishes CHANGELOG voice, checks cross-doc consistency. Never auto-commits. Use when asked to sync docs, update the docs, or post-ship docs. Suggest after a commit lands or code is shipped."
+version: 1.0.0
 user-invocable: true
 allowed-tools:
   - Bash
@@ -40,6 +41,16 @@ for risky or subjective decisions.
 - Use `Write` tool on CHANGELOG files — always use `Edit` with exact `old_string` matches
 
 ---
+
+## Safety Rules
+
+- NEVER auto-commit doc changes. All changes must be presented for user review first.
+- Do not modify code files during doc sync — this skill updates documentation only.
+- NEVER clobber or regenerate CHANGELOG entries from scratch.
+
+**Output silence** — Do not emit text between tool calls. Single formatted output at the end only.
+
+## Procedure
 
 ## Step 1: Pre-flight and Diff Analysis
 
@@ -171,6 +182,10 @@ represents meaningful deferred work (not a trivial inline note), use AskUserQues
 to ask whether it should be captured in `tasks/lessons.md` or `tasks/handoff.md`.
 
 ---
+
+## Output Format
+
+Final output is a summary of all documentation changes made, presented as a bullet list of file-level changes for user review before commit.
 
 ## Step 8: Present Changes for Review
 

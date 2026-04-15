@@ -1,6 +1,8 @@
 ---
 name: guide
 description: "Quick reference organized by what you want to do, not by skill name. Use when lost, onboarding, or unsure which skill to run next."
+version: 1.0.0
+tier: 1
 user-invocable: true
 ---
 
@@ -95,3 +97,11 @@ Full reference: docs/cheat-sheet.md
 After showing the guide, ask: "What are you working on?" and route them to the appropriate skill based on their answer. Use the intent mapping above.
 
 If their answer maps to a clear skill, invoke it directly. If ambiguous, suggest 2-3 options and let them pick.
+
+## Completion
+
+Report status:
+- **DONE** — All steps completed successfully.
+- **DONE_WITH_CONCERNS** — Completed with issues to note.
+- **BLOCKED** — Cannot proceed. State the blocker.
+- **NEEDS_CONTEXT** — Missing information needed to continue.
