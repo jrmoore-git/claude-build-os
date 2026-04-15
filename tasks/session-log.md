@@ -2,6 +2,41 @@
 
 ---
 
+## 2026-04-14 (session 4) — /simulate skill: full pipeline through /plan
+
+**Focus:** Designed and validated the /simulate skill through the full BuildOS pipeline.
+
+**Decided:**
+- /simulate V1 scope: smoke-test + quality eval modes only (V2: adversarial, V3: delta+consensus)
+- Quality eval simplified per challenge: single-agent + debate.py review, no user-sim agent in V1
+- Smoke-test safety: tmp workspace, env scrubbing, denylist, placeholder detection
+- Skill-reads-skill approach (SKILL.md, not Python script)
+- New session-discipline rule: decisions must propagate to all references (completed + rejected)
+
+**Documented:**
+- tasks/simulate-skill-design.md — full design doc from /think discover
+- tasks/simulate-skill-elevate.md — selective expansion scope decisions
+- tasks/simulate-skill-proposal.md — proposal for challenge gate
+- tasks/simulate-skill-findings.md — 3-model challenge findings (Claude, GPT, Gemini)
+- tasks/simulate-skill-challenge.md — PROCEED-WITH-FIXES with 4 inline fixes
+- tasks/simulate-skill-plan.md — implementation plan
+- .claude/rules/session-discipline.md — "Decisions Must Propagate" rule added
+- Cleaned stale refs: explore intake from current-state/handoff, project-map.md from CLAUDE.md/workflow.md
+- Fixed /elevate mktemp BSD bug
+- Memory: feedback_no_time_estimates.md, feedback_simulate_before_recommending_usage.md
+
+**NOT Finished:**
+- Build the /simulate SKILL.md (plan written, not implemented)
+- Add routing entries (natural-language-routing.md, hook-intent-router.py, CLAUDE.md)
+- Test against /elevate (smoke-test ground truth) and /explore (quality eval comparison)
+
+**Next Session Should:**
+1. Read `tasks/simulate-skill-plan.md` and build in order
+2. After build: run `/simulate /elevate --mode smoke-test` to validate against mktemp ground truth
+3. Run `/review` when implementation complete
+
+---
+
 ## 2026-04-14 (session 3) — Hook tests for 4 critical hooks
 
 **Decided:**

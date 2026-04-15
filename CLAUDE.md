@@ -31,7 +31,7 @@ LLMs classify, summarize, and draft. Deterministic code performs state transitio
 ### Inspect before acting
 <!-- Why: The model defaults to training knowledge over available tools, especially under context pressure. -->
 <!-- Why: Editing code you haven't read produces confident-looking but wrong changes. -->
-Minimum required at session start: read handoff.md and current-state.md. Before proposing a plan, also complete the full orient-before-planning checklist in workflow.md (project-prd.md, project-map.md, lessons.md, session-log.md). Skipping the full checklist before planning is a violation, not an optimization.
+Minimum required at session start: read handoff.md and current-state.md. Before proposing a plan, also complete the full orient-before-planning checklist in workflow.md (project-prd.md, lessons.md, session-log.md). Skipping the full checklist before planning is a violation, not an optimization.
 - Before editing a file: read it and its immediate context (tests, callers, related modules).
 - Before answering "can we do X" or "does this support Y": Grep/Read the relevant code first. Answer from what you found, not from memory. If you didn't inspect the code, say so explicitly instead of implying certainty.
 - Never say "I don't think this supports..." or "this probably doesn't..." without checking.
