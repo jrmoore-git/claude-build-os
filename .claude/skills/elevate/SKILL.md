@@ -544,7 +544,7 @@ If B: skip.
 If A: Write the plan content to a temp file, then call debate.py review:
 
 ```bash
-TMPFILE=$(mktemp /tmp/elevate-plan-XXXXXX).md
+TMPFILE=$(mktemp /tmp/elevate-plan-XXXXXX.md)
 cat > "$TMPFILE" << 'PLAN_EOF'
 <plan content -- truncate to 30KB if needed>
 PLAN_EOF

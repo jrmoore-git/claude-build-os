@@ -1,5 +1,11 @@
 # Current State — 2026-04-14
 
+## ⚠ STALE — auto-captured session ended without /wrap-session
+**Auto-capture date:** 2026-04-15 02:49 PT
+**Files changed this session:** 3 files in .claude, tasks
+**WARNING:** The "Next Action" below may be outdated. Cross-check with `git log --oneline -10` and recent session-log entries.
+
+
 ## What Changed This Session
 - Full pipeline for /simulate skill: design → elevate → challenge → plan
 - New session-discipline rule: "Decisions Must Propagate to All References"
