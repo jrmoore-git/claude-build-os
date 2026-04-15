@@ -1,5 +1,11 @@
 # Current State — 2026-04-15
 
+## ⚠ STALE — auto-captured session ended without /wrap-session
+**Auto-capture date:** 2026-04-15 14:09 PT
+**Files changed this session:** 4 files in tasks
+**WARNING:** The "Next Action" below may be outdated. Cross-check with `git log --oneline -10` and recent session-log entries.
+
+
 ## Phase
 Canonical SKILL.md sections: spec implemented, linter built, all 22 skills conforming, hook wired. Ready to test the new system and work on IR extraction.
 

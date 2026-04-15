@@ -120,6 +120,8 @@ If missing:
 - If prior context exists from Step 2, synthesize from it.
 - Otherwise ask the user to describe: what they want to build, why it matters, the proposed approach, and what they are not building.
 
+The proposal must be self-contained. A challenger with no prior context should understand why this work matters, what already exists, and what is being proposed — without needing to read other files. The proposal is the challengers' primary input; everything they learn from tool calls is supplementary.
+
 Write to `tasks/<slug>-proposal.md` using this standard template:
 
 ```markdown
@@ -128,6 +130,12 @@ topic: <slug>
 created: <YYYY-MM-DD>
 ---
 # <Title>
+
+## Project Context
+What the project is and what problem it solves (1-2 sentences). Key system components relevant to this proposal — not an exhaustive architecture doc, just what challengers need to evaluate the proposal.
+
+## Recent Context
+What led to this proposal: the last 2-3 sessions of relevant work, decisions made, pivots taken. Pull from session-log.md, decisions.md, or conversation history. This gives challengers the arc — why now, what was tried, what changed.
 
 ## Problem
 What is broken or missing, who it affects, and why it matters now.
