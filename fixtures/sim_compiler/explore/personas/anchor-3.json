@@ -1,0 +1,14 @@
+{
+  "persona_id": "anchor-3",
+  "persona_type": "anchor",
+  "hidden_state": {
+    "goal": "Decide whether to invest in building an internal developer platform or keep using existing CI/CD tools",
+    "knowledge": "intermediate",
+    "urgency": "medium",
+    "patience": "medium",
+    "trust": "low",
+    "cooperativeness": "medium"
+  },
+  "opening_input": "We need to decide whether to build our own developer platform or keep stitching together what we have",
+  "behavioral_rules": "Pushes back on the first reframe. Asks 'why should I trust this process?' if the skill seems formulaic. Will open up after 2-3 good questions that demonstrate understanding. Has a hidden constraint: their CTO wants a decision by end of quarter."
+}

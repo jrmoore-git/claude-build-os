@@ -1,0 +1,121 @@
+{
+  "objective": "Structured root-cause analysis through a seven-phase investigation protocol. Diagnoses why something broke, changed, or whether a claim is true. Produces a final report with root cause, evidence, hypotheses tested, and next steps. Does NOT implement fixes.",
+  "decision_points": [
+    {
+      "location": "Phase 0: Context Assessment",
+      "decision": "How much context already exists in conversation",
+      "branches": [
+        "Mode clear from user language (broke/error/changed/verify) → set MODE, skip Phase 1",
+        "Topic named → set TOPIC, skip topic question",
+        "Evidence already shared → carry into Phase 2",
+        "Nothing clear → full sequence"
+      ]
+    },
+    {
+      "location": "Phase 1: Determine MODE",
+      "decision": "What type of investigation?",
+      "branches": [
+        "User says broke/broken/error → MODE = symptom",
+        "User says changed/used to work/different → MODE = drift",
+        "User says verify/does X work/is it true → MODE = claim"
+      ]
+    },
+    {
+      "location": "Phase 1: Get TOPIC",
+      "decision": "Is topic provided?",
+      "branches": [
+        "Yes → derive slug from user input",
+        "No → ask 'What are we investigating?'"
+      ]
+    },
+    {
+      "location": "Phase 2: Scope limiter",
+      "decision": "Have we gathered sufficient evidence?",
+      "branches": [
+        "After 10 files + 10 commands without 2 strong hypotheses → pause, ask user to refine scope",
+        "Evidence sufficient → continue to hypothesis formation"
+      ]
+    },
+    {
+      "location": "Phase 3: Governance memory",
+      "decision": "Does prior decision/lesson directly explain symptom?",
+      "branches": [
+        "Yes → flag immediately, investigation may be answered",
+        "No → continue to hypothesis formation"
+      ]
+    },
+    {
+      "location": "Phase 5b: Cross-model evaluation",
+      "decision": "Should we run cross-model panel?",
+      "branches": [
+        "debate.py available → run review panel on strongest hypotheses",
+        "debate.py unavailable → skip, single-model assessment only"
+      ]
+    },
+    {
+      "location": "Phase 5c: Hypothesis scoring",
+      "decision": "How confident are we in each hypothesis?",
+      "branches": [
+        "Confirmed — evidence + panel agree, no contradictions",
+        "Likely — evidence supports, panel mostly agrees, minor gaps",
+        "Possible — some supporting evidence, significant gaps",
+        "Refuted — evidence contradicts or panel rejects"
+      ]
+    },
+    {
+      "location": "Phase 6b: Finding persistence",
+      "decision": "Are there MATERIAL findings?",
+      "branches": [
+        "Yes, tracker available → persist findings with verdict/severity",
+        "Yes, tracker unavailable → document in report only",
+        "No MATERIAL findings → skip tracking"
+      ]
+    },
+    {
+      "location": "Phase 7: Next steps",
+      "decision": "What should user do next?",
+      "branches": [
+        "A) Fix it — proceed to /plan",
+        "B) Investigate further — dig deeper",
+        "C) Done — report is sufficient"
+      ]
+    }
+  ],
+  "ask_nodes": [
+    {
+      "location": "Phase 1",
+      "question": "What are we investigating? Describe the symptom, drift, or claim in one sentence.",
+      "condition": "Only if TOPIC not provided"
+    },
+    {
+      "location": "Phase 2: Scope limiter",
+      "question": "Ask user to refine investigation scope",
+      "condition": "After 10 files + 10 commands without narrowing to 2 hypotheses"
+    },
+    {
+      "location": "Phase 7: Next steps",
+      "question": "A) Fix it, B) Investigate further, C) Done",
+      "condition": "Always asked at end of investigation"
+    }
+  ],
+  "success_criteria": [
+    "Investigation MODE correctly identified (symptom/drift/claim)",
+    "Evidence gathered before hypothesis formation (evidence-first discipline)",
+    "Minimum 3 competing hypotheses formed from evidence",
+    "All hypotheses cite specific evidence sources (file:line, command output, git ref)",
+    "Root cause scored as confirmed/likely/possible/refuted",
+    "Cross-model panel run on strongest hypotheses if available",
+    "Final report written with all required sections",
+    "User presented with clear next action"
+  ],
+  "failure_criteria": [
+    "Hypotheses formed before evidence gathering (Phase 2)",
+    "Fewer than 3 hypotheses produced",
+    "Evidence cited without source references",
+    "Premature convergence on single cause",
+    "Investigation attempts to fix the problem",
+    "Intermediate progress or internal mechanics exposed to user",
+    "Scratch files not cleaned up after completion"
+  ],
+  "interaction_archetype": "diagnosis"
+}

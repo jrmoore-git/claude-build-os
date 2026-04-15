@@ -1,0 +1,113 @@
+{
+  "objective": "Generate 3+ structurally different directions for a question or decision through adaptive pre-flight discovery and cross-model synthesis, producing divergent options the user can act on.",
+  "decision_points": [
+    {
+      "location": "Phase 0: Context Assessment",
+      "decision": "How much pre-flight context already exists in conversation",
+      "branches": [
+        "Question + strategy + implementation context present → self-seed pre-flight",
+        "Question + partial context → run Step 2 but skip answered questions",
+        "No context → full sequence"
+      ]
+    },
+    {
+      "location": "Step 1: Topic",
+      "decision": "Is topic provided as argument?",
+      "branches": [
+        "Yes → use provided topic",
+        "No → ask user what question or decision to explore"
+      ]
+    },
+    {
+      "location": "Step 2: Pre-flight skip",
+      "decision": "Should pre-flight discovery be skipped?",
+      "branches": [
+        "User says 'skip' or 'just run it' → skip to Step 3",
+        "User says 'answer the questions yourself' with sufficient context → self-seed",
+        "Otherwise → run full pre-flight discovery"
+      ]
+    },
+    {
+      "location": "Step 2a: Terse user detection",
+      "decision": "Are user answers short or vague (1-2 sentences)?",
+      "branches": [
+        "Yes → switch to options format with (a)/(b)/(c) choices",
+        "No → continue open threaded questions"
+      ]
+    },
+    {
+      "location": "Step 2a: Sufficiency gate",
+      "decision": "Is strategy and implementation context both covered?",
+      "branches": [
+        "Strategy covered but implementation missing → ask meta-question",
+        "Both covered → stop pre-flight, state dimensions",
+        "Neither clear → continue questioning"
+      ]
+    },
+    {
+      "location": "Step 2a: Reframe check",
+      "decision": "Does root cause sit at a different level than proposed solution?",
+      "branches": [
+        "Yes → offer reframe once",
+        "User accepts reframe → continue with reframed problem",
+        "User rejects reframe → accept immediately, move on"
+      ]
+    },
+    {
+      "location": "Step 2a: Dimension adjustment",
+      "decision": "Does user want to adjust divergence dimensions?",
+      "branches": [
+        "Yes → accept edits",
+        "No → proceed with stated dimensions"
+      ]
+    },
+    {
+      "location": "Step 3: Research enrichment",
+      "decision": "Which research tool is available?",
+      "branches": [
+        "PERPLEXITY_API_KEY set → use Perplexity search",
+        "Perplexity unavailable → fall back to WebSearch",
+        "WebSearch unavailable → proceed without research"
+      ]
+    }
+  ],
+  "ask_nodes": [
+    {
+      "location": "Step 1",
+      "question": "What question or decision do you want to explore?",
+      "condition": "Only if topic not provided as argument"
+    },
+    {
+      "location": "Step 2a: Thread-and-steer intake",
+      "question": "Adaptive questions threading from user's previous answers",
+      "condition": "Pre-flight not skipped. First question is opening move with no preamble. Mirrors user's register."
+    },
+    {
+      "location": "Step 2a: Meta-question",
+      "question": "What should I have asked you that I didn't?",
+      "condition": "Strategy covered but implementation missing"
+    },
+    {
+      "location": "Step 2a: Dimension adjustment",
+      "question": "Want to adjust any dimensions before I run?",
+      "condition": "After displaying 4 divergence dimensions"
+    }
+  ],
+  "success_criteria": [
+    "User receives 3+ structurally different directions",
+    "Each direction grounded in research evidence",
+    "Directions cover distinct strategies or approaches",
+    "Pre-flight captures strategy, implementation context, and dimensions",
+    "Output synthesized and presented directly in conversation",
+    "User can pick a direction and act on it"
+  ],
+  "failure_criteria": [
+    "Pre-flight rushed or skipped when user needs it",
+    "Directions too similar or not structurally different",
+    "Research context missing when available",
+    "Internal mechanics (cost, model choices) exposed to user",
+    "Register mismatch with user's communication style",
+    "Over-asking past sufficiency"
+  ],
+  "interaction_archetype": "intake"
+}

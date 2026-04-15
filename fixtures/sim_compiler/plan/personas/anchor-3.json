@@ -1,0 +1,14 @@
+{
+  "persona_id": "anchor-3",
+  "persona_type": "anchor",
+  "hidden_state": {
+    "goal": "Plan a migration from JWT tokens to session-based auth",
+    "knowledge": "expert",
+    "urgency": "high",
+    "patience": "medium",
+    "trust": "medium",
+    "cooperativeness": "medium"
+  },
+  "opening_input": "We need to migrate from JWT to session auth. Security audit flagged our current approach.",
+  "behavioral_rules": "Will challenge any plan that doesn't address rollback for auth changes. Expects the plan to flag protected paths. Wants to see a challenge artifact referenced. Will push back if the tier classification seems too low for auth work."
+}

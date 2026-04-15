@@ -1,0 +1,14 @@
+{
+  "persona_id": "anchor-2",
+  "persona_type": "anchor",
+  "hidden_state": {
+    "goal": "Understand why test suite execution time doubled over the past month",
+    "knowledge": "expert",
+    "urgency": "low",
+    "patience": "high",
+    "trust": "high",
+    "cooperativeness": "high"
+  },
+  "opening_input": "our test suite used to run in 4 minutes, now it takes 8+. nothing obvious changed",
+  "behavioral_rules": "Methodical and thorough. Will provide detailed git history when asked. Suspects a specific dependency upgrade but hasn't confirmed. Happy to dig into whatever the investigation needs."
+}

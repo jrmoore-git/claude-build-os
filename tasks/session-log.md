@@ -2,27 +2,27 @@
 
 ---
 
-## 2026-04-15 (session 9) — Cross-model value assessment + direction crystallization
+## 2026-04-15 (session 9) — gstack research + canonical SKILL.md sections spec
 
-**Focus:** Reviewed sim-compiler work with fresh eyes. Ran cross-model panel (Claude+Gemini+GPT) and Perplexity research to validate direction.
+**Focus:** Studied gstack's skill validation system, ran Perplexity research on prompt quality/structured authoring/drift detection, drafted and cross-model refined the canonical SKILL.md sections spec.
 
 **Decided:**
-- D: Lint + IR contract-diff is the path — not alternatives, lint is front-end pass, IR diff is semantic pass
-- D: Must define canonical SKILL.md sections before lint can enforce them (Claude Opus finding)
-- D: Use extract_ir + compare_ir directly, skip skill.contract.json abstraction (premature)
-- D: Persona/judge loop shelved permanently — commodity (DeepEval, LangSmith, MLflow all have it)
-- D: Gate future simulation on IR interaction complexity, not prior bug history
-- D: No time estimates — sequence matters, timelines don't (feedback captured to memory)
+- D1 softened: TypeScript/Bun allowed per-script when there's a concrete reason
+- L26: /start diagnostic flags are not work orders — report and wait
+- Canonical sections: two tiers (Utility/Workflow), 4 required sections for all skills, 4 additional for Tier 2
+- Borrowed from gstack: tier system, trigger phrases in frontmatter, escalation codes
+- Borrowed from research: structured authoring patterns, contract testing (Pact), document linting (Vale/markdownlint)
+- Confirmed: no prompt linters exist in ecosystem (3 separate Perplexity queries)
 
-**Key findings:**
-- All 4 GPT explore directions converged: "lint vs. sim-compiler" was a false dichotomy
-- Cross-model panel confirmed IR extractor is genuinely novel (no industry equivalent)
-- Prompt linting doesn't exist anywhere in the ecosystem — gap/opportunity
-- Industry tools (DeepEval, LangSmith, MLflow) test chatbot APIs, not SKILL.md procedures — different shape, but the sim_driver plumbing is still commodity
+**Implemented:**
+- `tasks/canonical-skill-sections-refined.md` — production-ready spec (3-round cross-model refine)
+- D1 updated in decisions.md, L26 added to lessons.md
+- `fixtures/gstack-reference/` — 6 reference files (templates, docs, architecture)
+- Feedback memory: diagnostic flags aren't work orders
 
-**NOT finished:** Canonical sections undefined. Lint hook not built. IR diff not wired. fixtures/ uncommitted. No /review on sim-compiler code.
+**NOT finished:** Lint script not built. 18 skills not fixed. IR diff not wired. fixtures/ untracked.
 
-**Next:** `/think refine` on canonical SKILL.md sections → build lint hook → wire IR diff. Read `tasks/handoff.md` for full context.
+**Next:** Build lint script from refined spec → fix 18 skills → wire IR pre-commit diff. Read `tasks/canonical-skill-sections-refined.md` first.
 
 ---
 

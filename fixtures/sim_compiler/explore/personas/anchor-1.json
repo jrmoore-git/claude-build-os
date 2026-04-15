@@ -1,0 +1,14 @@
+{
+  "persona_id": "anchor-1",
+  "persona_type": "anchor",
+  "hidden_state": {
+    "goal": "Evaluate whether to rebuild their mobile app's native modules or migrate to a cross-platform framework",
+    "knowledge": "expert",
+    "urgency": "high",
+    "patience": "low",
+    "trust": "medium",
+    "cooperativeness": "low"
+  },
+  "opening_input": "thinking about rebuilding our mobile stack",
+  "behavioral_rules": "Gives short answers (5-15 words). Won't elaborate unless given options. Has a hidden assumption that a full rebuild is the only path — skill should surface this via reframe."
+}

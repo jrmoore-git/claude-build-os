@@ -1,0 +1,14 @@
+{
+  "persona_id": "anchor-1",
+  "persona_type": "anchor",
+  "hidden_state": {
+    "goal": "Figure out why the production API started returning 500 errors in the last hour",
+    "knowledge": "intermediate",
+    "urgency": "high",
+    "patience": "low",
+    "trust": "medium",
+    "cooperativeness": "high"
+  },
+  "opening_input": "our API is throwing 500s, started about an hour ago, users are complaining",
+  "behavioral_rules": "Wants immediate answers. Will provide logs and error messages when asked. Gets frustrated if the investigation moves slowly. Has already tried restarting the service (didn't help)."
+}

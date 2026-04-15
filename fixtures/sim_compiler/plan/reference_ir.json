@@ -1,0 +1,139 @@
+{
+  "objective": "Generate a structured plan artifact with valid YAML frontmatter that satisfies hook-plan-gate.sh for protected paths. Specifies scope, files affected, build order, verification commands, and rollback strategy.",
+  "decision_points": [
+    {
+      "location": "Step 1: Get topic",
+      "decision": "Is topic provided as argument?",
+      "branches": [
+        "Yes → use provided topic",
+        "No → ask user for topic name"
+      ]
+    },
+    {
+      "location": "Step 1: Design/think artifact check",
+      "decision": "Does a design doc or brief exist?",
+      "branches": [
+        "Design doc found → read it (takes precedence)",
+        "Brief found → read brief",
+        "Neither → ask user for scope, suggest /think refine"
+      ]
+    },
+    {
+      "location": "Step 1b: Challenge gate",
+      "decision": "Does a challenge artifact exist?",
+      "branches": [
+        "Yes → validate slug match, freshness, required sections, read recommendation",
+        "No + --skip-challenge → continue with note",
+        "No + no skip → ask if bugfix/test/docs/trivial"
+      ]
+    },
+    {
+      "location": "Step 1b: Challenge recommendation",
+      "decision": "What does the challenge recommend?",
+      "branches": [
+        "proceed → continue planning",
+        "simplify → plan must implement Simpler Alternative",
+        "pause → hard stop",
+        "reject → hard stop unless overridden"
+      ]
+    },
+    {
+      "location": "Step 3: Three-lens analysis",
+      "decision": "Auto-resolve or surface to user?",
+      "branches": [
+        "Mechanical decisions → auto-resolve silently",
+        "Taste decisions → surface to user"
+      ]
+    },
+    {
+      "location": "Step 3b: Decomposition eligibility",
+      "decision": "Should this decompose into parallel agents?",
+      "branches": [
+        "3+ independent subtasks, non-overlapping files, >10 tool calls → decompose",
+        "Below threshold → skip decomposition"
+      ]
+    },
+    {
+      "location": "Step 3b: Orchestration pattern",
+      "decision": "Which pattern for parallel work?",
+      "branches": [
+        "Fan-out: independent analyses",
+        "Pipeline: outputs feed downstream",
+        "Map-reduce: repeated analysis with synthesis",
+        "Reviewer/synthesizer: quality control"
+      ]
+    },
+    {
+      "location": "Step 5: User confirmation",
+      "decision": "Does the plan look right?",
+      "branches": [
+        "Yes → write to tasks/<topic>-plan.md",
+        "No → user requests changes"
+      ]
+    },
+    {
+      "location": "--auto mode: Tier detection",
+      "decision": "What pipeline tier?",
+      "branches": [
+        "T2 (standard) → /think refine → /plan",
+        "T1 (new feature) → /think discover → /challenge → /plan",
+        "Big bet → /think discover → /elevate → /challenge → /plan",
+        "T0 (spike) → skip pipeline, just build"
+      ]
+    }
+  ],
+  "ask_nodes": [
+    {
+      "location": "Step 1",
+      "question": "What's the topic name for this plan?",
+      "condition": "Only if topic not provided as argument"
+    },
+    {
+      "location": "Step 1: No design/brief",
+      "question": "No design doc or brief found. What's the scope? Consider /think refine first.",
+      "condition": "Neither design doc nor brief exist"
+    },
+    {
+      "location": "Step 1b: No challenge, no skip",
+      "question": "Is this a bugfix, test addition, docs update, or trivial refactor?",
+      "condition": "Challenge artifact not found and --skip-challenge not used"
+    },
+    {
+      "location": "Step 3: Taste decisions",
+      "question": "Should this be [option A] or [option B]?",
+      "condition": "When reasonable people could disagree"
+    },
+    {
+      "location": "Step 5: Confirmation",
+      "question": "Does this look right? I'll write it to tasks/<topic>-plan.md.",
+      "condition": "Always — user approval before writing"
+    },
+    {
+      "location": "--auto mode: Final gate",
+      "question": "Approve all deferred decisions? A) Approve all B) Review one by one C) Reject",
+      "condition": "--auto mode only, after pipeline completes"
+    }
+  ],
+  "success_criteria": [
+    "Plan artifact has valid YAML frontmatter with all required fields",
+    "Review tier correctly classified",
+    "Build order specified with numbered steps and dependencies",
+    "Files table shows create vs modify with scope per file",
+    "Verification commands specific and executable",
+    "Rollback strategy documented",
+    "Plan written only after user approval",
+    "Challenge gate validated if artifact exists",
+    "Decomposition analysis performed for multi-file tasks",
+    "Plan satisfies hook-plan-gate.sh validation"
+  ],
+  "failure_criteria": [
+    "YAML frontmatter invalid or missing required fields",
+    "Challenge recommendation not honored",
+    "Mechanical decisions surfaced to user instead of auto-resolved",
+    "Decomposition skipped when eligible",
+    "Plan written without user approval",
+    "Verification commands vague or untestable",
+    "Rollback strategy missing"
+  ],
+  "interaction_archetype": "planning"
+}

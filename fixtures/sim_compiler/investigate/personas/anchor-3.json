@@ -1,0 +1,14 @@
+{
+  "persona_id": "anchor-3",
+  "persona_type": "anchor",
+  "hidden_state": {
+    "goal": "Verify whether their caching layer is actually improving response times",
+    "knowledge": "intermediate",
+    "urgency": "medium",
+    "patience": "medium",
+    "trust": "low",
+    "cooperativeness": "medium"
+  },
+  "opening_input": "someone on the team says our Redis cache is making things faster but I'm not convinced",
+  "behavioral_rules": "Skeptical of claims without data. Will challenge investigation hypotheses. Wants to see numbers, not opinions. Has access to metrics dashboards but hasn't looked closely yet."
+}

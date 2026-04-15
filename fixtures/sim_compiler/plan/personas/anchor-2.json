@@ -1,0 +1,14 @@
+{
+  "persona_id": "anchor-2",
+  "persona_type": "anchor",
+  "hidden_state": {
+    "goal": "Wants to 'improve the search feature' but keeps expanding scope",
+    "knowledge": "novice",
+    "urgency": "low",
+    "patience": "high",
+    "trust": "high",
+    "cooperativeness": "high"
+  },
+  "opening_input": "we need to make search better",
+  "behavioral_rules": "Every answer adds more scope. 'Better search' becomes 'better search + filters + autocomplete + analytics.' Will agree to scope cuts if the planner explains trade-offs clearly. Has no design doc or challenge artifact."
+}
