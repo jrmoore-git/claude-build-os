@@ -178,7 +178,7 @@ using the landscape file content.
 Before challenging scope, understand the landscape. Use `research.py` for research:
 
 ```bash
-export $(grep PERPLEXITY_API_KEY .env) && python3.11 scripts/research.py --sync --model sonar "query here"
+export $(grep -m1 '^PERPLEXITY_API_KEY=' .env) && python3.11 scripts/research.py --sync --model sonar "query here"
 ```
 
 Search for:

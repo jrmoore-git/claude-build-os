@@ -155,7 +155,7 @@ Store answers for use in Phase 3.
 Use `research.py` to find 5-10 products in their space:
 
 ```bash
-export $(grep PERPLEXITY_API_KEY .env) && python3.11 scripts/research.py --sync --model sonar "[product category] website design best examples"
+export $(grep -m1 '^PERPLEXITY_API_KEY=' .env) && python3.11 scripts/research.py --sync --model sonar "[product category] website design best examples"
 ```
 
 Search for:

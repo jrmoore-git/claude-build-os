@@ -374,7 +374,7 @@ landscape" not "SuperTodo AI-powered task killer."
 
 **Product mode:** Run via Bash:
 ```bash
-export $(grep PERPLEXITY_API_KEY .env) && python3.11 scripts/research.py \
+export $(grep -m1 '^PERPLEXITY_API_KEY=' .env) && python3.11 scripts/research.py \
   --sync --model sonar \
   --system "Return a concise landscape overview: key players, common approaches, known failure modes, and recent trends. No marketing language." \
   -o tasks/<topic>-landscape.md \
@@ -383,7 +383,7 @@ export $(grep PERPLEXITY_API_KEY .env) && python3.11 scripts/research.py \
 
 **Builder mode:** Run via Bash:
 ```bash
-export $(grep PERPLEXITY_API_KEY .env) && python3.11 scripts/research.py \
+export $(grep -m1 '^PERPLEXITY_API_KEY=' .env) && python3.11 scripts/research.py \
   --sync --model sonar \
   --system "Return a concise landscape overview: existing solutions, open source alternatives, and best current approaches. No marketing language." \
   -o tasks/<topic>-landscape.md \

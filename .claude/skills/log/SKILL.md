@@ -16,12 +16,14 @@ After meetings, design sessions, code reviews, or any conversation where decisio
 1. **Read the source** — the user will point you to a conversation, transcript, document, or describe what happened
 
 2. **Extract decisions** — any choice that was made, with rationale
+   - Read `tasks/decisions.md` first — find the highest existing D-number
    - Format: assertion-style title, decision, rationale, alternatives considered, date
-   - Add to `tasks/decisions.md` with the next available number
+   - Add with the next sequential number (highest + 1)
 
 3. **Extract lessons** — any surprise, mistake, or pattern worth remembering
+   - Read `tasks/lessons.md` first — find the highest existing L-number (check active, promoted, and archived tables)
    - Format: assertion-style title, source, rule
-   - Add to `tasks/lessons.md` with the next available number
+   - Add with the next sequential number (highest + 1)
 
 4. **Extract action items** — anything that needs to be done
    - List with owner (if known) and deadline (if stated)

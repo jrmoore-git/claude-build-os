@@ -65,7 +65,7 @@ Use Claude's built-in WebSearch tool to research the question. Make 2-3 targeted
 **Deep mode (default):**
 
 ```bash
-export $(grep PERPLEXITY_API_KEY .env) && /opt/homebrew/bin/python3.11 scripts/research.py \
+export $(grep -m1 '^PERPLEXITY_API_KEY=' .env) && /opt/homebrew/bin/python3.11 scripts/research.py \
   --effort medium \
   -o tasks/<topic>-research.md \
   "<research question>"
@@ -74,7 +74,7 @@ export $(grep PERPLEXITY_API_KEY .env) && /opt/homebrew/bin/python3.11 scripts/r
 **Quick mode:**
 
 ```bash
-export $(grep PERPLEXITY_API_KEY .env) && /opt/homebrew/bin/python3.11 scripts/research.py \
+export $(grep -m1 '^PERPLEXITY_API_KEY=' .env) && /opt/homebrew/bin/python3.11 scripts/research.py \
   --sync --model sonar \
   -o tasks/<topic>-research.md \
   "<research question>"

@@ -84,7 +84,7 @@ Store the composed output as `PREFLIGHT_CONTEXT`.
 Run a quick Perplexity search to ground explore directions in real evidence:
 
 ```bash
-export $(grep PERPLEXITY_API_KEY .env) && python3.11 scripts/research.py \
+export $(grep -m1 '^PERPLEXITY_API_KEY=' .env) && python3.11 scripts/research.py \
   --sync --model sonar \
   --system "Return key facts, existing approaches, and recent developments. Be concise — this feeds into a divergent exploration, not a final report." \
   "<the user's explore question>"
