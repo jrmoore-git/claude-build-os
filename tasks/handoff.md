@@ -1,40 +1,41 @@
-# Handoff — 2026-04-14 (session 4)
+# Handoff — 2026-04-15 (session 5)
 
 ## Session Focus
-Full pipeline for /simulate skill: /think discover → /elevate → /challenge → /plan.
+Built, tested, reviewed, and fixed the /simulate skill. Added structural review enforcement.
 
 ## Decided
-- /simulate V1: smoke-test + quality eval (no adversarial, delta, consensus until V2/V3)
-- Quality eval = single-agent execution + debate.py review judging (challenge finding: no user-sim agent in V1)
-- Smoke-test safety protocol: tmp workspace, env scrubbing, placeholder detection, denylist
-- Approach: skill-reads-skill (SKILL.md procedure, no new Python scripts)
-- New rule: decisions must propagate to all references (session-discipline.md)
+- /simulate SKILL.md: write-to-file execution (not bash -c) for shell quoting safety
+- Expanded denylist: eval, source, pip/npm install, tee, dd, mv/cp outside tmp, curl -o to non-tmp
+- Expanded env scrub: DATABASE_URL, *_DSN, REDIS_URL, MONGODB_URI, SENTRY_DSN
+- Quality-eval inner agent gets explicit safety constraints (matching smoke-test denylist)
+- Review-proactive enforcement: hook-based, not advisory — fires on dirty tree + plan + no review artifact
+- L25: advisory rules fail under context pressure; recurring violations need hook enforcement
 
 ## Implemented
-- tasks/simulate-skill-design.md (design doc)
-- tasks/simulate-skill-elevate.md (scope decisions)
-- tasks/simulate-skill-proposal.md (challenge input)
-- tasks/simulate-skill-findings.md (3-model challenge output)
-- tasks/simulate-skill-challenge.md (PROCEED-WITH-FIXES)
-- tasks/simulate-skill-plan.md (implementation plan)
-- .claude/rules/session-discipline.md — "Decisions Must Propagate to All References" rule
-- Cleaned stale references: explore intake from current-state/handoff, project-map.md from CLAUDE.md/workflow.md
-- Fixed /elevate mktemp BSD bug (SKILL.md line 547)
-- 2 new memory files (no time estimates, simulate before recommending usage)
+- .claude/skills/simulate/SKILL.md (created, ~380 lines, both modes)
+- .claude/skills/elevate/SKILL.md (mktemp BSD fix)
+- hooks/hook-intent-router.py (simulate pattern + review-proactive check + _has_uncommitted_changes helper)
+- .claude/rules/natural-language-routing.md (simulate routing + proactive pattern)
+- CLAUDE.md (skill count 21→22, /simulate in specialist listing)
+- tasks/lessons.md (L25 added)
+- tests/test_hook_intent_router.py (3 new tests: review-proactive enforcement)
+- tasks/elevate-simulate.md (smoke-test report)
+- tasks/simulate-skill-review.md (cross-model review, status: revise → fixed)
 
 ## NOT Finished
-- **Build /simulate SKILL.md** — plan is at `tasks/simulate-skill-plan.md`, follow build order steps 1-4
-- **Routing updates** — natural-language-routing.md, hook-intent-router.py, CLAUDE.md
-- **Verification** — run `/simulate /elevate --mode smoke-test` (ground truth: should catch mktemp bug)
+- Battle testing /simulate against diverse skills (user's explicit request for next session)
+- Quality-eval mode not yet tested end-to-end (depends on LiteLLM/debate.py availability)
 
 ## Next Session Should
-1. Read `tasks/simulate-skill-plan.md` — follow build order
-2. Create `.claude/skills/simulate/SKILL.md` first (step 1)
-3. Then routing/CLAUDE.md updates (steps 2-4)
-4. Test: `/simulate /elevate --mode smoke-test`
-5. Run `/review` when complete
+1. Battle test: `/simulate /explore --mode smoke-test`, `/simulate /think`, `/simulate /review`
+2. Try quality-eval mode on a simpler skill
+3. Verify review-proactive hook fires in a real workflow (not just tests)
 
-## Key Artifacts
-- `tasks/simulate-skill-plan.md` — the build plan
-- `tasks/simulate-skill-design.md` — full design doc (5 modes, scoring rubric, output format)
-- `tasks/simulate-skill-challenge.md` — PROCEED-WITH-FIXES, 4 inline fixes listed
+## Key Files Changed
+- .claude/skills/simulate/SKILL.md
+- .claude/skills/elevate/SKILL.md
+- hooks/hook-intent-router.py
+- .claude/rules/natural-language-routing.md
+- CLAUDE.md
+- tasks/lessons.md
+- tests/test_hook_intent_router.py

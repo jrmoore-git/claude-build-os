@@ -2024,3 +2024,25 @@ ended without running `/wrap-session`. Review and enrich in the next session.
 - **tests/**: test_hook_intent_router.py
 
 **Auto-committed:** 2026-04-15 03:06 PT
+
+---
+
+## 2026-04-15 (session 5) — /simulate skill: build, test, review, fix
+
+**Decided:**
+- Write-to-file execution pattern for shell quoting safety
+- Expanded denylist + env scrub per cross-model review
+- Review-proactive enforcement via intent router hook (not advisory)
+- L25: advisory rules fail under context pressure
+
+**Implemented:**
+- Built .claude/skills/simulate/SKILL.md (smoke-test + quality-eval modes)
+- Fixed /elevate mktemp BSD bug
+- Ran /simulate /elevate --mode smoke-test (ground truth validation)
+- Cross-model /review found 7 material findings — all 7 fixed
+- Added review-proactive check to hook-intent-router.py with 3 new tests
+- Updated routing rules, CLAUDE.md (22 skills), lessons.md (L25)
+
+**Not Finished:** Battle testing /simulate against diverse skills; quality-eval end-to-end test
+
+**Next Session:** Battle test /simulate on multiple skills (smoke-test + quality-eval)

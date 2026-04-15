@@ -15,6 +15,7 @@ import glob as globmod
 import json
 import os
 import re
+import subprocess
 import sys
 
 # Session-scoped state
@@ -180,6 +181,21 @@ INTENT_PATTERNS = [
             "exploring options)."
         ),
     ),
+    # Simulate / test a skill
+    (
+        re.compile(
+            r'\b(simulate .*/|/simulate|test this skill|does this skill work|'
+            r'validate this skill|smoke.?test this skill|smoke.?test the skill|'
+            r'try (out |running )?this skill)\b',
+            re.IGNORECASE,
+        ),
+        "simulate",
+        (
+            "ROUTING SUGGESTION: The user wants to test a skill. "
+            "Consider running /simulate for zero-config skill simulation "
+            "(smoke-test or quality-eval modes)."
+        ),
+    ),
     # Research
     (
         re.compile(
@@ -275,6 +291,9 @@ def detect_pipeline_state():
         )
         state["has_premortem"] = os.path.exists(
             os.path.join(TASKS_DIR, f"{topic}-premortem.md")
+        )
+        state["has_review"] = os.path.exists(
+            os.path.join(TASKS_DIR, f"{topic}-review.md")
         )
 
     return state
@@ -433,6 +452,22 @@ def resolve_challenge_vs_pressure_test(skill, pipeline):
     return (None, None)
 
 
+def _has_uncommitted_changes():
+    """Check if the working tree has uncommitted changes (staged or unstaged)."""
+    try:
+        result = subprocess.run(
+            ["git", "status", "--porcelain"],
+            capture_output=True, text=True, timeout=5,
+        )
+        # Filter out untracked-only entries (??), look for real changes
+        for line in result.stdout.strip().splitlines():
+            if line and not line.startswith("??"):
+                return True
+        return False
+    except (subprocess.TimeoutExpired, OSError):
+        return False
+
+
 def check_proactive_pipeline_routing(pipeline):
     """Generate proactive suggestions based on artifact gaps.
 
@@ -467,6 +502,22 @@ def check_proactive_pipeline_routing(pipeline):
             "but hasn't been pressure-tested. If the user is about to build, "
             "consider suggesting /pressure-test --premortem to surface failure "
             "scenarios before execution."
+        ))
+
+    # Plan exists + uncommitted changes + no review → suggest /review
+    # This only fires when building has happened (dirty tree is the signal),
+    # not when the plan was just written. L25: advisory review rules failed
+    # because they had no enforcement and no state awareness.
+    if (
+        pipeline["has_plan"]
+        and not pipeline.get("has_review", False)
+        and _has_uncommitted_changes()
+    ):
+        proactive.append((
+            "review-proactive",
+            f"PROACTIVE ROUTING: A plan exists (tasks/{topic}-plan.md) and there "
+            "are uncommitted changes, but no review artifact. Consider running "
+            "/review before committing."
         ))
 
     return proactive
