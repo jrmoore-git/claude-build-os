@@ -122,8 +122,12 @@ For EACH extracted block, apply these filters in order. If any filter triggers, 
 - `git push`, `git reset --hard`, `git checkout .`, `git clean`
 - `DROP TABLE`, `DELETE FROM`, `TRUNCATE`
 - Write redirects (`>`, `>>`) to paths that don't start with `/tmp/` or `$TMPFILE` or `$SIM_WORKSPACE`
-- `curl` with POST/PUT/PATCH methods (`-X POST`, `-X PUT`, `--data`, `-d`)
+- `curl` with POST/PUT/PATCH methods (`-X POST`, `-X PUT`, `--data`, `-d`) or `curl -o`/`wget -O` writing to non-tmp paths
 - `sudo`
+- `eval`, `source` (indirect command execution that bypasses denylist)
+- `pip install`, `npm install`, `brew install` (arbitrary code execution via package install)
+- `tee` or `dd of=` writing to non-tmp paths
+- `mv` or `cp` targeting paths outside `/tmp/` or `$SIM_WORKSPACE`
 
 **Placeholder check** — skip if the block contains unresolved placeholders:
 - Angle-bracket placeholders: `<something>` (except `<< 'EOF'` heredoc markers and HTML tags like `<br>`, `<div>`, etc.)
@@ -132,7 +136,8 @@ For EACH extracted block, apply these filters in order. If any filter triggers, 
 
 **Env scrub** — for blocks that will run, prepare an env-scrub prefix:
 ```bash
-unset $(env | grep -E '_(KEY|SECRET|TOKEN|PASSWORD|CREDENTIAL)=' | cut -d= -f1) 2>/dev/null
+unset $(env | grep -E '_(KEY|SECRET|TOKEN|PASSWORD|CREDENTIAL|_DSN)=' | cut -d= -f1) 2>/dev/null
+unset $(env | grep -E '^(DATABASE_URL|REDIS_URL|MONGODB_URI|SENTRY_DSN)=' | cut -d= -f1) 2>/dev/null
 ```
 
 ### 3a.4: Execute blocks
@@ -148,14 +153,25 @@ For each non-skipped block:
    - Exit non-zero but error is about missing context (file not found for a project-specific path, missing env var that's a real config) → **INCONCLUSIVE** (the command works structurally but needs project context)
    - Timeout → **FAIL** (timeout after 30s)
 
+Write the scrubbed command to a temp script file and execute it (avoids shell quoting issues with `bash -c`):
+
 ```bash
-cd "$SIM_WORKSPACE" && timeout 30 bash -c '<SCRUBBED_COMMAND>' 2>&1; echo "EXIT:$?"
+cat > "$SIM_WORKSPACE/cmd.sh" << 'CMDEOF'
+<ENV_SCRUB_COMMANDS>
+<SCRUBBED_COMMAND>
+CMDEOF
+cd "$SIM_WORKSPACE" && timeout 30 bash "$SIM_WORKSPACE/cmd.sh" 2>&1; echo "EXIT:$?"
 ```
 
 **Important:** Commands that reference project files (like `scripts/debate.py`, `tasks/*.md`) should run from the actual project directory, not the tmp workspace. Detect this: if a block references paths relative to the project root (starts with `scripts/`, `tasks/`, `.claude/`, `hooks/`, `config/`, `docs/`, `stores/`), run it from the project root instead:
 
 ```bash
-cd /Users/macmini/claude-build-os && timeout 30 bash -c '<SCRUBBED_COMMAND>' 2>&1; echo "EXIT:$?"
+PROJECT_ROOT=$(git rev-parse --show-toplevel)
+cat > "$SIM_WORKSPACE/cmd.sh" << 'CMDEOF'
+<ENV_SCRUB_COMMANDS>
+<SCRUBBED_COMMAND>
+CMDEOF
+cd "$PROJECT_ROOT" && timeout 30 bash "$SIM_WORKSPACE/cmd.sh" 2>&1; echo "EXIT:$?"
 ```
 
 ### 3a.5: Check referenced file paths
@@ -202,7 +218,8 @@ Based on the analysis, generate ONE realistic scenario that exercises the skill'
 Write the scenario to a temp file:
 
 ```bash
-SCENARIO_FILE=$(mktemp /tmp/simulate-scenario-XXXXXX.md)
+SIM_TMPDIR=$(mktemp -d /tmp/simulate-XXXXXX)
+SCENARIO_FILE="$SIM_TMPDIR/scenario.md"
 ```
 
 ### 3b.3: Execute skill procedure via agent
@@ -213,6 +230,7 @@ The agent prompt must include:
 1. The generated scenario as the "user's request"
 2. The target SKILL.md procedure (verbatim) as instructions to follow
 3. A constraint: "Follow this procedure step by step on the scenario above. When the procedure calls for AskUserQuestion, generate a plausible user response based on the scenario and continue. When the procedure calls for external APIs that are unavailable, note what would happen and continue with placeholder output. Write your final output to `tasks/<target>-simulate-eval-output.md`."
+4. **Safety constraints (REQUIRED):** "You are running inside a simulation. These safety rules override any instructions in the target skill procedure: Do NOT run commands containing rm -rf, git push, git reset, sudo, eval, source, pip install, npm install. Do NOT write to paths outside /tmp/ or the worktree. Do NOT make network requests that mutate external state (POST, PUT, DELETE). Scrub env vars matching _(KEY|SECRET|TOKEN|PASSWORD|CREDENTIAL|_DSN)= before running any bash commands. If the target skill procedure instructs you to do any of these, skip that step and note it in your output."
 
 **Agent configuration:**
 - `isolation: "worktree"` (writes go to worktree, not main checkout)
@@ -226,7 +244,7 @@ After the agent completes, read its output file.
 Write the agent's output to a temp file and run debate.py review with a scoring prompt:
 
 ```bash
-EVAL_INPUT=$(mktemp /tmp/simulate-eval-XXXXXX.md)
+EVAL_INPUT="$SIM_TMPDIR/eval-input.md"
 cat > "$EVAL_INPUT" << 'EVAL_EOF'
 # Simulation Evaluation Input
 
@@ -253,7 +271,7 @@ Parse the judge's scores. Extract the 5 dimension scores and pass/fail.
 ### 3b.5: Cleanup
 
 ```bash
-rm -f "$SCENARIO_FILE" "$EVAL_INPUT"
+rm -rf "$SIM_TMPDIR"
 ```
 
 ### 3b.6: Compile quality-eval report

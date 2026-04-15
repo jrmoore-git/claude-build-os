@@ -561,6 +561,12 @@ class TestResolveChallengeVsPressureTest:
 # ── 4. check_proactive_pipeline_routing() ───────────────────────────────────
 
 class TestCheckProactivePipelineRouting:
+    @pytest.fixture(autouse=True)
+    def _no_git(self, monkeypatch):
+        monkeypatch.setattr(
+            hook_intent_router, "_has_uncommitted_changes", lambda: False
+        )
+
     def _pipeline(self, **overrides):
         base = {
             "has_proposal": False,
@@ -568,6 +574,7 @@ class TestCheckProactivePipelineRouting:
             "has_plan": False,
             "has_pressure_test": False,
             "has_premortem": False,
+            "has_review": False,
             "topic": None,
         }
         base.update(overrides)
@@ -631,6 +638,35 @@ class TestCheckProactivePipelineRouting:
         keys = [s[0] for s in result]
         assert "challenge-proactive" in keys
         assert "pressure-test-proactive" in keys
+
+    def test_plan_uncommitted_no_review_suggests_review(self, monkeypatch):
+        monkeypatch.setattr(
+            hook_intent_router, "_has_uncommitted_changes", lambda: True
+        )
+        result = hook_intent_router.check_proactive_pipeline_routing(
+            self._pipeline(topic="foo", has_plan=True, has_review=False)
+        )
+        review_suggestions = [s for s in result if s[0] == "review-proactive"]
+        assert len(review_suggestions) == 1
+        assert "foo-plan.md" in review_suggestions[0][1]
+
+    def test_plan_uncommitted_with_review_no_suggestion(self, monkeypatch):
+        monkeypatch.setattr(
+            hook_intent_router, "_has_uncommitted_changes", lambda: True
+        )
+        result = hook_intent_router.check_proactive_pipeline_routing(
+            self._pipeline(topic="foo", has_plan=True, has_review=True)
+        )
+        review_suggestions = [s for s in result if s[0] == "review-proactive"]
+        assert len(review_suggestions) == 0
+
+    def test_plan_clean_tree_no_review_suggestion(self):
+        # _has_uncommitted_changes returns False (autouse fixture)
+        result = hook_intent_router.check_proactive_pipeline_routing(
+            self._pipeline(topic="foo", has_plan=True, has_review=False)
+        )
+        review_suggestions = [s for s in result if s[0] == "review-proactive"]
+        assert len(review_suggestions) == 0
 
 
 # ── 5. check_recurring_errors() ─────────────────────────────────────────────
