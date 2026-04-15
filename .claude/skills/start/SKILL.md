@@ -93,7 +93,7 @@ Quick staleness scan — output ONLY if something needs attention. Silence = hea
 
 ```bash
 # Count active lessons
-active_count=$(grep -c '^| L[0-9]' tasks/lessons.md 2>/dev/null || echo 0)
+active_count=$(grep -c '^| L[0-9]' tasks/lessons.md 2>/dev/null) || active_count=0
 
 # Check for Resolved lessons still in active table (stale from prior sessions)
 resolved_active=$(grep -E '^\| L[0-9]+.*\[Resolved' tasks/lessons.md 2>/dev/null || true)

@@ -269,7 +269,7 @@ if [ ${#REQUESTED[@]} -eq 0 ] || printf '%s\n' "${REQUESTED[@]}" | grep -qx 5; t
         tail -10 "$testdir/review-panel.md"
         if check_output "$testdir/review-panel.md" 20 "review-panel output"; then
             # Count how many personas responded
-            persona_count=$(grep -c "^## Reviewer" "$testdir/review-panel.md" 2>/dev/null || echo 0)
+            persona_count=$(grep -c "^## Reviewer" "$testdir/review-panel.md" 2>/dev/null) || persona_count=0
             if [ "$persona_count" -ge 3 ]; then
                 log_result 5 "review-panel" "PASS" "$persona_count personas responded"
             else
