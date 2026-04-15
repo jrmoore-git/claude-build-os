@@ -80,6 +80,16 @@ Compose the output in the format specified in `preflight-adaptive.md` — both D
 
 Store the composed output as `PREFLIGHT_CONTEXT`.
 
+### Step 2c: Inject project context (SILENT)
+
+Inject project framing so `debate.py explore` receives grounded context instead of forcing models to reconstruct project basics.
+
+1. Read `docs/current-state.md` fresh — extract current phase and active work (2–3 sentences).
+2. Read `tasks/session-log.md` (last 2–3 entries) — summarize the recent work arc when relevant to the question.
+3. Optionally run `python3.11 scripts/enrich_context.py --proposal <relevant artifact> --scope define` if a proposal or design doc exists for this topic.
+
+Prepend the assembled project context (with `## Project Context`, `## Recent Context`, `## Prior Decisions` headers) to PREFLIGHT_CONTEXT. If pre-flight was skipped (PREFLIGHT_CONTEXT is empty), the project context alone becomes PREFLIGHT_CONTEXT.
+
 ### Step 3: Research enrichment (SILENT)
 
 Run a quick Perplexity search to ground explore directions in real evidence:

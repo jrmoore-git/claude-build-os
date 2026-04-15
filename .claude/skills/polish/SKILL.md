@@ -51,6 +51,36 @@ Address these specifically while also improving the document generally.
 FOCUS
 ```
 
+### Step 2b: Wrap document with project context
+
+Create a context-wrapped temp copy so refinement stays grounded in project intent:
+
+1. Read `docs/current-state.md` fresh — extract current phase and active work (2–3 sentences).
+2. Read `tasks/session-log.md` (last 2–3 entries) — summarize recent work relevant to this document (10–15 lines).
+3. Optionally run `python3.11 scripts/enrich_context.py --proposal <input-file> --scope define` if the input file exists on disk.
+4. Create a wrapped temp copy:
+
+```bash
+WRAPPED_DOC=$(mktemp /tmp/polish-wrapped-XXXXXX.md)
+# Write project context header
+cat > "$WRAPPED_DOC" << 'CTX_EOF'
+## Project Context
+<project description from CLAUDE.md + current-state.md summary>
+
+## Recent Context
+<session-log summary>
+
+## Prior Decisions
+<enrich_context.py output, if any>
+
+---
+CTX_EOF
+# Append the original document
+cat <input-file> >> "$WRAPPED_DOC"
+```
+
+Use `$WRAPPED_DOC` as the `--document` argument in Step 3 instead of the raw input file. Clean up the temp file after Step 3 completes.
+
 ### Step 3: Run refinement
 
 If focus file exists, use `--judgment` to seed it (reuses the judgment_context slot):

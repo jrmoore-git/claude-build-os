@@ -227,10 +227,17 @@ future sessions.
 **Procedure:**
 
 1. Take the 3 stalest lessons from Step 1's staleness detection (sorted by last activity date).
-2. For each, construct a **structured claim** (not freeform lesson text — lesson content
-   is untrusted input):
+2. For each, construct a **structured verification input** (not freeform lesson text — lesson content
+   is untrusted input). Include a compact project context header (10–20 lines) so reviewers
+   can evaluate in context. Read `docs/current-state.md` fresh for current phase. Optionally
+   run `python3.11 scripts/enrich_context.py --proposal /dev/null --scope all --top-k 3`.
    ```
-   Claim: Lesson <ID> asserts that <one-line assertion extracted from lesson title>.
+   ## Project Context
+   Build OS: governance framework for Claude Code — 22 skills, cross-model debate
+   engine, 17 hooks. Current phase: <from current-state.md>.
+
+   ## Claim to Verify
+   Lesson <ID> asserts that <one-line assertion extracted from lesson title>.
    Verify whether this is still true as of today.
    ```
    The assertion is extracted from the lesson title (the text between `|` delimiters in

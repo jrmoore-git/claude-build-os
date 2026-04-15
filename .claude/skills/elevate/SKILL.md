@@ -544,7 +544,14 @@ After all sections complete, output the following as markdown text, then offer v
 
 If B: skip.
 
-If A: Write the plan content to a temp file, then call debate.py review (if debate.py fails or is unavailable, fall back to Agent tool subagent):
+If A: Assemble a context-enriched temp file, then call debate.py review (if debate.py fails or is unavailable, fall back to Agent tool subagent).
+
+Before writing the temp file, gather project context so the reviewer can evaluate without reconstruction:
+1. Read `docs/current-state.md` fresh — extract current phase and active work.
+2. Read `tasks/session-log.md` (last 3 entries) — summarize the recent work arc.
+3. Optionally run `python3.11 scripts/enrich_context.py --proposal <design-doc-path> --scope define` if the design doc exists on disk.
+
+Write the temp file with project context prepended before the plan content:
 
 ```bash
 TMPFILE=$(mktemp /tmp/elevate-plan-XXXXXX.md)

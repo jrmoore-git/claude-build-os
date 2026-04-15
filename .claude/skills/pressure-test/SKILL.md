@@ -84,6 +84,24 @@ Write your proposal or plan there first, then re-run /pressure-test --premortem.
 
 Store the resolved path as `PROPOSAL_PATH`.
 
+### Step 3b: Assemble context packet
+
+Build a self-contained context packet so `debate.py` receives enough project context to evaluate without wasting tool calls on reconstruction.
+
+1. **Project Context (30–50 lines):** Read `docs/current-state.md` fresh. Extract current phase, active work, and the subsystem relevant to this proposal. Combine with a 1–2 sentence project description from `CLAUDE.md`.
+
+2. **Recent Context (20–30 lines):** Read `tasks/session-log.md` (last 3 entries). Summarize the recent work arc — what was built, decided, and pivoted.
+
+3. **Evaluation-Specific Context (optional):** If `scripts/enrich_context.py` exists:
+   ```bash
+   python3.11 scripts/enrich_context.py --proposal $PROPOSAL_PATH --scope challenge
+   ```
+   Include relevant decisions and lessons from the output. If it fails or returns empty, proceed without it.
+
+4. **Compose:** Assemble into a single text block with `## Project Context`, `## Recent Context`, and `## Prior Decisions` sections.
+
+5. **Merge:** If PREFLIGHT_CONTEXT exists from Step 2, prepend the context packet before it. The combined text becomes the `--context` value in Step 4. If PREFLIGHT_CONTEXT was empty, the context packet alone becomes the `--context` value.
+
 ### Step 4: Run pressure-test
 
 If debate.py fails or is unavailable, fall back to single-model analysis using the session model. Perform the counter-thesis or pre-mortem analysis directly and write the output file.
