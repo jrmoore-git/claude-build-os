@@ -1,6 +1,7 @@
 ---
 name: investigate
-description: "Structured root-cause analysis using cross-model debate, governance memory, and finding lifecycle tracking. Three modes: symptom (something broke), drift (behavior changed), claim (verify a claim). Embodies diagnostic-before-fix. Defers to: /audit (broad codebase archaeology), /pressure-test (adversarial pre-mortem), /think (problem discovery for new work)."
+description: "Structured root-cause analysis. Use when something is broken, behavior changed unexpectedly, or a claim needs verification. Three modes: symptom, drift, claim. Defers to: /audit (broad codebase archaeology), /pressure-test (adversarial pre-mortem), /think (problem discovery for new work)."
+version: 1.0.0
 user-invocable: true
 allowed-tools:
   - Bash
@@ -362,3 +363,13 @@ or **NEEDS_CONTEXT** (inconclusive, needs more information).
   flag the contradiction — don't suppress it.
 - **Clean scratch files.** Evidence files are working state, not deliverables.
   The investigation report is the deliverable.
+
+## Safety Rules
+
+- NEVER apply fixes before completing root-cause analysis.
+- NEVER skip the evidence-gathering phase (Phase 2) to jump to hypotheses.
+- Do not implement fixes — this skill diagnoses only. The user decides how to proceed.
+
+## Output Format
+
+Primary output is `tasks/<TOPIC>-investigation.md` containing: symptom, evidence collected, governance context, hypotheses tested with scores, root cause, and recommended next steps. Conversation output includes the investigation summary table and AskUserQuestion for next steps.

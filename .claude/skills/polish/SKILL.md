@@ -1,6 +1,7 @@
 ---
 name: polish
-description: "Cross-model iterative refinement (6 rounds, 3 models). Standalone or as final phase of /challenge --deep. For improving any document, plan, or answer."
+description: "Cross-model iterative refinement (6 rounds, 3 models). Use when you have a draft document, plan, or answer that needs iterative improvement across model families."
+version: 1.0.0
 user-invocable: true
 ---
 
@@ -11,6 +12,13 @@ user-invocable: true
 Use standalone on any input, or as the final phase of `/challenge --deep`.
 
 Defers to `/pressure-test` when you need adversarial pressure-testing. Defers to `/review` for post-implementation code review.
+
+## Safety Rules
+
+- NEVER discard the original document structure without user approval.
+- Do not add content beyond what exists in the source document — refinement improves, not expands.
+- NEVER send proprietary content to external models without the user's awareness.
+- **Output silence** — Do not emit text between tool calls. Single formatted output at the end only.
 
 ## Procedure
 
@@ -57,6 +65,8 @@ python3.11 scripts/debate.py refine \
 
 If focus areas were provided, add: `--judgment /tmp/refine-focus-<topic>.md`
 
+If debate.py fails or is unavailable, fall back to single-model analysis using the session model. Perform 3 manual refinement passes on the document, writing each intermediate version to the output file.
+
 Parse JSON stdout. If rounds_failed > 2, warn but don't block — partial refinement is still useful.
 
 ### Step 4: Summary
@@ -75,6 +85,10 @@ Round-by-round notes are in the output file header.
 
 Clean up temp focus file if created.
 
+## Output Format
+
+The refined document is written to `tasks/<topic>-refined.md`. It preserves the original structure with improvements applied across 6 rounds (or fewer if early-stopped). The output file header contains round-by-round notes showing what each model changed.
+
 ## Important Notes
 
 - Cost: ~$0.10-0.30 per run depending on document size.
@@ -83,3 +97,11 @@ Clean up temp focus file if created.
 - The `--enable-tools` flag gives refiners read-only access to verify claims against the codebase.
 - When called as part of `/challenge --deep`, the judgment file seeds accepted challenges as focus areas. When standalone, the focus areas slot serves the same purpose.
 - Each round preserves verified data, measurements, and operational context — models are instructed not to collapse evidence into summaries.
+
+## Completion
+
+Report status:
+- **DONE** — All steps completed successfully. Refined document written.
+- **DONE_WITH_CONCERNS** — Completed with partial rounds (some rounds failed).
+- **BLOCKED** — Cannot proceed. State the blocker.
+- **NEEDS_CONTEXT** — Missing input document or topic name.

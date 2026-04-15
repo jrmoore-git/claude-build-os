@@ -1,6 +1,7 @@
 ---
 name: research
 description: "Deep web research via Perplexity Sonar. Returns sourced markdown with citations. Two modes: deep (async, multi-source synthesis) and quick (sync, spot lookup). Use when a task needs evidence, landscape awareness, or multi-source synthesis. Defers to: /think (problem discovery), /explore (divergent options)."
+version: 1.0.0
 user-invocable: true
 allowed-tools:
   - Bash
@@ -97,7 +98,7 @@ export $(grep -m1 '^PERPLEXITY_API_KEY=' .env) && /opt/homebrew/bin/python3.11 s
 - Deep mode: sourced markdown document with `## Sources` section, written to `tasks/<topic>-research.md`.
 - Quick mode: shorter response with inline citations, written to `tasks/<topic>-research.md`.
 - Both modes: if `PERPLEXITY_API_KEY` is missing, error immediately with clear message.
-- Zero output between tool calls. The only user-visible output is the privacy gate question (Step 2) and the final results display (Step 5).
+- **Output silence** — Zero output between tool calls. The only user-visible output is the privacy gate question (Step 2) and the final results display (Step 5).
 
 ## Safety Rules
 

@@ -1,6 +1,7 @@
 ---
 name: review
-description: "Cross-model code review. Default: 3 lenses (PM, Security, Architecture). Modes: --second-opinion (cross-model second opinion), --qa (5-dimension QA gate), --governance (governance hygiene scan), --all (run everything), --fix (review + auto-fix), --fix-loop (iterative fix cycle). Defers to /ship for deployment, /think for problem definition, /challenge --deep for adversarial design review."
+description: "Cross-model code review. Use when code or documents need quality review before shipping. Modes: default (3 lenses), --second-opinion, --qa, --governance, --all, --fix, --fix-loop."
+version: 1.0.0
 user-invocable: true
 allowed-tools:
   - Bash
@@ -36,6 +37,14 @@ These rules apply to EVERY AskUserQuestion call in this skill:
 5. **Topic sanitization:** Before constructing any file path with `<topic>`, sanitize to
    lowercase alphanumeric + hyphens only (`[a-z0-9-]`). Strip `/`, `..`, spaces, and
    special characters. This prevents path traversal in file writes.
+
+## Safety Rules
+
+- NEVER skip review for protected-path changes — the plan gate requires review artifacts.
+- Do not approve code you have not read — every changed file must be inspected.
+- NEVER send secrets or credential files to external models (pathspec exclusions in Step 3 enforce this).
+- Do not auto-resolve disputed findings — surface both positions and let the human decide.
+- **Output silence** — Do not emit text between tool calls. Single formatted output at the end only.
 
 # /review — Cross-Model Quality Review
 
@@ -751,3 +760,11 @@ Suggested next action: <what to do>
 - **QA:** Low. Local analysis + test suite run. No external model calls.
 - **Governance:** Redirects to `/healthcheck`. Low-medium. Reading all governance files (~10K-30K tokens). No external model calls.
 - **All:** Sum of above.
+
+## Completion
+
+Report status:
+- **DONE** — All steps completed successfully. Review artifact written with verdict.
+- **DONE_WITH_CONCERNS** — Completed with degraded review or partial mode execution.
+- **BLOCKED** — Cannot proceed. State the blocker (e.g., no changes to review).
+- **NEEDS_CONTEXT** — Missing topic or unclear what to review.

@@ -1,12 +1,20 @@
 ---
 name: plan
-description: "Auto-generate plan artifact with valid frontmatter. Satisfies hook-plan-gate.sh for protected paths."
+description: "Auto-generate plan artifact with valid frontmatter. Use when a task needs a plan before building, or when protected paths require a plan gate artifact."
+version: 1.0.0
 user-invocable: true
 ---
 
 # /plan — Generate Plan Artifact
 
 Auto-generate the plan artifact that `hook-plan-gate.sh` requires for protected paths.
+
+## Safety Rules
+
+- NEVER write plan file without user approval of the plan content.
+- Do not skip the challenge gate check when a challenge artifact is required.
+- NEVER auto-approve scope expansion beyond what the user requested.
+- **Output silence** — Do not emit text between tool calls. Single formatted output at the end only.
 
 ## Procedure
 
@@ -202,8 +210,25 @@ After the pipeline completes, present ALL deferred decisions in a single AskUser
 - User challenges: full context block (what user said, what models recommend, why, blind spots, cost of being wrong)
 - Options: A) Approve all, proceed to build. B) Review taste decisions one by one. C) Reject — revert.
 
+## Output Format
+
+The plan artifact is written to `tasks/<topic>-plan.md` with:
+- YAML frontmatter containing: `scope`, `surfaces_affected`, `verification_commands`, `rollback`, `review_tier`, `verification_evidence`
+- Build order (numbered steps with dependencies)
+- Files table (create vs modify with scope per file)
+- Verification commands
+- Execution strategy (if decomposition applies)
+
 ## Important Notes
 
 - The plan artifact MUST have valid YAML frontmatter with all required fields — `hook-plan-gate.sh` validates this.
 - `verification_evidence` starts as "PENDING" — it gets filled in during `/review --qa` or `/ship`.
 - If the user already has a plan in mind, don't fight it. Use the three lenses to sanity-check, not to redesign.
+
+## Completion
+
+Report status:
+- **DONE** — All steps completed successfully. Plan written to disk.
+- **DONE_WITH_CONCERNS** — Plan written but with advisory warnings (stale challenge, skipped gate).
+- **BLOCKED** — Cannot proceed. State the blocker (e.g., challenge rejected, missing context).
+- **NEEDS_CONTEXT** — Missing information needed to generate the plan.

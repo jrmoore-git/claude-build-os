@@ -1,6 +1,7 @@
 ---
 name: pressure-test
-description: "Counter-thesis or pre-mortem failure analysis. Use for adversarial analysis of a direction, strategy, or plan. Default frame: challenge (strategic counter-thesis). With --premortem: assume the plan failed and write the post-mortem from the future. Defers to: /challenge (should we build this at all), /explore (divergent options), /plan (implementation spec)."
+description: "Counter-thesis or pre-mortem failure analysis. Use when you need adversarial analysis of a direction, strategy, or plan. Default frame: challenge. With --premortem: assume the plan failed and write the post-mortem."
+version: 1.0.0
 user-invocable: true
 allowed-tools: Bash, Read, Write, Edit, AskUserQuestion
 ---
@@ -15,6 +16,13 @@ Single-model adversarial analysis. Two frames: challenge (strategic counter-thes
 |-------|-------------|-------------|
 | **challenge** (default) | Strategic counter-thesis — attacks the core premise | Direction, strategy, product bets |
 | **premortem** (`--premortem`) | Assumes the plan failed, writes post-mortem from the future | Concrete plans before execution |
+
+## Safety Rules
+
+- NEVER suppress findings to avoid conflict — report all identified risks.
+- Do not soften critical risks or downplay failure scenarios.
+- NEVER fabricate evidence or cite non-existent data to support a finding.
+- **Output silence** — Do not emit text between tool calls. Single formatted output at the end only.
 
 ## Procedure
 
@@ -78,6 +86,8 @@ Store the resolved path as `PROPOSAL_PATH`.
 
 ### Step 4: Run pressure-test
 
+If debate.py fails or is unavailable, fall back to single-model analysis using the session model. Perform the counter-thesis or pre-mortem analysis directly and write the output file.
+
 #### Challenge frame (default)
 
 ```bash
@@ -119,6 +129,10 @@ For **challenge** frame, suggest:
 For **premortem** frame, suggest:
 > Address the top failure scenarios in your plan before proceeding.
 
+## Output Format
+
+The pressure-test artifact is written to `tasks/<TOPIC>-pressure-test.md` (challenge frame) or `tasks/<TOPIC>-premortem.md` (premortem frame). Contains the adversarial analysis findings, risk assessments, and recommended mitigations.
+
 ## Degraded Mode
 
 Single call, no partial state. If the call fails, report the error and stop.
@@ -129,3 +143,11 @@ Single call, no partial state. If the call fails, report the error and stop.
 - Never narrate internal mechanics, cost estimates, model choices, or pipeline plumbing.
 - Each step checks for existing artifacts and skips if found.
 - If pre-flight context exists, pass it via `--context`. If not, omit the flag entirely.
+
+## Completion
+
+Report status:
+- **DONE** — All steps completed successfully. Pressure-test artifact written.
+- **DONE_WITH_CONCERNS** — Completed but with degraded analysis (fallback mode).
+- **BLOCKED** — Cannot proceed. State the blocker (e.g., missing proposal).
+- **NEEDS_CONTEXT** — Missing topic or proposal file.

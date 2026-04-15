@@ -1,12 +1,21 @@
 ---
 name: ship
-description: "Release engineer running pre-flight checks then deploying. Gates on tests + review. Wraps deploy_all.sh (customize for your project)."
+description: "Release engineer running pre-flight checks then deploying. Use when code is reviewed and ready to deploy. Gates on tests + review."
+version: 1.0.0
 user-invocable: true
 ---
 
 # /ship — Pre-flight Dashboard + Deploy
 
 Run pre-flight checks, display a dashboard, and deploy if all hard gates pass.
+
+## Safety Rules
+
+- NEVER deploy without passing review — the review gate is a hard requirement.
+- Do not skip pre-flight checks, even under time pressure.
+- NEVER bypass test failures, even with --force.
+- Do not auto-rollback without user approval.
+- **Output silence** — Do not emit text between tool calls. Single formatted output at the end only.
 
 ## Procedure
 
@@ -182,6 +191,10 @@ Post-deploy smoke: ❌ FAIL
 ```
 Warn the user and suggest investigating. Do NOT auto-rollback.
 
+## Output Format
+
+The ship skill produces a pre-flight dashboard showing gate status (PASS/FAIL for each gate), an overall status (READY TO SHIP / BLOCKED), and post-deploy verification results. The review artifact may be updated with waiver information if --force is used.
+
 ## Important Notes
 
 - Tests are NEVER bypassed, even with --force.
@@ -189,3 +202,11 @@ Warn the user and suggest investigating. Do NOT auto-rollback.
 - Degraded review status (from failed debate) is allowed — `/ship` will note it but not block.
 - SOFT gates (QA dimensions, docs, git) are advisory. They appear in the dashboard but never block.
 - The standard pipeline is `/review` → `/ship`. Use `/review --qa` for isolated QA checks.
+
+## Completion
+
+Report status:
+- **DONE** — All gates passed, deployed successfully, post-ship verification complete.
+- **DONE_WITH_CONCERNS** — Deployed with soft gate warnings or degraded review status.
+- **BLOCKED** — Cannot deploy. Hard gate(s) failed. State which gates and remediation steps.
+- **NEEDS_CONTEXT** — Missing topic or unable to determine scope.
