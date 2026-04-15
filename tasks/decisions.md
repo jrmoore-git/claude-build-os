@@ -6,11 +6,11 @@ Settled architectural and product decisions. Each entry records what was decided
 
 ---
 
-### D1: BuildOS is Python + Shell, no JavaScript — framework matches the Claude Code harness language
-**Decision:** All scripts use Python 3.11+ and Bash. No JS/TS runtime. Skills are Markdown files with YAML frontmatter, not code modules.
-**Rationale:** Claude Code's harness runs on Node but skills are prompt documents, not executable code. Python handles all scripting (debate engine, hooks, toolbelt). Shell handles orchestration (deploy, test runners, git hooks). Adding JS would create a second runtime for no gain.
-**Alternatives considered:** (a) TypeScript for type-safe tooling (rejected: Python's subprocess/sqlite3 stdlib covers all needs), (b) Pure shell (rejected: debate engine complexity exceeds shell's maintainability threshold)
-**Date:** 2026-03-01
+### D1: BuildOS defaults to Python + Shell; TypeScript/Bun allowed when there's a concrete reason
+**Decision:** Python 3.11+ and Bash remain the default for new scripts. TypeScript/Bun is allowed when adapting existing TypeScript reference code (e.g., gstack patterns), or when types deliver real value for the specific script. The decision is per-script, not per-project. Skills remain Markdown with YAML frontmatter.
+**Rationale:** Original D1 (2026-03-01) banned JS/TS entirely. Revisited 2026-04-15 after studying gstack's skill validation system (TypeScript/Bun, 1,573 lines of structural tests). Existing Python codebase (debate.py 4,136 lines, 17 hooks, sim_compiler.py, LiteLLM dependency) stays Python — rewriting for language consistency is churn. But new tooling shouldn't be blocked from TypeScript when the reference implementation is TypeScript. Claude writes both equally well; the bottleneck is never the language.
+**Alternatives considered:** (a) Full migration to TypeScript/Bun (rejected: massive rewrite effort, LiteLLM is Python-only), (b) Strict Python-only (rejected: artificially rewrites proven TypeScript patterns from scratch), (c) TypeScript for all new code (rejected: most new scripts interact with existing Python — per-script choice is more pragmatic)
+**Date:** 2026-03-01, revised 2026-04-15
 
 ### D2: Cross-model debate via LiteLLM proxy, not direct API calls
 **Decision:** All multi-model calls route through a local LiteLLM proxy at localhost:4000. Scripts use `llm_client.py` which calls the proxy. Direct API calls to Anthropic/OpenAI/Google are prohibited in application code.
