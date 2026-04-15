@@ -556,6 +556,17 @@ Write the temp file with project context prepended before the plan content:
 ```bash
 TMPFILE=$(mktemp /tmp/elevate-plan-XXXXXX.md)
 cat > "$TMPFILE" << 'PLAN_EOF'
+## Project Context
+<project description from CLAUDE.md + current-state.md summary — 2-3 sentences>
+
+## Recent Context
+<session-log summary of last 3 entries — 10-15 lines>
+
+## Prior Decisions
+<enrich_context.py output, if any>
+
+---
+
 <plan content -- truncate to 30KB if needed>
 PLAN_EOF
 

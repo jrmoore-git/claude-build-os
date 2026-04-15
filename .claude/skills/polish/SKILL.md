@@ -87,7 +87,7 @@ If focus file exists, use `--judgment` to seed it (reuses the judgment_context s
 
 ```bash
 python3.11 scripts/debate.py refine \
-  --document <input-file> \
+  --document $WRAPPED_DOC \
   --rounds 6 \
   --output tasks/<topic>-refined.md \
   --enable-tools

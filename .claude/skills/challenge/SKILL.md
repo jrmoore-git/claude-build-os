@@ -152,6 +152,9 @@ The cheapest test or MVP that validates the idea before full build.
 ### Operational Context
 Real numbers from the running system relevant to this proposal. Pull from debate-log.jsonl, cron schedules, cost data, or metrics.db as applicable. Examples: "debate.py runs ~5-10 times/day, 95 entries in debate-log.jsonl" or "email-triage processes ~40 emails/day, 3 errors in last 7 days." If the proposal doesn't touch operational systems, state "N/A — greenfield."
 
+### Operational Evidence
+Has any version of this approach been tried before? Include: what was tried, what happened, what data exists (eval results, metrics, session log entries), and the before/after on the dimension this proposal changes. If no prior attempt exists (net-new idea), state "No prior attempts." If a bespoke or manual version already delivered results, this is the strongest evidence for the proposal — omitting it causes challengers to evaluate in a vacuum.
+
 ### Baseline Performance
 How the current system performs on the dimension this proposal changes. Include: current behavior, current cost, current error rate. Required when the proposal replaces or modifies an existing system. If greenfield, state "No existing system."
 ```

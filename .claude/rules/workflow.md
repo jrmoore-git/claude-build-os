@@ -11,6 +11,7 @@ Pipeline tiers: see CLAUDE.md. Skip conditions for `/challenge`: defined authori
 - `/think` has two modes: `discover` (full problem discovery, writes `tasks/<topic>-design.md`) and `refine` (5 forcing questions, writes `tasks/<topic>-think.md`). Use before `/challenge` or `/plan`.
 - `/elevate` runs after `/think discover` to stress-test scope and ambition. 4 modes: SCOPE EXPANSION (dream big), SELECTIVE EXPANSION (hold + cherry-pick), HOLD SCOPE (rigor), SCOPE REDUCTION (strip to essentials). Reads the design doc from `/think discover`.
 - `/challenge` gates whether we should build this at all. `/challenge --deep` runs the full adversarial pipeline (challenge → judge → refine). `/elevate` assumes we're building and reviews whether we're thinking big enough. Different questions, complementary.
+- **Scope expansion = new challenge gate.** When work significantly expands between versions (new abstractions, 2x+ code, new infrastructure), it's a new proposal requiring its own `/challenge` — even if the prior version was already approved. V1 approval does not cover V2. (L27)
 - `/polish` = 6-round cross-model collaborative improvement. Standalone on any input (plan, design, answer), or as final phase of `/challenge --deep`.
 - `/explore` = 3+ divergent directions with cross-model synthesis. For exploring options before committing.
 - `/pressure-test` = counter-thesis or pre-mortem failure analysis. For adversarial analysis of a direction or plan.

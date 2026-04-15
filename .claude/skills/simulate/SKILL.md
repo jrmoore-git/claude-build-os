@@ -251,6 +251,12 @@ EVAL_INPUT="$SIM_TMPDIR/eval-input.md"
 cat > "$EVAL_INPUT" << 'EVAL_EOF'
 # Simulation Evaluation Input
 
+## Project Context
+Build OS: governance framework for Claude Code — 22 skills, cross-model debate
+engine (debate.py), 17 hooks, rules in .claude/rules/.
+Current phase: <from docs/current-state.md — read fresh before constructing this file>
+Recent decisions: <from tasks/decisions.md, if relevant to this skill>
+
 ## Target Skill
 <target skill name and description>
 
