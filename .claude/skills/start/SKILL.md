@@ -60,16 +60,16 @@ If `check_failed` is true, note: "Infrastructure version check incomplete — ve
 
 **1e. Read context files**
 
-Read each file below. Skip missing files silently.
+Read each file below. Skip missing files silently. **Use efficient reads — do not load entire large files.**
 
-| File | What to extract |
-|------|----------------|
-| `docs/current-state.md` | Current phase, active work, next action |
-| `tasks/handoff.md` | Handoff notes from prior session |
-| `tasks/session-log.md` | Last 5 entries (separated by `---`) |
-| `tasks/<topic>-plan.md` | Only the section for the current in-progress topic (if a plan artifact exists) |
-| `tasks/decisions.md` | Only undecided/blocked entries |
-| `tasks/lessons.md` | Last 10 rows (highest lesson numbers) |
+| File | How to read |
+|------|-------------|
+| `docs/current-state.md` | Read full file (small) — extract current phase, active work, next action |
+| `tasks/handoff.md` | Read full file (small) — handoff notes from prior session |
+| `tasks/session-log.md` | **Use Bash: `tail -c 5000 tasks/session-log.md`** — extract last 5 entries (separated by `---`). Do NOT Read the full file — it is large and growing. |
+| `tasks/<topic>-plan.md` | Read full file — only the section for the current in-progress topic (if a plan artifact exists) |
+| `tasks/decisions.md` | **Use Bash: `grep -E 'NEEDS DECISION\|Status: open\|undecided\|blocked' tasks/decisions.md`** — only undecided/blocked entries. Do NOT Read the full file unless grep returns nothing. |
+| `tasks/lessons.md` | **Use Bash: `tail -40 tasks/lessons.md`** — last 10 rows (highest lesson numbers). Do NOT Read the full file. |
 
 **1f. Topic search** (optional)
 
