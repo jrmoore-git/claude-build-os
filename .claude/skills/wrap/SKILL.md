@@ -159,38 +159,6 @@ Overwrite `tasks/handoff.md` with:
 [any ⚠ warnings from Step 1, or "None"]
 ```
 
-### Step 5b — Reconcile prior auto-captures
-
-The Stop hook writes `[auto-captured: session ended without /wrap-session]` entries to session-log.md when a session ends without /wrap. These are debt: files were committed but no narrative (decisions, next action) was written. `/wrap` clears the debt by marking reconciled.
-
-Find unreconciled auto-captures in the last 7 days:
-
-```bash
-python3.11 -c "
-import re
-from datetime import datetime, timedelta
-from zoneinfo import ZoneInfo
-from pathlib import Path
-cutoff = (datetime.now(ZoneInfo('America/Los_Angeles')) - timedelta(days=7)).strftime('%Y-%m-%d')
-text = Path('tasks/session-log.md').read_text()
-entries = re.split(r'\n(?=## )', text)
-for e in entries:
-    m = re.match(r'## (\d{4}-\d{2}-\d{2}).*\[auto-captured: session ended without /wrap-session\]', e)
-    if not m or m.group(1) < cutoff or '**Reconciled:**' in e: continue
-    print(m.group(1), '— header:', e.split(chr(10))[0][:80])
-"
-```
-
-**For each unreconciled entry:**
-
-1. Read its file list and auto-commit timestamp.
-2. If the current session's work subsumes it (same files / same day / continuation of the same task), append `**Reconciled:** YYYY-MM-DD HH:MM PT — subsumed by current /wrap` to the entry.
-3. If the work was separate and the narrative is genuinely lost, append `**Reconciled:** YYYY-MM-DD HH:MM PT — accepted as historical record` and move on.
-
-Do not bulk-reconcile silently. Report to the user: "Reconciled N prior auto-captures" with a brief list of what was marked.
-
-If count is 0: emit nothing, proceed.
-
 ### Step 6 — Append to tasks/session-log.md
 
 Append to `tasks/session-log.md` (do not overwrite — append after the last `---`):

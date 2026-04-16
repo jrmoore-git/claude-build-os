@@ -150,16 +150,6 @@
         ]
       }
     ],
-    "Stop": [
-      {
-        "hooks": [
-          {
-            "type": "command",
-            "command": "python3 hooks/hook-stop-autocommit.py",
-            "timeout": 30
-          }
-        ]
-      }
-    ]
+    "Stop": []
   }
 }

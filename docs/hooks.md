@@ -26,7 +26,6 @@ Build OS ships 22 hooks organized by event type. Hooks are the third level of th
 | [hook-read-before-edit.py](#hook-read-before-editpy) | PreToolUse + PostToolUse | Write\|Edit, Read | **Warns** if editing a file not recently read in session |
 | [hook-skill-lint.py](#hook-skill-lintpy) | PostToolUse | Write\|Edit | **Warns** on SKILL.md frontmatter issues (description format, field validation) |
 | [hook-spec-status-check.py](#hook-spec-status-checkpy) | PostToolUse | Read | **Warns** when reading spec files without `implementation_status` field |
-| [hook-stop-autocommit.py](#hook-stop-autocommitpy) | Stop | — | Auto-captures uncommitted work on session exit |
 
 ---
 
@@ -443,28 +442,6 @@ Passive error observer. Tracks recurring Bash failures in a session-scoped temp 
 
 ---
 
-## Stop Hooks
-
-
-## hook-stop-autocommit.py
-
-Session safety net. When a Claude Code session exits without running `/wrap`, this hook auto-captures uncommitted work so nothing is lost.
-
-**When it fires:** Stop hook (runs when the Claude Code session ends).
-
-**What it does:**
-
-1. Checks for uncommitted changes in the working tree
-2. If changes exist, writes an auto-capture entry to `tasks/session-log.md` listing the changed files
-3. Marks `docs/current-state.md` as stale by injecting a `## ⚠ STALE` warning after the first header line. The warning includes the auto-capture date, file count, and a notice that the "Next Action" section may be outdated
-4. Stages all changed files plus the updated session log and current-state doc
-5. Commits with message `[auto] Session work captured <date>`
-
-**Staleness marking:** The stale marker in `current-state.md` is detected by `/start`'s freshness check (`scripts/check-current-state-freshness.py`). When `/start` sees the marker, it warns the user not to trust the frozen "Next Action" and derives recommendations from git log + session-log instead. The marker is idempotent — if `## ⚠ STALE` already exists, it won't add a duplicate.
-
-**Pass conditions:** Always runs (stop hooks don't block). If there are no uncommitted changes, it exits silently.
-
-
 ## hook-context-inject.py
 
 Pre-generation context injection. Before Claude writes or edits a Python file, this hook gathers relevant context and injects it via `additionalContext` so Claude has better information before writing code.
@@ -618,13 +595,7 @@ This matches the actual wiring in the Build OS `.claude/settings.json`:
         ]
       }
     ],
-    "Stop": [
-      {
-        "hooks": [
-          {"type": "command", "command": "python3 hooks/hook-stop-autocommit.py", "timeout": 30}
-        ]
-      }
-    ]
+    "Stop": []
   }
 }
 ```
@@ -658,7 +629,7 @@ Add hooks in order of value. Each row adds one capability:
 | **2** | + pre-commit-tests, syntax-check-python | Tests must pass, no broken syntax |
 | **3** | + review-gate, tier-gate | Cross-model review enforced for high-risk files |
 | **4** | + decompose-gate, agent-isolation | Parallel work gated and isolated |
-| **5** | + all remaining | Full governance: env protection, linting, drift checks, auto-capture |
+| **5** | + all remaining | Full governance: env protection, linting, drift checks |
 
 ### Configuration
 

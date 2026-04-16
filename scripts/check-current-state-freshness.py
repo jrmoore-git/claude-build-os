@@ -30,10 +30,7 @@ def main():
         cs_date_str = match.group(1)
         cs_date = datetime.strptime(cs_date_str, "%Y-%m-%d").replace(tzinfo=PACIFIC)
 
-        # 2. Check for explicit stale marker
-        has_stale_marker = bool(re.search(r"^## ⚠\s*STALE", text, re.MULTILINE))
-
-        # 3. Get latest git commit date
+        # 2. Get latest git commit date
         result = subprocess.run(
             ["git", "log", "-1", "--format=%ci"],
             cwd=REPO, capture_output=True, text=True, timeout=10,
@@ -60,15 +57,13 @@ def main():
         delta = commit_dt - cs_end_of_day
         days_behind = max(0, delta.days)
 
-        is_stale = has_stale_marker or delta > timedelta(hours=24)
+        is_stale = delta > timedelta(hours=24)
 
         if not is_stale:
             print(json.dumps({"is_stale": False}))
             return
 
         msg_parts = []
-        if has_stale_marker:
-            msg_parts.append("current-state.md has an explicit STALE marker.")
         if days_behind > 0:
             msg_parts.append(
                 f"current-state.md date ({cs_date_str}) is {days_behind} day(s) behind "

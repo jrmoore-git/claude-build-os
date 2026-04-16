@@ -84,7 +84,6 @@ After problem discovery, `/think` now offers to generate a PRD from the conversa
 | Hook | What it prevents |
 |------|-----------------|
 | `hook-bash-fix-forward.py` | Bandaid debugging — blocks `rm index.lock`, `kill -9` without investigation first |
-| `hook-stop-autocommit.py` | Lost work — auto-commits session progress when Claude Code stops |
 | `hook-memory-size-gate.py` | Memory bloat — blocks writes when memory index exceeds 150 lines |
 | `hook-agent-isolation.py` | File collisions — blocks parallel agents without worktree isolation |
 | `hook-decompose-gate.py` | Under-parallelization — blocks coding before assessing decomposition |
@@ -162,7 +161,7 @@ Total skills: **22** (after /simulate removal and 4 additions).
 
 - All hooks now read `<!-- buildos-tier: N -->` from CLAUDE.md via `scripts/read_tier.py`
 - T0 hooks (always active): guard-env, read-before-edit, syntax-check, ruff-check, context-inject
-- T1 hooks (tier >= 1): intent-router, spec-status-check, prd-drift-check, stop-autocommit
+- T1 hooks (tier >= 1): intent-router, spec-status-check, prd-drift-check
 - T2 hooks (tier >= 2): all remaining enforcement hooks
 - Hooks self-disable above the declared tier — new projects start with less friction
 

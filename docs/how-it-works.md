@@ -457,14 +457,13 @@ Standalone CLI tool. The hooks replicate similar validation logic inline rather 
 
 Detects whether `docs/current-state.md` is stale relative to recent git activity. Used by `/start` to prevent trusting a frozen "Next Action" from a previous session.
 
-The problem it solves: if a session exits without running `/wrap`, the `hook-stop-autocommit.py` safety net captures uncommitted work and marks `current-state.md` with a `## ⚠ STALE` warning. But staleness can also happen without the marker — if commits land after the date in the current-state header. This script detects both cases.
+The problem it solves: if a session exits without running `/wrap`, `current-state.md` becomes stale because commits land after its header date. This script detects that.
 
 ### What it checks
 
 1. Parses the date from the `# Current State — YYYY-MM-DD` header
-2. Checks for an explicit `## ⚠ STALE` marker (injected by `hook-stop-autocommit.py`)
-3. Compares the header date against the latest git commit date
-4. If the latest commit is >24 hours after the header date, or the stale marker exists, reports stale
+2. Compares the header date against the latest git commit date
+3. If the latest commit is >24 hours after the header date, reports stale
 
 ### Usage
 

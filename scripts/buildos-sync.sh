@@ -137,7 +137,6 @@ MANIFEST=(
   hooks/hook-memory-size-gate.py
   hooks/hook-review-gate.sh
   hooks/hook-ruff-check.sh
-  hooks/hook-stop-autocommit.py
   hooks/hook-syntax-check-python.sh
   hooks/hook-tier-gate.sh
 )

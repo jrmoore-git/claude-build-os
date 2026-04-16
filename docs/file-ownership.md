@@ -8,7 +8,7 @@ Which skill owns which file, and in what order skills run at session close.
 |------|-------------|---------------------|
 | `tasks/handoff.md` | `/wrap` | Overwritten each session close. |
 | `tasks/session-log.md` | `/wrap` | Append only (never overwrite previous entries). |
-| `docs/current-state.md` | `/wrap` | `hook-stop-autocommit.py` injects a `⚠ STALE` marker on unclean session exit. |
+| `docs/current-state.md` | `/wrap` | Overwritten each session close with phase/blockers/next action. |
 | `tasks/decisions.md` | `/log` or `/sync` | Append only. Entries are numbered and never modified after writing. |
 | `tasks/lessons.md` | `/log` or `/sync` | Append only. Promote recurring lessons to `.claude/rules/` and archive. |
 | `docs/project-prd.md` | `/sync` | Read by `/start`, `/plan`, `/review`. |

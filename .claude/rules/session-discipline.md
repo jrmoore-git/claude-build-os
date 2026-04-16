@@ -22,6 +22,8 @@ description: Session management, documentation-first, context budgeting
 
 ## Session Close Protocol
 
+Run `/wrap` at session close. It writes `tasks/session-log.md`, `tasks/handoff.md`, `docs/current-state.md`, and commits.
+
 When context reaches ~55% (stage 1 of compaction protocol), write to `tasks/session-log.md` FIRST:
 - Decided: [bullets]
 - Documented: [file + what changed]
@@ -31,15 +33,7 @@ When context reaches ~55% (stage 1 of compaction protocol), write to `tasks/sess
 
 Priority when context is low: 1. Session summary → 2. Phase review → 3. Implementation
 
-### The wrap contract (enforcement model)
-
-`/wrap` is the primary close path. `hook-stop-autocommit.py` is the safety net — it commits uncommitted work and writes an `[auto-captured: session ended without /wrap-session]` entry to `session-log.md`. Auto-capture is **debt, not completion**: it records files changed but not decisions, rationale, or next-action.
-
-Debt is paid by `/wrap` reconciling the entry (adding a `**Reconciled:**` line). Until then:
-- `/start` surfaces the count of unreconciled entries from the last 7 days under a **Wrap Debt** heading.
-- Recommendations from `/start` cannot assume a clean baseline while unreconciled entries exist for today's work.
-
-The rule, restated: **don't skip `/wrap`; if you do, reconcile the auto-capture at the next `/wrap`.** The Stop hook catches the work; `/wrap` writes the story.
+There is no Stop-hook safety net. If you skip `/wrap` and close the terminal, uncommitted files stay on disk; `scripts/detect-uncommitted.py` surfaces them at the next `/start`. Commit when you're ready — don't commit partial state.
 
 ## Decisions Must Propagate to All References
 Two failure modes, one rule: when a decision changes the state of something referenced in production files, the same commit must update all references.
