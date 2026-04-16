@@ -1,38 +1,46 @@
-# Handoff — 2026-04-15 (session 11)
+# Handoff — 2026-04-15 (session 12)
 
 ## Session Focus
-Audited the entire /simulate arc, evaluated 7 external tools, reversed the "don't build" verdict, diagnosed 3 structural bugs in the /challenge pipeline, and wrote two proposals for next session.
+Implemented context packets for all 6 thin-context skills, validated with A/B test, doubled context budgets per research, and wrote comprehensive handoff for dynamic evaluation anchors.
 
 ## Decided
-- D20: Keep sim infrastructure and generalize eval_intake.py — no external tool meets the requirements
-- L27: Scope expansion between versions = new challenge gate (V1 approval doesn't cover V2)
-- L28: Cross-model panels converge on wrong answers when operational evidence is missing from input
-- Challenge pipeline has 4 structural bugs; Layer 1 (Operational Evidence section) is the cheapest highest-impact fix
-- Don't run /challenge on the pipeline-fixes proposal (Layer 1 is trivial, Layer 2 already refined in parallel session)
+- Context budgets doubled: 1-8K → 3-16K tokens (Databricks research: monotonic improvement below saturation)
+- Layers 1-2 shipped; Layers 3-4 deferred pending real usage evidence
+- Anchors shared across all 3 models (not per-model) to preserve convergence
+- Anchor templates stored in config/anchor-templates/ (one file per skill type)
 
 ## Implemented
-- tasks/sim-generalization-proposal.md — full proposal with Operational Evidence section, ready for /challenge
-- tasks/challenge-pipeline-fixes-proposal.md — 4-layer fix proposal (written by parallel session, evaluated here)
-- L27 + L28 in tasks/lessons.md
-- Scope expansion rule in .claude/rules/workflow.md
-- D20 in tasks/decisions.md
+- Layer 1: Operational Evidence section in /challenge proposal template
+- Layer 2: Context packets in pressure-test, elevate, polish, explore, healthcheck, simulate
+- Budget increases in spec + all 6 skill files
+- A/B test artifacts: tasks/challenge-pipeline-thin-findings.md, tasks/challenge-pipeline-enriched-findings.md
+- Anchor design handoff: tasks/context-packet-anchors-design.md
 
 ## NOT Finished
-- /challenge on sim-generalization-proposal.md (intentionally deferred — needs context packet from parallel session applied first)
-- Challenge pipeline Layer 1 implementation (parallel session doing this)
-- V2 sim scripts unreviewed (Phase 1 of sim-generalization proposal)
+- Dynamic evaluation anchors in debate.py (_extract_anchor_slots, _build_anchors)
+- config/anchor-templates/ directory (6 template files)
+- Anchor injection into debate.py system prompts
+- A/B test of anchors vs no-anchors
+- Focus directives (expected-outcomes framing) — second iteration after anchors
 
 ## Next Session Should
-1. Read tasks/sim-generalization-proposal.md, then run /challenge on it (with context packet applied)
-2. If challenge passes: proceed to Phase 1 (review V2 scripts, wire end-to-end, validate against eval_intake.py baseline)
-3. Check whether parallel session completed Layer 1 (Operational Evidence section in /challenge SKILL.md)
+1. Read tasks/context-packet-anchors-design.md (complete design, A/B baselines, open questions)
+2. Also read: tasks/context-packet-spec-refined.md, tasks/challenge-pipeline-fixes-proposal.md
+3. Build _extract_anchor_slots() and _build_anchors() in debate.py (~80-100 lines, pure functions)
+4. Create config/anchor-templates/ with 6 template files
+5. Inject anchors into system prompt construction in debate.py (~line 2390-2430)
+6. A/B test: same proposal with and without anchors, compare against baselines in handoff doc
 
 ## Key Files Changed
-- tasks/sim-generalization-proposal.md (NEW)
-- tasks/challenge-pipeline-fixes-proposal.md (NEW, from parallel session)
-- tasks/lessons.md (L27, L28 added)
-- tasks/decisions.md (D20 added)
-- .claude/rules/workflow.md (scope expansion rule)
+- .claude/skills/pressure-test/SKILL.md (context packet Step 3b)
+- .claude/skills/elevate/SKILL.md (context in Independent Review)
+- .claude/skills/polish/SKILL.md (Step 2b: wrapped document)
+- .claude/skills/explore/SKILL.md (Step 2c: project context injection)
+- .claude/skills/healthcheck/SKILL.md (Step 5b: project context in claims)
+- .claude/skills/simulate/SKILL.md (Step 3b.4: project context in eval input)
+- .claude/skills/challenge/SKILL.md (Layer 1: Operational Evidence section)
+- tasks/context-packet-spec-refined.md (budget increases)
+- tasks/context-packet-anchors-design.md (NEW — anchor design handoff)
 
 ## Doc Hygiene Warnings
 None

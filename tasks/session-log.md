@@ -2,6 +2,34 @@
 
 ---
 
+## 2026-04-15 (session 12) — context packet implementation + A/B validation + anchor design handoff
+
+**Focus:** Implemented context packets for all 6 thin-context skills, ran A/B comparison, doubled context budgets per Databricks research, designed dynamic evaluation anchors for next session.
+
+**Decided:**
+- Context budgets doubled across all skill types (1-8K → 3-16K tokens) — Databricks research shows monotonic quality improvement well below saturation
+- Layers 1-2 of challenge pipeline fixes shipped; Layers 3-4 (claim verification, dissent requirement) deferred pending evidence that L1-L2 are insufficient
+- Dynamic evaluation anchors designed but deferred to next session for implementation + A/B testing
+- Shared anchors across all 3 models (not per-model) to preserve convergence benefit
+
+**Implemented:**
+- Layer 1: Operational Evidence section added to /challenge proposal template (Step 3)
+- Layer 2: Context packets for 6 thin-context skills (pressure-test, elevate, polish, explore, healthcheck, simulate)
+- Budget increases in context-packet-spec-refined.md and all 6 skill SKILL.md files
+- A/B test: thin (45 lines) vs enriched (89 lines) on challenge-pipeline-fixes proposal — enriched produced 5+ unique findings vs 2-3, including security concern and dead-code detection
+- tasks/context-packet-anchors-design.md — comprehensive handoff (~300 lines) for anchor implementation
+
+**Not Finished:**
+- Dynamic evaluation anchors in debate.py (designed, not built — next session)
+- A/B test of anchors vs no-anchors (next session)
+- Focus directives / expected-outcomes framing (second iteration after anchors validated)
+
+**Next Session:** Read tasks/context-packet-anchors-design.md, implement `_extract_anchor_slots()` and `_build_anchors()` in debate.py, create config/anchor-templates/, A/B test anchors.
+
+**Commits:** a24d226, 3d44776, fe99c86 (auto-captures) + wrap commit
+
+---
+
 ## 2026-04-15 (session 11) — sim arc audit + external tools evaluation + challenge pipeline diagnosis
 
 **Decided:**

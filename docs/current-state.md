@@ -1,27 +1,20 @@
 # Current State — 2026-04-15
 
-## ⚠ STALE — auto-captured session ended without /wrap-session
-**Auto-capture date:** 2026-04-15 17:32 PT
-**Files changed this session:** 7 files in docs, tasks, tests
-**WARNING:** The "Next Action" below may be outdated. Cross-check with `git log --oneline -10` and recent session-log entries.
-
-
 ## What Changed This Session
-- Deep audit of the /simulate arc (sessions 4-10): traced what was built, why, and whether it should exist
-- Evaluated 7 external tools (DeepEval, Inspect AI, Promptfoo, LangSmith, Braintrust, Ragas, Patronus) — none meet BuildOS sim requirements
-- Reversed the "commodity, don't build" verdict from sessions 7-8 (D20) — eval_intake.py's 17-round track record proves the approach works, no external tool replicates it
-- Diagnosed 3 structural bugs in the /challenge pipeline: missing operational evidence, unverified commodity claims, unanimous convergence amplifying correlated error
-- Wrote proposal for challenge pipeline fixes (tasks/challenge-pipeline-fixes-proposal.md) — Layer 1 (Operational Evidence section) being implemented by parallel session
-- Wrote proposal for sim generalization (tasks/sim-generalization-proposal.md) — ready for /challenge in next session
-- Added L27 (scope expansion = new gate), L28 (panels fail without operational evidence), rule in workflow.md
+- Implemented context packets (Layer 2) for all 6 thin-context skills: pressure-test, elevate, polish, explore, healthcheck, simulate
+- Added Operational Evidence section (Layer 1) to /challenge proposal template
+- Doubled context budgets across all skill types (1-8K → 3-16K tokens) per Databricks long-context RAG research
+- A/B tested enriched vs thin context on challenge-pipeline-fixes proposal — enriched produced 5+ unique findings vs 2-3
+- Designed dynamic evaluation anchors with per-skill-type templates and slot-filling mechanism
+- Wrote comprehensive handoff for anchor implementation (tasks/context-packet-anchors-design.md)
 
 ## Current Blockers
 - None identified
 
 ## Next Action
-Run /challenge on tasks/sim-generalization-proposal.md with the context packet applied (from parallel session's work). The proposal includes the Operational Evidence section (L28 fix).
+Implement dynamic evaluation anchors in debate.py. Read tasks/context-packet-anchors-design.md first — contains complete design, A/B baselines, and open questions.
 
 ## Recent Commits
+a24d226 [auto] Session work captured 2026-04-15 17:34 PT
+3d44776 [auto] Session work captured 2026-04-15 17:32 PT
 fe99c86 [auto] Session work captured 2026-04-15 15:18 PT
-aff12cc [auto] Session work captured 2026-04-15 15:01 PT
-2afbe17 [auto] Session work captured 2026-04-15 14:16 PT
