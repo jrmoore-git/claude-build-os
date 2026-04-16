@@ -1,6 +1,6 @@
 # Hooks Reference
 
-Build OS ships 17 hooks organized by event type. Hooks are the third level of the enforcement ladder: advisory (CLAUDE.md) → rules (.claude/rules/) → **hooks** → architecture. They fire every time the matched tool is called, cannot be ignored by the model, and enforce governance as deterministic code.
+Build OS ships 20 hooks organized by event type. Hooks are the third level of the enforcement ladder: advisory (CLAUDE.md) → rules (.claude/rules/) → **hooks** → architecture. They fire every time the matched tool is called, cannot be ignored by the model, and enforce governance as deterministic code.
 
 ## Overview
 
@@ -22,6 +22,9 @@ Build OS ships 17 hooks organized by event type. Hooks are the third level of th
 | [hook-ruff-check.sh](#hook-ruff-checksh) | PostToolUse | Write\|Edit | **Warns** on ruff lint violations (non-blocking) |
 | [hook-post-tool-test.sh](#hook-post-tool-testsh) | PostToolUse | Write\|Edit | **Warns** — auto-runs pytest for toolbelt scripts |
 | [hook-error-tracker.py](#hook-error-trackerpy) | PostToolUse | Bash | **Observes** — tracks recurring errors for proactive routing |
+| [hook-read-before-edit.py](#hook-read-before-editpy) | PreToolUse + PostToolUse | Write\|Edit, Read | **Warns** if editing a file not recently read in session |
+| [hook-skill-lint.py](#hook-skill-lintpy) | PostToolUse | Write\|Edit | **Warns** on SKILL.md frontmatter issues (description format, field validation) |
+| [hook-spec-status-check.py](#hook-spec-status-checkpy) | PostToolUse | Read | **Warns** when reading spec files without `implementation_status` field |
 | [hook-stop-autocommit.py](#hook-stop-autocommitpy) | Stop | — | Auto-captures uncommitted work on session exit |
 
 ---
@@ -462,7 +465,7 @@ Session safety net. When a Claude Code session exits without running `/wrap`, th
 
 Add hooks to `.claude/settings.json` (or `.claude/settings.local.json` for personal, non-committed settings). Each hook needs a matcher pattern and the script path.
 
-### All 17 hooks (full Build OS)
+### All 20 hooks (full Build OS)
 
 This matches the actual wiring in the Build OS `.claude/settings.json`:
 
@@ -484,7 +487,8 @@ This matches the actual wiring in the Build OS `.claude/settings.json`:
           {"type": "command", "command": "bash hooks/hook-guard-env.sh", "timeout": 10},
           {"type": "command", "command": "bash hooks/hook-tier-gate.sh \"$TOOL_INPUT\"", "timeout": 10},
           {"type": "command", "command": "bash hooks/hook-pre-edit-gate.sh", "timeout": 10},
-          {"type": "command", "command": "python3 hooks/hook-memory-size-gate.py", "timeout": 2}
+          {"type": "command", "command": "python3 hooks/hook-memory-size-gate.py", "timeout": 2},
+          {"type": "command", "command": "HOOK_EVENT=PreToolUse python3 hooks/hook-read-before-edit.py", "timeout": 2}
         ]
       },
       {
@@ -511,13 +515,21 @@ This matches the actual wiring in the Build OS `.claude/settings.json`:
         "hooks": [
           {"type": "command", "command": "bash hooks/hook-syntax-check-python.sh", "timeout": 30},
           {"type": "command", "command": "bash hooks/hook-post-tool-test.sh", "timeout": 60},
-          {"type": "command", "command": "bash hooks/hook-ruff-check.sh", "timeout": 15}
+          {"type": "command", "command": "bash hooks/hook-ruff-check.sh", "timeout": 15},
+          {"type": "command", "command": "python3 hooks/hook-skill-lint.py", "timeout": 10}
         ]
       },
       {
         "matcher": "Bash",
         "hooks": [
           {"type": "command", "command": "python3 hooks/hook-error-tracker.py", "timeout": 2}
+        ]
+      },
+      {
+        "matcher": "Read",
+        "hooks": [
+          {"type": "command", "command": "python3 hooks/hook-spec-status-check.py", "timeout": 5},
+          {"type": "command", "command": "HOOK_EVENT=PostToolUse python3 hooks/hook-read-before-edit.py", "timeout": 2}
         ]
       }
     ],

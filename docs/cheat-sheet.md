@@ -30,6 +30,7 @@ If it has a UI, wire in `/design consult` (before plan) and `/design review` (be
 |------|-------|-------------|
 | PM | `/think` | Problem discovery (`discover`) or forcing questions (`refine`) |
 | PM | `/elevate` | Stress-test scope and ambition (4 modes) |
+| PM | `/prd` | Generate or validate a PRD from a design doc |
 | PM | `/start` | Session bootstrap + workflow routing + contextual suggestions |
 | Designer | `/design consult` | Create or upgrade DESIGN.md with competitive research |
 | Designer | `/design review` | Visual QA with browser, 94-item checklist |
@@ -54,6 +55,7 @@ If it has a UI, wire in `/design consult` (before plan) and `/design review` (be
 | Session | `/wrap` | Write handoff, session log, current state |
 | Session | `/log` | Extract decisions/lessons from conversation |
 | Session | `/triage` | Classify and route incoming information |
+| QA | `/simulate` | Zero-config skill simulation (smoke-test + quality-eval) |
 | System | `/healthcheck` | Learning system health check (scans lessons, decisions, rules) |
 | Bootstrap | `/setup` | Interactive project setup |
 | Bootstrap | `/audit` | Two-phase blind discovery audit |

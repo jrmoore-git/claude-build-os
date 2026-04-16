@@ -18,7 +18,7 @@ Just describe what you want to do. Build OS routes you to the right tool automat
 - **"Is this ready to ship?"** — Claude runs cross-model review, then pre-flight gates
 - **"I'm lost"** — type `/guide` for a map of everything, organized by intent
 
-Build OS has 21 skills, but you don't need to know any of them by name. The slash commands (`/think`, `/plan`, `/review`, etc.) are power-user shortcuts. The primary interface is natural language — say what you need, and the system figures out the rest.
+Build OS has 23 skills, but you don't need to know any of them by name. The slash commands (`/think`, `/plan`, `/review`, etc.) are power-user shortcuts. The primary interface is natural language — say what you need, and the system figures out the rest.
 
 ---
 
@@ -371,11 +371,11 @@ For the full guide — spawn prompts, token budgets, custom agent definitions, a
 
 ## The Skills
 
-Build OS ships with 21 skills — slash commands that implement the pipeline stages. Think of them as the team members you'd want on a real project:
+Build OS ships with 23 skills — slash commands that implement the pipeline stages. Think of them as the team members you'd want on a real project:
 
 | Role | Skills | What they do |
 |---|---|---|
-| **PM** | `/think`, `/elevate`, `/start` | Problem discovery, scope review, session bootstrap + routing |
+| **PM** | `/think`, `/elevate`, `/prd`, `/start` | Problem discovery, scope review, PRD generation, session bootstrap + routing |
 | **Designer** | `/design` (consult, review, variants, plan-check) | Design system, visual QA, variant exploration, plan design audit |
 | **Architect** | `/challenge`, `/explore`, `/pressure-test` | Cross-model gate, divergent options, adversarial analysis |
 | **Refiner** | `/polish` | 6-round cross-model collaborative improvement on any document |
@@ -385,6 +385,7 @@ Build OS ships with 21 skills — slash commands that implement the pipeline sta
 | **Release** | `/ship`, `/sync` | Pre-flight gates (verify + QA + tests + review) → deploy → doc sync |
 | **Session** | `/start`, `/wrap`, `/log`, `/triage` | Bootstrap + routing, session close, knowledge capture, info routing |
 | **Diagnostics** | `/investigate` | Structured root-cause analysis: symptom, drift, claim modes with cross-model debate |
+| **QA** | `/simulate` | Zero-config skill simulation: smoke-test + quality-eval |
 | **System Health** | `/healthcheck` | Learning system health check — scans lessons, decisions, rules, cross-references |
 | **Bootstrap** | `/setup`, `/audit` | Interactive project setup, two-phase blind discovery audit |
 | **Discovery** | `/guide` | Intent-based skill map — "what can I do?" |
@@ -449,7 +450,7 @@ git pull origin main
 | You want to... | Read |
 |---|---|
 | **Get running in an hour** | [Getting Started](docs/getting-started.md) — guided first-hour tutorial: define, plan, build, review, ship |
-| **Quick reference while working** | [Cheat Sheet](docs/cheat-sheet.md) — pipeline tiers, all 21 skills, key files, shortcuts |
+| **Quick reference while working** | [Cheat Sheet](docs/cheat-sheet.md) — pipeline tiers, all 23 skills, key files, shortcuts |
 
 **Go deeper:**
 
@@ -467,7 +468,7 @@ git pull origin main
 | **Understand Claude Code features** | [Platform Features](docs/platform-features.md) — hooks, rules, skills, memory, session management |
 | **See what each script does** | [How It Works](docs/how-it-works.md) — debate.py, tier_classify.py, recall_search.py, and all tooling |
 | **Configure cross-model review** | [Infrastructure](docs/infrastructure.md) — LiteLLM setup, API keys, optional dependencies |
-| **Understand the 17 hooks** | [Hooks Reference](docs/hooks.md) — plan gate, review gate, decompose gate, and 14 more |
+| **Understand the 20 hooks** | [Hooks Reference](docs/hooks.md) — plan gate, review gate, decompose gate, and 17 more |
 | **Route models by cost** | [Model Routing Guide](docs/model-routing-guide.md) — task classification, per-skill defaults, escalation |
 
 ---
