@@ -14,15 +14,23 @@ Agent Teams + subagents is the default orchestration model (D103). Do not use a 
 
 **Runtime layer cap:** No more than 2 orchestration layers active simultaneously: (1) this global rule file and (2) one task-specific skill. Do not stack additional orchestration personas or playbook injections.
 
-## Decomposition Gate (Hook-Enforced)
+## Decomposition Gate (Hook-Enforced, Advisory)
 
-`hooks/hook-decompose-gate.py` blocks the first `Write|Edit` call in each session until you assess decomposability. Count independent components. 3+: decompose (one agent per component, output plan with file scopes, write flag: `echo '{"plan_submitted": true}' > /tmp/claude-decompose-{SESSION_ID}.json`, dispatch with worktree isolation). 1-2: bypass (`echo '{"bypass": true}' > /tmp/claude-decompose-{SESSION_ID}.json`). User says "skip" or "just do it": bypass immediately.
+`hooks/hook-decompose-gate.py` nudges toward worktree fan-out when a session starts editing multiple distinct files. The gate is **advisory, not blocking** — it returns `permissionDecision: "allow"` with `additionalContext` carrying a prompt hint, not a user-visible deny. The agent reads the nudge and decides.
 
-**Maximize fan-out, not minimize it.** The default failure mode is under-parallelization (grouping by "theme" into 3 large agents instead of 6-8 focused ones). Ask: "how many independent components exist?" not "can I get to 3 subtasks?" Trivial multi-file edits (rename, import change) that share no logical coupling can stay in one agent — but edits requiring different reasoning should split.
+**Trigger:** fires once per session on the 2nd distinct-file Write|Edit in the main session (worktree agents are never nudged). A second firing occurs only if a `plan_submitted: true` flag exists but the main session keeps writing — that contradicts the declared intent and is worth surfacing once.
 
-**Read-only agents (Explore, research) can go wider** — 5-10 parallel with no worktree needed. They're cheap and fast. Default to parallel Explore agents for any research that has 3+ independent questions.
+**Threshold:** ≥2 independent components. Historical data showed the "exactly 2 truly independent" case is rare but real; with advisory posture, the cost of a false positive is a single prompt-hint the agent reads and ignores. The cost of a false negative — sequentializing genuinely parallel work — is a long session that should have been two short ones.
 
-The gate fires once per session. After the flag file exists, all writes proceed normally.
+**What the nudge says:** "Decomposition nudge: this session has now edited a second distinct file. If the work breaks into 2+ independent components, consider dispatching worktree agents. If components share state, proceed and note the reason in the current plan artifact."
+
+**Maximize fan-out, not minimize it.** The default failure mode is under-parallelization (grouping by "theme" into one large agent instead of 2-3 focused ones). Ask: "how many independent components exist?" Trivial multi-file edits (rename, import change) that share no logical coupling can stay in one agent; edits requiring different reasoning should split.
+
+**Read-only agents (Explore, research) can go wider** — 5-10 parallel with no worktree needed. Default to parallel Explore agents for any research with 3+ independent questions.
+
+**Optional flags** (kept for backward compatibility; agents rarely need them now):
+- `echo '{"bypass": true, "reason": "<why>"}' > /tmp/claude-decompose-{SESSION_ID}.json` → suppress the nudge for this session
+- `echo '{"plan_submitted": true}' > /tmp/claude-decompose-{SESSION_ID}.json` → declare parallel plan; subsequent main-session writes trigger the "plan_declared" nudge
 
 **Session ID:** Uses `$CLAUDE_SESSION_ID` if set, otherwise parent PID.
 

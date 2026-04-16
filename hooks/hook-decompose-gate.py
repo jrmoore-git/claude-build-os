@@ -1,15 +1,21 @@
 #!/usr/bin/env python3.11
 """
-hook-decompose-gate.py — PreToolUse hook that gates Write|Edit until a
-decomposition plan exists for the session.
+hook-decompose-gate.py — PreToolUse hook that nudges toward worktree
+fan-out when a session starts editing multiple distinct files.
 
-Reads tool call JSON from stdin. Returns JSON to allow or deny.
+Advisory, not blocking. Emits a prompt hint via `additionalContext`;
+does not deny. The agent receives the nudge and decides whether to
+fan out or proceed.
 
-Four states:
-  1. No flag file + write tool → DENY with decomposition prompt
-  2. Flag file with plan_submitted + main session → DENY (dispatch agents first)
-  3. Flag file with plan_submitted + worktree agent → ALLOW
-  4. Flag file with bypass → ALLOW
+Reads tool call JSON from stdin. Returns JSON to allow (with or
+without additionalContext).
+
+Four informational states:
+  1. Worktree agent     → silent allow
+  2. Flag has bypass    → silent allow
+  3. Flag has plan+main → advisory nudge (declared fan-out but writing from main)
+  4. 2nd unique file    → advisory nudge (consider fan-out)
+Otherwise silent.
 
 Flag file: /tmp/claude-decompose-{session_id}.json
 Session ID: $CLAUDE_SESSION_ID env var, fallback to parent PID.
@@ -52,14 +58,12 @@ def get_flag_path(session_id):
 
 def is_worktree_agent():
     """Detect if running inside a git worktree (not the main repo)."""
-    # Explicit env var set by orchestration (preferred)
     ctx = os.environ.get("ORCHESTRATION_CONTEXT", "")
     if ctx.startswith("worktree"):
         return True
     if ctx == "main":
         return False
 
-    # Fallback: check if git toplevel differs from known repo root
     try:
         result = subprocess.run(
             ["git", "rev-parse", "--show-toplevel"],
@@ -71,46 +75,40 @@ def is_worktree_agent():
     except (subprocess.TimeoutExpired, OSError):
         pass
 
-    # Can't determine — fail closed (treat as main session)
     return False
 
 
-USER_MESSAGES = {
+NUDGE_MESSAGES = {
     "escalated": (
-        "Decomposition check: this session is about to edit a second distinct file. "
-        "If the work breaks into 3+ independent components, dispatch worktree agents "
-        "instead of editing from the main session. Otherwise, say 'skip decomposition' "
-        "and I'll proceed."
+        "Decomposition nudge: this session has now edited a second distinct file. "
+        "If the work breaks into 2+ independent components, consider dispatching "
+        "worktree agents instead of editing from the main session. If components "
+        "share state, proceed and note the reason in the current plan artifact."
     ),
     "plan_declared": (
-        "Decomposition check: a parallel plan was declared this session. Dispatch the "
-        "worktree agents before editing from the main session, or say 'skip decomposition' "
-        "to proceed here."
-    ),
-    "missing_reason": (
-        "Decomposition bypass is missing a reason — add one so the audit trail stays complete."
-    ),
-    "corrupt": (
-        "The session's decomposition flag file is corrupt. Clear it and set a fresh bypass "
-        "with a reason."
+        "Decomposition nudge: a parallel plan was declared this session (plan_submitted), "
+        "but this Write|Edit is happening in the main session instead of a worktree agent. "
+        "If fan-out is still the intent, dispatch the agents; if the plan changed, clear "
+        "the flag and proceed."
     ),
 }
 
 
-def _reason(kind, flag_path):
-    """Compose user-readable message + trailing agent-only bypass hint."""
-    agent_hint = (
-        f"\n\n[agent: bypass via Bash → "
-        f"echo '{{\"bypass\": true, \"reason\": \"<why>\"}}' > {flag_path}]"
-    )
-    return USER_MESSAGES[kind] + agent_hint
+def _with_context(kind):
+    """Return a PreToolUse allow-with-additionalContext payload."""
+    return {
+        "hookSpecificOutput": {
+            "hookEventName": "PreToolUse",
+            "permissionDecision": "allow",
+            "additionalContext": NUDGE_MESSAGES[kind],
+        }
+    }
 
 
 def main():
     try:
         raw = sys.stdin.read()
     except Exception:
-        # Can't read stdin — allow to avoid blocking
         print("{}")
         return
 
@@ -122,73 +120,52 @@ def main():
 
     tool_name = data.get("tool_name", "")
 
-    # Only gate Write and Edit tools
     if tool_name not in ("Write", "Edit"):
+        print("{}")
+        return
+
+    # Worktree agents are the goal state — never nudge them.
+    if is_worktree_agent():
         print("{}")
         return
 
     session_id = get_session_id()
     flag_path = get_flag_path(session_id)
 
-    # Check if plan or bypass already submitted
+    # Explicit bypass or plan-submitted flag → honor it
     if flag_path.exists():
-        # Clean up the pending sentinel now that the real flag exists
         sentinel = Path(f"/tmp/claude-decompose-{session_id}.pending")
         sentinel.unlink(missing_ok=True)
 
         try:
             flag_data = json.loads(flag_path.read_text())
-            if flag_data.get("bypass"):
-                # Bypass requires a reason for audit trail
-                if not flag_data.get("reason"):
-                    result = {
-                        "hookSpecificOutput": {
-                            "hookEventName": "PreToolUse",
-                            "permissionDecision": "deny",
-                            "permissionDecisionReason": _reason("missing_reason", flag_path),
-                        }
-                    }
-                    print(json.dumps(result))
-                    return
-                print("{}")
-                return
-            if flag_data.get("plan_submitted"):
-                # Plan declared parallel work — block main-session writes
-                if is_worktree_agent():
-                    print("{}")
-                    return
-                # Main session trying to write after declaring parallel plan
-                result = {
-                    "hookSpecificOutput": {
-                        "hookEventName": "PreToolUse",
-                        "permissionDecision": "deny",
-                        "permissionDecisionReason": _reason("plan_declared", flag_path),
-                    }
-                }
-                print(json.dumps(result))
-                return
         except (json.JSONDecodeError, OSError):
-            # Corrupt flag file — deny with recovery message
-            result = {
-                "hookSpecificOutput": {
-                    "hookEventName": "PreToolUse",
-                    "permissionDecision": "deny",
-                    "permissionDecisionReason": _reason("corrupt", flag_path),
-                }
-            }
-            print(json.dumps(result))
+            # Corrupt flag — silent allow, the next clean write resets the state
+            print("{}")
             return
 
-    # No flag file — track writes and escalate progressively.
-    # First write: allow with a warning (most tasks are single-file).
-    # Second write to a DIFFERENT file: deny and require decomposition assessment.
-    writes_log = Path(f"/tmp/claude-decompose-{session_id}.writes")
+        if flag_data.get("bypass"):
+            print("{}")
+            return
+        if flag_data.get("plan_submitted"):
+            # Plan declared parallel work but we're in the main session.
+            # Nudge once per session via the writes log; don't spam every write.
+            nudge_marker = Path(f"/tmp/claude-decompose-{session_id}.plan-nudged")
+            if nudge_marker.exists():
+                print("{}")
+                return
+            try:
+                nudge_marker.touch()
+            except OSError:
+                pass
+            print(json.dumps(_with_context("plan_declared")))
+            return
 
-    # Parse the file path from the tool input
+    # Track writes to detect the 2nd-unique-file moment
+    writes_log = Path(f"/tmp/claude-decompose-{session_id}.writes")
     tool_input = data.get("tool_input", {})
     current_file = tool_input.get("file_path", "unknown")
 
-    # Load existing writes log
     written_files = set()
     if writes_log.exists():
         try:
@@ -196,32 +173,36 @@ def main():
         except (json.JSONDecodeError, OSError):
             written_files = set()
 
-    # First write or same file as before — allow with advisory
+    # First write or same file as before — silent allow
     if len(written_files) == 0 or (written_files == {current_file}):
         written_files.add(current_file)
         try:
             writes_log.write_text(json.dumps(list(written_files)))
         except OSError:
             pass
-        # Allow but remind about decomposition
         print("{}")
         return
 
-    # Second+ unique file without a plan — deny and require assessment
+    # Second unique file — nudge once, then stay silent
+    nudge_marker = Path(f"/tmp/claude-decompose-{session_id}.nudged")
+    already_nudged = nudge_marker.exists()
+
     written_files.add(current_file)
     try:
         writes_log.write_text(json.dumps(list(written_files)))
     except OSError:
         pass
 
-    result = {
-        "hookSpecificOutput": {
-            "hookEventName": "PreToolUse",
-            "permissionDecision": "deny",
-            "permissionDecisionReason": _reason("escalated", flag_path),
-        }
-    }
-    print(json.dumps(result))
+    if already_nudged:
+        print("{}")
+        return
+
+    try:
+        nudge_marker.touch()
+    except OSError:
+        pass
+
+    print(json.dumps(_with_context("escalated")))
 
 
 if __name__ == "__main__":
