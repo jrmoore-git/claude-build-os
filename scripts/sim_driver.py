@@ -99,7 +99,9 @@ SIMULATION RULES:
 - Stay in character as the skill executor. Do not break the fourth wall or mention simulation.
 
 SKILL PROCEDURE:
-{skill_content}"""
+<document type="skill_procedure">
+{skill_content}
+</document>"""
 
 
 def build_persona_system(persona_card):
@@ -113,6 +115,7 @@ def build_persona_system(persona_card):
 
     return f"""You are playing a user in a conversation with an AI assistant. Stay in character.
 
+<document type="persona_card">
 YOUR PROFILE:
 - Goal: {hs.get('goal', 'unspecified')}
 - Domain knowledge: {hs.get('knowledge', 'intermediate')}
@@ -123,6 +126,7 @@ YOUR PROFILE:
 
 BEHAVIORAL RULES:
 {rules}
+</document>
 
 RULES:
 - Respond as this person would. Use appropriate vocabulary and tone for your knowledge level.

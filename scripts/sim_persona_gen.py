@@ -157,7 +157,7 @@ def generate_personas(ir_data, count, model):
     """Generate personas via LLM."""
     ir_context = build_ir_context(ir_data)
     system_prompt = GENERATION_PROMPT.format(count=count)
-    user_msg = f"Interaction Representation (IR):\n\n{ir_context}"
+    user_msg = f"Interaction Representation (IR):\n\n<document type=\"interaction_ir\">\n{ir_context}\n</document>"
 
     result = llm_call_json(
         system_prompt, user_msg,

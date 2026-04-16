@@ -90,7 +90,7 @@ def find_skill_path(skill_name):
 
 def extract_ir(skill_content, model="claude-opus-4-6"):
     """Extract IR from SKILL.md content using an LLM."""
-    user_msg = f"SKILL.md content:\n\n{skill_content}"
+    user_msg = f"SKILL.md content:\n\n<document type=\"skill_procedure\">\n{skill_content}\n</document>"
     result = llm_call_json(
         EXTRACTION_PROMPT, user_msg,
         model=model, temperature=0.1, timeout=120

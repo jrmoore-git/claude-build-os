@@ -83,10 +83,12 @@ def load_ir(ir_path):
 def generate_archetype_dimensions(ir, model):
     """Prompt the LLM to generate archetype-specific scoring dimensions."""
     user_prompt = (
+        f"<document type=\"interaction_ir\">\n"
         f"Interaction archetype: {ir['interaction_archetype']}\n\n"
         f"Objective: {ir.get('objective', 'N/A')}\n\n"
         f"Success criteria:\n{json.dumps(ir['success_criteria'], indent=2)}\n\n"
-        f"Failure criteria:\n{json.dumps(ir['failure_criteria'], indent=2)}"
+        f"Failure criteria:\n{json.dumps(ir['failure_criteria'], indent=2)}\n"
+        f"</document>"
     )
     result = llm_call_json(
         ARCHETYPE_PROMPT_SYSTEM,
