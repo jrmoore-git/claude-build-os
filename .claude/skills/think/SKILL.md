@@ -463,12 +463,22 @@ Use AskUserQuestion:
 
 If B: skip. Remember that the second opinion did NOT run (affects design doc).
 
-If A: write a structured summary to a temp file containing:
+If A: assemble project context from disk, then write a structured summary to a temp file.
+
+**Project context assembly (SILENT — do not narrate):**
+1. Read `docs/current-state.md` fresh — extract current phase, active work, and relevant subsystem. Stop when sufficient to identify the project and subsystem (ceiling ~80 lines).
+2. Read `tasks/session-log.md` (last 2–3 relevant entries) — summarize the recent work arc including decisions and pivots (ceiling ~50 lines).
+3. Optionally run `python3.11 scripts/enrich_context.py --proposal tasks/<topic>-design-scratch.md --scope define` if the scratch file exists. Include relevant decisions and lessons (ceiling ~20 lines).
+
+**Temp file contents:**
+- `## Project Context` — from current-state.md summary
+- `## Recent Context` — from session-log summary
+- `## Prior Decisions` — from enrich_context.py output, if any
 - Mode (Product or Builder)
 - Problem statement
 - Key Q&A answers (1-2 sentences each, with verbatim user quotes)
 - Agreed premises
-- Codebase context
+- Codebase context from Phase 1
 
 **Product mode prompt:** "You are an independent technical advisor reviewing a product
 discovery conversation. Your job: 1) Steelman what they're building in 2-3 sentences.
@@ -658,13 +668,44 @@ Supersedes: {prior filename -- omit if first design}
 Run a multi-persona review panel on the design doc. The panel provides independent
 perspectives from different reviewer archetypes — anonymized and position-randomized.
 
+**Context wrapping (SILENT — do not narrate):** Before sending the design doc to external
+models, wrap it with project context so reviewers can evaluate feasibility and completeness
+against the actual project state — not in a vacuum.
+
+1. Read `docs/current-state.md` fresh — extract current phase, active work, and relevant subsystem. Stop when sufficient to identify the project and subsystem (ceiling ~80 lines).
+2. Read `tasks/session-log.md` (last 2–3 relevant entries) — summarize the recent work arc including decisions and pivots (ceiling ~50 lines).
+3. Optionally run `python3.11 scripts/enrich_context.py --proposal <design-doc-path> --scope define` if the design doc exists on disk. Include relevant decisions and lessons (ceiling ~20 lines).
+4. Create a wrapped temp copy:
+
+```bash
+WRAPPED_DOC=$(mktemp /tmp/think-spec-review-XXXXXX.md)
+# Write project context header
+cat > "$WRAPPED_DOC" << 'CTX_EOF'
+## Project Context
+<project description from CLAUDE.md + current-state.md summary>
+
+## Recent Context
+<session-log summary>
+
+## Prior Decisions
+<enrich_context.py output, if any>
+
+---
+CTX_EOF
+# Append the original design doc
+cat <design-doc-path> >> "$WRAPPED_DOC"
+```
+
+Use `$WRAPPED_DOC` as the `--input` argument below. Clean up after review completes.
+
 ```bash
 /opt/homebrew/bin/python3.11 scripts/debate.py review \
   --models claude-opus-4-6,gemini-3.1-pro,gpt-5.4 \
   --enable-tools \
   --allowed-tools check_code_presence,read_config_value \
-  --prompt "Read this design document and review on 5 dimensions: Completeness, Consistency, Clarity, Scope (YAGNI?), Feasibility. For each dimension: PASS or list specific issues with fixes. Return a quality score (1-10). You have access to read-only verifier tools (check_code_presence, read_config_value) to fact-check claims about the current system." \
-  --input <design-doc-path>
+  --prompt "Read this design document and review on 5 dimensions: Completeness, Consistency, Clarity, Scope (YAGNI?), Feasibility. For each dimension: PASS or list specific issues with fixes. Return a quality score (1-10). You have access to read-only verifier tools (check_code_presence, read_config_value) to fact-check claims about the current system. The document begins with project context so you can evaluate against the actual project state." \
+  --input "$WRAPPED_DOC"
+rm -f "$WRAPPED_DOC"
 ```
 
 If debate.py fails or is unavailable, fall back to single-model analysis using the session model.

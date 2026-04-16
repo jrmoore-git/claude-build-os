@@ -37,6 +37,8 @@ Settled architectural and product decisions. Each entry records what was decided
 **Date:** 2026-04-10
 
 ### D6: Explore flow presents 3 bets with fork-first format, not 1 committed direction
+> **SUPERSEDED by D11 (2026-04-11).** Core principle (multi-direction > single-direction) carried forward. All implementation specifics (fork-first format, comparison table, 150-word descriptions, hardcoded product-market dimensions, "3 bets" framing) replaced. See tasks/decision-audit-d6.md.
+
 **Decision:** Explore generates 8-10 brainstorm options, clusters into exactly 3 bets that differ on 2+ dimensions (customer, product form, business model, distribution), presents the fork statement first, then 150-word descriptions and a comparison table. Human picks or redirects.
 **Rationale:** Previous flow picked "the most interesting" direction and developed it fully. This skipped the obvious-but-correct answer for novelty. Fork-first with 3 bets lets the human see the trade-off before the AI commits. Tested across 15 personas, 4.6/5 average.
 **Alternatives considered:** (a) Pick 1 and develop fully (rejected: skips obvious answers, no human steering), (b) Present all 8-10 brainstorm items (rejected: too many half-baked options to compare), (c) 2 bets (rejected: creates false binary, tested and confirmed)

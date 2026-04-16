@@ -309,8 +309,20 @@ def run_simulation(skill_name, skill_content, persona_card, rubric,
             f"[Turn {t['turn']}] {t['role'].upper()}: {t['content']}"
             for t in transcript
         )
+        # Build ground truth context for the judge.
+        # The judge needs the persona's hidden state to score dimensions like
+        # hidden_truth_surfacing. This mirrors eval_intake.py which passes the
+        # full persona file to the judge.
+        hs = persona_card.get("hidden_state", {})
+        ground_truth = (
+            f"PERSONA GROUND TRUTH (for scoring only):\n"
+            f"- Goal: {hs.get('goal', 'unspecified')}\n"
+            f"- Hidden truth: {hs.get('hidden_truth', 'none')}\n"
+            f"- Knowledge level: {hs.get('knowledge', 'intermediate')}\n"
+        )
         judge_user = (
             f"TRANSCRIPT:\n{transcript_text}\n\n"
+            f"{ground_truth}\n"
             f"TERMINATION: {termination_reason}\n"
             f"FINAL STATUS: {final_status}"
         )

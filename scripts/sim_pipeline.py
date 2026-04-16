@@ -157,6 +157,7 @@ def main():
     parser.add_argument("--rubric-source", required=True,
                         help="Rubric source: path to JSON file, or 'generate'")
     parser.add_argument("--ir-path", help="Path to pre-compiled IR (skip compilation)")
+    parser.add_argument("--protocol", help="Path to custom protocol file (overrides SKILL.md as executor input)")
     parser.add_argument("--output-dir", help="Output directory for run results")
     parser.add_argument("--executor-model", default="claude-opus-4-6")
     parser.add_argument("--persona-model", default="gemini-3.1-pro")
@@ -186,6 +187,15 @@ def main():
             ir_path = ir_out
         else:
             ir_path = None
+
+    # Override skill_content with custom protocol if provided
+    if args.protocol:
+        protocol_path = Path(args.protocol)
+        if not protocol_path.exists():
+            print(f"ERROR: Protocol file not found: {args.protocol}", file=sys.stderr)
+            sys.exit(1)
+        skill_content = protocol_path.read_text()
+        print(f"[pipeline] Using custom protocol from {args.protocol}", file=sys.stderr)
 
     # Step 2: Get personas
     # For anchor personas, we need the IR fixture path (adjacent personas/ dir)

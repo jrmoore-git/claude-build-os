@@ -37,7 +37,7 @@ Lessons that are resolved, one-offs, or subsumed by decisions. Kept for provenan
 |---|---|---|
 | L10 | Subsumed by D4 (security posture flag) | 2026-04-14 |
 | L11 | Subsumed by D5 (thinking mode matching) | 2026-04-14 |
-| L13 | Subsumed by D6 (fork-first format) | 2026-04-14 |
+| L13 | Subsumed by D11 (D6 was intermediate step; D11 replaced all D6 implementation specifics) | 2026-04-15 |
 | L14 | Subsumed by D7 (pre-flight discovery) | 2026-04-14 |
 | L15 | Subsumed by D7 (adaptive questioning) | 2026-04-14 |
 | L16 | Subsumed by D5 (single-model for thinking) | 2026-04-14 |
