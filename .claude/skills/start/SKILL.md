@@ -84,6 +84,41 @@ python3.11 scripts/recall_search.py [domain keywords] --semantic --files lessons
 ```
 Include results with similarity > 0.5. Treat scores below 0.55 as low-confidence.
 
+**1f-wrap. Wrap debt check (auto-capture reconciliation)**
+
+Stop hook auto-captures sessions that end without `/wrap`. Each creates an `[auto-captured]` entry that is explicit debt: it records files changed but not decisions/next-actions. `/wrap` clears this debt by adding a `**Reconciled:**` line.
+
+Count recent unreconciled debt (last 7 days only — older debt is historical, not actionable):
+
+```bash
+python3.11 -c "
+import re
+from datetime import datetime, timedelta
+from zoneinfo import ZoneInfo
+from pathlib import Path
+cutoff = (datetime.now(ZoneInfo('America/Los_Angeles')) - timedelta(days=7)).strftime('%Y-%m-%d')
+text = Path('tasks/session-log.md').read_text() if Path('tasks/session-log.md').exists() else ''
+# An auto-captured entry is an H2 header containing the marker; it's reconciled if followed by a **Reconciled:** line before the next H2.
+entries = re.split(r'\n(?=## )', text)
+unrec = 0
+for e in entries:
+    m = re.match(r'## (\d{4}-\d{2}-\d{2}).*\[auto-captured: session ended without /wrap-session\]', e)
+    if not m: continue
+    if m.group(1) < cutoff: continue
+    if '**Reconciled:**' in e: continue
+    unrec += 1
+print(unrec)
+"
+```
+
+If count > 0, add to output:
+```
+## Wrap Debt
+- N unreconciled auto-captures in last 7 days — run `/wrap` to reconcile
+```
+
+If count == 0: emit nothing.
+
 **1g. Governance health — backward-looking (what rotted since last session?)**
 
 Quick staleness scan — output ONLY if something needs attention. Silence = healthy.
