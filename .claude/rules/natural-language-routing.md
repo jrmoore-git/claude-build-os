@@ -12,6 +12,7 @@
 | "What should we build?", "explore options", "what are our choices" | `/explore` |
 | "Is this worth building?", "should we do this?", "evaluate this proposal" | `/challenge` (pre-plan go/no-go gate) |
 | "Think bigger", "is this ambitious enough?", "expand scope" | `/elevate` |
+| "Generate a PRD", "write requirements", "PRD from design doc", "create a PRD" | `/prd` |
 | "Plan this", "how should we build it?", "implementation plan" | `/plan` |
 | "Something broke", "this isn't working", "debug this", "why is X happening" | `/investigate` |
 | "Review this", "check my code", "is this ready?" | `/review` |

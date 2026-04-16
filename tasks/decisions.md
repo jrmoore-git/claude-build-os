@@ -80,6 +80,8 @@ Settled architectural and product decisions. Each entry records what was decided
 **Alternatives considered:** (a) Only generate from conversation (rejected: some people think better by writing first), (b) Separate `/prd` skill (rejected: adds another step to learn; design doc → PRD is a natural continuation), (c) Make `/setup` smarter (rejected: `/setup` runs once at project init, not per-feature)
 **Date:** 2026-04-10
 
+> **Implementation update (2026-04-15, audit D10):** Phase 6.5 had 100% dropout — no /think discover session ever reached PRD generation. Structural cause: Phase 6.5 is ~170 lines deep in a ~900-line skill; by Phase 6 the session's context budget is exhausted. Alternative (b) — separate `/prd` skill — now implemented despite original rejection. The "one fewer step" argument doesn't hold when the step never fires. Phase 6.5 replaced with a lightweight handoff that suggests `/prd`.
+
 ### D12: Skill rename uses rip-and-replace (no aliases) because solo user means zero backward-compat overhead
 **Decision:** Consolidate 25 skills to 15 with clean renames and merges, no alias layer or backward-compatibility shims. Old skill directories deleted entirely. Renames: define→think, refine→polish, wrap-session→wrap, capture→log, doc-sync→sync. Merges: recall+status→start, review+review-x+qa+governance→check, 4 design skills→design, debate explore→explore, debate pressure-test→pressure-test. challenge gained --deep (old debate validate). plan gained --auto (old autoplan). 12 old directories deleted.
 **Rationale:** Solo developer, no external users of the skill names. Aliases add maintenance debt and confusing dual-path behavior for zero benefit. Rip-and-replace is the cleanest path when you control all consumers.
