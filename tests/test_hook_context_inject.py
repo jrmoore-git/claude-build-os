@@ -4,6 +4,7 @@ import json
 import os
 import subprocess
 import tempfile
+import uuid
 
 import pytest
 
@@ -13,8 +14,14 @@ HOOK_PATH = os.path.join(
 
 
 def run_hook(tool_input, env_override=None):
-    """Run the hook with given tool_input, return (stdout, exit_code)."""
+    """Run the hook with given tool_input, return (stdout, exit_code).
+
+    Each call gets a unique CLAUDE_SESSION_ID so the hook's session-level dedup
+    cache (/tmp/claude-context-inject-<sid>.json) doesn't swallow output for the
+    second+ test that targets the same file under one pytest process.
+    """
     env = os.environ.copy()
+    env["CLAUDE_SESSION_ID"] = f"pytest-{uuid.uuid4()}"
     if env_override:
         env.update(env_override)
     input_json = json.dumps({"tool_input": tool_input})

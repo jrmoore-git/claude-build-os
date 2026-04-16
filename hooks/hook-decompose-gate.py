@@ -75,18 +75,35 @@ def is_worktree_agent():
     return False
 
 
-DECOMPOSE_MESSAGE_FULL = (
-    "DECOMPOSITION GATE: Assess before writing. "
-    "3+ independent subtasks? → decompose plan + "
-    'echo \'{"plan_submitted": true}\' > FLAG_PATH (Bash tool). '
-    "Otherwise → "
-    'echo \'{"bypass": true, "reason": "<why>"}\' > FLAG_PATH (Bash tool).'
-)
+USER_MESSAGES = {
+    "escalated": (
+        "Decomposition check: this session is about to edit a second distinct file. "
+        "If the work breaks into 3+ independent components, dispatch worktree agents "
+        "instead of editing from the main session. Otherwise, say 'skip decomposition' "
+        "and I'll proceed."
+    ),
+    "plan_declared": (
+        "Decomposition check: a parallel plan was declared this session. Dispatch the "
+        "worktree agents before editing from the main session, or say 'skip decomposition' "
+        "to proceed here."
+    ),
+    "missing_reason": (
+        "Decomposition bypass is missing a reason — add one so the audit trail stays complete."
+    ),
+    "corrupt": (
+        "The session's decomposition flag file is corrupt. Clear it and set a fresh bypass "
+        "with a reason."
+    ),
+}
 
-DECOMPOSE_MESSAGE_SHORT = (
-    "DECOMPOSITION GATE: Write blocked — set flag first. "
-    'Bash: echo \'{"bypass": true, "reason": "<why>"}\' > FLAG_PATH'
-)
+
+def _reason(kind, flag_path):
+    """Compose user-readable message + trailing agent-only bypass hint."""
+    agent_hint = (
+        f"\n\n[agent: bypass via Bash → "
+        f"echo '{{\"bypass\": true, \"reason\": \"<why>\"}}' > {flag_path}]"
+    )
+    return USER_MESSAGES[kind] + agent_hint
 
 
 def main():
@@ -124,15 +141,11 @@ def main():
             if flag_data.get("bypass"):
                 # Bypass requires a reason for audit trail
                 if not flag_data.get("reason"):
-                    no_reason_msg = (
-                        "DECOMPOSITION GATE: Bypass missing 'reason'. "
-                        f"Bash: echo '{{\"bypass\": true, \"reason\": \"<why>\"}}' > {flag_path}"
-                    )
                     result = {
                         "hookSpecificOutput": {
                             "hookEventName": "PreToolUse",
                             "permissionDecision": "deny",
-                            "permissionDecisionReason": no_reason_msg,
+                            "permissionDecisionReason": _reason("missing_reason", flag_path),
                         }
                     }
                     print(json.dumps(result))
@@ -145,30 +158,22 @@ def main():
                     print("{}")
                     return
                 # Main session trying to write after declaring parallel plan
-                block_msg = (
-                    "DECOMPOSITION GATE: Parallel plan declared — dispatch agents or bypass. "
-                    f"Bash: echo '{{\"bypass\": true, \"reason\": \"<why>\"}}' > {flag_path}"
-                )
                 result = {
                     "hookSpecificOutput": {
                         "hookEventName": "PreToolUse",
                         "permissionDecision": "deny",
-                        "permissionDecisionReason": block_msg,
+                        "permissionDecisionReason": _reason("plan_declared", flag_path),
                     }
                 }
                 print(json.dumps(result))
                 return
         except (json.JSONDecodeError, OSError):
             # Corrupt flag file — deny with recovery message
-            recover_msg = (
-                f"DECOMPOSITION GATE: Corrupt flag. "
-                f"Bash: rm {flag_path} && echo '{{\"bypass\": true, \"reason\": \"<why>\"}}' > {flag_path}"
-            )
             result = {
                 "hookSpecificOutput": {
                     "hookEventName": "PreToolUse",
                     "permissionDecision": "deny",
-                    "permissionDecisionReason": recover_msg,
+                    "permissionDecisionReason": _reason("corrupt", flag_path),
                 }
             }
             print(json.dumps(result))
@@ -209,12 +214,11 @@ def main():
     except OSError:
         pass
 
-    escalated_msg = DECOMPOSE_MESSAGE_SHORT.replace("FLAG_PATH", str(flag_path))
     result = {
         "hookSpecificOutput": {
             "hookEventName": "PreToolUse",
             "permissionDecision": "deny",
-            "permissionDecisionReason": escalated_msg,
+            "permissionDecisionReason": _reason("escalated", flag_path),
         }
     }
     print(json.dumps(result))
