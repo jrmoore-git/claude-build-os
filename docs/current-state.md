@@ -1,17 +1,10 @@
 # Current State — 2026-04-15
 
-## ⚠ STALE — auto-captured session ended without /wrap-session
-**Auto-capture date:** 2026-04-15 21:37 PT
-**Files changed this session:** 7 files in scripts, tasks, tests
-**WARNING:** The "Next Action" below may be outdated. Cross-check with `git log --oneline -10` and recent session-log entries.
-
-
 ## What Changed This Session
-- Ran sim spike experiment: turn_hooks + sufficiency hook + protocol on 5 /explore sims → 3.70/5
-- Cross-model tradeoff analysis (3 reviewers) + pressure test (3 models) on V2 pipeline future
-- D22: Pivot from automatic sim pipeline to iterative critique loop (unanimous cross-model recommendation)
-- L30 (quality gap is structural, not architectural), L31 (rubrics must measure product outcomes not style)
-- Fixed missing `import random` in debate.py
+- D4 posture floors shipped: `_apply_posture_floor()` enforces security_posture >= 3 on credentials/auth/destructive content in challenge, judge, review
+- D4 redundancy analysis: D4 and D21 are orthogonal (pipeline structure vs user intent), A/B unnecessary
+- Foundation audit fully closed: all 7 REVIEW + 1 REVERSE items marked RESOLVED in decision-foundation-audit.md
+- 32 new tests (988 total passing)
 
 ## Current Blockers
 - None identified
@@ -20,6 +13,6 @@
 Design the iterative critique loop (D22): run fast sim → show transcript → developer annotates product failures → system adjusts → rerun. Key question: what's the minimal annotation that produces meaningful improvement?
 
 ## Recent Commits
-6410347 Session wrap 2026-04-15: audit remediation complete (all 9 items shipped)
-1cdd2fc Update current-state: session 17 spike results + D22 pivot direction
-4e0b824 Update debate log + fix D5 think brief shipped_commit
+6d716fc [auto] Session work captured 2026-04-15 21:37 PT
+78af016 Commit D9 read-before-edit hook + gitignore .claude/projects/
+c094642 Session wrap 2026-04-15: sim spike partial pass + D22 critique loop pivot
