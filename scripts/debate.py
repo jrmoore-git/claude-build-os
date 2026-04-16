@@ -207,8 +207,6 @@ found in tool results.
 
 TOOL SELECTION BY CLAIM TYPE:
 - Code structure, functions, file contents → read_file_snippet, check_code_presence, check_function_exists
-- Error rates, run counts, operational metrics → count_records (audit_log table)
-- Cost data, spend patterns → get_recent_costs
 - Config values, model assignments → read_config_value
 - Cron schedules, job status → get_job_schedule
 - Change history, recent modifications → get_recent_commits

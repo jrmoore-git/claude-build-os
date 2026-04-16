@@ -248,7 +248,7 @@ Read the proposal, prior context, enrichment, and the **judgment** (primary) or 
 what continues to fail if we don't (cost of inaction from the proposal's "Current System
 Failures" section). A recommendation to defer must name what stays broken.
 
-Write `tasks/<slug>-challenge.md` following the structure in `templates/challenge-artifact.md`.
+Write `tasks/<slug>-challenge.md` synthesizing the proposal, prior context, and findings.
 
 Artifact roles must stay separate:
 - `-proposal.md` = input

@@ -10,7 +10,7 @@ Before executing any operation that modifies or deletes >10 records:
 1. **Dry-run first:** Run `SELECT COUNT(*)` with the same WHERE clause. Show the count to the user.
 2. **Sample preview:** Show `LIMIT 5` of the rows that will be affected.
 3. **Explicit confirmation:** Get the user's approval before executing.
-4. **Pre-execution audit:** Log the operation to audit.db BEFORE executing (action_type, record count, WHERE clause summary).
+4. **Pre-execution audit:** Log the operation BEFORE executing (action_type, record count, WHERE clause summary).
 5. **Prefer soft deletes:** Use state changes (e.g., `state='dismissed'`) over `DELETE` where schema supports it.
 
 ## Ad-hoc Database Queries
