@@ -179,12 +179,23 @@ back to manual checks).
 - Extract the project name from the design doc title and replace `[Project Name]` in the PRD header.
 - Requirements must be concrete and testable -- "Users can X" not "Support for X".
 - Acceptance criteria must be quantified where possible -- "responds within 200ms" not
-  "responds quickly". Use Given/When/Then or `- [ ]` checkbox format.
-- Constraints must include things the AI cannot infer from omission.
-- Out of scope must include at least 2 items.
-- Success criteria must be measurable.
-- Builder mode designs may have lighter demand evidence -- constraints and verification
-  can be lighter but must still exist.
+  "responds quickly". Use Given/When/Then or `- [ ]` checkbox format. Each core
+  requirement should have at least one corresponding acceptance criterion.
+- Constraints must include things the AI cannot infer from omission. If you don't say
+  "do not implement auth", the AI may add it. Think: performance bounds, security
+  requirements, compatibility targets, accessibility standards.
+- Out of scope must include at least 2 items. If the design doc doesn't have explicit
+  scope boundaries, infer from rejected approaches and alternatives not chosen. Include
+  things the AI might reasonably try to add unprompted.
+- Success criteria must be measurable. If the design doc has vague criteria, ask the user
+  via AskUserQuestion: "Your success criteria need to be measurable. What specific number
+  or outcome would tell you this worked? For example: 'API responds in < 200ms' not 'API
+  is fast'."
+- Verification plan: for each core requirement, state how to prove it works -- test name,
+  manual check, expected output, or screenshot. Claude uses this to self-verify.
+- Builder mode designs may have lighter demand evidence -- that's fine. Map "What Makes
+  This Cool" to the "why it exists" part of section 1. Constraints and verification
+  can be lighter for builder mode but must still exist.
 - Use the user's own words from the Q&A -- do not rephrase into marketing language.
 
 ## Completion

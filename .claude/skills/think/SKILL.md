@@ -746,7 +746,8 @@ After the design doc is approved, suggest PRD generation:
 > - **A) Yes** (Recommended) — run `/prd` to generate requirements from the design doc
 > - **B) Skip** — I'll handle the PRD separately
 
-Then call AskUserQuestion. If A: invoke `/prd`. If B: proceed to Phase 6.6.
+Then call AskUserQuestion. If A: read and follow the `/prd` skill procedure
+(`.claude/skills/prd/SKILL.md`). If B: proceed to Phase 6.6.
 
 **Note:** The full PRD generation procedure lives in `/prd` (standalone skill). This
 keeps /think discover focused on problem discovery and prevents context-budget dropout
