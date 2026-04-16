@@ -1,27 +1,21 @@
 # Current State — 2026-04-15
 
-## ⚠ STALE — auto-captured session ended without /wrap-session
-**Auto-capture date:** 2026-04-15 21:20 PT
-**Files changed this session:** 5 files in docs, tasks
-**WARNING:** The "Next Action" below may be outdated. Cross-check with `git log --oneline -10` and recent session-log entries.
-
-
 ## What Changed This Session
-- Ran spike experiment: added turn_hooks to sim_driver.py, sufficiency_reminder_hook, 5 /explore sims
-- Spike result: 3.70/5 (partial pass — procedural dims improved, hidden_truth still bimodal)
-- Cross-model tradeoff analysis: 3 models evaluated 4 options, unanimously rejected continuing V2 pipeline
-- Cross-model pressure test: 3 models independently converged on iterative critique loop as better approach
-- Fixed missing `import random` in debate.py (multi-model pressure-test was broken)
-- Decision D22 recorded: pivot from automatic pipeline to iterative critique loop
-- Lessons L30 (quality gap is structural), L31 (rubrics must measure product outcomes not style)
+- Completed all 9 audit remediation items across Sessions 3-6 (Sessions 1-2 were prior)
+- D5: Built multi-model pressure-test with ThreadPoolExecutor parallel execution, cross-family synthesis, position randomization
+- Session 4: Made judge mapping: optional — auto-generates labels from section headers, extracted into _auto_generate_mapping helper
+- D10: Extracted /prd skill from /think Phase 6.5 (100% dropout fix — PRD generation never fired when inlined)
+- D4+D5 A/B: Validated multi-model pressure-test adds unique findings single-model misses (2 distinct counter-approaches + disagreement adjudication)
+- D20 governance: Confirmed all items already addressed (audit correction, sim-generalization challenge, token cost docs)
+- 23 skills total (was 22), 956 tests passing
 
 ## Current Blockers
-None — clear direction decided
+- None identified
 
 ## Next Action
-Design and build the iterative critique loop: run fast sim → show transcript → developer annotates product failures → system adjusts personas/hooks/rubric → rerun. Archive V2 pipeline orchestrator, keep IR compiler + rubric gen as standalone tools. Parallel track: audit remediation sessions 3-6 (D5 multi-model pressure-test, etc.).
+All audit remediation complete. Resume product work: iterative critique loop for sim infrastructure (D22 direction), or context-packet-anchors if that's higher priority.
 
 ## Recent Commits
-06653d9 Session wrap 2026-04-15: sim arc audit + test fix
-926edec [auto] Session work captured 2026-04-15 19:44 PT
-94bf00d D9: wire read-before-edit hook + update CLAUDE.md hook count
+4e0b824 Update debate log + fix D5 think brief shipped_commit
+0ee9752 D4+D5 A/B analysis: multi-model pressure-test validated
+f481477 [auto] Session work captured 2026-04-15 21:20 PT
