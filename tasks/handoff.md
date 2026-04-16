@@ -1,41 +1,45 @@
-# Handoff — 2026-04-15 (session 16)
+# Handoff — 2026-04-15 (session 17)
 
 ## Session Focus
-Built and shipped D9 read-before-edit enforcement hook — Session 2 of 6 in audit remediation plan.
+Ran spike experiment (turn_hooks in sim_driver.py), evaluated results against success criteria, ran cross-model tradeoff analysis + pressure test, decided direction for sim infrastructure.
 
 ## Decided
-- Hook scope: simple standalone hook, not extensible framework (user choice, with note to consider framework later with more data)
-- Warning-only (`permissionDecision: ask`), not blocking — promote to blocking after validation
-- Read-only tracking (no Grep/Glob awareness in v1) per judge ruling
+- D22: V2 pipeline doesn't achieve eval_intake parity (3.70 vs 4.73), won't be maintained as running pipeline
+- Pivot to iterative critique loop: run sim → review transcript → annotate product failures → adjust → rerun
+- Rubric dimensions must measure product outcomes (problem identified, useful conclusion, decision quality) not style (tone, register, flow)
+- Cross-model panel (Opus, Gemini, GPT) unanimous: eval_intake's quality came from iteration, not upfront config
+- Questionnaire approach rejected: humans are better critics than oracles
 
 ## Implemented
-- hooks/hook-read-before-edit.py — dual-phase hook (PostToolUse Read + PreToolUse Write|Edit)
-- tests/test_hook_read_before_edit.py — 41 tests covering all functions and edge cases
-- .claude/settings.json — wired both hook phases
-- CLAUDE.md — hook count 17 to 18, hook listed in infrastructure reference
-- tasks/decisions.md — D9 implementation update
-- tasks/session-log.md — session 16 entry
-- tasks/read-before-edit-hook-think.md — shipped status frontmatter
+- turn_hooks parameter in sim_driver.py run_simulation()
+- sufficiency_reminder_hook() built-in hook (reproduces eval_intake's mid-loop reminders)
+- --hooks CLI flag in sim_pipeline.py (maps hook names to callables)
+- Fixed missing `import random` in debate.py (multi-model pressure-test was broken)
+- 5 spike runs logged to logs/sim-pipeline/explore-spike-hooks/
 
 ## NOT Finished
-- Sessions 3-6 of audit remediation: D5 multi-model pressure-test, judge input flexibility, D10 validation, D20 governance
-- Sim generalization spike (paused, separate track)
+- Iterative critique loop not built yet (next major work)
+- V2 pipeline not yet archived (sim_pipeline.py still exists as running orchestrator)
+- IR compiler + rubric gen not yet extracted as standalone tools
+- sim_pipeline.py still has zero orchestration-level tests
+- Audit remediation sessions 3-6 (parallel track, see session 16 handoff for details)
 
 ## Next Session Should
-1. Start Session 3: D5 multi-model pressure-test (T1 pipeline)
-2. Read plan at `.claude/plans/composed-jingling-thompson.md` Session 3 section
-3. Run /think refine on multi-model pressure-test, then /challenge, build, /review
+1. Read D22 in decisions.md for full context
+2. Design the critique loop UX: how does developer annotate transcript failures?
+3. Build prototype: sim_driver runs → transcript displayed → annotation interface → adjustment engine → rerun
+4. Key design question: what's the minimal annotation that produces meaningful improvement?
+5. Consider: the critique loop may be a /simulate redesign, not a new tool
+6. Parallel: audit remediation session 3 — D5 multi-model pressure-test
 
 ## Key Files Changed
-- hooks/hook-read-before-edit.py (new)
-- tests/test_hook_read_before_edit.py (new)
-- .claude/settings.json (wiring)
-- CLAUDE.md (hook count + list)
-- tasks/decisions.md (D9 update)
-- tasks/session-log.md (session 16)
-- tasks/read-before-edit-hook-think.md (shipped frontmatter)
-- tasks/read-before-edit-hook-challenge.md (new, challenge output)
-- tasks/read-before-edit-hook-judgment.md (new, judge output)
+- scripts/sim_driver.py (turn_hooks param, sufficiency_reminder_hook)
+- scripts/sim_pipeline.py (--hooks flag, turn_hooks threading)
+- scripts/debate.py (import random fix)
+- tasks/decisions.md (D22)
+- tasks/lessons.md (L30, L31)
+- docs/current-state.md
+- logs/sim-pipeline/explore-spike-hooks/ (5 run results)
 
 ## Doc Hygiene Warnings
 - None
