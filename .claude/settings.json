@@ -123,6 +123,16 @@
             "timeout": 2
           }
         ]
+      },
+      {
+        "matcher": "Read",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3 hooks/hook-spec-status-check.py",
+            "timeout": 5
+          }
+        ]
       }
     ],
     "Stop": [

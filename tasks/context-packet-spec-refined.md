@@ -193,7 +193,7 @@ Do **not** paste a full architecture document. Include only the context needed t
 - `docs/current-state.md`
 - project description from `CLAUDE.md` or `docs/the-build-os.md`
 
-**Compact-mode exception:** For narrow healthcheck or simulation tasks, Project Context may be compressed to 20–40 lines if it still identifies the project, subsystem, and current operating state without forcing reconstruction. It must never be omitted entirely.
+**Compact-mode exception:** For narrow healthcheck or simulation tasks, Project Context may be compressed to ~20-30 lines if it still identifies the project, subsystem, and current operating state without forcing reconstruction. It must never be omitted entirely.
 
 ### 2. Recent Context (required, 40–80 lines)
 
@@ -319,11 +319,11 @@ For skills that invoke `debate.py` with direct prompt text, place the artifact i
 
 | Skill type | Override |
 |---|---|
-| **Challenge / pressure-test** | Fullest project and recent context. Run `enrich_context.py --scope challenge`. These modes are most sensitive to under-specification. |
+| **Challenge / pressure-test** | Sufficient project and recent context to eliminate reconstruction. Run `enrich_context.py --scope challenge`. Stop when the 5 sufficiency criteria are met — don't pad. |
 | **Review** | Architecture and governance context sufficient to judge the diff. Run `enrich_context.py --scope review` (decisions only, no lessons). Avoid unrelated history. |
 | **Explore / investigate** | Project framing and known constraints so exploration stays relevant. Run `enrich_context.py --scope define`. Include `research.py` output when the question involves external tools or techniques. |
 | **Polish / elevate** | Project purpose and active work so improvements do not drift toward generic prose edits. Run `enrich_context.py --scope define`. |
-| **Healthcheck / simulate** | Compact context (10–20 line Project Context). Never omit current system framing. Run `enrich_context.py --scope all --top-k 3` to keep results tight. |
+| **Healthcheck / simulate** | Compact context (~20-30 line Project Context). Never omit current system framing. Run `enrich_context.py --scope all --top-k 3` to keep results tight. |
 | **Think** | Already has rich context. No changes required. Included here so the table covers all 10 debate-calling skills. |
 
 ---

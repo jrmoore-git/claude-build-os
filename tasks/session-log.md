@@ -2,6 +2,22 @@
 
 ---
 
+## 2026-04-15 (session 13) — skill templates + gstack cleanup
+
+**Decided:**
+- Skill templates worth having alongside linter (guide vs safety net)
+- gstack reference fixtures no longer needed — removed
+
+**Implemented:**
+- templates/skill-tier1.md and templates/skill-tier2.md — linter-passing skeletons for new skill authoring
+- Deleted fixtures/gstack-reference/ (6 files, ~146KB)
+
+**Not Finished:** Anchors in debate.py (session 12 carryover), /challenge on sim-generalization (session 11 carryover)
+
+**Next Session:** Implement evaluation anchors in debate.py, or run /challenge on sim-generalization-proposal.md
+
+---
+
 ## 2026-04-15 (session 12) — context packet implementation + A/B validation + anchor design handoff
 
 **Focus:** Implemented context packets for all 6 thin-context skills, ran A/B comparison, doubled context budgets per Databricks research, designed dynamic evaluation anchors for next session.
