@@ -26,6 +26,8 @@ If this skill has already run in the current session (you can see the output bri
 
 Run each sub-step. If a file is missing or a script fails, skip it silently.
 
+**Parallelism:** Steps 1a-1d are independent — run all four in parallel. Step 1e file reads are also independent — read all files in parallel.
+
 **1a. Uncommitted work check**
 ```bash
 python3.11 scripts/detect-uncommitted.py
@@ -161,9 +163,22 @@ If a recent topic is detected from artifacts, check its status:
 python3.11 scripts/artifact_check.py --scope <topic>
 ```
 
+### Step 2b: Verify candidate actions before recommending
+
+**HARD RULE:** Do not recommend work that already shipped. Before Step 3, verify:
+
+1. Read what `current-state.md` and `handoff.md` describe as "next" or "not finished."
+2. For each candidate action:
+   - If it names a file/hook/feature to build: check if it exists (`ls`, `grep`, or `glob` for it)
+   - If it names a task: `git log --oneline -5 -- <relevant paths>` to see if it shipped
+   - If it's a workflow habit (e.g., "just use X on next task"): flag as "available, not a build item" — don't list as unfinished work
+3. Drop any action that's already implemented. If ALL candidates are done, route to "Clean slate" in Step 3.
+
+This step should add <15 seconds. A few targeted checks beat a confidently wrong recommendation.
+
 ### Step 3: Route to next action
 
-Evaluate conditions **in order** — first match wins.
+**Do not deliberate.** Match the first true condition in the table and output. No weighing alternatives, no exploring tradeoffs. First match wins.
 
 | # | Condition | Stage | Recommendation |
 |---|-----------|-------|----------------|
@@ -238,6 +253,7 @@ Artifacts: <list existing for topic, or "none">
 - Do not quote raw message content from personal channels.
 - Do not surface file contents verbatim — synthesize.
 - If context is thin (files sparse), say so in one line and stop.
+- **Speed rule:** Do not spend extended time deliberating on the output. Gather data, match the routing table, emit bullets. The brief should take seconds to compose, not minutes.
 
 ## Completion
 
