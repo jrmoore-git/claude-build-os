@@ -18,7 +18,7 @@ Just describe what you want to do. Build OS routes you to the right tool automat
 - **"Is this ready to ship?"** — Claude runs cross-model review, then pre-flight gates
 - **"I'm lost"** — type `/guide` for a map of everything, organized by intent
 
-Build OS has 23 skills, but you don't need to know any of them by name. The slash commands (`/think`, `/plan`, `/review`, etc.) are power-user shortcuts. The primary interface is natural language — say what you need, and the system figures out the rest.
+Build OS has 22 skills, but you don't need to know any of them by name. The slash commands (`/think`, `/plan`, `/review`, etc.) are power-user shortcuts. The primary interface is natural language — say what you need, and the system figures out the rest.
 
 ---
 
@@ -237,7 +237,7 @@ project-root/
 
 ## The Skills
 
-Build OS ships with 23 skills. You don't need to learn them — just describe what you're doing and Claude picks the right one. These are the ones you'll use most:
+Build OS ships with 22 skills. You don't need to learn them — just describe what you're doing and Claude picks the right one. These are the ones you'll use most:
 
 | You want to... | Use | What it does |
 |---|---|---|
@@ -354,7 +354,7 @@ git pull origin main
 | You want to... | Read |
 |---|---|
 | **Get running in an hour** | [Getting Started](docs/getting-started.md) — guided first-hour tutorial: define, plan, build, review, ship |
-| **Quick reference while working** | [Cheat Sheet](docs/cheat-sheet.md) — pipeline tiers, all 23 skills, key files, shortcuts |
+| **Quick reference while working** | [Cheat Sheet](docs/cheat-sheet.md) — pipeline tiers, all 22 skills, key files, shortcuts |
 
 **Go deeper:**
 

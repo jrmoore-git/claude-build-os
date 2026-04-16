@@ -6,7 +6,7 @@ A guided first-hour tutorial. By the end, you'll have a defined product, an impl
 
 ## The Only Thing You Need to Know
 
-**Just describe what you want to do.** You don't need to memorize any commands. Build OS has 23 skills, but the primary interface is natural language — tell Claude what you're building, what's broken, or what you need, and it routes you to the right tool.
+**Just describe what you want to do.** You don't need to memorize any commands. Build OS has 22 skills, but the primary interface is natural language — tell Claude what you're building, what's broken, or what you need, and it routes you to the right tool.
 
 If you ever feel lost, type `/guide` for a quick map organized by intent, or `/start` to get oriented in your current project.
 
