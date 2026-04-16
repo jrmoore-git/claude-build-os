@@ -1,11 +1,5 @@
 # Current State — 2026-04-15
 
-## ⚠ STALE — auto-captured session ended without /wrap-session
-**Auto-capture date:** 2026-04-15 18:04 PT
-**Files changed this session:** 8 files in docs, scripts, tasks
-**WARNING:** The "Next Action" below may be outdated. Cross-check with `git log --oneline -10` and recent session-log entries.
-
-
 ## What Changed This Session
 - Ran 4-level budget ceiling test (45, 89, 279, 464 lines) on challenge-pipeline-fixes proposal
 - Found quality peaks at ~200-280 lines, degrades above ~300 (Gemini dropped 5→2 tool calls, models shifted to reviewing context padding)
