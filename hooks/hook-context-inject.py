@@ -216,6 +216,28 @@ def main():
     except ValueError:
         sys.exit(0)
 
+    # Session-level dedup: skip re-gathering if already injected for this file
+    session_id = os.environ.get("CLAUDE_SESSION_ID", str(os.getppid()))
+    cache_file = f"/tmp/claude-context-inject-{session_id}.json"
+    cache = {}
+    if os.path.exists(cache_file):
+        try:
+            with open(cache_file) as cf:
+                cache = json.load(cf)
+        except (json.JSONDecodeError, OSError):
+            cache = {}
+
+    if file_path in cache:
+        result = {
+            "hookSpecificOutput": {
+                "hookEventName": "PreToolUse",
+                "permissionDecision": "allow",
+                "additionalContext": cache[file_path],
+            }
+        }
+        print(json.dumps(result))
+        sys.exit(0)
+
     # Gather context sections
     parts = []
 
@@ -240,6 +262,14 @@ def main():
     # Cap size
     if len(context) > MAX_CONTEXT_CHARS:
         context = context[: MAX_CONTEXT_CHARS - 3] + "..."
+
+    # Cache for this session
+    cache[file_path] = context
+    try:
+        with open(cache_file, "w") as cf:
+            json.dump(cache, cf)
+    except OSError:
+        pass
 
     result = {
         "hookSpecificOutput": {

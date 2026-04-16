@@ -26,8 +26,14 @@ esac
 RESULT=$(/opt/homebrew/bin/ruff check --select C901,E501 --line-length 120 "$FILE" 2>&1)
 
 if [ -n "$RESULT" ]; then
-    echo "ruff: $FILE"
-    echo "$RESULT"
+    TOTAL=$(echo "$RESULT" | grep -c "^" || true)
+    if [ "$TOTAL" -gt 5 ]; then
+        echo "ruff: $FILE ($TOTAL violations, showing first 5)"
+        echo "$RESULT" | head -5
+    else
+        echo "ruff: $FILE"
+        echo "$RESULT"
+    fi
 fi
 
 exit 0
