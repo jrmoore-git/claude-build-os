@@ -120,7 +120,9 @@ MANIFEST=(
   docs/reference/code-quality-detail.md
   docs/reference/operational-context.md
   docs/reference/debate-invocations.md
-  docs/reference/platform.md
+
+  # Platform rules (auto-loaded — silent-failure prevention)
+  .claude/rules/reference/platform.md
 
   # Hooks
   hooks/hook-agent-isolation.py
