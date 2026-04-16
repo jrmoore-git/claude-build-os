@@ -372,7 +372,7 @@ git pull origin main
 | **Understand Claude Code features** | [Platform Features](docs/platform-features.md) — hooks, rules, skills, memory, session management |
 | **See what each script does** | [How It Works](docs/how-it-works.md) — debate.py, tier_classify.py, recall_search.py, and all tooling |
 | **Configure cross-model review** | [Infrastructure](docs/infrastructure.md) — LiteLLM setup, API keys, optional dependencies |
-| **Understand the 20 hooks** | [Hooks Reference](docs/hooks.md) — plan gate, review gate, decompose gate, and 17 more |
+| **Understand the 22 hooks** | [Hooks Reference](docs/hooks.md) — plan gate, review gate, decompose gate, and 19 more |
 | **Route models by cost** | [Model Routing Guide](docs/model-routing-guide.md) — task classification, per-skill defaults, escalation |
 
 ---

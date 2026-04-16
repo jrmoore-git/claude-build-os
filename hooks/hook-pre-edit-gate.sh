@@ -12,8 +12,8 @@
 #   - tasks/*, docs/*, tests/*, config/*, stores/*
 #
 # Artifact check:
-#   - tasks/*-proposal.md modified in last 2 hours → ALLOW
-#   - tasks/*-plan.md modified in last 2 hours → ALLOW
+#   - tasks/*-proposal.md modified in last 24 hours → ALLOW
+#   - tasks/*-plan.md modified in last 24 hours → ALLOW
 #   - No recent artifact → BLOCK
 #
 # No Python. Fast bash + find only.
