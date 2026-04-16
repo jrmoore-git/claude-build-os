@@ -279,16 +279,19 @@ Prevents edits to protected files unless a plan or proposal artifact was recentl
 **What it checks:**
 
 1. Is the target file in a protected path? (matches `scripts/*_tool.py`, `scripts/*_pipeline.py`, `skills/**/*.md`, `.claude/rules/*.md`)
-2. If yes, was any plan or proposal artifact (`tasks/*-plan.md`, `tasks/*-proposal.md`) modified in the last 2 hours?
+2. If yes, was any plan or proposal artifact (`tasks/*-plan.md`, `tasks/*-proposal.md`) modified in the last 24 hours?
+3. If `allowed_paths` is defined in the plan frontmatter, is the target file within those paths?
 
 **Pass conditions:**
 - File is not in a protected path
-- A plan or proposal artifact was modified within the last 2 hours
+- A plan or proposal artifact was modified within the last 24 hours
+- If `allowed_paths` is set in the plan, the target file matches one of the allowed globs
 
 **Block conditions:**
 - Protected file edit attempted without a recent plan or proposal artifact
+- `allowed_paths` is set in the plan and the target file is outside those paths (blocked unless `scope_escalation: true` is set, which downgrades to a warning)
 
-**Relationship to plan-gate:** The plan gate blocks *commits* without a valid plan. The pre-edit gate blocks *edits* without a recent plan — it fires earlier in the workflow, before code is even written.
+**Relationship to plan-gate:** The plan gate blocks *commits* without a valid plan. The pre-edit gate blocks *edits* without a recent plan — it fires earlier in the workflow, before code is even written. It also enforces optional scope containment via `allowed_paths`.
 
 
 ## hook-memory-size-gate.py
@@ -487,6 +490,59 @@ Pre-generation context injection. Before Claude writes or edits a Python file, t
 **Performance:** Must complete within 2-second timeout. Typical execution: < 200ms.
 
 **Context cap:** Output capped at 3000 characters to prevent context bloat.
+
+**Dedup cache:** Caches results per file path within a session. If the same file is edited multiple times, the hook returns the cached context on subsequent calls instead of re-reading tests, imports, and git history.
+
+
+## hook-read-before-edit.py
+
+Warns when Claude edits a file it hasn't recently read in the current session.
+
+**When it fires:** Dual-mode hook. As PostToolUse on `Read`, it records which files have been read. As PreToolUse on `Write|Edit`, it checks whether the target file was read.
+
+**What it checks:**
+
+1. On Read: records the file path to a session-scoped temp file (`/tmp/claude-read-tracker-{session_id}.json`)
+2. On Write|Edit: checks whether the target file path exists in the read tracker
+
+**Behavior:** Non-blocking — prints a warning suggesting the agent read the file first, but allows the edit to proceed. The warning is advisory because some edits (new file creation, appending to logs) legitimately don't require a prior read.
+
+**Session ID:** Uses `$CLAUDE_SESSION_ID` if set, falls back to parent PID.
+
+**Tier:** T0 (always active).
+
+
+## hook-skill-lint.py
+
+Validates SKILL.md frontmatter after writes.
+
+**When it fires:** PostToolUse with `Write|Edit` matcher. Only activates for files named `SKILL.md`.
+
+**What it checks:**
+
+1. Is the `description` field present and a single-line quoted string (not a YAML block scalar)?
+2. Are required frontmatter fields present?
+3. Is the frontmatter valid YAML structure?
+
+**Behavior:** Non-blocking — prints warnings about frontmatter issues. The agent sees warnings and can fix them immediately.
+
+**Design rationale:** YAML block scalars (`|` or `>`) in the `description` field cause the Claude Code skill loader to show literal `|` in the `/` menu instead of the description text. This hook catches the issue at write time.
+
+
+## hook-spec-status-check.py
+
+Warns when reading spec files that lack implementation status tracking.
+
+**When it fires:** PostToolUse with `Read` matcher. Only activates for files matching `tasks/*-refined.md` or `tasks/*-proposal.md`.
+
+**What it checks:**
+
+1. Does the file's YAML frontmatter contain an `implementation_status` field?
+2. If not, warns that the spec has no status tracking
+
+**Behavior:** Non-blocking — prints a warning suggesting the agent add `implementation_status: shipped` (or `partial`) and `shipped_commit: <hash>` to the frontmatter when implementation is complete.
+
+**Design rationale:** A spec with recommendations but no status field is indistinguishable from unstarted work. This hook surfaces the gap at read time so it can be addressed in the same session.
 
 
 ## Wiring hooks into your project

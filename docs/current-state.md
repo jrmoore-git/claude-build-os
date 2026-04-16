@@ -1,5 +1,11 @@
 # Current State — 2026-04-16
 
+## ⚠ STALE — auto-captured session ended without /wrap-session
+**Auto-capture date:** 2026-04-16 13:40 PT
+**Files changed this session:** 4 files in docs
+**WARNING:** The "Next Action" below may be outdated. Cross-check with `git log --oneline -10` and recent session-log entries.
+
+
 ## What Changed This Session
 - Explore command in debate.py now rotates models across directions instead of using a single model (GPT) for all rounds
 - Default rotation: GPT → Gemini → GPT — keeps Claude out of generation so it can judge synthesis without bias

@@ -1,6 +1,6 @@
 # Platform Features — Claude Code Reference
 
-> **Last verified:** Claude Code, March 2026. Platform features evolve. When in doubt, check [Anthropic's official docs](https://docs.anthropic.com/en/docs/claude-code). This file consolidates platform-specific details so the rest of the framework stays focused on timeless principles.
+> **Last verified:** Claude Code, April 2026. Platform features evolve. When in doubt, check [Anthropic's official docs](https://docs.anthropic.com/en/docs/claude-code). This file consolidates platform-specific details so the rest of the framework stays focused on timeless principles.
 
 This doc covers: CLAUDE.md mechanics, rules files, skills format, hook types and events, auto memory, native session management, and subagents.
 
