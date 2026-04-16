@@ -84,9 +84,9 @@ Store the composed output as `PREFLIGHT_CONTEXT`.
 
 Inject project framing so `debate.py explore` receives grounded context instead of forcing models to reconstruct project basics.
 
-1. Read `docs/current-state.md` fresh — extract current phase, active work, and relevant subsystem (50–100 lines of project context).
-2. Read `tasks/session-log.md` (last 3–5 entries) — summarize the recent work arc when relevant to the question, including decisions and pivots (40–80 lines).
-3. Optionally run `python3.11 scripts/enrich_context.py --proposal <relevant artifact> --scope define` if a proposal or design doc exists for this topic (20–40 lines).
+1. Read `docs/current-state.md` fresh — extract current phase, active work, and relevant subsystem. Stop when sufficient to identify the project and subsystem (ceiling ~80 lines).
+2. Read `tasks/session-log.md` (last 2–3 relevant entries) — summarize the recent work arc when relevant to the question, including decisions and pivots (ceiling ~50 lines).
+3. Optionally run `python3.11 scripts/enrich_context.py --proposal <relevant artifact> --scope define` if a proposal or design doc exists for this topic (ceiling ~20 lines).
 
 Prepend the assembled project context (with `## Project Context`, `## Recent Context`, `## Prior Decisions` headers) to PREFLIGHT_CONTEXT. If pre-flight was skipped (PREFLIGHT_CONTEXT is empty), the project context alone becomes PREFLIGHT_CONTEXT.
 

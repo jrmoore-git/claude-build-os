@@ -547,9 +547,9 @@ If B: skip.
 If A: Assemble a context-enriched temp file, then call debate.py review (if debate.py fails or is unavailable, fall back to Agent tool subagent).
 
 Before writing the temp file, gather project context so the reviewer can evaluate without reconstruction:
-1. Read `docs/current-state.md` fresh — extract current phase, active work, and relevant subsystem (50–100 lines of project context).
-2. Read `tasks/session-log.md` (last 3–5 entries) — summarize the recent work arc including decisions and pivots (40–80 lines).
-3. Optionally run `python3.11 scripts/enrich_context.py --proposal <design-doc-path> --scope define` if the design doc exists on disk (20–40 lines of evaluation-specific context).
+1. Read `docs/current-state.md` fresh — extract current phase, active work, and relevant subsystem. Stop when sufficient to identify project and subsystem (ceiling ~80 lines).
+2. Read `tasks/session-log.md` (last 2–3 relevant entries) — summarize the recent work arc including decisions and pivots. Only include entries relevant to this evaluation (ceiling ~50 lines).
+3. Optionally run `python3.11 scripts/enrich_context.py --proposal <design-doc-path> --scope define` if the design doc exists on disk. Include only constraints that affect the evaluation (ceiling ~20 lines).
 
 Write the temp file with project context prepended before the plan content:
 

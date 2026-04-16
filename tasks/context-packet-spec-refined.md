@@ -5,6 +5,8 @@ phase: refine
 rounds: 6
 models: gemini-3.1-pro, gpt-5.4, claude-opus-4-6
 seeded_from_judgment: no
+implementation_status: shipped
+shipped_commit: a24d226
 ---
 # context-packet-spec — Refined Document
 
@@ -244,18 +246,22 @@ Examples:
 | `tasks/decisions.md` | Decided and undecided architectural choices | **When the artifact touches decided areas** |
 | `scripts/research.py` | External research grounding for tools, models, or techniques | **When the artifact depends on external tools, models, or techniques** — pass research output as Evaluation-Specific Context |
 
-## Size Budgets
+## Context Sufficiency (not budgets)
 
-Target budgets define the operating range. The Databricks research (2,000+ experiments) confirms performance improves monotonically up to model-specific saturation. All three models (claude-opus-4-6, gpt-5.4, gemini-3.1-pro) have 128K-200K context windows. Previous budgets (1-8K tokens) were far too conservative — leaving significant quality on the table. Revised budgets push toward richer context while staying well below saturation.
+Context ceilings, not targets. The goal is to meet the 5 sufficiency criteria below — not to fill a line count. If all 5 are met at 150 lines, stop. Never pad to fill a budget.
 
-| Skill type | Skills | Target total | Rationale |
+**Why ceilings, not targets:** A/B testing (session 12) across 4 context levels (45, 89, 279, 464 lines) showed quality peaks at ~200-280 lines for challenge-type evaluations, then degrades. At 464 lines, Gemini engagement dropped (5→2 tool calls) and models shifted from analyzing the proposal to commenting on appended context material. The "artifact-centered" sufficiency criterion breaks first when over-stuffed.
+
+**Research correction:** The Databricks "monotonic improvement" finding applies to RAG retrieval (finding needles in bigger haystacks). Evaluation prompts are different — the artifact is already present. Extra context competes with the artifact for attention rather than helping find it. The Google "sufficient context" research is the better frame: below sufficiency, hallucination spikes (10.2%→66.1%); above sufficiency, returns are flat to negative.
+
+| Skill type | Skills | Ceiling | Rationale |
 |---|---|---|---|
-| Challenge / pressure-test | challenge, pressure-test | 250–500 lines (8–16K tokens) | Deep evaluation is the highest-stakes use. Full project grounding, decision context, operational evidence, and evaluation anchors. |
-| Review (code) | review | 200–400 lines (6–12K tokens) | Diff + system context + governance constraints. Reviewers need enough context to judge whether code fits the system, not just whether it compiles. |
-| Explore / investigate | explore, investigate | 150–300 lines (4–10K tokens) | Research questions need project framing, constraint context, and enough background to avoid generic answers. |
-| Polish / refine | polish, elevate | 150–250 lines (4–8K tokens) | Editing must stay aligned to project goals. Richer context prevents drift toward generic prose improvements. |
-| Healthcheck / simulate | healthcheck, simulate | 100–200 lines (3–6K tokens) | Narrower tasks still benefit from real project context. Previous 50-100 floor was too lean. |
-| Think (already rich) | think | 150–300 lines (4–10K tokens) | Already has rich context; budget revised upward for consistency. |
+| Challenge / pressure-test | challenge, pressure-test | 150–300 lines (5–10K tokens) | Sweet spot at ~200-280 in A/B test. Full project grounding, decision context, operational evidence. Stop when sufficiency criteria are met. |
+| Review (code) | review | 120–250 lines (4–8K tokens) | Diff is the artifact — context should frame it, not bury it. |
+| Explore / investigate | explore, investigate | 100–200 lines (3–7K tokens) | Question + constraints. Full project history dilutes the question. |
+| Polish / refine | polish, elevate | 100–200 lines (3–7K tokens) | Document is the artifact — minimal framing needed to stay aligned. |
+| Healthcheck / simulate | healthcheck, simulate | 60–120 lines (2–4K tokens) | Narrow scope. Compact mode. |
+| Think (already rich) | think | 100–200 lines (3–7K tokens) | Already has rich context; ceiling aligned with other skill types. |
 
 ## Required Quality Bar
 

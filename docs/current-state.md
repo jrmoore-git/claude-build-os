@@ -1,5 +1,11 @@
 # Current State — 2026-04-15
 
+## ⚠ STALE — auto-captured session ended without /wrap-session
+**Auto-capture date:** 2026-04-15 17:49 PT
+**Files changed this session:** 3 files in .claude, tasks
+**WARNING:** The "Next Action" below may be outdated. Cross-check with `git log --oneline -10` and recent session-log entries.
+
+
 ## What Changed This Session
 - Implemented context packets (Layer 2) for all 6 thin-context skills: pressure-test, elevate, polish, explore, healthcheck, simulate
 - Added Operational Evidence section (Layer 1) to /challenge proposal template

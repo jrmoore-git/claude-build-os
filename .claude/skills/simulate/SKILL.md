@@ -244,7 +244,7 @@ After the agent completes, read its output file.
 
 ### 3b.4: Judge output via debate.py review
 
-Before constructing the evaluation input, read `docs/current-state.md` fresh for the current project phase. Optionally run `python3.11 scripts/enrich_context.py --proposal /dev/null --scope all` for recent governance context. Write the agent's output to a temp file with project context and run debate.py review with a scoring prompt:
+Before constructing the evaluation input, read `docs/current-state.md` fresh for the current project phase (sufficient, ceiling ~30 lines). Optionally run `python3.11 scripts/enrich_context.py --proposal /dev/null --scope all` for recent governance context. Write the agent's output to a temp file with project context and run debate.py review with a scoring prompt:
 
 ```bash
 EVAL_INPUT="$SIM_TMPDIR/eval-input.md"

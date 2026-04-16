@@ -35,6 +35,7 @@ Two failure modes, one rule: when a decision changes the state of something refe
 
 - **Completed work:** When finishing something flagged as "NOT Finished" or "still pending" in a prior handoff, remove it from `docs/current-state.md` and `tasks/handoff.md`. Stale pending items propagate indefinitely across sessions.
 - **Rejected work:** When a challenge or decision rejects a proposed feature, file, or abstraction, remove all references to it from production files (CLAUDE.md, rules, skills, config). A rejected proposal with live references is indistinguishable from a missing deliverable.
+- **Shipped recommendations:** When a commit implements recommendations from a spec (`tasks/*-refined.md` or `tasks/*-proposal.md`), the same commit must add `implementation_status: shipped` (or `partial`) and `shipped_commit: <hash>` to the spec's frontmatter. A spec with recommendations but no status field is indistinguishable from unstarted work. Hook-enforced: `hooks/hook-spec-status-check.py` warns on Read.
 
 ## Standing Rules
 - Do not ask for decisions already answered in the PRD.

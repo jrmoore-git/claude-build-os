@@ -274,20 +274,16 @@ All 6 skills edited with context assembly steps:
 | healthcheck | inline | all --top-k 3 |
 | simulate | inline (EVAL_INPUT heredoc) | all |
 
-### Budget increases (per Databricks research)
-All size targets roughly doubled:
+### Context sufficiency ceilings (revised from budget targets)
+Original session doubled budgets based on Databricks research. Follow-up A/B across 4 context levels (45, 89, 279, 464 lines) showed quality peaks at ~200-280 lines and degrades above ~300. Reframed from "budgets to fill" to "sufficiency ceilings — stop when the 5 quality criteria are met."
 
-| Section | Old | New |
-|---------|-----|-----|
-| Project Context | 30-50 lines | 50-100 lines |
-| Recent Context | 20-30 lines | 40-80 lines |
-| Eval-Specific Context | 10-20 lines | 20-40 lines |
-| Compact mode (healthcheck/simulate) | 10-20 lines | 20-40 lines |
-| Challenge/pressure-test total | 150-250 lines (4-8K) | 250-500 lines (8-16K) |
-| Review total | 100-200 lines (3-6K) | 200-400 lines (6-12K) |
-| Explore/investigate total | 80-150 lines (2-4K) | 150-300 lines (4-10K) |
-| Polish/elevate total | 80-120 lines (2-4K) | 150-250 lines (4-8K) |
-| Healthcheck/simulate total | 50-100 lines (1-3K) | 100-200 lines (3-6K) |
+| Skill type | Ceiling | Rationale |
+|---|---|---|
+| Challenge/pressure-test | 150-300 lines (5-10K) | Sweet spot at ~200-280 in 4-level A/B |
+| Review | 120-250 lines (4-8K) | Diff is the artifact — context frames, not buries |
+| Explore/investigate | 100-200 lines (3-7K) | Question + constraints only |
+| Polish/elevate | 100-200 lines (3-7K) | Document is the artifact |
+| Healthcheck/simulate | 60-120 lines (2-4K) | Narrow scope, compact mode |
 
 ### Proposal for deferred work
 `tasks/challenge-pipeline-fixes-proposal.md` — covers Layers 1-4. Layers 1-2 shipped. Layers 3-4 (claim verification, dissent requirement) deferred pending evidence that L1-L2 are insufficient.
