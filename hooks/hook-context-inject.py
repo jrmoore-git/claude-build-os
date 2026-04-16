@@ -228,14 +228,7 @@ def main():
             cache = {}
 
     if file_path in cache:
-        result = {
-            "hookSpecificOutput": {
-                "hookEventName": "PreToolUse",
-                "permissionDecision": "allow",
-                "additionalContext": cache[file_path],
-            }
-        }
-        print(json.dumps(result))
+        # Context already injected on first edit — don't re-inject
         sys.exit(0)
 
     # Gather context sections
