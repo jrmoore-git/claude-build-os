@@ -181,21 +181,6 @@ INTENT_PATTERNS = [
             "exploring options)."
         ),
     ),
-    # Simulate / test a skill
-    (
-        re.compile(
-            r'\b(simulate .*/|/simulate|test this skill|does this skill work|'
-            r'validate this skill|smoke.?test this skill|smoke.?test the skill|'
-            r'try (out |running )?this skill)\b',
-            re.IGNORECASE,
-        ),
-        "simulate",
-        (
-            "ROUTING SUGGESTION: The user wants to test a skill. "
-            "Consider running /simulate for zero-config skill simulation "
-            "(smoke-test or quality-eval modes)."
-        ),
-    ),
     # Research
     (
         re.compile(

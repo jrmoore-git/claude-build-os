@@ -1,0 +1,168 @@
+{
+  "run_id": "8426b832-41ca-4112-82d0-a21363f6ab84",
+  "timestamp": "2026-04-15T21:52:22.981818-07:00",
+  "simulator_version": "0.1.0-pilot",
+  "skill": "explore",
+  "skill_source_path": "skills/explore/SKILL.md",
+  "persona_state": {
+    "persona_id": "anchor-1",
+    "persona_type": "anchor",
+    "goal": "Evaluate whether to rebuild their mobile app's native modules or migrate to a cross-platform framework",
+    "knowledge": "expert",
+    "urgency": "high",
+    "patience": "low",
+    "trust": "medium",
+    "cooperativeness": "low",
+    "hidden_truth": "Two senior iOS developers just quit and hiring replacements would take 6 months, so the rebuild is partly about reducing dependency on native expertise"
+  },
+  "execution_config": {
+    "executor_model": "claude-opus-4-6",
+    "persona_model": "gemini-3.1-pro",
+    "judge_model": "gpt-5.4",
+    "max_turns": 15
+  },
+  "transcript": [
+    {
+      "turn": 0,
+      "role": "persona",
+      "content": "thinking about rebuilding our mobile stack",
+      "timestamp": "2026-04-15T21:52:22.981885-07:00"
+    },
+    {
+      "turn": 1,
+      "role": "executor",
+      "content": "What question or decision do you want to explore?\n\nFor example \u2014 are you weighing specific frameworks (React Native vs. Flutter vs. native), rethinking the architecture (monolith vs. micro-frontends), considering a full rewrite vs. incremental migration, or something else entirely?\n\nWhat's the core decision you're trying to make?",
+      "timestamp": "2026-04-15T21:52:26.311434-07:00"
+    },
+    {
+      "turn": 1,
+      "role": "persona",
+      "content": "Need to decide: full rebuild of native modules or a complete cross-platform rewrite.",
+      "timestamp": "2026-04-15T21:52:30.998911-07:00"
+    },
+    {
+      "turn": 2,
+      "role": "executor",
+      "content": "What's driving this now \u2014 (a) the native codebase is getting too expensive to maintain, (b) you're struggling to ship features fast enough across both platforms, or (c) something else?",
+      "timestamp": "2026-04-15T21:52:33.764883-07:00"
+    },
+    {
+      "turn": 2,
+      "role": "persona",
+      "content": "B. Feature velocity is dead. Deciding how to rewrite everything from scratch cross-platform.",
+      "timestamp": "2026-04-15T21:52:40.274219-07:00"
+    },
+    {
+      "turn": 3,
+      "role": "executor",
+      "content": "\"Feature velocity is dead\" \u2014 is that because (a) the two native codebases have diverged so much that every feature is built twice with different bugs, (b) you're bottlenecked on native talent and can't hire fast enough, or (c) the architecture itself is the drag \u2014 shared business logic is tangled into platform-specific code?",
+      "timestamp": "2026-04-15T21:52:44.476205-07:00"
+    },
+    {
+      "turn": 3,
+      "role": "persona",
+      "content": "A and C. The architecture is ruined. We have to do a full rewrite.",
+      "timestamp": "2026-04-15T21:52:49.511517-07:00"
+    },
+    {
+      "turn": 4,
+      "role": "executor",
+      "content": "Your team today \u2014 (a) mostly native iOS/Android devs who'd need to learn cross-platform, (b) already have some React Native or Flutter experience in-house, or (c) planning to hire new for whatever you pick?",
+      "timestamp": "2026-04-15T21:52:52.531954-07:00"
+    },
+    {
+      "turn": 4,
+      "role": "persona",
+      "content": "Mostly native devs (A). We'll retrain them when we do the full rewrite.",
+      "timestamp": "2026-04-15T21:52:58.638493-07:00"
+    },
+    {
+      "turn": 5,
+      "role": "executor",
+      "content": "The app \u2014 (a) heavy on platform-specific stuff like camera, Bluetooth, sensors, payments, or (b) mostly UI/data flows with standard platform integrations, or (c) mix of both with a few critical native-heavy features?",
+      "timestamp": "2026-04-15T21:53:02.026632-07:00"
+    },
+    {
+      "turn": 5,
+      "role": "persona",
+      "content": "Option C. Mix of both. We need a complete rewrite regardless.",
+      "timestamp": "2026-04-15T21:53:13.307599-07:00"
+    },
+    {
+      "turn": 6,
+      "role": "executor",
+      "content": "You keep saying \"complete rewrite regardless\" \u2014 but the velocity problem is diverged codebases + tangled architecture. A rewrite fixes that, but so does re-architecting with shared business logic while keeping native UI. Is the real decision (a) cross-platform rewrite, (b) native rewrite with shared core, or (c) you've already ruled out B and want to explore *which* cross-platform path?",
+      "timestamp": "2026-04-15T21:53:18.272273-07:00"
+    },
+    {
+      "turn": 6,
+      "role": "persona",
+      "content": "Fine, B is an option. Compare a native shared core against a cross-platform rewrite.",
+      "timestamp": "2026-04-15T21:53:24.084675-07:00"
+    },
+    {
+      "turn": 7,
+      "role": "executor",
+      "content": "What should I have asked you that I didn't \u2014 (a) timeline/budget constraints, (b) backend/API situation, (c) user base size and risk tolerance for a migration, or (d) something else?",
+      "timestamp": "2026-04-15T21:53:26.715328-07:00"
+    },
+    {
+      "turn": 7,
+      "role": "persona",
+      "content": "A. Timeline constraints. We have exactly six months to ship.",
+      "timestamp": "2026-04-15T21:53:31.344188-07:00"
+    },
+    {
+      "turn": 8,
+      "role": "executor",
+      "content": "Six months with native devs retraining \u2014 that's tight. \"Ship\" meaning (a) full feature parity with current app, (b) MVP subset of core features with the rest migrated after, or (c) hard external deadline where whatever's done goes live?",
+      "timestamp": "2026-04-15T21:53:34.942542-07:00"
+    },
+    {
+      "turn": 8,
+      "role": "persona",
+      "content": "A. Full feature parity. We can't regress on functionality for our existing users.",
+      "timestamp": "2026-04-15T21:53:40.605049-07:00"
+    },
+    {
+      "turn": 9,
+      "role": "executor",
+      "content": "Based on our conversation, I'll explore along these dimensions:\n\n1. **Rewrite scope** \u2014 full cross-platform rewrite vs. native rewrite with shared core vs. hybrid/incremental approach\n2. **Framework risk** \u2014 retraining cost, ecosystem maturity, and native-heavy feature support (camera, Bluetooth, payments)\n3. **Timeline feasibility** \u2014 what's actually shippable at full parity in 6 months given team composition\n4. **Migration strategy** \u2014 big bang cutover vs. strangler pattern vs. parallel run, and how each affects user risk\n\nWant to adjust any before I run?",
+      "timestamp": "2026-04-15T21:53:45.421040-07:00"
+    },
+    {
+      "turn": 9,
+      "role": "persona",
+      "content": "Drop the hybrid stuff. Full rewrite only. Just run it now.",
+      "timestamp": "2026-04-15T21:53:50.317519-07:00"
+    },
+    {
+      "turn": 10,
+      "role": "executor",
+      "content": "Got it \u2014 dropping hybrid, keeping full rewrite only. Dimensions adjusted:\n\n1. **Rewrite scope** \u2014 cross-platform rewrite vs. native rewrite with shared core (KMM/C++)\n2. **Framework risk** \u2014 retraining cost, ecosystem maturity, native-heavy feature support\n3. **Timeline feasibility** \u2014 full parity in 6 months given native devs retraining\n4. **Migration strategy** \u2014 big bang cutover vs. strangler pattern vs. parallel run\n\nRunning now.\n\n---\n\n# Mobile Stack Rewrite: Explore Directions\n\n## Context\n\n- **Decision:** Cross-platform rewrite vs. native rewrite with shared business logic core\n- **Constraint:** 6 months to full feature parity, no functionality regression\n- **Team:** Mostly native iOS/Android devs, will retrain\n- **App profile:** Mix of standard UI/data flows + critical native-heavy features (camera, Bluetooth, sensors, payments)\n- **Root problem:** Diverged codebases + tangled architecture killed feature velocity\n\n---\n\n## Direction 1: Cross-Platform Rewrite (Flutter)\n\n### Thesis\nRewrite both apps as a single Flutter codebase. One team, one language (Dart), one UI framework. Maximum long-term velocity gain \u2014 but the highest retraining cost and the riskiest 6-month timeline.\n\n### How it works\n- New Flutter app built feature-by-feature against existing backend APIs\n- Native-heavy features (camera, Bluetooth, payments) handled via platform channels wrapping existing native code or mature plugins (`camera`, `flutter_blue_plus`, `in_app_purchase`)\n- Native devs retrain on Dart/Flutter \u2014 estimated 4\u20138 weeks to productivity depending on experience\n- Ship as a replacement app or in-place update once at parity\n\n### Strengths\n- **Single codebase eliminates divergence permanently.** The core problem \u2014 two codebases drifting apart \u2014 is structurally impossible going forward.\n- **Dart is approachable for native devs.** Typed, object-oriented, familiar patterns. Faster ramp than React Native/JS for a team coming from Swift/Kotlin.\n- **Flutter's rendering engine owns the pixel pipeline.** UI consistency across platforms is a default, not a goal. No \"looks different on Android\" bugs.\n- **Plugin ecosystem is mature for your native-heavy features.** Camera, Bluetooth, and payments all have well-maintained first-party or community plugins. You're not pioneering.\n- **Hot reload dramatically accelerates UI development.** Devs shipping 2\u20133x faster on UI work during the build phase partially offsets the retraining ramp.\n\n### Risks\n- **6 months is extremely aggressive.** Retraining (4\u20138 weeks) + full parity rewrite leaves ~4 months of productive build time. For a non-trivial app with native-heavy features, this is likely insufficient.\n- **Platform channel complexity for edge cases.** The mature plugins cover 80% of native functionality. The remaining 20% \u2014 custom Bluetooth protocols, specific sensor integrations, platform-specific payment flows \u2014 requires writing platform channels in Swift/Kotlin anyway. You're still maintaining native code, just less of it.\n- **Team morale and productivity dip.** Native devs forced into a new framework will be slower and frustrated for weeks. Some may leave. Factor attrition risk into the timeline.\n- **Flutter's desktop/web story is irrelevant but its mobile story has gaps.** Certain platform-specific APIs (HealthKit, Android Auto, Widgets) have thin or no plugin coverage. Audit your feature list against plugin availability before committing.\n- **Big-bang rewrite risk.** You're building a replacement while maintaining the old app. If the rewrite slips, you're paying double \u2014 maintaining legacy AND building new.\n\n### Timeline reality check\nWith a team of native devs retraining: **8\u201312 months is realistic for full parity.** 6 months gets you to ~60\u201370% feature coverage if you're disciplined about prioritization. Full parity in 6 months requires either a larger team, prior Flutter experience, or a smaller app than implied.\n\n### Best for\nTeams willing to accept timeline risk for maximum long-term velocity. Works if you can negotiate the 6-month deadline or accept a phased parity approach.\n\n---\n\n## Direction 2: Cross-Platform Rewrite (React Native / Expo)\n\n### Thesis\nRewrite on React Native with Expo as the managed layer. Trades Flutter's rendering control for a larger ecosystem, easier hiring pipeline, and the option to share code with web. Different risk profile, similar end state.\n\n### How it works\n- New React Native app built on Expo (managed workflow where possible, bare workflow for native modules)\n- Native-heavy features via Expo modules (`expo-camera`, `expo-bluetooth` via community) or custom native modules in Swift/Kotlin\n- Native devs retrain on TypeScript/React \u2014 steeper learning curve than Dart but broader applicability\n- Existing native module code can be wrapped and reused more directly than in Flutter\n\n### Strengths\n- **Native module bridge is more direct.** Your existing Swift/Kotlin code for camera, Bluetooth, and payments can be wrapped as native modules with less translation than Flutter platform channels. You're reusing work, not rewriting it.\n- **TypeScript/React skills are more transferable and hireable.** If you need to scale the team, the talent pool is 5\u201310x larger than Flutter/Dart. Future hiring is easier.\n- **Expo's managed workflow handles 70% of the build/deploy pain.** OTA updates, managed builds, config plugins \u2014 significant DevOps savings.\n- **Web code sharing is a free option.** If you ever need a web app, shared business logic and even some UI components transfer. Flutter's web story is weaker.\n- **New Architecture (Fabric + TurboModules) closes the performance gap.** React Native's historical performance issues are largely resolved in the new architecture shipping since 0.76+.\n\n### Risks\n- **Steeper retraining curve.** Native devs learning TypeScript + React + React Native's bridge model is harder than learning Dart + Flutter. Expect 6\u201310 weeks to productivity.\n- **Expo's managed workflow breaks for complex native integrations.** Custom Bluetooth protocols, specific sensor APIs \u2014 you'll eject to bare workflow for these, losing some of Expo's benefits.\n- **JavaScript ecosystem churn.** Dependencies, tooling, and patterns shift faster than in Flutter/Dart. More maintenance overhead long-term.\n- **UI consistency requires more effort.** React Native renders with native components, so platform differences are inherent. You'll spend time on platform-specific styling that Flutter avoids.\n- **Same big-bang rewrite risk as Direction 1.** Same timeline pressure, same dual-maintenance cost.\n\n### Timeline reality check\n**9\u201314 months for full parity** given the steeper ramp. 6 months is less realistic than Flutter due to the retraining curve. You'd hit ~50\u201360% feature coverage.\n\n### Best for\nTeams that value ecosystem breadth, future hiring flexibility, and potential web code sharing over Flutter's tighter developer experience. Better if you have any existing JS/TS experience on the team.\n\n---\n\n## Direction 3: Native Rewrite with Shared Core (Kotlin Multiplatform)\n\n### Thesis\nKeep native UI on both platforms but extract all business logic, networking, data, and validation into a shared Kotlin Multiplatform (KMP) core. You're not switching frameworks \u2014 you're fixing the architecture that caused the divergence. Your native devs stay productive from day one.\n\n### How it works\n- Shared KMP module contains: business logic, API clients, data models, validation, caching, state management\n- iOS app consumes the shared module via Swift interop (KMP compiles to native frameworks)\n- Android app consumes it directly (it's Kotlin)\n- UI layer stays fully native: SwiftUI/UIKit on iOS, Jetpack Compose on Android\n- Native-heavy features (camera, Bluetooth, payments, sensors) stay in their native implementations \u2014 no bridging, no plugins, no platform channels\n\n### Strengths\n- **Zero retraining for Android devs.** It's Kotlin. They're already productive. iOS devs learn KMP's Swift interop patterns in 1\u20132 weeks, not months.\n- **Native-heavy features are a non-issue.** Camera, Bluetooth, sensors, payments \u2014 all stay in native code. No plugin gaps, no platform channels, no bridging bugs. This is the only direction where your hardest features are your easiest.\n- **Eliminates the root cause without replacing everything.** The problem was diverged business logic and tangled architecture. KMP directly addresses this: shared logic, native UI. You're not throwing away working UI code.\n- **Incremental migration is possible (but you said full rewrite).** Even in a rewrite, you can stand up the shared core first, then rebuild the native UI layers against it. The shared core is usable before the UI is done.\n- **6-month timeline is actually feasible.** No retraining ramp. Android devs are productive immediately. iOS devs ramp in weeks. You're rewriting architecture, not learning a new platform.\n- **Google and JetBrains are investing heavily.** KMP is now stable (1.9+), Google officially recommends it for Android, and adoption is accelerating (Netflix, McDonald's, Cash App, VMware).\n\n### Risks\n- **You still have two UI codebases.** SwiftUI and Jetpack Compose are different. UI features still get built twice \u2014 but they're the thin layer, not the business logic. Divergence risk is contained.\n- **KMP's iOS interop has friction.** Generics, coroutines, and sealed classes don't map cleanly to Swift. You'll need wrapper patterns. SKIE and KMP-NativeCoroutines help but add tooling complexity.\n- **Smaller ecosystem than Flutter or React Native.** Fewer libraries, fewer Stack Overflow answers, fewer blog posts. Your team needs to be comfortable reading source code and solving problems without extensive community support.\n- **Doesn't solve UI velocity.** If part of your velocity problem is UI divergence (different designs, different behaviors), KMP doesn't help. You'll still ship UI features twice. If the velocity problem is primarily business logic divergence, KMP is surgical.\n- **Compose Multiplatform (UI sharing) is maturing but not stable for iOS.** If you want shared UI later, Compose Multiplatform is the path \u2014 but its iOS target is beta. Don't plan on it for this rewrite.\n\n### Timeline reality check\n**5\u20137 months for full parity is realistic.** No retraining ramp. Shared core can be built in parallel with native UI rebuilds. The constraint is UI rebuild speed, which your native devs already know how to do. **This is the only direction where 6 months is credible.**\n\n### Best for\nTeams with strong native devs who want to fix the architecture problem without abandoning their platform expertise. The pragmatic choice when timeline is non-negotiable.\n\n---\n\n## Cross-Cutting Synthesis\n\n### The timeline is the deciding factor\n\n| | Flutter | React Native | KMP Shared Core |\n|---|---|---|---|\n| **Realistic full-parity timeline** | 8\u201312 months | 9\u201314 months | 5\u20137 months |\n| **6-month coverage** | ~60\u201370% | ~50\u201360% | ~90\u2013100% |\n| **Retraining ramp** | 4\u20138 weeks | 6\u201310 weeks | 0\u20132 weeks |\n| **Native feature risk** | Medium (plugins + channels) | Medium (modules + bridge) | None (stays native) |\n| **Long-term velocity gain** | Highest (single codebase) | High (single + web option) | Medium (shared logic, dual UI) |\n| **Codebase reduction** | ~50\u201360% less code | ~50\u201360% less code | ~30\u201340% less code |\n\n### The uncomfortable truth\n\n**Full feature parity in 6 months with a cross-platform rewrite is not realistic** given native devs retraining. The math doesn't work: 4\u20138 weeks of ramp + full rewrite of a non-trivial app with native-heavy features \u2260 6 months.\n\nYou have three honest options:\n\n1. **Pick KMP** \u2014 the only path where 6 months and full parity coexist. You fix the architecture, keep your team's strengths, and ship on time. You don't get a single codebase, but you get a shared core that eliminates the divergence problem.\n\n2. **Pick Flutter and negotiate the timeline** \u2014 if long-term single-codebase velocity matters more than the 6-month deadline, make the case for 10\u201312 months. The investment pays off over 2\u20133 years.\n\n3. **Pick Flutter/RN and accept phased parity** \u2014 ship a core-feature MVP in 6 months, migrate remaining features over the following 3\u20136 months. Requires stakeholder buy-in on temporary feature regression.\n\n### Minority viewpoint worth noting\n\nThere's a case that **the rewrite itself is the wrong move** regardless of framework. Joel Spolsky's \"Things You Should Never Do\" applies: rewrites take longer than expected, lose embedded knowledge, and the new codebase accumulates its own debt. A disciplined re-architecture of the existing native apps \u2014 extracting shared logic incrementally, enforcing module boundaries, cleaning up the tangled architecture \u2014 might solve the velocity problem in 3\u20134 months without the rewrite risk. You rejected hybrid/incremental, but the risk calculus of a full rewrite deserves acknowledgment.\n\n---\n\n## Recommended next step\n\nPick a direction. Write it up as `tasks/mobile-stack-proposal.md`, then `/pressure-test` it \u2014 especially the timeline assumptions.\n\n---\n\n## /explore complete\n\n| Artifact | Path | Status |\n|----------|------|--------|\n| Explore directions | tasks/mobile-stack-explore.md | done |\n\nPick a direction and write it up as `tasks/mobile-stack-proposal.md`, then `/pressure-test` or `/challenge`.\n\n[COMPLETE]",
+      "timestamp": "2026-04-15T21:55:14.225101-07:00"
+    },
+    {
+      "turn": 10,
+      "role": "persona",
+      "content": "KMP fits the timeline. Old code is unsalvageable, so don't push incremental. Write the proposal.",
+      "timestamp": "2026-04-15T21:55:24.226545-07:00"
+    }
+  ],
+  "final_status": "success",
+  "termination_reason": "Executor signaled completion ([COMPLETE])",
+  "objective_achieved": false,
+  "judge_scores": {
+    "register_match": 4,
+    "flow": 3,
+    "sufficiency_timing": 3,
+    "context_block_quality": 3,
+    "hidden_truth_surfacing": 1,
+    "feature_test": 3
+  },
+  "judge_rationale": "The executor mostly matched an expert, terse, decision-oriented register: short option-driven prompts like Turn 2 (\"What's driving this now \u2014 (a)...\") and Turn 6 (\"Is the real decision...\") fit the persona's clipped style, though the long explanatory opener in Turn 1 and the expansive final exploration are somewhat more elaborate than the user's voice. Flow was mixed: some questions clearly picked up prior language (Turn 6 responds to \"complete rewrite regardless\" from Turn 5), but others were more generic branch menus than natural follow-ons, especially Turn 4 jumping to team composition and Turn 7 asking \"What should I have asked\" instead of drilling a prior answer. Intake gathered the core decision, what makes it hard, and several concrete facts by Turn 8: decision in Turn 6, difficulty in Turns 3 and 7-8, facts including native-heavy features (Turn 5), native team retraining (Turn 4), and 6-month parity constraint (Turns 7-8). However, it could have stopped earlier and did not probe the decisive staffing risk implied by the persona ground truth. The composed context/exploration block is structured and useful, with clear sections for decision, constraints, team, app profile, and root problem, plus divergent directions. But it violated the user's instruction to drop hybrid by still including \"hybrid/incremental approach\" in Turn 9's first dimension and later reintroduced incremental in the \"minority viewpoint,\" and it lacks explicit assumption tagging. Hidden truth was not surfaced at all: despite Turn 3 offering option (b) \"bottlenecked on native talent,\" the executor never uncovered the actual issue that \"Two senior iOS developers just quit and hiring replacements would take 6 months,\" nor is that reflected in the context block. Feature behavior appears partially correct: the executor paused to confirm dimensions in Turn 9, adjusted after user feedback in Turn 10, and produced multi-direction exploration. But behavior was imperfect because it retained/discussed excluded hybrid or incremental angles after the user said \"Drop the hybrid stuff. Full rewrite only.\"",
+  "rubric_metadata": {
+    "rubric_version": "0.1.0-pilot",
+    "rubric_source": "generated_from_validated_ir"
+  }
+}

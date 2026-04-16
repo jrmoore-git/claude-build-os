@@ -1,0 +1,201 @@
+{
+  "directives": [
+    "When the user insists on a full rebuild, probe what changed RECENTLY to make this urgent now \u2014 not just the technical symptoms. Ask: 'What happened in the last 3 months that made this go from annoying to must-fix?'",
+    "When a reframe is rejected, don't give up. Try a different angle \u2014 if architecture reframe fails, try a people/team angle: 'Setting aside the code \u2014 has anything changed on the team side that's making this harder?'",
+    "Do not accept 'the whole thing is rotten' as sufficient diagnosis. Push for specifics: which modules crash most? When did crashes start getting worse? What changed?",
+    "Before declaring sufficiency, verify you've explored the PEOPLE dimension: who built the current system, who maintains it now, has the team changed recently? Team changes often drive rebuild decisions more than technical debt.",
+    "If the user has low patience and gives short answers, use options format to probe hidden context: 'The urgency \u2014 is that (a) the crashes got worse recently, (b) something changed on the team, or (c) a business deadline is forcing the decision?'"
+  ],
+  "persona": "anchor-1",
+  "trials_per_condition": 3,
+  "baseline": [
+    {
+      "scores": {
+        "register_match": 4,
+        "flow": 3,
+        "sufficiency_timing": 3,
+        "context_block_quality": 2,
+        "hidden_truth_surfacing": 1,
+        "feature_test": 2
+      },
+      "status": "success"
+    },
+    {
+      "scores": {
+        "register_match": 4,
+        "flow": 3,
+        "sufficiency_timing": 3,
+        "context_block_quality": 3,
+        "hidden_truth_surfacing": 1,
+        "feature_test": 3
+      },
+      "status": "success"
+    },
+    {
+      "scores": {
+        "register_match": 2,
+        "flow": 2,
+        "sufficiency_timing": 3,
+        "context_block_quality": 2,
+        "hidden_truth_surfacing": 1,
+        "feature_test": 3
+      },
+      "status": "success"
+    }
+  ],
+  "critique": [
+    {
+      "scores": {
+        "register_match": 2,
+        "flow": 4,
+        "sufficiency_timing": 3,
+        "context_block_quality": 2,
+        "hidden_truth_surfacing": 2,
+        "feature_test": 2
+      },
+      "status": "failure"
+    },
+    {
+      "scores": {
+        "register_match": 3,
+        "flow": 2,
+        "sufficiency_timing": 1,
+        "context_block_quality": 1,
+        "hidden_truth_surfacing": 1,
+        "feature_test": 1
+      },
+      "status": "failure"
+    },
+    {
+      "scores": {
+        "register_match": 3,
+        "flow": 1,
+        "sufficiency_timing": 1,
+        "context_block_quality": 1,
+        "hidden_truth_surfacing": 1,
+        "feature_test": 1
+      },
+      "status": "failure"
+    }
+  ],
+  "baseline_stats": {
+    "context_block_quality": {
+      "mean": 2.33,
+      "std": 0.47,
+      "raw": [
+        2,
+        3,
+        2
+      ]
+    },
+    "feature_test": {
+      "mean": 2.67,
+      "std": 0.47,
+      "raw": [
+        2,
+        3,
+        3
+      ]
+    },
+    "flow": {
+      "mean": 2.67,
+      "std": 0.47,
+      "raw": [
+        3,
+        3,
+        2
+      ]
+    },
+    "hidden_truth_surfacing": {
+      "mean": 1.0,
+      "std": 0.0,
+      "raw": [
+        1,
+        1,
+        1
+      ]
+    },
+    "register_match": {
+      "mean": 3.33,
+      "std": 0.94,
+      "raw": [
+        4,
+        4,
+        2
+      ]
+    },
+    "sufficiency_timing": {
+      "mean": 3.0,
+      "std": 0.0,
+      "raw": [
+        3,
+        3,
+        3
+      ]
+    }
+  },
+  "critique_stats": {
+    "context_block_quality": {
+      "mean": 1.33,
+      "std": 0.47,
+      "raw": [
+        2,
+        1,
+        1
+      ]
+    },
+    "feature_test": {
+      "mean": 1.33,
+      "std": 0.47,
+      "raw": [
+        2,
+        1,
+        1
+      ]
+    },
+    "flow": {
+      "mean": 2.33,
+      "std": 1.25,
+      "raw": [
+        4,
+        2,
+        1
+      ]
+    },
+    "hidden_truth_surfacing": {
+      "mean": 1.33,
+      "std": 0.47,
+      "raw": [
+        2,
+        1,
+        1
+      ]
+    },
+    "register_match": {
+      "mean": 2.67,
+      "std": 0.47,
+      "raw": [
+        2,
+        3,
+        3
+      ]
+    },
+    "sufficiency_timing": {
+      "mean": 1.67,
+      "std": 0.94,
+      "raw": [
+        3,
+        1,
+        1
+      ]
+    }
+  },
+  "deltas": {
+    "context_block_quality": -1.0,
+    "feature_test": -1.34,
+    "flow": -0.34,
+    "hidden_truth_surfacing": 0.33,
+    "register_match": -0.66,
+    "sufficiency_timing": -1.33
+  }
+}

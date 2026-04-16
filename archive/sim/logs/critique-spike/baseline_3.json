@@ -1,0 +1,156 @@
+{
+  "run_id": "8942f938-6e99-4ae4-b565-2260439f5c8d",
+  "timestamp": "2026-04-15T21:55:33.486924-07:00",
+  "simulator_version": "0.1.0-pilot",
+  "skill": "explore",
+  "skill_source_path": "skills/explore/SKILL.md",
+  "persona_state": {
+    "persona_id": "anchor-1",
+    "persona_type": "anchor",
+    "goal": "Evaluate whether to rebuild their mobile app's native modules or migrate to a cross-platform framework",
+    "knowledge": "expert",
+    "urgency": "high",
+    "patience": "low",
+    "trust": "medium",
+    "cooperativeness": "low",
+    "hidden_truth": "Two senior iOS developers just quit and hiring replacements would take 6 months, so the rebuild is partly about reducing dependency on native expertise"
+  },
+  "execution_config": {
+    "executor_model": "claude-opus-4-6",
+    "persona_model": "gemini-3.1-pro",
+    "judge_model": "gpt-5.4",
+    "max_turns": 15
+  },
+  "transcript": [
+    {
+      "turn": 0,
+      "role": "persona",
+      "content": "thinking about rebuilding our mobile stack",
+      "timestamp": "2026-04-15T21:55:33.487016-07:00"
+    },
+    {
+      "turn": 1,
+      "role": "executor",
+      "content": "What question or decision do you want to explore?\n\nFor example \u2014 are you weighing specific frameworks (React Native vs. Flutter vs. native), rethinking the architecture (monolith vs. micro-frontends), considering a full rewrite vs. incremental migration, or something else entirely?\n\nWhat's the core decision you're trying to make?",
+      "timestamp": "2026-04-15T21:55:36.959757-07:00"
+    },
+    {
+      "turn": 1,
+      "role": "persona",
+      "content": "Deciding whether to rebuild our native modules or switch to cross-platform. We need a decision fast.",
+      "timestamp": "2026-04-15T21:55:55.109705-07:00"
+    },
+    {
+      "turn": 2,
+      "role": "executor",
+      "content": "What's driving the rebuild \u2014 (a) dev velocity is too slow shipping features, (b) maintenance cost on two native codebases is killing you, or (c) hiring/retention \u2014 can't find native devs?",
+      "timestamp": "2026-04-15T21:55:58.632850-07:00"
+    },
+    {
+      "turn": 2,
+      "role": "persona",
+      "content": "Both A and B. We have to do a full rewrite from scratch anyway.",
+      "timestamp": "2026-04-15T21:56:04.745538-07:00"
+    },
+    {
+      "turn": 3,
+      "role": "executor",
+      "content": "\"Full rewrite from scratch\" \u2014 what's forcing that? (a) tech debt so deep incremental refactor isn't viable, (b) platform/OS changes broke fundamental assumptions, or (c) product direction shifted enough that the current app is wrong shape?",
+      "timestamp": "2026-04-15T21:56:08.049330-07:00"
+    },
+    {
+      "turn": 3,
+      "role": "persona",
+      "content": "Tech debt is too deep. Velocity is dead. We must rebuild completely from scratch.",
+      "timestamp": "2026-04-15T21:56:22.971921-07:00"
+    },
+    {
+      "turn": 4,
+      "role": "executor",
+      "content": "Team size and what you're building \u2014 (a) small team, under 8 devs, consumer app, (b) mid-size team, 8-20, mix of consumer + internal, or (c) larger org, platform-sensitive stuff like payments, hardware, AR?",
+      "timestamp": "2026-04-15T21:56:27.299175-07:00"
+    },
+    {
+      "turn": 4,
+      "role": "persona",
+      "content": "Option B. 15 devs. Tech debt is fatal. A full rewrite is the only way.",
+      "timestamp": "2026-04-15T21:56:33.994348-07:00"
+    },
+    {
+      "turn": 5,
+      "role": "executor",
+      "content": "Current native split \u2014 (a) iOS and Android teams are separate, little shared code, (b) some shared C++/KMM layer already, or (c) one platform is way ahead of the other feature-wise?",
+      "timestamp": "2026-04-15T21:56:37.306346-07:00"
+    },
+    {
+      "turn": 5,
+      "role": "persona",
+      "content": "Option A. Separate teams, no shared code. Tech debt forces a complete rewrite anyway.",
+      "timestamp": "2026-04-15T21:56:44.711182-07:00"
+    },
+    {
+      "turn": 6,
+      "role": "executor",
+      "content": "What should I have asked you that I didn't?",
+      "timestamp": "2026-04-15T21:56:46.450233-07:00"
+    },
+    {
+      "turn": 6,
+      "role": "persona",
+      "content": "Stop guessing. We have to rewrite everything from scratch. How long will it take?",
+      "timestamp": "2026-04-15T21:56:52.684167-07:00"
+    },
+    {
+      "turn": 7,
+      "role": "executor",
+      "content": "Got it. Timeline matters \u2014 that'll be a key dimension.\n\nOne follow-up from what you just said: the \"how long\" question depends heavily on what you're rebuilding. Is the current app (a) ~50 screens, standard CRUD/API stuff, (b) 50-100+ screens with complex flows like offline sync, real-time, media, or (c) you're not sure of the full scope yet?",
+      "timestamp": "2026-04-15T21:56:57.497289-07:00"
+    },
+    {
+      "turn": 7,
+      "role": "persona",
+      "content": "B. 100+ screens, heavy offline sync and WebSockets. We must start this rewrite immediately.",
+      "timestamp": "2026-04-15T21:57:03.772509-07:00"
+    },
+    {
+      "turn": 8,
+      "role": "executor",
+      "content": "Based on our conversation, I'll explore along these dimensions:\n\n1. **Framework choice** \u2014 Native rebuild (Swift/Kotlin) vs. cross-platform (React Native, Flutter, KMM) given 100+ screens with offline sync and WebSockets\n2. **Timeline vs. risk** \u2014 Speed to production vs. rewrite risk across each approach with a 15-dev team\n3. **Team transition** \u2014 Retraining/hiring cost of cross-platform vs. keeping separate native teams in the new stack\n4. **Offline/real-time complexity** \u2014 How each framework handles your hardest technical requirements (offline sync, WebSockets) at scale\n\nWant to adjust any before I run?",
+      "timestamp": "2026-04-15T21:57:09.005187-07:00"
+    },
+    {
+      "turn": 8,
+      "role": "persona",
+      "content": "Fine. Run it. Just remember incremental is dead. Full rebuild is the only way.",
+      "timestamp": "2026-04-15T21:57:22.368311-07:00"
+    },
+    {
+      "turn": 9,
+      "role": "executor",
+      "content": "Noted \u2014 full rebuild, no incremental. Running the explore now.\n\n---\n\n# Mobile Stack Rebuild: Explore Directions\n\n## Context\n\n- **Decision:** Rebuild native modules from scratch \u2014 stay native or switch to cross-platform\n- **Drivers:** Fatal tech debt, dead velocity, dual maintenance cost across iOS/Android\n- **Constraints:** 15 devs, two separate native teams (no shared code), 100+ screens, heavy offline sync, WebSockets, immediate start required\n- **Non-negotiable:** Full rewrite. Incremental migration is off the table.\n\n---\n\n## Direction 1: Cross-Platform with Flutter\n\n**Thesis:** Unify both teams on Flutter/Dart. Single codebase, single team, ship both platforms from day one of the rewrite.\n\n### Why this direction\n- 15 devs \u2192 one codebase means ~2x the effective workforce on features vs. maintaining two native apps\n- Flutter's offline story is maturing \u2014 Drift (SQLite), Hive, Isar for local persistence; well-supported WebSocket libraries\n- Dart is learnable in 4-6 weeks for experienced mobile devs; neither iOS nor Android team is \"wasted\"\n- Google's continued investment (Flutter 3.x, Impeller rendering engine) signals long-term viability\n- Companies at similar scale (BMW, Alibaba, Nubank) run 100+ screen Flutter apps in production\n\n### Risks\n- **Offline sync at scale is your hardest problem.** Flutter has no built-in sync framework \u2014 you'll build a custom sync engine on top of SQLite/Drift. This is framework-agnostic pain, but you lose native platform sync primitives (Core Data + CloudKit, Android Sync Adapter)\n- **WebSocket handling** works but platform-specific edge cases (background execution, network transitions) require native channel bridges\n- **Team morale risk:** Native devs sometimes resist cross-platform moves. Attrition during transition is real\n- **Platform-specific UX:** 100+ screens means some will need platform-specific feel. Flutter's Material/Cupertino widgets help but don't fully close the gap\n- **Build tooling maturity:** Flutter's build/CI ecosystem is solid but less battle-tested than native Xcode/Gradle pipelines at scale\n\n### Timeline estimate\n- 3-4 months: team ramp-up + architecture + sync engine design\n- 6-9 months: core feature rebuild (assuming aggressive prioritization \u2014 not all 100+ screens at launch)\n- **MVP: ~9-12 months.** Full parity: 12-18 months.\n\n### Best if\nYou value velocity and unified team over platform-edge performance, and your offline sync can be modeled as a well-defined data layer rather than deeply platform-integrated.\n\n---\n\n## Direction 2: Cross-Platform with React Native (New Architecture)\n\n**Thesis:** Rebuild on React Native's New Architecture (Fabric + TurboModules + JSI). Leverage the massive RN ecosystem and bridge to native when needed.\n\n### Why this direction\n- React Native's New Architecture eliminates the old bridge bottleneck \u2014 JSI gives synchronous native access, which matters for offline sync and WebSocket performance\n- Largest cross-platform ecosystem: more libraries, more hiring pool, more Stack Overflow answers\n- If any of your 15 devs have web/React experience, ramp-up is faster than Flutter\n- Proven at extreme scale: Shopify, Discord, Microsoft (all 100+ screen apps with real-time features)\n- Discord specifically runs heavy WebSocket traffic on RN \u2014 existence proof for your use case\n\n### Risks\n- **New Architecture migration is still in progress across the ecosystem.** Some popular libraries haven't fully migrated. You'd be building on the new arch from scratch (good) but may hit library gaps\n- **Offline sync:** Same build-your-own situation as Flutter. WatermelonDB (RN-specific, SQLite-backed) is the closest thing to a turnkey solution but has scaling limits\n- **JavaScript/TypeScript runtime:** For CPU-intensive sync conflict resolution, you may need to drop to native modules via TurboModules \u2014 adds complexity\n- **Meta's commitment:** React Native is Meta's framework, and they're investing heavily post-New Architecture. But ecosystem fragmentation (Expo vs. bare, old arch vs. new) creates decision fatigue\n- **Performance ceiling** is higher than old RN but still below Flutter and native for animation-heavy screens\n\n### Timeline estimate\n- 2-3 months: architecture + team ramp (faster if devs know React)\n- 6-9 months: core rebuild\n- **MVP: ~8-11 months.** Full parity: 12-16 months.\n\n### Best if\nYou have React/JS talent on the team or can hire it, you want the largest ecosystem safety net, and you're comfortable writing native modules for the hardest offline/real-time bits.\n\n---\n\n## Direction 3: Native Rebuild with Kotlin Multiplatform (KMM) Shared Core\n\n**Thesis:** Rebuild native on both platforms but share the hard parts \u2014 offline sync engine, WebSocket management, business logic \u2014 via Kotlin Multiplatform. Native UI on top.\n\n### Why this direction\n- **Your hardest problems are in the data/sync layer, not the UI.** KMM lets you write the offline sync engine, WebSocket client, and business logic once in Kotlin, shared across iOS and Android\n- Native UI means zero compromise on platform feel across 100+ screens \u2014 no \"uncanny valley\" UX\n- Android team stays in Kotlin (zero ramp). iOS team learns Kotlin for shared modules but keeps SwiftUI/UIKit for UI\n- Offline sync can leverage platform-native storage (SQLite via SQLDelight, which is KMM-native) with shared conflict resolution logic\n- Companies like Netflix, Cash App, VMware, and Philips use KMM for exactly this pattern \u2014 shared core, native shell\n- **Lowest risk for your WebSocket + offline requirements** \u2014 you're not betting that a cross-platform framework handles edge cases; you handle them natively with shared logic\n\n### Risks\n- **You still have two UI codebases.** 100+ screens means significant UI work on both platforms. KMM doesn't help here \u2014 you're paying the dual-UI tax\n- **iOS/KMM interop friction:** Kotlin-to-Swift bridging has improved but still has rough edges (generics, coroutines \u2192 Swift async/await mapping). Tooling is maturing but not seamless\n- **Smaller ecosystem** than Flutter or RN. Fewer libraries, fewer blog posts, smaller hiring pool for KMM-specific experience\n- **Team structure:** You need devs comfortable in both worlds. The \"shared core\" team becomes a critical bottleneck if understaffed\n- **Build complexity:** Gradle multiplatform builds add CI/CD overhead\n\n### Timeline estimate\n- 2-3 months: shared core architecture + KMM setup + team alignment\n- 8-12 months: parallel native UI rebuild + shared sync engine\n- **MVP: ~10-14 months.** Full parity: 14-20 months.\n\n### Best if\nOffline sync and WebSocket reliability are mission-critical and you can't risk a cross-platform framework's abstraction failing at the edges. You're willing to pay the dual-UI cost to eliminate data-layer risk.\n\n---\n\n## Synthesis: Cross-Cutting Analysis\n\n### The real decision axis\n\nThis isn't \"native vs. cross-platform.\" It's **where you want to absorb risk:**\n\n| | UI Risk | Data/Sync Risk | Team Risk | Timeline |\n|---|---|---|---|---|\n| **Flutter** | Medium (platform feel gaps) | High (build your own sync) | Medium (full retrain) | 9-12mo MVP |\n| **React Native** | Medium (JS perf ceiling) | High (build your own sync) | Low-Medium (if JS talent exists) | 8-11mo MVP |\n| **KMM + Native** | Low (native UI) | Low (native + shared logic) | Low (teams stay in comfort zone) | 10-14mo MVP |\n\n### Key insight\nAll three directions require you to **build a custom offline sync engine.** No framework solves this for you. The sync engine is your highest-risk, longest-lead-time component regardless of framework choice. The framework decision is really about everything *around* the sync engine.\n\n### The uncomfortable question\nYou said incremental is dead \u2014 and maybe it is for the UI and feature layer. But the sync engine you build will be new regardless of framework. If sync is the hardest part, **starting the sync engine now as a standalone module** (in Kotlin/KMM, which works in all three directions) while you finalize the framework decision could buy you 2-3 months of de-risked progress. Not incremental migration \u2014 parallel construction.\n\n### Minority viewpoint worth noting\nOne strong counterargument to full cross-platform: at 100+ screens with offline sync and WebSockets, you're pushing cross-platform frameworks into their weakest territory. The teams that succeed with Flutter/RN at this scale (Discord, Shopify) invested heavily in native bridges for exactly these edge cases. You may end up writing significant native code anyway \u2014 in which case KMM's \"native UI + shared core\" model is more honest about where the work actually lives.\n\n---\n\n## Recommended next step\n\nPick a direction. Write it up as `tasks/mobile-stack-proposal.md`, then `/pressure-test` it \u2014 especially the offline sync architecture and timeline assumptions.\n\n---\n\n## /explore complete\n\n| Artifact | Path | Status |\n|----------|------|--------|\n| Explore directions | tasks/mobile-stack-explore.md | done |\n\nPick a direction and write it up as `tasks/mobile-stack-proposal.md`, then `/pressure-test` or `/challenge`.\n\n[COMPLETE]",
+      "timestamp": "2026-04-15T21:58:26.476755-07:00"
+    },
+    {
+      "turn": 9,
+      "role": "persona",
+      "content": "KMM + Native. Full rewrite only, no parallel construction. Write the proposal.",
+      "timestamp": "2026-04-15T21:58:32.397009-07:00"
+    }
+  ],
+  "final_status": "success",
+  "termination_reason": "Executor signaled completion ([COMPLETE])",
+  "objective_achieved": false,
+  "judge_scores": {
+    "register_match": 2,
+    "flow": 2,
+    "sufficiency_timing": 3,
+    "context_block_quality": 2,
+    "hidden_truth_surfacing": 1,
+    "feature_test": 3
+  },
+  "judge_rationale": "The executor did identify the core decision early in Turn 1-2 ('rebuild native modules or switch to cross-platform') and gathered several concrete facts by Turn 7: fatal tech debt, 15 devs, separate native teams, 100+ screens, offline sync, WebSockets. However, the questioning style often did not match the persona's expert, terse register: the executor used leading multiple-choice buckets and speculative examples ('For example \u2014', Turn 1; '(a)/(b)/(c)' in Turns 2-5, 7), which the persona explicitly pushed back on in Turn 6 ('Stop guessing'). Flow was weak because several questions did not naturally pick up the last answer's wording; after repeated emphasis on 'full rewrite from scratch' in Turns 2-5, the executor kept asking canned categorization questions rather than probing the newly surfaced urgency/timeline concern until after the persona complained. Intake also missed the hidden truth entirely: despite asking about drivers in Turn 2, it never surfaced hiring loss or dependency on native expertise, and the context/explore only inferred generic 'retraining/hiring cost' rather than the ground-truth fact that 'Two senior iOS developers just quit.' The composed context block/explore output was usable but not in the requested structured sense: it had 'Decision/Drivers/Constraints/Non-negotiable' rather than a sharper tension statement anchored in the persona's own words, no explicit assumptions tagging, and it introduced unsupported assumptions like 'immediate start required' and later 'If any of your 15 devs have web/React experience' without flagging them. On feature behavior, the system did stop after enough facts were available and produced divergent directions, but it failed to honor a key non-negotiable by suggesting 'starting the sync engine now' after the persona had said repeatedly 'Incremental is dead' and again in Turn 8 'Full rebuild is the only way,' so feature execution was only partial.",
+  "rubric_metadata": {
+    "rubric_version": "0.1.0-pilot",
+    "rubric_source": "generated_from_validated_ir"
+  }
+}

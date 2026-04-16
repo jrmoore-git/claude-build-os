@@ -249,7 +249,7 @@ Build OS ships with 23 skills. You don't need to learn them — just describe wh
 | Design a UI | `/design` | 4 modes: consult, review, variants, plan-check |
 | Debug something | `/investigate` | Structured root-cause analysis |
 
-**Specialized skills:** `/challenge` (cross-model go/no-go gate), `/explore` (divergent options), `/pressure-test` (adversarial analysis), `/polish` (6-round cross-model refinement), `/research` (deep web research with citations), `/elevate` (scope review), `/prd` (PRD generation), `/audit` (codebase discovery), `/simulate` (skill validation), `/healthcheck` (learning system health), `/triage` (classify incoming info), `/log` (capture decisions), `/sync` (post-ship doc sync), `/wrap` (session close), `/guide` (skill map), `/setup` (project setup).
+**Specialized skills:** `/challenge` (cross-model go/no-go gate), `/explore` (divergent options), `/pressure-test` (adversarial analysis), `/polish` (6-round cross-model refinement), `/research` (deep web research with citations), `/elevate` (scope review), `/prd` (PRD generation), `/audit` (codebase discovery), `/healthcheck` (learning system health), `/triage` (classify incoming info), `/log` (capture decisions), `/sync` (post-ship doc sync), `/wrap` (session close), `/guide` (skill map), `/setup` (project setup).
 
 Full reference with flags and modes: [Cheat Sheet](docs/cheat-sheet.md).
 
