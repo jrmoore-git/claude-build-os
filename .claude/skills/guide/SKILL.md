@@ -21,7 +21,26 @@ Output the following text block exactly:
 
 Just describe what you want to do. Build OS will route you to the right tool.
 
-But if you want a map, here it is:
+### Default paths
+
+Most work follows one of these:
+- **Bugfix:** `/plan` → build → `/review` → `/ship`
+- **New feature:** `/think` → `/plan` → build → `/review` → `/ship`
+- **UI work:** add `/design consult` before plan, `/design review` before ship
+
+Start in Tier 0. Scale up when the stakes require it.
+
+### Something keeps going wrong?
+
+Don't rewrite the prompt. Move it up the enforcement ladder:
+
+  **Lesson** (write it down) → **Rule** (.claude/rules/) → **Hook** (runs automatically) → **Architecture** (impossible to violate)
+
+- Happened once → `/log` to capture it as a lesson
+- Keeps happening → promote to a rule in `.claude/rules/`
+- Rule keeps getting missed → add a hook to enforce it
+
+### Full skill map
 
 ### I want to...
 
