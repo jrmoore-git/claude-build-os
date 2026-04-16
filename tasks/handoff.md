@@ -1,37 +1,33 @@
-# Handoff — 2026-04-15 (session 21)
+# Handoff — 2026-04-15
 
 ## Session Focus
-Committed session 20 work, audited all prose docs for accuracy, fixed stale skill/hook counts across 6 files, pushed everything to GitHub.
+Reviewed external engineer feedback on BuildOS adoption, ran cross-model review, restructured README and /guide for lower landing surface.
 
 ## Decided
-- None (this was a doc hygiene session)
+- Lead README with enforcement ladder + governance tiers (moved from section 10 to section 4)
+- Collapse skills table to 7 core commands (was 23-entry role matrix), link to cheat sheet
+- Collapse pipeline variants to 3 (was 6), link to cheat sheet
+- Push detailed prerequisites to docs/infrastructure.md
+- No new docs/start-here.md needed — restructure existing README instead (3/3 models agreed)
+- Add enforcement ladder as action menu in /guide (not philosophy repeat)
 
 ## Implemented
-- Session 20 commit: D22 pre-mortem + critique_spike.py + tracking doc updates
-- Doc audit: README, getting-started, cheat-sheet, hooks.md, CLAUDE.md all updated
-- Skill count 21→23 (added /prd, /simulate to all tables)
-- Hook count 17/18→20 (added hook-read-before-edit, hook-skill-lint, hook-spec-status-check)
-- hooks.md JSON example now matches actual settings.json
-- Pushed 60 commits to GitHub
+- README.md reordered: enforcement ladder + tiers up top, starter kit after quick start, detail pushed down
+- /guide SKILL.md: added default paths, enforcement ladder action menu, "Full skill map" label before catalog
+- Cross-model review ran twice (round 1 on summary, round 2 on actual files)
 
 ## NOT Finished
-- Running the spike test (critique_spike.py) — next action
-- D22 critique loop implementation (gated on spike results)
-- V2 pipeline formal archive (low priority)
+- Nothing outstanding from this session
+- Prior work: D22 critique loop shelved, context-packet-anchors has challenge+judgment on disk
 
 ## Next Session Should
-1. Run `python3.11 scripts/critique_spike.py` and evaluate results
-2. If hidden_truth delta >= 0.5: proceed with D22 plan (adjust extraction model per pre-mortem feedback)
-3. If hidden_truth delta < 0.5: pivot to direct prompt editing approach
-4. Address pre-mortem finding #3: fail-closed extraction (no silent empty-list fallback)
+1. Choose next product work (context-packet-anchors or something new)
+2. Optionally review docs/getting-started.md for consistency with new README structure
 
 ## Key Files Changed
-- CLAUDE.md (hook count 18→20, added 2 hooks to list)
-- README.md (skill count 21→23, hook count 17→20, added /prd + /simulate to table)
-- docs/getting-started.md (skill count 21→23)
-- docs/cheat-sheet.md (added /prd + /simulate to table)
-- docs/hooks.md (hook count 17→20, added 3 hooks to table, updated JSON example)
-- docs/current-state.md, tasks/handoff.md, tasks/session-log.md (wrap docs)
+- README.md (major reorder + trim, -76 lines net)
+- .claude/skills/guide/SKILL.md (added preamble sections)
+- stores/debate-log.jsonl (2 cross-model review runs logged)
 
 ## Doc Hygiene Warnings
 - None

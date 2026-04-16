@@ -2728,3 +2728,25 @@ ended without running `/wrap-session`. Review and enrich in the next session.
 **Not Finished:** Running critique_spike.py. D22 implementation gated on spike results.
 
 **Next Session:** Run `python3.11 scripts/critique_spike.py` and evaluate results.
+
+---
+
+## 2026-04-15 — README adoption rewrite (cross-model reviewed)
+
+**Decided:**
+- Lead README with enforcement ladder + governance tiers (moved from section 10 to 4)
+- Collapse skills table to 7 core commands, pipeline variants to 3 (was 23 and 6)
+- Push detailed prerequisites to docs/infrastructure.md link
+- No new docs/start-here.md — restructure existing README (3/3 models agreed)
+- Add enforcement ladder as action menu in /guide (operational, not philosophical)
+
+**Implemented:**
+- README.md reordered and trimmed (-76 lines net)
+- /guide SKILL.md: default paths + enforcement ladder action menu added as preamble
+- 2 cross-model reviews ran (Sonnet + Gemini + GPT): round 1 on summary, round 2 on actual files
+
+**Not Finished:** Nothing from this session. Prior: D22 critique loop shelved, context-packet-anchors has artifacts on disk.
+
+**Next Session:** Choose next product work. Optionally review getting-started.md for consistency with new README.
+
+**Commits:** e96b3ee
