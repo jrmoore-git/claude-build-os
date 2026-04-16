@@ -51,6 +51,8 @@ Two failure modes, one rule: when a decision changes the state of something refe
 
 Enforced by `scripts/hook-plan-gate.sh`. Protected paths require a `tasks/<topic>-plan.md` with valid YAML frontmatter (`scope`, `surfaces_affected`, `verification_commands`, `rollback`, `review_tier`, `verification_evidence`) before commit. Config: `config/protected-paths.json`. `[TRIVIAL]` blocked for protected paths; `[EMERGENCY]` allowed with warning.
 
+**Scope containment (optional):** Plans may include `allowed_paths` in frontmatter — a list of path globs the agent is permitted to edit. If present, `hook-pre-edit-gate.sh` blocks writes to files outside those paths. Add `scope_escalation: true` to downgrade blocks to warnings (audit trail for when the agent must go outside scope). Use `allowed_paths` for autonomous agent tasks where file-level containment matters.
+
 Do not commit without the appropriate review. See review-protocol.md for review types and thresholds.
 
 ## Verification

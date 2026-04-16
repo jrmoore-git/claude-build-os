@@ -574,3 +574,168 @@ class TestFindMatchingPlan:
             "  - hooks/hook-*\n"
         ))
         assert find_matching_plan(tasks, "hooks/hook-plan-gate.sh") == "no"
+
+
+# ── Scope containment: check_scope() ────────────────────────────────────────
+
+def check_scope(tasks_dir, rel, now=None):
+    """Check if a file edit is allowed by scope constraints in active plans.
+
+    Returns "allow", "warn:<plan_file>", or "block:<plan_file>".
+    Mirrors the embedded Python in hook-pre-edit-gate.sh scope check.
+    """
+    if now is None:
+        now = time.time()
+    MAX_AGE = 86400
+
+    if not os.path.isdir(tasks_dir):
+        return "allow"
+
+    for fname in sorted(os.listdir(tasks_dir)):
+        if not fname.endswith("-plan.md"):
+            continue
+        path = os.path.join(tasks_dir, fname)
+        if not os.path.isfile(path):
+            continue
+        try:
+            mtime = os.path.getmtime(path)
+        except OSError:
+            continue
+        if (now - mtime) > MAX_AGE:
+            continue
+        try:
+            content = open(path).read()
+        except OSError:
+            continue
+        fm = parse_frontmatter(content)
+        if fm is None:
+            continue
+
+        allowed = fm.get("allowed_paths")
+        if not allowed or not isinstance(allowed, list) or len(allowed) == 0:
+            continue
+
+        for pattern in allowed:
+            if pattern == rel or fnmatch.fnmatch(rel, pattern):
+                return "allow"
+
+        escalation = fm.get("scope_escalation", "")
+        if escalation == "true":
+            return "warn:" + fname
+        else:
+            return "block:" + fname
+
+    return "allow"
+
+
+class TestCheckScope:
+    """Tests for scope containment via allowed_paths in plan frontmatter."""
+
+    def _write_plan(self, tasks_dir, name, content, age_seconds=0):
+        path = os.path.join(tasks_dir, name)
+        with open(path, "w") as f:
+            f.write(content)
+        if age_seconds > 0:
+            mtime = time.time() - age_seconds
+            os.utime(path, (mtime, mtime))
+        return path
+
+    def test_no_allowed_paths_allows_everything(self, tmp_path):
+        """Plans without allowed_paths impose no scope constraint."""
+        tasks = str(tmp_path)
+        self._write_plan(tasks, "foo-plan.md", (
+            "---\n"
+            "scope: test\n"
+            "surfaces_affected:\n"
+            "  - src/analytics/*\n"
+            "---\n"
+        ))
+        assert check_scope(tasks, "src/billing/foo.py") == "allow"
+
+    def test_file_inside_allowed_paths(self, tmp_path):
+        tasks = str(tmp_path)
+        self._write_plan(tasks, "foo-plan.md", (
+            "---\n"
+            "scope: analytics\n"
+            "allowed_paths:\n"
+            "  - src/analytics/*\n"
+            "---\n"
+        ))
+        assert check_scope(tasks, "src/analytics/dashboard.py") == "allow"
+
+    def test_file_outside_allowed_paths_blocks(self, tmp_path):
+        tasks = str(tmp_path)
+        self._write_plan(tasks, "foo-plan.md", (
+            "---\n"
+            "scope: analytics\n"
+            "allowed_paths:\n"
+            "  - src/analytics/*\n"
+            "---\n"
+        ))
+        result = check_scope(tasks, "src/billing/invoice.py")
+        assert result == "block:foo-plan.md"
+
+    def test_scope_escalation_warns_instead_of_blocking(self, tmp_path):
+        tasks = str(tmp_path)
+        self._write_plan(tasks, "foo-plan.md", (
+            "---\n"
+            "scope: analytics\n"
+            "allowed_paths:\n"
+            "  - src/analytics/*\n"
+            "scope_escalation: true\n"
+            "---\n"
+        ))
+        result = check_scope(tasks, "src/billing/invoice.py")
+        assert result == "warn:foo-plan.md"
+
+    def test_multiple_allowed_paths(self, tmp_path):
+        tasks = str(tmp_path)
+        self._write_plan(tasks, "foo-plan.md", (
+            "---\n"
+            "scope: analytics\n"
+            "allowed_paths:\n"
+            "  - src/analytics/*\n"
+            "  - tests/test_analytics*\n"
+            "---\n"
+        ))
+        assert check_scope(tasks, "src/analytics/dashboard.py") == "allow"
+        assert check_scope(tasks, "tests/test_analytics_crud.py") == "allow"
+        result = check_scope(tasks, "src/billing/foo.py")
+        assert result == "block:foo-plan.md"
+
+    def test_expired_plan_ignored(self, tmp_path):
+        tasks = str(tmp_path)
+        self._write_plan(tasks, "old-plan.md", (
+            "---\n"
+            "scope: analytics\n"
+            "allowed_paths:\n"
+            "  - src/analytics/*\n"
+            "---\n"
+        ), age_seconds=90000)
+        assert check_scope(tasks, "src/billing/foo.py") == "allow"
+
+    def test_no_plans_allows_everything(self, tmp_path):
+        assert check_scope(str(tmp_path), "anything/at/all.py") == "allow"
+
+    def test_empty_allowed_paths_ignored(self, tmp_path):
+        tasks = str(tmp_path)
+        self._write_plan(tasks, "foo-plan.md", (
+            "---\n"
+            "scope: test\n"
+            "allowed_paths:\n"
+            "---\n"
+        ))
+        assert check_scope(tasks, "anywhere/file.py") == "allow"
+
+    def test_exact_path_match(self, tmp_path):
+        tasks = str(tmp_path)
+        self._write_plan(tasks, "foo-plan.md", (
+            "---\n"
+            "scope: single file\n"
+            "allowed_paths:\n"
+            "  - src/analytics/dashboard.py\n"
+            "---\n"
+        ))
+        assert check_scope(tasks, "src/analytics/dashboard.py") == "allow"
+        result = check_scope(tasks, "src/analytics/other.py")
+        assert result == "block:foo-plan.md"

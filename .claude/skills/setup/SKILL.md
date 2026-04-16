@@ -32,12 +32,24 @@ Based on their answers, recommend a tier:
 
 Explain your recommendation. Let the user confirm or choose differently.
 
+### Step 2b: Write tier declaration
+
+After the user confirms their tier, add the tier declaration as the first line of CLAUDE.md:
+
+```
+<!-- buildos-tier: N -->
+```
+
+Where N is 0, 1, 2, or 3. This HTML comment is invisible to Claude's context loading but read by hooks to self-disable when above the declared tier. A T0 project gets no governance hooks. A T2 project gets full enforcement.
+
+If CLAUDE.md already has a `buildos-tier` declaration, update it to the new value.
+
 ## Step 3: Create the file structure
 
 Based on the chosen tier, create these files:
 
 ### Tier 0
-- Update `CLAUDE.md` with the project description and any project-specific rules
+- Update `CLAUDE.md` with the project description and any project-specific rules (the `<!-- buildos-tier: 0 -->` declaration is already set)
 
 ### Tier 1 (adds to Tier 0)
 - `docs/project-prd.md` — with the project description as the first section
