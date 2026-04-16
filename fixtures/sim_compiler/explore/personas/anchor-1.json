@@ -7,7 +7,8 @@
     "urgency": "high",
     "patience": "low",
     "trust": "medium",
-    "cooperativeness": "low"
+    "cooperativeness": "low",
+    "hidden_truth": "Two senior iOS developers just quit and hiring replacements would take 6 months, so the rebuild is partly about reducing dependency on native expertise"
   },
   "opening_input": "thinking about rebuilding our mobile stack",
   "behavioral_rules": "Gives short answers (5-15 words). Won't elaborate unless given options. Has a hidden assumption that a full rebuild is the only path — skill should surface this via reframe."

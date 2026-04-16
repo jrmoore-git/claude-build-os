@@ -2472,3 +2472,30 @@ ended without running `/wrap-session`. Review and enrich in the next session.
 - **tasks/**: sim-generalization-challenge-v2.md, sim-generalization-findings-v2.md, sim-generalization-judgment-v2.md, sim-generalization-proposal-v2.md
 
 **Auto-committed:** 2026-04-15 19:44 PT
+
+---
+
+## 2026-04-15 — Sim arc audit + test fix (session 15)
+
+**Decided:**
+- Phase 1 gate FAILS: V2 pipeline scores 3.11/5 vs eval_intake's 4.73/5, all 6 dimensions exceed 0.5-point threshold
+- Root causes: no mid-loop interventions, thin JSON persona cards, SKILL.md ≠ refined protocol
+- Panel + judge verdict: PAUSE. Run one blocking spike experiment before deciding to continue or stop
+- Option C (smoke test 5 skills) rejected as uncalibrated — panel unanimous
+- Option D (protocol overlays) identified as missing path — accepted by judge
+
+**Implemented:**
+- sim_pipeline.py with --protocol override, --dry-run
+- 54 persona gen tests, 40 rubric gen tests, 10 asymmetry invariant tests (31 total driver tests)
+- Prompt delimiters in all 4 sim scripts
+- hidden_truth as required field in sim_persona_gen.py + 9 fixture updates
+- Judge ground truth fix in sim_driver.py (persona hidden_state in judge user message)
+- explore/rubric.json (eval_intake rubric in V2 format)
+- 3 baseline comparison runs with full diagnostics
+- Fresh cross-model challenge: proposal-v2, findings-v2, judgment-v2, challenge-v2
+
+**Not Finished:** Spike experiment (turn_hooks + eval_intake-style reminders). lessons.md and decisions.md not updated.
+
+**Next Session:** Run the spike: add turn_hooks callback to run_simulation() (~30 lines), inject sufficiency/register reminders, run 5 /explore sims. Read tasks/sim-generalization-challenge-v2.md for full criteria.
+
+**Commits:** 6cbffae, 3d44776, fe99c86, aff12cc, 2afbe17

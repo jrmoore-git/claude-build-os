@@ -1,0 +1,81 @@
+{
+  "objective": "Classify incoming unstructured information (meeting notes, research findings, bug reports, etc.) and route each item to its correct destination.",
+  "decision_points": [
+    {
+      "location": "Step 2: Classify each item",
+      "decision": "What category does each item belong to?",
+      "branches": [
+        "Decision \u2014 a choice that was made \u2192 route to tasks/decisions.md",
+        "Lesson \u2014 a mistake, surprise, or pattern \u2192 route to tasks/lessons.md",
+        "Task \u2014 something that needs to be done \u2192 route to project task tracker",
+        "Reference \u2014 useful information to keep \u2192 route to relevant doc",
+        "Noise \u2014 not actionable, not worth keeping \u2192 skip"
+      ]
+    },
+    {
+      "location": "Step 2/3: Classification uncertainty",
+      "decision": "Is the classification of an item clear or ambiguous?",
+      "branches": [
+        "Classification is clear \u2014 route the item to its destination",
+        "Classification is uncertain \u2014 ask the user rather than guessing"
+      ]
+    },
+    {
+      "location": "Step 3: Route reference items",
+      "decision": "Which specific document should a Reference item be routed to?",
+      "branches": [
+        "Relevant destination doc is identifiable \u2014 route there",
+        "Relevant destination doc is unclear \u2014 ask the user"
+      ]
+    },
+    {
+      "location": "Completion",
+      "decision": "What is the completion status of the triage?",
+      "branches": [
+        "DONE \u2014 All steps completed successfully",
+        "DONE_WITH_CONCERNS \u2014 Completed with issues to note",
+        "BLOCKED \u2014 Cannot proceed, state the blocker",
+        "NEEDS_CONTEXT \u2014 Missing information needed to continue"
+      ]
+    }
+  ],
+  "ask_nodes": [
+    {
+      "location": "Step 1: Gather inputs",
+      "question": "What is the source of information to triage (file, clipboard, conversation history, inbox)?",
+      "condition": "Only if the source is not specified or is ambiguous"
+    },
+    {
+      "location": "Step 2: Classify each item",
+      "question": "Where should this item be routed? I'm unsure of its classification.",
+      "condition": "When unsure where something belongs \u2014 per the rule: ask the user rather than guessing"
+    },
+    {
+      "location": "Step 3: Route reference items",
+      "question": "Which document should this reference item be routed to?",
+      "condition": "When a Reference item has no obvious destination document"
+    },
+    {
+      "location": "Step 3: Route task items",
+      "question": "Which project task tracker should this task be added to?",
+      "condition": "When the destination task tracker is not clear or multiple projects exist"
+    }
+  ],
+  "success_criteria": [
+    "Every input item is accounted for \u2014 routed, explicitly deferred with a reason, or explicitly skipped; none silently ignored",
+    "Items are classified into the correct categories (Decision, Lesson, Task, Reference, Noise)",
+    "All routed items have assertion-style titles (e.g., 'JWT cookie auth bridges Django sessions cleanly' not 'Authentication notes')",
+    "A clear triage summary report is produced showing counts and destinations for each category",
+    "Ambiguous items were clarified with the user rather than guessed"
+  ],
+  "failure_criteria": [
+    "Items are silently ignored or dropped without being routed, deferred, or skipped",
+    "Items are misclassified (e.g., a decision logged as a task)",
+    "Vague or descriptive titles used instead of assertion-style titles",
+    "Uncertain classifications are guessed at instead of asking the user",
+    "No summary report is produced at the end",
+    "The source of inputs is assumed incorrectly without confirming with the user",
+    "Status is reported as DONE when items were actually unresolved"
+  ],
+  "interaction_archetype": "intake"
+}

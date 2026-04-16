@@ -1,0 +1,15 @@
+{
+  "skill": "explore",
+  "total_runs": 3,
+  "objectives_achieved": 1,
+  "average_scores": {
+    "context_block_quality": 2.67,
+    "feature_test": 2.67,
+    "flow": 3.67,
+    "hidden_truth_surfacing": 3.33,
+    "register_match": 2.67,
+    "sufficiency_timing": 3.67
+  },
+  "persona_source": "anchor",
+  "rubric_source": "fixtures/sim_compiler/explore/rubric.json"
+}

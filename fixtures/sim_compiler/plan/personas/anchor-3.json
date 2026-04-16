@@ -7,7 +7,8 @@
     "urgency": "high",
     "patience": "medium",
     "trust": "medium",
-    "cooperativeness": "medium"
+    "cooperativeness": "medium",
+    "hidden_truth": "Three microservices still use the JWT library directly and bypassing them during migration would leave a security gap the audit won't accept"
   },
   "opening_input": "We need to migrate from JWT to session auth. Security audit flagged our current approach.",
   "behavioral_rules": "Will challenge any plan that doesn't address rollback for auth changes. Expects the plan to flag protected paths. Wants to see a challenge artifact referenced. Will push back if the tier classification seems too low for auth work."

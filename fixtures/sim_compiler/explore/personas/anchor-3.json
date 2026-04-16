@@ -7,7 +7,8 @@
     "urgency": "medium",
     "patience": "medium",
     "trust": "low",
-    "cooperativeness": "medium"
+    "cooperativeness": "medium",
+    "hidden_truth": "Their CTO wants a decision by end of quarter and has already been leaning toward the internal platform — this exploration is partly about building a case to push back"
   },
   "opening_input": "We need to decide whether to build our own developer platform or keep stitching together what we have",
   "behavioral_rules": "Pushes back on the first reframe. Asks 'why should I trust this process?' if the skill seems formulaic. Will open up after 2-3 good questions that demonstrate understanding. Has a hidden constraint: their CTO wants a decision by end of quarter."

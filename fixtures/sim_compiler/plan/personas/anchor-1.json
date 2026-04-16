@@ -7,7 +7,8 @@
     "urgency": "medium",
     "patience": "high",
     "trust": "high",
-    "cooperativeness": "high"
+    "cooperativeness": "high",
+    "hidden_truth": "The notification system currently has no retry mechanism — failed webhook deliveries will be silently dropped unless the plan addresses this"
   },
   "opening_input": "I need a plan for adding webhook support to our notification system. We have a design doc already.",
   "behavioral_rules": "Has clear requirements and a design doc ready. Provides context proactively. Will ask about rollback strategy if the plan doesn't mention it. Prefers plans with clear verification steps."

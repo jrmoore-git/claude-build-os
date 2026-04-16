@@ -1,27 +1,20 @@
 # Current State — 2026-04-15
 
-## ⚠ STALE — auto-captured session ended without /wrap-session
-**Auto-capture date:** 2026-04-15 18:11 PT
-**Files changed this session:** 4 files in docs, scripts, tasks
-**WARNING:** The "Next Action" below may be outdated. Cross-check with `git log --oneline -10` and recent session-log entries.
-
-
 ## What Changed This Session
-- Ran /challenge on context-packet-anchors proposal — 3 challengers recommended maximal descoping
-- Ran independent judge — judge kept extraction approach, rejected the descoping, asked for robustness
-- Identified structural conservative bias in /challenge pipeline: adversarial challengers always got the last voice
-- Fixed: standard /challenge now includes judge step (D21), judge prompt reframed to weigh both sides
-- Added challenger-model overlap warning in debate.py (judge must not be same model as challenger)
-- Updated /challenge SKILL.md with Step 7b (judge), updated --deep description
-- Cleaned lessons: archived L19/L24/L26, added L29, down to 4 active entries
+- Built full Phase 1 of sim generalization pipeline: 151 tests, 1,520 lines across 5 scripts
+- Ran 3 baseline comparisons of V2 pipeline vs eval_intake.py on /explore — all failed the 0.5-point gate (3.11 vs 4.73 avg)
+- Diagnosed root causes: missing mid-loop interventions, thin persona cards, SKILL.md vs refined protocol gap
+- Added --protocol flag to sim_pipeline.py, judge ground truth fix to sim_driver.py
+- Ran fresh /challenge with updated proposal including Phase 1 failure data
+- Panel + judge verdict: PAUSE — run one blocking spike experiment before deciding to continue or stop
 
 ## Current Blockers
-- None identified
+- Sim generalization paused pending spike experiment (add turn_hooks to sim_driver, test on /explore)
 
 ## Next Action
-Build dynamic evaluation anchors in debate.py per the judge's verdict (REVISE: keep extraction, add fallback semantics and tests). Read tasks/context-packet-anchors-judgment.md for accepted findings. Alternatively, run /challenge on sim-generalization-proposal.md (now with judge step).
+Run the spike: add `turn_hooks` callback to `run_simulation()` (~30 lines), inject eval_intake-style reminders, run 5 /explore comparisons. Success = ≥0.75 overall lift. Read `tasks/sim-generalization-challenge-v2.md` for full criteria.
 
 ## Recent Commits
-cf5abaa [auto] Session work captured 2026-04-15 18:09 PT
-7f11f71 Session wrap 2026-04-15: sufficiency ceilings from 4-level A/B test
-74eb423 [auto] Session work captured 2026-04-15 18:04 PT
+926edec [auto] Session work captured 2026-04-15 19:44 PT
+50b0e4c [auto] Session work captured 2026-04-15 18:36 PT
+ae6cd36 Session wrap 2026-04-15: challenge pipeline conservative bias fix + judge step

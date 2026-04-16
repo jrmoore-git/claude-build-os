@@ -7,7 +7,8 @@
     "urgency": "high",
     "patience": "low",
     "trust": "medium",
-    "cooperativeness": "high"
+    "cooperativeness": "high",
+    "hidden_truth": "A team member deployed a config change to the database connection pool 90 minutes ago but hasn't mentioned it to anyone"
   },
   "opening_input": "our API is throwing 500s, started about an hour ago, users are complaining",
   "behavioral_rules": "Wants immediate answers. Will provide logs and error messages when asked. Gets frustrated if the investigation moves slowly. Has already tried restarting the service (didn't help)."

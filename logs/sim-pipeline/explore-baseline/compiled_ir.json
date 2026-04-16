@@ -1,0 +1,160 @@
+{
+  "objective": "Generate 3+ structurally different directions for a user's question or decision, then synthesize them into a single explore artifact the user can act on.",
+  "decision_points": [
+    {
+      "location": "Phase 0: Context Assessment",
+      "decision": "How much context is already available from the conversation?",
+      "branches": [
+        "Question + both strategy and implementation context present \u2192 self-seed pre-flight, state assumed answers, let user correct, skip to Step 3",
+        "Question + partial context \u2192 run Step 2 pre-flight but smart-skip already-answered questions",
+        "No context \u2192 full sequence from Step 1"
+      ]
+    },
+    {
+      "location": "Step 1: Get topic",
+      "decision": "Did the user provide a topic or question as an argument?",
+      "branches": [
+        "Topic provided \u2192 use it as QUESTION, derive TOPIC slug",
+        "No topic provided \u2192 ask the user what question or decision they want to explore"
+      ]
+    },
+    {
+      "location": "Step 2: Pre-flight discovery \u2014 skip conditions",
+      "decision": "Did the user request to skip or self-seed pre-flight?",
+      "branches": [
+        "User says 'skip' or 'just run it' \u2192 skip pre-flight entirely, proceed to Step 3",
+        "User says 'answer the questions yourself' or 'you know enough' AND sufficient context exists \u2192 self-seed pre-flight with assumed answers, let user correct, proceed",
+        "User says 'answer the questions yourself' but insufficient context \u2192 run normal pre-flight",
+        "Neither skip condition met \u2192 run full pre-flight discovery"
+      ]
+    },
+    {
+      "location": "Step 2a: Thread-and-steer intake \u2014 terse-user trigger",
+      "decision": "Are the user's answers short/vague (1-2 sentences, no elaboration)?",
+      "branches": [
+        "Terse answers \u2192 switch to options format (a/b/c) for all remaining questions",
+        "Substantive answers \u2192 continue thread-and-steer conversational format"
+      ]
+    },
+    {
+      "location": "Step 2a: Thread-and-steer intake \u2014 three-gate sufficiency",
+      "decision": "After each answer from Q3+, are strategy and implementation both covered?",
+      "branches": [
+        "Strategy covered but implementation missing \u2192 ask a meta-question about implementation",
+        "Both strategy and implementation covered \u2192 stop asking questions",
+        "Neither fully covered \u2192 continue asking questions"
+      ]
+    },
+    {
+      "location": "Step 2a: Thread-and-steer intake \u2014 reframe",
+      "decision": "Do answers reveal a root cause at a different level than the proposed solution?",
+      "branches": [
+        "Yes \u2192 offer a one-sentence reframe thesis + one question",
+        "No \u2192 continue without reframing"
+      ]
+    },
+    {
+      "location": "Step 2a: Thread-and-steer intake \u2014 reframe response",
+      "decision": "Did the user accept or reject the reframe?",
+      "branches": [
+        "Accepted \u2192 incorporate reframe into exploration",
+        "Rejected \u2192 accept immediately and continue with original framing"
+      ]
+    },
+    {
+      "location": "Step 2a: Dimensions confirmation",
+      "decision": "Does the user want to adjust the proposed divergence dimensions?",
+      "branches": [
+        "User edits dimensions \u2192 incorporate edits and proceed",
+        "User accepts dimensions \u2192 proceed as-is"
+      ]
+    },
+    {
+      "location": "Step 2c: Inject project context",
+      "decision": "Does a proposal or design doc exist for this topic?",
+      "branches": [
+        "Yes \u2192 run enrich_context.py to add prior decisions context",
+        "No \u2192 skip enrichment, use only current-state and session-log"
+      ]
+    },
+    {
+      "location": "Step 3: Research enrichment",
+      "decision": "Is PERPLEXITY_API_KEY available and does the search succeed?",
+      "branches": [
+        "Perplexity available and succeeds \u2192 append research output to PREFLIGHT_CONTEXT",
+        "Perplexity unavailable or fails \u2192 fall back to Claude WebSearch tool",
+        "WebSearch also unavailable \u2192 proceed without research context"
+      ]
+    },
+    {
+      "location": "Step 4: Run explore",
+      "decision": "Does debate.py succeed?",
+      "branches": [
+        "debate.py succeeds \u2192 use its output",
+        "debate.py fails or is unavailable \u2192 fall back to single-model analysis using session model"
+      ]
+    }
+  ],
+  "ask_nodes": [
+    {
+      "location": "Step 1: Get topic",
+      "question": "What question or decision do you want to explore?",
+      "condition": "Only if the user did not provide a topic or question as an argument"
+    },
+    {
+      "location": "Phase 0 / self-seed path",
+      "question": "Here are my assumed answers [bullet list]. Want to correct anything before I proceed?",
+      "condition": "When question + both strategy and implementation context are present, or user said 'answer the questions yourself' with sufficient context"
+    },
+    {
+      "location": "Step 2a: Thread-and-steer intake \u2014 Q1",
+      "question": "Opening question that threads from the user's stated question (no preamble)",
+      "condition": "When running full or partial pre-flight (not skipped)"
+    },
+    {
+      "location": "Step 2a: Thread-and-steer intake \u2014 subsequent questions",
+      "question": "Follow-up question threading from the strongest unresolved thread in the user's last answer",
+      "condition": "When running pre-flight and three-gate sufficiency not yet met"
+    },
+    {
+      "location": "Step 2a: Thread-and-steer intake \u2014 meta-question",
+      "question": "What should I have asked you that I didn't?",
+      "condition": "When three-gate sufficiency is met (both strategy and implementation covered)"
+    },
+    {
+      "location": "Step 2a: Thread-and-steer intake \u2014 meta-question follow-up",
+      "question": "One follow-up threading from what the user revealed in the meta-question answer",
+      "condition": "After the meta-question is answered"
+    },
+    {
+      "location": "Step 2a: Dimensions confirmation",
+      "question": "Based on our conversation, I'll explore along these dimensions: [4 dimensions]. Want to adjust any before I run?",
+      "condition": "After composing divergence dimensions from pre-flight"
+    }
+  ],
+  "success_criteria": [
+    "3+ structurally different directions are generated, not just surface variations",
+    "Directions are grounded in real evidence (research enrichment) and project context",
+    "User's actual question/decision is addressed, not a reframed version they didn't agree to",
+    "Minority viewpoints are not suppressed from the explore directions",
+    "Explore output is displayed directly in the conversation, not just referenced as a file path",
+    "Artifact is saved to tasks/<TOPIC>-explore.md for future reference",
+    "User has a clear next step: pick a direction and write it up as a proposal",
+    "Pre-flight questions feel conversational and sharp, not like a checklist or menu",
+    "The skill adapts to the user's communication style (register matching, terse-user trigger)"
+  ],
+  "failure_criteria": [
+    "Committing to or recommending a single direction without user selection",
+    "Narrating internal mechanics, cost estimates, model choices, or pipeline plumbing to the user",
+    "Presenting a classification menu or question bank instead of thread-and-steer intake",
+    "Responses more than 2x the user's word count (register mismatch)",
+    "Exposing raw context blocks, DIMENSIONS format, or --context flag details to the user",
+    "Skipping pre-flight when insufficient context exists and user didn't request skip",
+    "debate.py fails and no fallback to single-model analysis is attempted",
+    "Emitting text between tool calls instead of a single formatted output at the end",
+    "Blocking the entire run because research enrichment failed",
+    "Generating directions that are only superficially different (not structurally divergent)",
+    "Rushing or explaining why pre-flight matters instead of just doing it"
+  ],
+  "interaction_archetype": "synthesis"
+}

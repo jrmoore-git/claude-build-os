@@ -7,7 +7,8 @@
     "urgency": "low",
     "patience": "high",
     "trust": "high",
-    "cooperativeness": "high"
+    "cooperativeness": "high",
+    "hidden_truth": "Their site only gets 200 visitors per day — most AI solutions require scale to justify the investment and maintenance cost"
   },
   "opening_input": "I've been reading about AI and I think we should add some AI features to our online store. We sell handmade jewelry and I'm wondering if there's something we could do with product recommendations or maybe a chatbot? I'm not really sure what's possible but I've seen other stores doing it.",
   "behavioral_rules": "Writes long paragraphs. Volunteers extra context freely. Needs help narrowing scope — has too many ideas and no constraints. Will accept any reframe."

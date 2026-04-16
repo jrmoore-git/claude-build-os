@@ -1,0 +1,163 @@
+{
+  "objective": "Generate 3+ structurally different directions for a user's question or decision, then synthesize them into a single explore artifact the user can act on.",
+  "decision_points": [
+    {
+      "location": "Phase 0: Context Assessment",
+      "decision": "How much context is already available from the conversation?",
+      "branches": [
+        "Question + both strategy and implementation context present \u2192 self-seed pre-flight, state assumed answers, let user correct, skip to Step 3",
+        "Question + partial context \u2192 run Step 2 pre-flight but smart-skip already-answered questions",
+        "No context \u2192 full sequence from Step 1"
+      ]
+    },
+    {
+      "location": "Step 1: Get topic",
+      "decision": "Did the user provide a topic or question as an argument?",
+      "branches": [
+        "Topic provided \u2192 use it as QUESTION",
+        "No topic provided \u2192 ask the user for their question"
+      ]
+    },
+    {
+      "location": "Step 2: Pre-flight discovery \u2014 skip conditions",
+      "decision": "Did the user request to skip or self-seed pre-flight?",
+      "branches": [
+        "User says 'skip' or 'just run it' \u2192 skip pre-flight entirely, proceed to Step 3",
+        "User says 'answer the questions yourself' or 'you know enough' AND sufficient context exists \u2192 self-seed pre-flight with assumed answers, let user correct, proceed",
+        "Neither skip condition met \u2192 run full pre-flight discovery"
+      ]
+    },
+    {
+      "location": "Step 2a: Thread-and-steer intake \u2014 terse-user trigger",
+      "decision": "Are the user's answers short/vague (1-2 sentences, no elaboration)?",
+      "branches": [
+        "Terse answers \u2192 switch to options format (a/b/c) for all remaining questions",
+        "Substantive answers \u2192 continue thread-and-steer conversational style"
+      ]
+    },
+    {
+      "location": "Step 2a: Thread-and-steer intake \u2014 three-gate sufficiency",
+      "decision": "After each answer from Q3+, are strategy and implementation both covered?",
+      "branches": [
+        "Strategy covered but implementation missing \u2192 ask meta-question about implementation",
+        "Both strategy and implementation covered \u2192 stop asking, compose context block",
+        "Neither fully covered \u2192 continue asking questions"
+      ]
+    },
+    {
+      "location": "Step 2a: Thread-and-steer intake \u2014 reframe",
+      "decision": "Do answers reveal a root cause at a different level than the proposed solution?",
+      "branches": [
+        "Yes \u2192 offer one-sentence reframe thesis + one question; if rejected, accept immediately",
+        "No \u2192 continue without reframing"
+      ]
+    },
+    {
+      "location": "Step 2a: Dimensions confirmation",
+      "decision": "Does the user want to adjust the 4 divergence dimensions?",
+      "branches": [
+        "User requests edits \u2192 incorporate edits and proceed",
+        "User accepts \u2192 proceed to Step 2b"
+      ]
+    },
+    {
+      "location": "Step 2c: Inject project context",
+      "decision": "Does a proposal or design doc exist for this topic?",
+      "branches": [
+        "Yes \u2192 run enrich_context.py to add prior decisions context",
+        "No \u2192 skip enrichment, use only current-state.md and session-log.md"
+      ]
+    },
+    {
+      "location": "Step 3: Research enrichment",
+      "decision": "Is PERPLEXITY_API_KEY set and research.py available?",
+      "branches": [
+        "Yes and succeeds \u2192 append research output to PREFLIGHT_CONTEXT",
+        "No or fails \u2192 fall back to Claude's WebSearch tool for 1-2 targeted searches",
+        "WebSearch also unavailable \u2192 proceed without research context"
+      ]
+    },
+    {
+      "location": "Step 4: Run explore",
+      "decision": "Does debate.py succeed?",
+      "branches": [
+        "debate.py succeeds \u2192 use its output",
+        "debate.py fails or unavailable \u2192 fall back to single-model analysis using session model"
+      ]
+    },
+    {
+      "location": "Degraded Mode",
+      "decision": "Did the explore call fail?",
+      "branches": [
+        "Success \u2192 display output and summary",
+        "Failure \u2192 report error and suggest running with fewer directions or simpler context"
+      ]
+    }
+  ],
+  "ask_nodes": [
+    {
+      "location": "Step 1: Get topic",
+      "question": "What question or decision do you want to explore?",
+      "condition": "Only if the user did not provide a topic or question as an argument"
+    },
+    {
+      "location": "Step 2a: Thread-and-steer intake \u2014 Q1",
+      "question": "Opening question that threads from the user's stated question (no preamble, Q1 IS the opening move)",
+      "condition": "Pre-flight not skipped and question not already fully contextualized"
+    },
+    {
+      "location": "Step 2a: Thread-and-steer intake \u2014 subsequent questions",
+      "question": "Follow-up questions threading from the user's last answer, using their exact phrases",
+      "condition": "Three-gate sufficiency not yet met (strategy and/or implementation not covered)"
+    },
+    {
+      "location": "Step 2a: Thread-and-steer intake \u2014 meta-question",
+      "question": "What should I have asked you that I didn't?",
+      "condition": "After three-gate sufficiency passes or near the end of pre-flight"
+    },
+    {
+      "location": "Step 2a: Thread-and-steer intake \u2014 meta-question follow-up",
+      "question": "One follow-up threading from what the user revealed in the meta-question answer",
+      "condition": "After the meta-question is answered"
+    },
+    {
+      "location": "Step 2a: Dimensions confirmation",
+      "question": "Based on our conversation, I'll explore along these dimensions: [4 dimensions listed]. Want to adjust any before I run?",
+      "condition": "After composing the context block with dimensions"
+    },
+    {
+      "location": "Phase 0 / self-seed path",
+      "question": "Presenting assumed pre-flight answers as bullet list for user correction",
+      "condition": "When question + both strategy and implementation context are present, or user says 'you know enough'"
+    }
+  ],
+  "success_criteria": [
+    "3+ structurally different directions are generated, not minor variations of the same idea",
+    "Explore output is displayed directly in the conversation, not just referenced as a file path",
+    "An artifact is saved to tasks/<TOPIC>-explore.md",
+    "Pre-flight questions feel natural and conversational, not like a classification menu or question bank",
+    "Divergence dimensions are shown to the user and confirmed before running",
+    "Cross-model synthesis is included, surfacing tradeoffs between directions",
+    "Minority viewpoints are not suppressed",
+    "No direction is committed to without user selection",
+    "Internal mechanics, cost estimates, model choices, and pipeline plumbing are never narrated to the user",
+    "Summary table with artifact paths and status is presented at the end",
+    "Clear next-step guidance is provided (pick a direction, write proposal, pressure-test)"
+  ],
+  "failure_criteria": [
+    "Presenting a classification menu or question bank instead of thread-and-steer conversational intake",
+    "Narrating internal mechanics, cost estimates, model choices, or pipeline plumbing to the user",
+    "Skipping pre-flight without user requesting it when context is insufficient",
+    "Generating directions that are superficially different but structurally the same",
+    "Committing to or recommending a specific direction without user selection",
+    "Suppressing minority viewpoints from explore directions",
+    "Failing to display explore output directly in conversation (only referencing file path)",
+    "Responses that are more than 2x the user's word count (register matching violation)",
+    "Exposing raw context block, DIMENSIONS format, or --context flag details to the user",
+    "Blocking the entire run because research enrichment failed",
+    "Rushing through pre-flight or explaining why pre-flight matters to the user",
+    "debate.py fails and no fallback to single-model analysis is attempted",
+    "Emitting text between tool calls instead of a single formatted output at the end"
+  ],
+  "interaction_archetype": "synthesis"
+}

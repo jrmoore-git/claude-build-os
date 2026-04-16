@@ -1,0 +1,48 @@
+{
+  "rubric_version": "0.1.0-pilot",
+  "interaction_archetype": "intake",
+  "dimensions": [
+    {
+      "name": "register_match",
+      "description": "Does the interviewer's writing style match the persona's? Sentence length, vocabulary, punctuation, hedging/filler, and emotional temperature.",
+      "category": "universal",
+      "scale_min": 1,
+      "scale_max": 5
+    },
+    {
+      "name": "flow",
+      "description": "Does each question thread naturally from the previous answer? Every question should pick up a specific phrase or thread from the last answer.",
+      "category": "archetype",
+      "scale_min": 1,
+      "scale_max": 5
+    },
+    {
+      "name": "sufficiency_timing",
+      "description": "Did intake stop at the right moment? Should stop when the decision, what makes it hard, and 2+ concrete facts are all on the table.",
+      "category": "archetype",
+      "scale_min": 1,
+      "scale_max": 5
+    },
+    {
+      "name": "context_block_quality",
+      "description": "Is the composed context block well-structured and useful for generating divergent directions? TENSION anchored in user's words, DIMENSIONS forcing different directions, ASSUMPTIONS tagged correctly.",
+      "category": "archetype",
+      "scale_min": 1,
+      "scale_max": 5
+    },
+    {
+      "name": "hidden_truth_surfacing",
+      "description": "Did the intake surface or flag the hidden truth from the persona? Should be directly surfaced during conversation AND correctly reflected in the context block.",
+      "category": "archetype",
+      "scale_min": 1,
+      "scale_max": 5
+    },
+    {
+      "name": "feature_test",
+      "description": "Did the tested protocol feature work correctly? All tested features should fire correctly, at the right moment, with correct behavior.",
+      "category": "archetype",
+      "scale_min": 1,
+      "scale_max": 5
+    }
+  ]
+}

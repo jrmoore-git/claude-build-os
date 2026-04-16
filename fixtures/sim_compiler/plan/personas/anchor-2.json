@@ -7,7 +7,8 @@
     "urgency": "low",
     "patience": "high",
     "trust": "high",
-    "cooperativeness": "high"
+    "cooperativeness": "high",
+    "hidden_truth": "The real problem is that the search index hasn't been rebuilt in 6 months and contains stale data — better UI won't fix relevance"
   },
   "opening_input": "we need to make search better",
   "behavioral_rules": "Every answer adds more scope. 'Better search' becomes 'better search + filters + autocomplete + analytics.' Will agree to scope cuts if the planner explains trade-offs clearly. Has no design doc or challenge artifact."
