@@ -1,32 +1,34 @@
 # Handoff — 2026-04-16
 
 ## Session Focus
-Fixed explore command in debate.py to rotate models across directions instead of locking to a single model, matching the cross-model philosophy used by every other debate command.
+Audited all prose/documentation files in BuildOS against the last 24 hours of changes, fixing stale counts, inaccurate descriptions, and missing documentation.
 
 ## Decided
-- Explore should rotate models like refine does — single-model divergence is weaker than cross-model divergence
-- Claude should not generate explore directions since it judges the synthesis — avoids grading its own homework
-- Default rotation: GPT → Gemini → GPT (GPT wraps instead of Gemini since Gemini is least reliable)
+- None (doc accuracy pass, no architectural decisions)
 
 ## Implemented
-- Model rotation in cmd_explore: each direction uses next model in rotation
-- Fallback chain: explore_rotation → refine_rotation → hardcoded default
-- `--model` override still locks all rounds to one model
-- Frontmatter outputs `models:` list instead of single `model:`
-- Audit log records model list
+- README.md: hook count 20 → 22
+- docs/hooks.md: pre-edit-gate time window corrected (2h → 24h), scope containment docs added, 3 missing detailed hook sections added
+- docs/how-it-works.md: explore model rotation documented
+- docs/changelog-april-2026.md: extended to cover April 11-16 (sim archive, new hooks, tier-aware hooks, design mode split, context optimization, etc.)
+- docs/platform-features.md: verification date updated
+- hooks/hook-pre-edit-gate.sh: comments corrected to match code
 
 ## NOT Finished
-- ⚠ Lessons at 31/30 — triage overdue
-- Context injection hook (Priority 1 from prior session) not started
-- No `explore_rotation` key added to debate-models.json yet (falls through to refine_rotation)
+- Lessons at ~29/30 — triage approaching
+- No `explore_rotation` key in debate-models.json yet (falls through to refine_rotation)
 
 ## Next Session Should
-1. Triage lessons.md (over 30 target)
-2. Continue Priority 1 (context injection hook) or Priority 2 (use gstack /qa)
+1. Triage lessons.md if count reaches 30
+2. Continue with gstack integration or other priorities
 
 ## Key Files Changed
-- scripts/debate.py
+- README.md
+- docs/hooks.md
+- docs/how-it-works.md
+- docs/changelog-april-2026.md
+- docs/platform-features.md
+- hooks/hook-pre-edit-gate.sh
 
 ## Doc Hygiene Warnings
-- ⚠ decisions.md not updated — explore model rotation decision not captured (minor, captured in commit message and handoff)
-- ⚠ Lessons at 31/30 — approaching triage threshold
+- None

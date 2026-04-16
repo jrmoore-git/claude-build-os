@@ -3067,3 +3067,19 @@ ended without running `/wrap-session`. Review and enrich in the next session.
 - **docs/**: changelog-april-2026.md, hooks.md, how-it-works.md, platform-features.md
 
 **Auto-committed:** 2026-04-16 13:40 PT
+
+---
+
+## 2026-04-16 — Doc accuracy audit against last 24 hours
+
+**Decided:**
+- None (accuracy pass only)
+
+**Implemented:**
+- Fixed README hook count (20 → 22), hooks.md pre-edit-gate time (2h → 24h + scope containment), 3 missing hook detail sections, explore model rotation in how-it-works, changelog extended to April 11-16, platform-features date, pre-edit-gate comment fix
+
+**Not Finished:** Lessons approaching 30 limit — triage soon
+
+**Next Session:** Triage lessons if at limit, then continue priorities
+
+**Commits:** 7ecb733 (auto-capture), 64cec7a (README + hook comment fix), this wrap
