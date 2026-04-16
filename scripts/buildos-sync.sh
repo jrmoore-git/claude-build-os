@@ -116,11 +116,11 @@ MANIFEST=(
   scripts/research.py
   scripts/setup-design-tools.sh
 
-  # Reference rules
-  .claude/rules/reference/code-quality-detail.md
-  .claude/rules/reference/operational-context.md
-  .claude/rules/reference/debate-invocations.md
-  .claude/rules/reference/platform.md
+  # Reference docs (on-demand, not auto-loaded)
+  docs/reference/code-quality-detail.md
+  docs/reference/operational-context.md
+  docs/reference/debate-invocations.md
+  docs/reference/platform.md
 
   # Hooks
   hooks/hook-agent-isolation.py

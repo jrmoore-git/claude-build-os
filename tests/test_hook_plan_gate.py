@@ -255,8 +255,8 @@ class TestMatchesAny:
         assert not matches_any("scripts/debate.py", PROTECTED_GLOBS)
 
     def test_nested_rules_not_protected(self):
-        # .claude/rules/*.md should not match subdirectories
-        assert not matches_any(".claude/rules/reference/detail.md", PROTECTED_GLOBS)
+        # docs/reference/*.md should not match protected rules
+        assert not matches_any("docs/reference/detail.md", PROTECTED_GLOBS)
 
 
 # ── Combined exempt-then-protected logic (mirrors shell script flow) ─────────

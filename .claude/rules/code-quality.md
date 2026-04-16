@@ -39,6 +39,6 @@ Don't build identity resolution on heuristics. An email address is a lookup key 
 
 ## Domain-Specific Rules
 
-For bulk data mutations, SQLite pitfalls, database queries, and testing patterns, see `.claude/rules/reference/code-quality-detail.md`. Read it when working with databases, pipelines, or test infrastructure.
+For bulk data mutations, SQLite pitfalls, database queries, and testing patterns, see `docs/reference/code-quality-detail.md`. Read it when working with databases, pipelines, or test infrastructure.
 
-**WARNING:** Never modify or delete >10 database records without first reading the bulk mutation rules in `reference/code-quality-detail.md`. Human confirmation is required.
+**WARNING:** Never modify or delete >10 database records without first reading the bulk mutation rules in `docs/reference/code-quality-detail.md`. Human confirmation is required.

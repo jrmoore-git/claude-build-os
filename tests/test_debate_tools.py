@@ -101,6 +101,15 @@ class TestCheckTestCoverage:
         ))
         assert result["module"] == "scripts/debate.py"
 
+    def test_finds_prefix_glob_test_files(self):
+        """debate.py has test_debate_*.py files, not test_debate.py."""
+        result = json.loads(debate_tools._check_test_coverage(
+            {"module_path": "scripts/debate.py"}
+        ))
+        assert result["has_test"] is True
+        assert len(result["test_files"]) >= 5
+        assert any("test_debate_commands" in f for f in result["test_files"])
+
 
 # ── _check_code_presence ───────────────────────────────────────────────────
 
@@ -441,3 +450,22 @@ class TestRepoManifest:
         text = debate_tools.format_manifest_context(m)
         assert "hooks" in text.lower()
         assert "hook-context-inject" in text
+
+    def test_manifest_includes_test_coverage(self):
+        m = debate_tools.generate_repo_manifest()
+        assert "test_coverage" in m
+        # debate.py should have test coverage entries
+        debate_tests = m["test_coverage"].get("scripts/debate.py", [])
+        assert len(debate_tests) >= 5
+
+    def test_format_manifest_includes_test_coverage_section(self):
+        m = debate_tools.generate_repo_manifest()
+        text = debate_tools.format_manifest_context(m)
+        assert "Test coverage" in text
+        assert "scripts/debate.py ->" in text
+
+    def test_format_manifest_has_trust_header(self):
+        m = debate_tools.generate_repo_manifest()
+        text = debate_tools.format_manifest_context(m)
+        assert "deterministic" in text
+        assert "Do not use tool calls to re-verify" in text

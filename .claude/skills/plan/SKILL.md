@@ -47,7 +47,7 @@ test -f tasks/<topic>-challenge.md && echo "found" || echo "none"
    - `proceed` → continue planning
    - `simplify` → plan must implement the Simpler Alternative section, not the original scope
    - `pause` → hard stop until evidence/prerequisites addressed
-   - `reject` → hard stop unless explicitly overridden (see override policy in `.claude/rules/reference/review-protocol.md`)
+   - `reject` → hard stop unless explicitly overridden (see override policy in `.claude/rules/review-protocol.md`)
 
 Note the recommendation to the user: "Challenge recommended `<recommendation>`."
 

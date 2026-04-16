@@ -59,7 +59,7 @@ Tier definitions and full pipeline routes: see CLAUDE.md.
 
 ## Cross-Model Debate Engine
 
-Tool: `scripts/debate.py`. See `reference/debate-invocations.md` for full invocation patterns.
+Tool: `scripts/debate.py`. See `docs/reference/debate-invocations.md` for full invocation patterns.
 
 **`[TRIVIAL]` bypass:** Include in commit message for typo/doc-only changes. Hook logs the bypass.
 

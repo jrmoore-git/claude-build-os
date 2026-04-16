@@ -57,4 +57,4 @@ LLMs classify, summarize, draft, parse intent, and analyze sentiment. Everything
 
 No external code without review. Auto-updates banned. Security has BLOCKING VETO.
 
-For detailed checklists: see `reference/security-external-updates.md`.
+For detailed checklists: see `docs/reference/security-external-updates.md`.
