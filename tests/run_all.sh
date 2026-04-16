@@ -10,7 +10,12 @@ if command -v pytest &>/dev/null; then
     pytest tests/ -q "$@"
     [ $? -ne 0 ] && FAILED=1
 else
-    echo "pytest not installed — skipping pytest suite"
+    echo "=========================================================================" >&2
+    echo "FAIL: pytest not installed — cannot run the main test suite." >&2
+    echo "      Install with: pip3.11 install -r requirements-dev.txt" >&2
+    echo "      (Only 2 smoke tests below are running; most coverage is skipped.)" >&2
+    echo "=========================================================================" >&2
+    FAILED=1
 fi
 
 # 2. Standalone test scripts (not discovered by pytest — they use custom runners)

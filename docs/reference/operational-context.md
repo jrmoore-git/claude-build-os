@@ -4,7 +4,7 @@ description: Check operational health before modifying skills, toolbelt scripts,
 
 # Operational Context — Read Before You Write
 
-Before modifying a skill (`skills/*/SKILL.md`), toolbelt script (`scripts/*_tool.py`), or cron schedule, check the operational health of what you're changing. The data is in `stores/debate-log.jsonl` and `stores/metrics.db`.
+Before modifying a skill (`skills/*/SKILL.md`), toolbelt script (`scripts/*_tool.py`), or cron schedule, check the operational health of what you're changing. The data is in `stores/debate-log.jsonl`.
 
 ## When to Check
 
@@ -23,21 +23,6 @@ One JSON object per line. Each entry records a debate.py run:
 ```
 
 Fields vary by phase (challenge, judge, refine, review, review-panel). Common fields: `timestamp`, `phase`, `debate_id`.
-
-### metrics.db — quality_metrics
-
-```
-id              INTEGER PRIMARY KEY AUTOINCREMENT
-metric_date     TEXT NOT NULL                     -- YYYY-MM-DD Pacific
-metric_type     TEXT NOT NULL
-category        TEXT
-value           REAL NOT NULL
-threshold       REAL
-breached        INTEGER DEFAULT 0
-detail          TEXT                              -- JSON aggregates only, never message content
-created_at      TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-UNIQUE(metric_date, metric_type, category)
-```
 
 ## Queries
 

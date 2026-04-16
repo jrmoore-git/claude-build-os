@@ -97,7 +97,7 @@ After problem discovery, `/think` now offers to generate a PRD from the conversa
 - **`reference/` subdirectory** (new) — lazy-loaded domain rules:
   - `platform.md` — macOS/Docker/Node/Python quirks
   - `code-quality-detail.md` — bulk mutations, SQLite pitfalls, testing patterns
-  - `operational-context.md` — audit.db/metrics.db schemas and health queries
+  - `operational-context.md` — debate-log.jsonl health queries
 
 ## Onboarding Docs (new)
 

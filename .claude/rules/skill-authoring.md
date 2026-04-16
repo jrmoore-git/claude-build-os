@@ -16,6 +16,14 @@ globs:
 - **Audit log for every run, even zero results.** Skills that process external data MUST log every execution (including 0-result runs) to an append-only store (e.g., `stores/debate-log.jsonl`). Without this, a silent failure (timeout, no data, wrong date) is indistinguishable from a legitimate empty run. Log: action_type, item_count, and any candidate counts before filtering.
 - **Two-pass extraction for LLM tasks.** For promise extraction, fact extraction, or any LLM classification task: first ask the LLM to list ALL candidate items without filtering, then ask it to filter/classify the full candidate list. A single "extract only the important ones" pass causes the LLM to silently miss items. Separating "find everything" from "evaluate each" prevents lazy omission.
 
+## User-Facing Output — No Framework Plumbing
+
+User-invocable skill output must not surface framework internals. A user asking "where are we?" should not see `SCRIPT_MISSING`, `has_stale_memory: true`, `is_stale`, `check_failed`, raw JSON keys from diagnostic scripts, or `|| echo "FALLBACK"` placeholder strings. If a diagnostic script fails: skip silently (degraded mode) or translate to a plain-language actionable ("couldn't check version drift — run `/healthcheck` if concerned"). Internal flag names leak implementation detail and erode trust — users can't act on `is_stale: true`; they can act on "current-state.md is 3 days old, want me to refresh it?"
+
+**Rule of thumb:** if a term appears only in a Python script or a hook config, it should never appear verbatim in chat output from a user-facing skill.
+
+**Test at review time:** grep skill output for framework terms (flag names, script filenames, internal JSON keys). Any match → rewrite the output path to translate or suppress.
+
 ## Persona Definition — Problem-First, No Style Classification
 
 Personas in skills and tests are defined by **problem and answers only**. No style tables, no style columns, no style matrices, no communication-style stress tests. Register is observed in transcripts, not designed into test personas.
