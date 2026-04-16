@@ -35,7 +35,7 @@ VALID_KNOWLEDGE = {"novice", "intermediate", "expert"}
 KNOWLEDGE_AS_LEVELS = {"novice": "low", "intermediate": "medium", "expert": "high"}
 
 PERSONA_SCHEMA_FIELDS = ["persona_id", "persona_type", "hidden_state", "opening_input", "behavioral_rules"]
-HIDDEN_STATE_REQUIRED = ["goal", "knowledge", "urgency", "patience", "trust", "cooperativeness"]
+HIDDEN_STATE_REQUIRED = ["goal", "knowledge", "urgency", "patience", "trust", "cooperativeness", "hidden_truth"]
 
 GENERATION_PROMPT = """You are a persona generator for a skill simulation system. Given an Interaction Representation (IR) of a skill, generate diverse simulated user personas that would exercise different paths through the skill.
 
@@ -52,7 +52,8 @@ Generate exactly {count} persona(s) as a JSON array. Each persona must have this
     "urgency": "low|medium|high",
     "patience": "low|medium|high",
     "trust": "low|medium|high",
-    "cooperativeness": "low|medium|high"
+    "cooperativeness": "low|medium|high",
+    "hidden_truth": "a fact or constraint the persona knows but won't volunteer unless the skill draws it out"
   }},
   "opening_input": "what the user types first to invoke this skill",
   "behavioral_rules": "1-3 sentences describing how this persona behaves during the interaction"

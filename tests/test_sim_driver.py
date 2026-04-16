@@ -436,3 +436,157 @@ def test_anchor_personas_valid():
                 persona = json.load(f)
             errors = validate_persona(persona, 0)
             assert errors == [], f"{skill}/{fname} validation errors: {errors}"
+
+
+# ── Information-asymmetry invariant tests ─────────────────────────────────
+
+# Realistic persona card with hidden_truth for asymmetry tests
+ASYMMETRY_PERSONA = {
+    "persona_id": "anchor-1",
+    "persona_type": "anchor",
+    "hidden_state": {
+        "goal": "Evaluate whether to rebuild their mobile app's native modules or migrate to a cross-platform framework",
+        "knowledge": "expert",
+        "urgency": "high",
+        "patience": "low",
+        "trust": "medium",
+        "cooperativeness": "low",
+        "hidden_truth": "The real driver is that two senior iOS developers just quit and hiring replacements would take 6 months"
+    },
+    "opening_input": "thinking about rebuilding our mobile stack",
+    "behavioral_rules": "Gives short answers (5-15 words). Won't elaborate unless given options. Has a hidden assumption that a full rebuild is the only path."
+}
+
+ASYMMETRY_RUBRIC = {
+    "rubric_version": "0.1.0-pilot",
+    "interaction_archetype": "intake",
+    "dimensions": [
+        {
+            "name": "task_completion",
+            "description": "Did the skill accomplish its stated objective?",
+            "category": "universal",
+            "scale_min": 1,
+            "scale_max": 5,
+        },
+        {
+            "name": "hidden_truth_surfacing",
+            "description": "Did the skill surface the hidden truth the persona is withholding?",
+            "category": "archetype",
+            "scale_min": 1,
+            "scale_max": 5,
+        },
+        {
+            "name": "turn_efficiency",
+            "description": "Was the interaction appropriately concise?",
+            "category": "universal",
+            "scale_min": 1,
+            "scale_max": 5,
+        },
+    ]
+}
+
+ASYMMETRY_SKILL_CONTENT = """# Explore Skill
+## Procedure
+### Step 1: Ask what question the user wants to explore
+### Step 2: Pre-flight discovery — ask 2-4 questions to understand context
+### Step 3: Generate 3+ divergent directions via cross-model synthesis
+### Step 4: Present directions with evidence and trade-offs
+"""
+
+
+def test_executor_prompt_contains_skill_not_hidden_state():
+    """Executor sees skill procedure but NOT persona hidden state."""
+    prompt = build_executor_system(ASYMMETRY_SKILL_CONTENT, "explore")
+    # Executor MUST see the skill procedure
+    assert "Pre-flight discovery" in prompt
+    assert "divergent directions" in prompt
+    assert "explore" in prompt
+    # Executor MUST NOT see any hidden_state fields
+    assert "hidden_truth" not in prompt
+    assert "two senior iOS developers just quit" not in prompt
+    assert ASYMMETRY_PERSONA["hidden_state"]["goal"] not in prompt
+    assert "cooperativeness" not in prompt
+    assert "patience" not in prompt
+    assert "urgency" not in prompt
+
+
+def test_executor_prompt_excludes_hidden_truth_value():
+    """Executor prompt must not contain the actual hidden_truth string."""
+    prompt = build_executor_system(ASYMMETRY_SKILL_CONTENT, "explore")
+    hidden_truth = ASYMMETRY_PERSONA["hidden_state"]["hidden_truth"]
+    assert hidden_truth not in prompt
+    # Also check partial matches
+    assert "iOS developers just quit" not in prompt
+    assert "hiring replacements" not in prompt
+
+
+def test_persona_prompt_contains_hidden_state():
+    """Persona sees their own card including hidden_state fields."""
+    prompt = build_persona_system(ASYMMETRY_PERSONA)
+    assert "expert" in prompt  # knowledge
+    assert "high" in prompt  # urgency
+    assert "low" in prompt  # patience
+    assert "medium" in prompt  # trust
+
+
+def test_persona_prompt_excludes_skill_procedure():
+    """Persona must NOT see the skill procedure."""
+    prompt = build_persona_system(ASYMMETRY_PERSONA)
+    assert "SKILL PROCEDURE" not in prompt
+    assert "Pre-flight discovery" not in prompt
+    assert "divergent directions" not in prompt
+    assert "cross-model synthesis" not in prompt
+
+
+def test_persona_prompt_excludes_rubric():
+    """Persona must NOT see rubric dimensions or scoring criteria."""
+    prompt = build_persona_system(ASYMMETRY_PERSONA)
+    assert "hidden_truth_surfacing" not in prompt
+    assert "task_completion" not in prompt
+    assert "turn_efficiency" not in prompt
+    assert "SCORING DIMENSIONS" not in prompt
+    assert "scale_min" not in prompt
+    assert "scale_max" not in prompt
+
+
+def test_judge_prompt_contains_rubric_not_hidden_state():
+    """Judge sees rubric dimensions but NOT persona hidden state."""
+    prompt = build_judge_system(ASYMMETRY_RUBRIC)
+    # Judge MUST see rubric dimensions
+    assert "task_completion" in prompt
+    assert "hidden_truth_surfacing" in prompt
+    assert "turn_efficiency" in prompt
+    # Judge MUST NOT see hidden_state fields
+    assert "two senior iOS developers just quit" not in prompt
+    assert ASYMMETRY_PERSONA["hidden_state"]["goal"] not in prompt
+    assert "cooperativeness" not in prompt
+    assert "patience" not in prompt
+
+
+def test_judge_prompt_excludes_hidden_truth_value():
+    """Judge prompt must not contain the actual hidden_truth string."""
+    prompt = build_judge_system(ASYMMETRY_RUBRIC)
+    hidden_truth = ASYMMETRY_PERSONA["hidden_state"]["hidden_truth"]
+    assert hidden_truth not in prompt
+
+
+def test_judge_prompt_excludes_skill_procedure():
+    """Judge must NOT see the skill procedure (only rubric + transcript)."""
+    prompt = build_judge_system(ASYMMETRY_RUBRIC)
+    assert "SKILL PROCEDURE" not in prompt
+    assert "Pre-flight discovery" not in prompt
+    assert "divergent directions" not in prompt
+
+
+def test_executor_and_persona_have_disjoint_knowledge():
+    """Executor and persona prompts share no domain-specific content."""
+    executor_prompt = build_executor_system(ASYMMETRY_SKILL_CONTENT, "explore")
+    persona_prompt = build_persona_system(ASYMMETRY_PERSONA)
+    # Skill content should not appear in persona prompt
+    for phrase in ["Pre-flight discovery", "divergent directions", "cross-model synthesis"]:
+        assert phrase in executor_prompt
+        assert phrase not in persona_prompt
+    # Hidden state values should not appear in executor prompt
+    for field_val in ["cooperativeness", "patience", "urgency"]:
+        assert field_val in persona_prompt.lower()
+        assert field_val not in executor_prompt.lower()

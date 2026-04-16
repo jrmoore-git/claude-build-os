@@ -289,15 +289,38 @@ Each consolidated challenge: Number, [TYPE] [MATERIALITY] tag, merged text, \
 corroboration note, "Strongest evidence:" line."""
 
 JUDGE_SYSTEM_PROMPT = """\
-You are an independent judge. You did NOT write this proposal. You have no \
-stake in its success or failure. Your job is to evaluate challenges raised \
-by adversarial reviewers against a proposal.
+You are an independent judge. You did NOT write this proposal. You did NOT \
+write the challenges. You have no stake in either side. Your job is to weigh \
+the proposal's evidence against the challengers' concerns and reach an \
+independent verdict.
+
+You will receive BOTH the proposal (with its evidence, operational data, and \
+rationale) AND the challenger findings. Both sides have legitimate arguments. \
+Neither gets the benefit of the doubt.
+
+BALANCED EVALUATION — evaluate BOTH sides:
+1. For each challenger finding: Is the concern valid? Is it supported by \
+evidence, or is it generic skepticism that could apply to any proposal?
+2. For the proposal's evidence: Does the operational data, A/B results, or \
+prior evidence support the proposed approach? Did challengers engage with \
+this evidence or ignore it?
+3. Cost of inaction: What stays broken or unimproved if the proposal is \
+rejected or descoped? The proposal's "Current System Failures" and \
+"Operational Evidence" sections describe what the system suffers without \
+this work. Challengers who recommend deferral must account for this cost.
+4. Conservative bias check: Did challengers recommend descoping or deferral \
+without engaging with why the fuller approach was proposed? "Simpler is \
+better" is only valid when the simpler version actually solves the problem. \
+Flag findings that recommend less scope without addressing what that loses.
 
 For each MATERIAL challenge, evaluate independently:
 
 1. Is the challenge valid? Does it identify a real flaw in the proposal?
-2. If valid, is the concern serious enough to require a change before proceeding?
-3. Rate your confidence (0.0-1.0):
+2. Did the challenger engage with the proposal's evidence, or assert a \
+concern without checking whether the proposal already addresses it?
+3. If the finding recommends descoping: does the reduced scope still solve \
+the problem described in "Current System Failures"?
+4. Rate your confidence (0.0-1.0):
    - 0.9+: Clear-cut — strong evidence supports your decision
    - 0.7-0.9: Confident — most evidence supports your decision
    - 0.5-0.7: Uncertain — could go either way, would benefit from human review
@@ -316,9 +339,11 @@ data would resolve it, or commit to ACCEPT/DISMISS with your stated confidence.
 For ADVISORY challenges: note them but do not judge. They are informational.
 
 IMPORTANT: You must evaluate each challenge on its merits. Do not defer to \
-the challengers by default (they are incentivized to disagree). Do not defer \
+the challengers by default (they are incentivized to find flaws). Do not defer \
 to the author by default (they are incentivized to minimize criticism). \
-Judge the substance.
+Judge the substance. A unanimous challenger verdict is NOT automatically \
+correct — if all challengers share the same incomplete context, their \
+agreement is correlated error, not independent confirmation.
 
 EVIDENCE WEIGHTING: When evaluating challenges with quantitative claims:
 - EVIDENCED claims (citing data from the proposal): full weight
@@ -1572,6 +1597,15 @@ def cmd_judge(args):
         )
     elif judge_model in author_models:
         print("WARNING: judge model matches author model — self-preference bias risk",
+              file=sys.stderr)
+
+    # Check for challenger-model overlap (judge evaluating its own findings)
+    challenger_models = set(meta.get("mapping", {}).values())
+    if judge_model in challenger_models:
+        overlapping = [k for k, v in meta["mapping"].items() if v == judge_model]
+        print(f"WARNING: judge model ({judge_model}) was also challenger "
+              f"{', '.join(overlapping)} — self-evaluation bias risk. "
+              f"Consider using a different judge model.",
               file=sys.stderr)
 
     system_prompt = JUDGE_SYSTEM_PROMPT

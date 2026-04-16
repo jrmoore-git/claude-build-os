@@ -1,20 +1,27 @@
 # Current State — 2026-04-15
 
+## ⚠ STALE — auto-captured session ended without /wrap-session
+**Auto-capture date:** 2026-04-15 18:11 PT
+**Files changed this session:** 4 files in docs, scripts, tasks
+**WARNING:** The "Next Action" below may be outdated. Cross-check with `git log --oneline -10` and recent session-log entries.
+
+
 ## What Changed This Session
-- Ran 4-level budget ceiling test (45, 89, 279, 464 lines) on challenge-pipeline-fixes proposal
-- Found quality peaks at ~200-280 lines, degrades above ~300 (Gemini dropped 5→2 tool calls, models shifted to reviewing context padding)
-- Reframed context from "budgets to fill" to "sufficiency ceilings — stop when criteria met"
-- Revised all ceilings: challenge 150-300, review 120-250, explore/polish 100-200, healthcheck/simulate 60-120
-- Updated spec, 6 skill files, and anchors handoff with sufficiency framing
-- Session 13 (parallel): created skill templates, deleted gstack fixtures
+- Ran /challenge on context-packet-anchors proposal — 3 challengers recommended maximal descoping
+- Ran independent judge — judge kept extraction approach, rejected the descoping, asked for robustness
+- Identified structural conservative bias in /challenge pipeline: adversarial challengers always got the last voice
+- Fixed: standard /challenge now includes judge step (D21), judge prompt reframed to weigh both sides
+- Added challenger-model overlap warning in debate.py (judge must not be same model as challenger)
+- Updated /challenge SKILL.md with Step 7b (judge), updated --deep description
+- Cleaned lessons: archived L19/L24/L26, added L29, down to 4 active entries
 
 ## Current Blockers
 - None identified
 
 ## Next Action
-Implement dynamic evaluation anchors in debate.py. Read tasks/context-packet-anchors-design.md first. Alternatively, run /challenge on sim-generalization-proposal.md.
+Build dynamic evaluation anchors in debate.py per the judge's verdict (REVISE: keep extraction, add fallback semantics and tests). Read tasks/context-packet-anchors-judgment.md for accepted findings. Alternatively, run /challenge on sim-generalization-proposal.md (now with judge step).
 
 ## Recent Commits
-5916aae [auto] Session work captured 2026-04-15 18:02 PT
-021576c Session wrap 2026-04-15: context packets for 6 skills + anchor design handoff
-a24d226 [auto] Session work captured 2026-04-15 17:34 PT
+cf5abaa [auto] Session work captured 2026-04-15 18:09 PT
+7f11f71 Session wrap 2026-04-15: sufficiency ceilings from 4-level A/B test
+74eb423 [auto] Session work captured 2026-04-15 18:04 PT

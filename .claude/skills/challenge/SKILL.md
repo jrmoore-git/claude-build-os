@@ -11,7 +11,7 @@ Question the premise, scope, and complexity of proposed work before committing t
 
 ## `--deep` Mode (Full Adversarial Pipeline)
 
-`/challenge --deep` runs the full adversarial pipeline: challenge → judge → refine. This is the old `/debate --validate` mode. Use when you need a scored verdict with independent judgment, not just a gate check.
+`/challenge --deep` runs the full adversarial pipeline: challenge → judge → refine. Standard `/challenge` now includes the judge step (challenge → judge → synthesize). `--deep` adds iterative cross-model refinement on top. Use when the proposal needs to be improved, not just evaluated.
 
 ```bash
 # Step 1: Challenge (same as standard /challenge Step 7)
@@ -175,7 +175,7 @@ If the script is missing, errors, or returns nothing, continue with the raw prop
 
 **Local-only mode:** User explicitly requests it, or proposal contains secrets. Skip multi-model review. Proceed to Step 6, then Step 8. Mark artifact `review_backend: local-only`. This is an operator choice, not degraded.
 
-**Standard mode:** `debate.py` is available. Proceed to Step 6, then Step 7, then Step 9.
+**Standard mode:** `debate.py` is available. Proceed to Step 6, then Step 7, then Step 7b (judge), then Step 9.
 
 **Degraded fallback:** `debate.py` unavailable or fails. Classify proposal risk from content:
 - **Tier 1 (fail closed):** Security, auth, schema, infrastructure, unclear risk. Stop and report.
@@ -207,6 +207,24 @@ Write raw output to `tasks/<slug>-findings.md`. Do not write to `-challenge.md` 
 
 If `debate.py` fails entirely, apply fallback from Step 5.
 
+### Step 7b: Run independent judge
+
+The judge sees both the proposal and the challenge findings simultaneously and weighs both sides. This corrects for the structural conservative bias where challengers get the last voice.
+
+```bash
+python3.11 scripts/debate.py --security-posture $POSTURE judge \
+  --proposal tasks/<slug>-proposal.md \
+  --challenge tasks/<slug>-findings.md \
+  --verify-claims \
+  --output tasks/<slug>-judgment.md
+```
+
+The judge model must NOT be the same model as any challenger. If the default judge (`gpt-5.4`) was a challenger, override with `--model` to use a model not in the challenger set. debate.py will warn on overlap but not hard-block — the skill must enforce this.
+
+Write output to `tasks/<slug>-judgment.md`. The judgment — not the raw findings — is the primary input for Step 9 synthesis.
+
+If the judge fails, fall back to synthesizing from raw findings (Step 9 still runs), but mark the artifact `judge: failed`.
+
 ### Step 8: Single-model review
 
 Runs for local-only mode or degraded fallback. Review the proposal skeptically through Step 6 personas. Focus on: whether the problem is real, whether the approach is oversized, simpler alternatives, non-goals, deletion cost, evidence gaps.
@@ -215,7 +233,7 @@ Write findings to `tasks/<slug>-findings.md`. If degraded (not local-only), mark
 
 ### Step 9: Synthesize the challenge artifact
 
-Read the proposal, prior context, enrichment, and findings.
+Read the proposal, prior context, enrichment, and the **judgment** (primary) or raw findings (fallback if judge failed).
 
 **For each MATERIAL finding, assess implementation cost:**
 
@@ -254,6 +272,7 @@ Inline fixes to include in build:
 Artifacts:
 - tasks/<slug>-challenge.md
 - tasks/<slug>-findings.md
+- tasks/<slug>-judgment.md
 
 Next:
 - /plan <topic>     (if proceed or proceed-with-fixes)
