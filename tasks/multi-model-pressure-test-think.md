@@ -1,6 +1,6 @@
 ---
 implementation_status: shipped
-shipped_commit: pending
+shipped_commit: 74773d9
 ---
 # Brief: Multi-Model Pressure-Test (D5 Phase 2)
 
