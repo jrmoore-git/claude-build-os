@@ -2709,3 +2709,22 @@ ended without running `/wrap-session`. Review and enrich in the next session.
 **Not Finished:** Running the spike test. D22 implementation gated on spike results. V2 archive (low priority).
 
 **Next Session:** Run critique_spike.py. If hidden_truth delta >= 0.5, proceed with D22 (with pre-mortem adjustments). If < 0.5, pivot to direct prompt editing approach.
+
+---
+
+## 2026-04-15 (session 21) — Doc audit + stale count fixes + push to GitHub
+
+**Decided:**
+- None (doc hygiene session)
+
+**Implemented:**
+- Committed session 20 work (D22 pre-mortem + critique_spike.py + tracking docs)
+- Audited all prose docs for accuracy: README, getting-started, cheat-sheet, hooks.md, why-build-os, the-build-os
+- Fixed skill count 21→23 across README, getting-started, cheat-sheet (added /prd + /simulate)
+- Fixed hook count 17/18→20 across hooks.md, CLAUDE.md, README (added hook-read-before-edit, hook-skill-lint, hook-spec-status-check)
+- Updated hooks.md JSON example to match actual settings.json wiring
+- Pushed 60 commits to GitHub (repo was 58 commits ahead at session start)
+
+**Not Finished:** Running critique_spike.py. D22 implementation gated on spike results.
+
+**Next Session:** Run `python3.11 scripts/critique_spike.py` and evaluate results.
