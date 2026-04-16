@@ -43,26 +43,13 @@ ACTION: Review uncommitted files, commit with a proper message, enrich session-l
 ```bash
 python3.11 scripts/verify-plan-progress.py
 ```
-If `has_stale_memory` is true:
-```
-## Stale Memory Detected
-[message from output]
-ACTION: Update listed memory files to match actual state before recommending next steps.
-```
-**HARD RULE:** When this fires, do NOT recommend next steps based on stale memory. Read the plan file, determine actual progress from disk artifacts + session log, update memory files immediately.
+If `has_stale_memory` is true: silently update the listed memory files to match actual state (read plan file, check disk artifacts + session log). Do NOT show a "Stale Memory Detected" warning — just fix it. The user sees correct recommendations, not the correction process.
 
 **1c. Current-state freshness check**
 ```bash
 python3.11 scripts/check-current-state-freshness.py
 ```
-If `is_stale` is true:
-```
-## Stale Current State
-[message from output]
-Recent commits: [list from output]
-ACTION: Do NOT trust "Next Action" from current-state.md. Determine actual state from git log + session-log, then update current-state.md.
-```
-**HARD RULE:** When this fires, derive the "Next" section from git log + session-log, NOT from current-state.md.
+If `is_stale` is true: derive the Status and Next Action sections from git log + session-log, NOT from current-state.md. Do NOT show a "Stale Current State" warning — just use the correct source. The user sees accurate status, not a disclaimer about why it might be wrong.
 
 **1d. Infrastructure version check**
 ```bash
@@ -168,13 +155,16 @@ python3.11 scripts/artifact_check.py --scope <topic>
 **HARD RULE:** Do not recommend work that already shipped. Before Step 3, verify:
 
 1. Read what `current-state.md` and `handoff.md` describe as "next" or "not finished."
-2. For each candidate action:
-   - If it names a file/hook/feature to build: check if it exists (`ls`, `grep`, or `glob` for it)
+2. If docs reference specific artifact files (e.g., `tasks/foo-proposal.md`), verify they still exist on disk. A handoff that says "run /challenge on X.md" is a phantom action if X.md was deleted or moved. If the exact filename is missing, glob for versioned variants (`*-v2.md`, `*-v3.md`) before declaring phantom.
+3. For each candidate action:
+   - If it names a file/hook/feature to build: use **both** glob and grep to check (e.g., `glob hooks/hook-*context*` AND `grep context_inject scripts/`). A single narrow search misses naming variations.
    - If it names a task: `git log --oneline -5 -- <relevant paths>` to see if it shipped
    - If it's a workflow habit (e.g., "just use X on next task"): flag as "available, not a build item" — don't list as unfinished work
-3. Drop any action that's already implemented. If ALL candidates are done, route to "Clean slate" in Step 3.
+   - If a candidate has a dependency (e.g., "do X after Y ships"): verify Y's state with a concrete check (grep/ls), not just a text note
+4. Scan for competing priorities: `ls -t tasks/*-plan.md tasks/*-audit.md tasks/*-proposal.md 2>/dev/null | head -5` — if recent artifacts exist that the handoff doesn't mention, surface them as "competing priority — verify routing before proceeding."
+5. Drop any action that's already implemented. If ALL candidates are done, route to "Clean slate" in Step 3.
 
-This step should add <15 seconds. A few targeted checks beat a confidently wrong recommendation.
+**Output rule:** Step 2b is invisible to the user. Do not show verification traces ("SHIPPED, DROP"), grep results, or the filtering process. Just present the filtered result in the Next Action section. If an item was dropped, it simply doesn't appear.
 
 ### Step 3: Route to next action
 
@@ -213,8 +203,7 @@ After the primary recommendation, append any matching suggestions:
 
 ### Step 5: Safe to stop?
 
-- If `git status --short` shows changes: "NOT safe to stop — commit or stash first."
-- If clean: "Safe to stop."
+Only include this section if the working tree is clean. If there are uncommitted changes, omit the section entirely — the user is mid-session and already knows they have changes.
 
 ## Output Format
 
@@ -244,7 +233,7 @@ Artifacts: <list existing for topic, or "none">
 [5-10 bullets: most useful recent lessons, paraphrased short]
 
 ## Safe to Stop
-<yes/no + reason>
+<only if working tree is clean — omit section entirely if uncommitted changes exist>
 ```
 
 **Rules:**
