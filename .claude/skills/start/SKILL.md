@@ -95,8 +95,8 @@ active_count=$(grep -c '^| L[0-9]' tasks/lessons.md 2>/dev/null) || active_count
 # Check for Resolved lessons still in active table (stale from prior sessions)
 resolved_active=$(grep -E '^\| L[0-9]+.*\[Resolved' tasks/lessons.md 2>/dev/null || true)
 
-# Days since last full healthcheck
-last_hc=$(grep -n '\[healthcheck\]' tasks/session-log.md 2>/dev/null | tail -1 || true)
+# Days since last full healthcheck (check git log, not session-log markers)
+last_hc=$(git log --oneline --grep="healthcheck" --since="7 days ago" 2>/dev/null | head -1 || true)
 
 # Overdue decisions (NEEDS DECISION or open status, added >7 days ago)
 overdue_decisions=$(grep -E 'NEEDS DECISION|Status: open' tasks/decisions.md 2>/dev/null || true)

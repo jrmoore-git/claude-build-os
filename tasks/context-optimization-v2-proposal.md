@@ -1,7 +1,8 @@
 ---
 topic: context-optimization-v2
 type: proposal
-status: draft
+status: complete
+implementation_status: partial
 created_at: 2026-04-16T12:30:00-0700
 producer: claude-opus-4-6
 depends_on: context-optimization-v1 (shipped: 65d3368, 340f27e)
@@ -210,16 +211,14 @@ However — this has a **fidelity risk**. Skills follow their SKILL.md content w
 
 ## Implementation Order
 
-| # | Change | Tokens saved | Risk | Effort | Dependencies |
-|---|--------|-------------|------|--------|--------------|
-| 1 | Context-inject silent cache hit | ~4.4K/session | Low | 5 min | None |
-| 2 | /design mode split spike | — (validation only) | None | 1 hr | None |
-| 3 | /design mode split (if spike passes) | ~14-18K/invocation | Medium | 3 hr | Spike |
-| 4 | Shared boilerplate extraction (if spike passes) | ~6-9K/session | Medium | 3 hr | Spike |
+| # | Change | Tokens saved | Risk | Effort | Status |
+|---|--------|-------------|------|--------|--------|
+| 1 | Context-inject silent cache hit | ~4.4K/session | Low | 5 min | **SHIPPED** |
+| 2 | /design mode split spike | — (validation only) | None | 1 hr | **SHIPPED** (4/5 passed) |
+| 3 | /design mode split | ~14-18K/invocation | Medium | 3 hr | **SHIPPED** |
+| 4 | Shared boilerplate extraction | ~3K/session | Medium | 3 hr | **REJECTED** |
 
-Items 1 and 2 can run in parallel. Item 3 depends on 2. Item 4 depends on 2.
-
-If the spike fails (Read content not followed reliably), items 3 and 4 need alternative approaches (build-step assembly for /design, keep inline for boilerplate).
+Items 1-3 shipped. Item 4 rejected after /explore analysis — see below.
 
 ---
 
@@ -235,14 +234,16 @@ These were pressure-tested during the V1 session and rejected:
 | Review --output flag | 6-9KB savings, simpler dual-output alternative exists, not a pain point yet. |
 | Hook consolidation (merge 4 write gates into 1, etc.) | Only ~2.3K chars/session savings. Not worth engineering risk of combining unrelated enforcement logic. |
 | Moving platform.md to on-demand | No "read me when X" pointer in auto-loaded rules. Contains 6+ silent-failure prevention rules. The 990 tokens are earned. |
+| Shared boilerplate extraction (P3) | Measured only ~120 extractable lines (~3K tokens) — 14x smaller than V1 savings. OUTPUT SILENCE is already the most-violated rule; moving it further from action point worsens adherence. 6/16 Safety Rules blocks have skill-specific prohibitions mixed in and can't be extracted. Spike T3 failure (conditional branching drift) is the exact failure mode extraction would hit. 4-model /explore converged on reject. See `tasks/boilerplate-extraction-explore.md`. |
 
 ---
 
 ## Summary
 
-V1 shipped ~43K tokens/session in savings (dominated by /start bootstrap). V2 targets:
-- **Context-inject silent cache:** ~4.4K tokens/session (guaranteed, trivial fix)
-- **/design mode split:** ~14-18K tokens/invocation (needs spike validation)
-- **Shared boilerplate:** ~6-9K tokens/session (depends on spike, medium risk)
+V1 shipped ~43K tokens/session in savings (dominated by /start bootstrap). V2 results:
+- **Context-inject silent cache:** ~4.4K tokens/session — **SHIPPED**
+- **/design mode split:** ~14-18K tokens/invocation — **SHIPPED** (spike passed 4/5, full split deployed)
+- **Shared boilerplate:** rejected — ~3K tokens/session was too marginal for the risk
 
-Total V2 potential: **~25-31K tokens/session** if spike passes, **~4.4K tokens/session** guaranteed.
+V2 total shipped savings: **~18-22K tokens/session** (cache hit + mode split).
+Combined V1+V2: **~61-65K tokens/session**.
