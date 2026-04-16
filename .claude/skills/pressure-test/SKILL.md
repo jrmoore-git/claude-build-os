@@ -88,9 +88,9 @@ Store the resolved path as `PROPOSAL_PATH`.
 
 Build a self-contained context packet so `debate.py` receives enough project context to evaluate without wasting tool calls on reconstruction.
 
-1. **Project Context (30–50 lines):** Read `docs/current-state.md` fresh. Extract current phase, active work, and the subsystem relevant to this proposal. Combine with a 1–2 sentence project description from `CLAUDE.md`.
+1. **Project Context (50–100 lines):** Read `docs/current-state.md` fresh. Extract current phase, active work, and the subsystem relevant to this proposal. Include a project description from `CLAUDE.md` covering what Build OS is, key components, and the specific subsystem under evaluation.
 
-2. **Recent Context (20–30 lines):** Read `tasks/session-log.md` (last 3 entries). Summarize the recent work arc — what was built, decided, and pivoted.
+2. **Recent Context (40–80 lines):** Read `tasks/session-log.md` (last 3–5 entries). Summarize the recent work arc — what was built, decided, pivoted, and what remains unresolved. Include relevant decision IDs from `tasks/decisions.md`.
 
 3. **Evaluation-Specific Context (optional):** If `scripts/enrich_context.py` exists:
    ```bash

@@ -55,9 +55,9 @@ FOCUS
 
 Create a context-wrapped temp copy so refinement stays grounded in project intent:
 
-1. Read `docs/current-state.md` fresh — extract current phase and active work (2–3 sentences).
-2. Read `tasks/session-log.md` (last 2–3 entries) — summarize recent work relevant to this document (10–15 lines).
-3. Optionally run `python3.11 scripts/enrich_context.py --proposal <input-file> --scope define` if the input file exists on disk.
+1. Read `docs/current-state.md` fresh — extract current phase, active work, and relevant subsystem (50–100 lines of project context).
+2. Read `tasks/session-log.md` (last 3–5 entries) — summarize recent work relevant to this document, including decisions and pivots (40–80 lines).
+3. Optionally run `python3.11 scripts/enrich_context.py --proposal <input-file> --scope define` if the input file exists on disk (20–40 lines of evaluation-specific context).
 4. Create a wrapped temp copy:
 
 ```bash

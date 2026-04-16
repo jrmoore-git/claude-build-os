@@ -175,7 +175,7 @@ The requirement is **self-contained evaluation input**, not necessarily a single
 
 Every debate input must be structured in this order at the logical-input level, whether delivered as one file or split across artifact + `--context`.
 
-### 1. Project Context (required, default 30–50 lines)
+### 1. Project Context (required, default 50–100 lines)
 
 State what the project is, what problem it solves, and the subsystem(s) relevant to this evaluation.
 
@@ -191,9 +191,9 @@ Do **not** paste a full architecture document. Include only the context needed t
 - `docs/current-state.md`
 - project description from `CLAUDE.md` or `docs/the-build-os.md`
 
-**Compact-mode exception:** For narrow healthcheck or simulation tasks, Project Context may be compressed to 10–20 lines if it still identifies the project, subsystem, and current operating state without forcing reconstruction. It must never be omitted entirely.
+**Compact-mode exception:** For narrow healthcheck or simulation tasks, Project Context may be compressed to 20–40 lines if it still identifies the project, subsystem, and current operating state without forcing reconstruction. It must never be omitted entirely.
 
-### 2. Recent Context (required, 20–30 lines)
+### 2. Recent Context (required, 40–80 lines)
 
 Summarize the recent work arc that led to this evaluation.
 
@@ -215,7 +215,7 @@ The actual proposal, design doc, diff, prompt, question, or document being evalu
 
 This remains the center of the packet. Context should frame the artifact, not bury it.
 
-### 4. Evaluation-Specific Context (optional, 10–20 lines)
+### 4. Evaluation-Specific Context (optional, 20–40 lines)
 
 Add only when prior decisions, governance lessons, or domain constraints materially affect the judgment.
 
