@@ -34,7 +34,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 from sim_compiler import extract_ir, validate_ir, find_skill_path
 from sim_persona_gen import load_anchor_personas, generate_personas, validate_persona, load_ir as load_persona_ir
 from sim_rubric_gen import build_rubric, load_ir as load_rubric_ir
-from sim_driver import run_simulation, write_result
+from sim_driver import run_simulation, write_result, sufficiency_reminder_hook
 
 
 def compile_ir(skill_name, model="claude-opus-4-6"):
@@ -99,7 +99,8 @@ def load_rubric(source, ir_data=None, model="claude-sonnet-4-6"):
 
 def run_pipeline(skill_name, personas, rubric, skill_content, output_dir=None,
                  executor_model="claude-opus-4-6", persona_model="gemini-3.1-pro",
-                 judge_model="gpt-5.4", max_turns=15, dry_run=False):
+                 judge_model="gpt-5.4", max_turns=15, dry_run=False,
+                 turn_hooks=None):
     """Step 4: Run simulations and aggregate scores."""
     results = []
     for persona in personas:
@@ -117,6 +118,7 @@ def run_pipeline(skill_name, personas, rubric, skill_content, output_dir=None,
             judge_model=judge_model,
             max_turns=max_turns,
             dry_run=dry_run,
+            turn_hooks=turn_hooks,
         )
         elapsed = time.time() - t0
 
@@ -164,6 +166,8 @@ def main():
     parser.add_argument("--judge-model", default="gpt-5.4")
     parser.add_argument("--max-turns", type=int, default=15)
     parser.add_argument("--dry-run", action="store_true", help="Compile + load only, no simulations")
+    parser.add_argument("--hooks", nargs="*", default=[], metavar="HOOK",
+                        help="Turn hooks to inject. Built-in: 'sufficiency'. Example: --hooks sufficiency")
     args = parser.parse_args()
 
     if args.output_dir:
@@ -225,6 +229,17 @@ def main():
         print(json.dumps(summary, indent=2))
         return
 
+    # Resolve turn hooks
+    hook_map = {"sufficiency": sufficiency_reminder_hook}
+    active_hooks = []
+    for h in args.hooks:
+        if h not in hook_map:
+            print(f"ERROR: Unknown hook '{h}'. Available: {', '.join(hook_map)}", file=sys.stderr)
+            sys.exit(1)
+        active_hooks.append(hook_map[h])
+    if active_hooks:
+        print(f"[pipeline] Turn hooks active: {args.hooks}", file=sys.stderr)
+
     # Step 4: Run simulations
     results = run_pipeline(
         skill_name=args.skill,
@@ -236,6 +251,7 @@ def main():
         persona_model=args.persona_model,
         judge_model=args.judge_model,
         max_turns=args.max_turns,
+        turn_hooks=active_hooks or None,
     )
 
     # Step 5: Aggregate and report

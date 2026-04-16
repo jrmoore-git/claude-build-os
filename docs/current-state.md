@@ -1,5 +1,11 @@
 # Current State — 2026-04-15
 
+## ⚠ STALE — auto-captured session ended without /wrap-session
+**Auto-capture date:** 2026-04-15 20:07 PT
+**Files changed this session:** 8 files in scripts, tasks, tests
+**WARNING:** The "Next Action" below may be outdated. Cross-check with `git log --oneline -10` and recent session-log entries.
+
+
 ## What Changed This Session
 - Built full Phase 1 of sim generalization pipeline: 151 tests, 1,520 lines across 5 scripts
 - Ran 3 baseline comparisons of V2 pipeline vs eval_intake.py on /explore — all failed the 0.5-point gate (3.11 vs 4.73 avg)

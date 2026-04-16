@@ -27,7 +27,7 @@ eval_intake.py proved iterative 3-agent simulation produces quality improvements
 
 **What requires revision:**
 
-1. **"Keep all V2 scripts" overclaims.** sim_persona_gen.py and sim_rubric_gen.py have 0 tests and have never been reviewed. sim_driver.py has passing tests but was never reviewed. No end-to-end pipeline wiring exists. "Keep all V2 scripts" conflates "capability is proven" with "implementation is validated." (EVIDENCED — proposal admits these gaps; judge confidence 0.92)
+1. **"Keep all V2 scripts" overclaims.** ~~sim_persona_gen.py and sim_rubric_gen.py have 0 tests~~ **Correction (2026-04-15):** Audit agent's "0 tests" claim was wrong. Actual test coverage: test_sim_persona_gen.py (567 lines), test_sim_rubric_gen.py (458 lines), test_eval_intake.py (220 lines). Scripts have NOT been formally /reviewed, but they are tested. The overclaim is narrower than originally stated: the issue is lack of formal review and /challenge gating, not lack of tests. (PARTIALLY EVIDENCED — judge confidence adjusted downward)
 
 2. **sim-generalization-proposal.md not /challenge gated.** The generalization plan was intentionally deferred but is now sitting unchallenged. This is the exact L27 failure pattern: treating a 4x scope expansion as an "evolution" and skipping the gate. (EVIDENCED — proposal context states this directly; judge confidence 0.90)
 
@@ -49,7 +49,7 @@ But the decision overreaches in two ways: it commits to V2 implementation artifa
 
 ## Required Actions (before D20 fully holds)
 
-1. Run `/review` on V2 scripts — particularly sim_persona_gen.py and sim_rubric_gen.py (0 tests each)
+1. Run `/review` on V2 scripts — sim_persona_gen.py, sim_rubric_gen.py, sim_driver.py (tested but not formally reviewed)
 2. Run `/challenge` on `tasks/sim-generalization-proposal.md` using D21's judge step
 3. Wire and validate the end-to-end pipeline against eval_intake.py's /explore baseline (within 0.5 points on all rubric dimensions)
 4. Validate on one additional skill (/investigate or /plan) before committing to 8-10 skill rollout

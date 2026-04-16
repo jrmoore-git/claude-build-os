@@ -98,8 +98,8 @@ The fix itself. Unanimous: correct root cause, correct countermeasure. Monitor f
 ### D18: Keep Gemini 3.1 Pro with timeout hardening
 **Before:** Automatic fallback to next model on timeout.
 **After audit:** Keeping Gemini holds. But the claimed fallback is **not wired for challenger calls**. `_call_with_model_fallback` only exists in the refine command. Challenger calls use `_call_litellm` directly — ~6.4% of challenge runs silently lose one voice.
-**Action:** Wire `_call_with_model_fallback` in `_run_challenger`. This is a real bug, not a design question.
-**Risk:** Medium. Silent voice loss in challenges degrades the very pipeline these bugs were about.
+**Action:** ~~Wire `_call_with_model_fallback` in `_run_challenger`.~~ **FIXED (session 15).** All 11 unprotected call sites now use `_call_with_model_fallback` with `_get_fallback_model` helper. 903 tests pass, cross-model review confirmed.
+**Risk:** ~~Medium.~~ Resolved.
 
 ### D20: Keep sim infrastructure, generalize eval_intake.py
 **Before:** Keep all V2 scripts. No external tool meets requirements.
@@ -125,7 +125,7 @@ The fix itself. Unanimous: correct root cause, correct countermeasure. Monitor f
 
 2. **Several agents couldn't run the judge step** because `debate.py judge` requires challenge-format frontmatter. The review panel output doesn't have this format. This is a gap in debate.py — the judge should accept any structured findings input, not just challenge artifacts.
 
-3. **D18's fallback bug is the highest-priority finding.** It's a real code bug that silently degrades the challenge pipeline — the same pipeline these bugs were about fixing.
+3. **~~D18's fallback bug is the highest-priority finding.~~** Fixed in session 15. All 11 call sites wired with `_call_with_model_fallback`.
 
 4. **D5 and D4 may interact.** If D21's judge already fixes the security over-rotation, and multi-model pressure-test fixes the adversarial blind spots, the security posture flag may be unnecessary complexity. Worth testing together.
 

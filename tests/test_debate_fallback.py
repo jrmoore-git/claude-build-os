@@ -162,3 +162,70 @@ class TestCallWithModelFallback:
         with pytest.raises(urllib.error.HTTPError):
             _make_call()
         assert len(calls) == 1
+
+
+class TestGetFallbackModel:
+    """Tests for _get_fallback_model."""
+
+    def test_returns_different_model(self):
+        config = {
+            "single_review_default": "gpt-5.4",
+            "verifier_default": "claude-sonnet-4-6",
+            "judge_default": "gpt-5.4",
+        }
+        result = debate._get_fallback_model("gemini-3.1-pro", config)
+        assert result == "gpt-5.4"
+        assert result != "gemini-3.1-pro"
+
+    def test_skips_same_model(self):
+        config = {
+            "single_review_default": "gpt-5.4",
+            "verifier_default": "claude-sonnet-4-6",
+            "judge_default": "gpt-5.4",
+        }
+        result = debate._get_fallback_model("gpt-5.4", config)
+        assert result == "claude-sonnet-4-6"
+
+    def test_returns_none_when_all_same(self):
+        config = {
+            "single_review_default": "model-x",
+            "verifier_default": "model-x",
+            "judge_default": "model-x",
+        }
+        result = debate._get_fallback_model("model-x", config)
+        assert result is None
+
+    def test_uses_defaults_when_config_empty(self):
+        result = debate._get_fallback_model("gemini-3.1-pro", {})
+        assert result == "gpt-5.4"
+
+    def test_uses_defaults_when_primary_is_default(self):
+        result = debate._get_fallback_model("gpt-5.4", {})
+        assert result == "claude-sonnet-4-6"
+
+    def test_returns_first_available_candidate(self):
+        config = {
+            "single_review_default": "model-a",
+            "verifier_default": "model-b",
+            "judge_default": "model-c",
+        }
+        result = debate._get_fallback_model("model-a", config)
+        assert result == "model-b"
+
+    def test_none_config_value_skipped(self):
+        config = {
+            "single_review_default": None,
+            "verifier_default": "model-b",
+            "judge_default": "model-c",
+        }
+        result = debate._get_fallback_model("model-a", config)
+        assert result == "model-b"
+
+    def test_skips_duplicate_candidates(self):
+        config = {
+            "single_review_default": "model-a",
+            "verifier_default": "model-a",
+            "judge_default": "model-b",
+        }
+        result = debate._get_fallback_model("model-a", config)
+        assert result == "model-b"

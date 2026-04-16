@@ -51,6 +51,8 @@ Settled architectural and product decisions. Each entry records what was decided
 **Date:** 2026-04-10
 
 ### D8: Upgrade /status with smart routing instead of creating /next
+> **Rationale update (2026-04-15, audit D8):** Hook rejection rationale ("binary block/allow," "annoying") is obsolete. D16 proved hooks can inject non-blocking advisory suggestions via hook-intent-router.py. Core routing decision holds; the anti-hook precedent does not.
+
 **Decision:** Enhance the existing `/status` skill with a context-aware routing table instead of creating a new `/next` command. The routing table reads git state, artifacts, context budget, and audit log to suggest the specific next skill and mode.
 **Rationale:** Debate session surfaced the concept of "nudges" (suggesting the right skill at the right moment). Three implementation options evaluated: (a) rules text, (b) hooks, (c) a new `/next` command. The `/next` concept was strong but creating a separate command duplicates `/status` purpose — two commands answering "what should I do?" is worse than one. `/status` already reads git state and artifacts with a static 6-row routing table. Upgrading to 13 priority-ordered conditions with contextual overlays gives the same result without a new command.
 **Alternatives considered:** (a) New `/next` skill (rejected: duplicates `/status` purpose), (b) Auto-nudge hooks (rejected: gets annoying, binary block/allow doesn't suit suggestions), (c) Advisory rule text (rejected: drops under context pressure)
@@ -111,6 +113,8 @@ Settled architectural and product decisions. Each entry records what was decided
 **Date:** 2026-04-13
 
 ### D18: Keep Gemini 3.1 Pro with timeout hardening — not worth swapping to Grok 4 or downgrading to 2.5
+> **Implementation update (2026-04-15):** Fallback was only wired in `refine` command. Audit found 11 of 12 `_call_litellm` call sites had no fallback — ~6.4% of challenge runs silently lost one voice on Gemini timeout. Fixed: all call sites now use `_call_with_model_fallback` with `_get_fallback_model` helper. 903 tests pass.
+
 **Decision:** Keep Gemini 3.1 Pro Preview in the debate rotation. Add per-model timeout (120s vs 300s default) and automatic fallback to next model in rotation on timeout. Don't swap to Grok 4 (requires new account/API key), don't downgrade to Gemini 2.5 Pro (Intelligence Index 35 vs 53/57 for Opus/GPT — too weak).
 **Rationale:** Gemini 3.1 Pro has high TTFT (~29s, p99=542s) but strong reasoning (Intelligence Index 57). Timeout + fallback handles the latency tail without losing the quality. Grok 4 is stronger (II 73, TTFT <2-7s) but requires xAI account setup. Gemini 2.5 Pro benchmarks a full tier below (SWE-bench 73.1% vs 78.2%).
 **Alternatives considered:** (a) Swap to Grok 4 (rejected: new account friction, user chose not to), (b) Downgrade to Gemini 2.5 Pro (rejected: measurably weaker), (c) Remove Gemini entirely (rejected: cross-family diversity is the point of the debate engine)

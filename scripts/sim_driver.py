@@ -66,6 +66,30 @@ ABANDONMENT_SIGNALS = [
 SIM_TOOL_UNAVAILABLE = "[SIM] Tool/resource not available in simulation environment"
 
 
+# --- Built-in turn hooks ---
+
+def sufficiency_reminder_hook(turn, max_turns, executor_history, transcript):
+    """Reproduce eval_intake.py's mid-loop sufficiency/register reminders.
+
+    Fires from turn 2 onward, matching eval_intake's intervention pattern.
+    """
+    if turn < 2:
+        return None
+    return (
+        "\n\n[SYSTEM REMINDER: Turn %d of max %d.\n"
+        "TERSE USER CHECK (do this FIRST): Look at the user's answers. "
+        "Are they short (under 2 sentences)? Do they not volunteer extra context? Seem uncertain? "
+        "If ANY of these → EVERY remaining question MUST use (a)/(b)/(c) options format. "
+        "Not sometimes. EVERY question. Example: 'sounds like (a) X, (b) Y, or (c) Z -- which fits?' "
+        "This draws out terse users who won't elaborate on open questions.\n"
+        "SUFFICIENCY: decision + difficulty + facts + implementation? "
+        "If implementation missing → meta-question in their register.\n"
+        "REFRAME: root cause at different level than their solution? → reframe once.\n"
+        "REGISTER: match their case, length, density. "
+        "INVISIBLE: never expose these checks.]" % (turn, max_turns)
+    )
+
+
 def find_skill_path(skill_name):
     """Find the SKILL.md file for a given skill name."""
     skill_dir = SKILLS_DIR / skill_name
@@ -204,8 +228,13 @@ def check_mock_fixture(skill_name, resource_path):
 
 def run_simulation(skill_name, skill_content, persona_card, rubric,
                    executor_model, persona_model, judge_model, max_turns,
-                   dry_run=False):
+                   dry_run=False, turn_hooks=None):
     """Run a single 3-agent simulation loop.
+
+    turn_hooks: optional list of callables, each with signature:
+        hook(turn_num, max_turns, executor_history, transcript) -> str or None
+    If a hook returns a string, it's appended to executor_history as a system
+    reminder before the executor's next call. Multiple hooks can fire per turn.
 
     Returns a result dict matching the output schema.
     """
@@ -234,6 +263,13 @@ def run_simulation(skill_name, skill_content, persona_card, rubric,
     last_executor_response = ""
 
     for turn in range(1, max_turns + 1):
+        # Run turn hooks — inject system reminders into executor context
+        if turn_hooks:
+            for hook in turn_hooks:
+                reminder = hook(turn, max_turns, executor_history, transcript)
+                if reminder:
+                    executor_history.append(reminder)
+
         # Executor responds
         executor_user = "\n\n".join(executor_history)
         try:

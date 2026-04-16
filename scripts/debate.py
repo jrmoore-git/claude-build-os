@@ -955,6 +955,23 @@ def _call_with_model_fallback(primary_model, fallback_model, system_prompt,
         raise
 
 
+def _get_fallback_model(primary, config):
+    """Return a fallback model different from primary for timeout recovery.
+
+    Tries single_review_default, verifier_default, judge_default in order.
+    Returns the first candidate whose name differs from primary, or None.
+    """
+    candidates = [
+        config.get("single_review_default", "gpt-5.4"),
+        config.get("verifier_default", "claude-sonnet-4-6"),
+        config.get("judge_default", "gpt-5.4"),
+    ]
+    for c in candidates:
+        if c and c != primary:
+            return c
+    return None
+
+
 # ── Frontmatter ──────────────────────────────────────────────────────────────
 
 
@@ -1232,8 +1249,10 @@ def cmd_challenge(args):
                     print(f"WARNING: {label} ({model}) made 0 tool calls "
                           f"despite tools being enabled", file=sys.stderr)
             else:
-                response = _call_litellm(model, sys_prompt, proposal, litellm_url, api_key,
-                                         temperature=challenger_temp)
+                fallback = _get_fallback_model(model, config)
+                response, _used = _call_with_model_fallback(
+                    model, fallback, sys_prompt, proposal, litellm_url, api_key,
+                    temperature=challenger_temp)
                 tool_log = []
             warnings = _validate_challenge(response)
             elapsed = time.time() - t0
@@ -1345,7 +1364,9 @@ def cmd_verdict(args):
     def _run_verdict(label, model):
         print(f"Calling {label} for verdict...", file=sys.stderr)
         try:
-            response = _call_litellm(model, system_prompt, resolution, litellm_url, api_key)
+            fallback = _get_fallback_model(model, config)
+            response, _used = _call_with_model_fallback(
+                model, fallback, system_prompt, resolution, litellm_url, api_key)
             return label, response, None
         except LLM_SAFE_EXCEPTIONS as e:
             msg = f"Challenger {label} ({model}): {e}"
@@ -1519,14 +1540,16 @@ def _consolidate_challenges(challenge_body, litellm_url, api_key, model=None):
     if challenger_count < 2:
         return challenge_body, None
 
+    config = _load_config()
     if model is None:
-        config = _load_config()
         model = config.get("verifier_default", "claude-sonnet-4-6")
 
     print(f"Consolidating {challenger_count} challenger reviews...", file=sys.stderr)
     try:
-        response = _call_litellm(
-            model=model,
+        fallback = _get_fallback_model(model, config)
+        response, _used = _call_with_model_fallback(
+            primary_model=model,
+            fallback_model=fallback,
             system_prompt=CONSOLIDATION_SYSTEM_PROMPT,
             user_content=f"Here are the raw challenges from {challenger_count} independent reviewers:\n\n{challenge_body}",
             litellm_url=litellm_url,
@@ -1806,8 +1829,10 @@ def cmd_judge(args):
     print(f"Calling judge ({judge_model})...", file=sys.stderr)
     t_judge_start = time.time()
     try:
-        response = _call_litellm(judge_model, system_prompt, user_content,
-                                 litellm_url, api_key)
+        judge_fallback = _get_fallback_model(judge_model, config)
+        response, _used = _call_with_model_fallback(
+            judge_model, judge_fallback, system_prompt, user_content,
+            litellm_url, api_key)
     except LLM_SAFE_EXCEPTIONS as e:
         print(f"ERROR: judge call failed — {e}", file=sys.stderr)
         return 2
@@ -3138,8 +3163,10 @@ def cmd_compare(args):
 
     print(f"Calling compare judge ({judge_model})...", file=sys.stderr)
     try:
-        response = _call_litellm(judge_model, COMPARE_JUDGE_PROMPT, user_content,
-                                 litellm_url, api_key)
+        compare_fallback = _get_fallback_model(judge_model, config)
+        response, _used = _call_with_model_fallback(
+            judge_model, compare_fallback, COMPARE_JUDGE_PROMPT, user_content,
+            litellm_url, api_key)
     except LLM_SAFE_EXCEPTIONS as e:
         print(f"ERROR: compare call failed — {e}", file=sys.stderr)
         return 2
@@ -3287,7 +3314,9 @@ def cmd_review(args):
         label, model, _persona_framing = reviewers[0]
         print(f"Calling reviewer ({label})...", file=sys.stderr)
         try:
-            response = _call_litellm(model, prompt, input_text, litellm_url, api_key)
+            review_fallback = _get_fallback_model(model, config)
+            response, _used = _call_with_model_fallback(
+                model, review_fallback, prompt, input_text, litellm_url, api_key)
         except LLM_SAFE_EXCEPTIONS as e:
             print(f"ERROR: review call failed — {e}", file=sys.stderr)
             return 1
@@ -3379,8 +3408,10 @@ def cmd_review(args):
                     print(f"WARNING: {persona} ({model}) made 0 tool calls "
                           f"despite tools being enabled", file=sys.stderr)
             else:
-                response = _call_litellm(model, prompt, input_text, litellm_url, api_key,
-                                         temperature=challenger_temp)
+                fallback = _get_fallback_model(model, config)
+                response, _used = _call_with_model_fallback(
+                    model, fallback, prompt, input_text, litellm_url, api_key,
+                    temperature=challenger_temp)
             if response and response.strip():
                 return (persona, model, response, True)
             else:
@@ -3713,11 +3744,13 @@ def cmd_explore(args):
     direction_names = []
 
     # Round 1: first direction (no divergence constraint)
+    explore_fallback = _get_fallback_model(model, config)
     print(f"Explore round 1/{directions_count} ({model})...", file=sys.stderr)
     try:
-        resp = _call_litellm(model, explore_prompt, user_content,
-                             litellm_url, api_key,
-                             temperature=LLM_CALL_DEFAULTS["explore_temperature"])
+        resp, _used = _call_with_model_fallback(
+            model, explore_fallback, explore_prompt, user_content,
+            litellm_url, api_key,
+            temperature=LLM_CALL_DEFAULTS["explore_temperature"])
     except LLM_SAFE_EXCEPTIONS as e:
         print(f"ERROR: explore round 1 failed — {e}", file=sys.stderr)
         return 1
@@ -3739,9 +3772,10 @@ def cmd_explore(args):
         print(f"Explore round {i}/{directions_count} ({model})...",
               file=sys.stderr)
         try:
-            resp = _call_litellm(model, diverge_prompt, user_content,
-                                 litellm_url, api_key,
-                                 temperature=LLM_CALL_DEFAULTS["explore_temperature"])
+            resp, _used = _call_with_model_fallback(
+                model, explore_fallback, diverge_prompt, user_content,
+                litellm_url, api_key,
+                temperature=LLM_CALL_DEFAULTS["explore_temperature"])
         except LLM_SAFE_EXCEPTIONS as e:
             print(f"WARNING: explore round {i} failed — {e}",
                   file=sys.stderr)
@@ -3761,8 +3795,10 @@ def cmd_explore(args):
     synth_prompt = synth_prompt_tpl.format(n=len(directions), dimensions=dimensions_block)
     print(f"Synthesizing ({synth_model})...", file=sys.stderr)
     try:
-        synthesis = _call_litellm(synth_model, synth_prompt, combined,
-                                  litellm_url, api_key)
+        synth_fallback = _get_fallback_model(synth_model, config)
+        synthesis, _used = _call_with_model_fallback(
+            synth_model, synth_fallback, synth_prompt, combined,
+            litellm_url, api_key)
     except LLM_SAFE_EXCEPTIONS as e:
         print(f"WARNING: synthesis failed — {e}", file=sys.stderr)
         synthesis = ""
@@ -3856,9 +3892,11 @@ def cmd_pressure_test(args):
 
     print(f"{label} ({model})...", file=sys.stderr)
     try:
-        response = _call_litellm(model, prompt, user_content,
-                                 litellm_url, api_key,
-                                 temperature=LLM_CALL_DEFAULTS["pressure_test_temperature"])
+        pt_fallback = _get_fallback_model(model, config)
+        response, _used = _call_with_model_fallback(
+            model, pt_fallback, prompt, user_content,
+            litellm_url, api_key,
+            temperature=LLM_CALL_DEFAULTS["pressure_test_temperature"])
     except LLM_SAFE_EXCEPTIONS as e:
         print(f"ERROR: {phase} failed — {e}", file=sys.stderr)
         return 1
