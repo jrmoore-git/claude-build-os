@@ -1,0 +1,10 @@
+# BuildOS development / test dependencies.
+#
+# Install with:
+#     pip3.11 install -r requirements-dev.txt
+#
+# Required for tests/run_all.sh to execute the full suite. Without pytest,
+# run_all.sh exits non-zero with a loud banner (see tests/run_all.sh).
+
+pytest>=8.0
+pytest-asyncio>=0.23

@@ -1,0 +1,6 @@
+# BuildOS production runtime dependencies.
+#
+# BuildOS core (hooks, scripts) is stdlib-only Python 3.11 — no production deps.
+# External model access goes through LiteLLM (run separately, not a Python import).
+#
+# Dev / test dependencies (pytest, etc.) are in requirements-dev.txt.
