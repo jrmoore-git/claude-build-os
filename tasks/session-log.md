@@ -3035,3 +3035,23 @@ ended without running `/wrap-session`. Review and enrich in the next session.
 - **tests/**: test_mode_split_sim.py
 
 **Auto-committed:** 2026-04-16 12:57 PT
+
+---
+
+## 2026-04-16 — Explore model rotation fix
+
+**Decided:**
+- Explore should rotate models across directions (like refine) instead of single-model
+- Claude excluded from generation since it judges synthesis — no self-grading
+- GPT wraps on 4th direction (more reliable than Gemini)
+
+**Implemented:**
+- Model rotation in cmd_explore with explore_rotation → refine_rotation → hardcoded fallback
+- Default: GPT → Gemini → GPT. --model override preserved.
+- Frontmatter/audit log updated to record model list
+
+**Not Finished:** Lessons triage (31/30), context injection hook (P1), explore_rotation not yet in debate-models.json
+
+**Next Session:** Triage lessons.md, then continue P1 (context injection hook) or P2 (gstack /qa)
+
+**Commit:** 9f4b863
