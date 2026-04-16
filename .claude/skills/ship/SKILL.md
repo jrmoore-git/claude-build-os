@@ -147,7 +147,38 @@ If the user says "force", "ship --force", or "ship force":
 - If no review artifact exists, create a minimal one with `status: waived` and the waiver section.
 - Proceed to deploy.
 
-### Step 6: Deploy
+### Step 6: Generate ship summary
+
+Before deploying, generate a spec-mapped summary of what's shipping. This is the PR body / commit record.
+
+a. Get the diff against main:
+```bash
+git diff main...HEAD --stat
+```
+
+b. Build the summary from artifacts found in Step 1:
+
+```
+## Ship Summary: <topic>
+
+### What shipped
+<1-3 bullet points from the diff — what changed, not file names>
+
+### Spec mapping
+- **Plan:** `tasks/<topic>-plan.md` — <implemented | partial | no plan>
+- **Review:** `tasks/<topic>-review.md` — <passed | passed with concerns | waived>
+- **Challenge:** `tasks/<topic>-challenge.md` — <exists | n/a>
+
+### Decisions made during implementation
+<List any decisions from tasks/decisions.md that were added this session, or "None — built to spec">
+
+### Acceptance criteria
+<If plan has acceptance criteria or verification_commands, list each with PASS/FAIL. If no plan, list what was verified in Gate 4.>
+```
+
+c. Write this summary to `tasks/<topic>-ship-summary.md`. This file is the PR body if the user creates a PR, and the permanent record of what shipped with what evidence.
+
+### Step 7: Deploy
 
 ```bash
 bash scripts/deploy_all.sh
@@ -160,7 +191,7 @@ Stream the output to the user. This script:
 
 If deploy fails, show which step failed and suggest remediation.
 
-### Step 7: Post-ship verification
+### Step 8: Post-ship verification
 
 After deploy completes, run any available smoke tests:
 

@@ -25,6 +25,20 @@ Pipeline tiers: see CLAUDE.md. Skip conditions for `/challenge`: defined authori
 9. **Non-session sources** — after significant meetings or external conversations where decisions were made, capture to `tasks/lessons.md` and `tasks/decisions.md`.
 10. **Search before building** — three knowledge layers: (1) tried-and-true patterns, (2) new-and-popular best practices (scrutinize — crowds can be wrong), (3) first-principles reasoning (most valuable). Before designing anything involving unfamiliar patterns or infrastructure, search for existing solutions first. The cost of checking is near-zero; the cost of reinventing is high. AI compression ratios: boilerplate ~100x, tests ~50x, features ~30x, bugfix ~20x, architecture ~5x, research ~3x — scope accordingly.
 
+## Escalation Protocol — When to Stop
+
+STOP and escalate to the user when:
+
+1. **Ambiguous requirements.** Two or more valid interpretations exist and the choice affects behavior. Don't guess — ask.
+2. **Architectural decisions outside the plan.** The plan (or the user's request) didn't cover this decision and it affects structure, not just implementation detail.
+3. **Security-sensitive changes without explicit approval.** Auth, credentials, permissions, data access patterns, network exposure. Even if the plan says "add auth," the specific mechanism needs approval.
+4. **Scope is growing.** The task needs more files, more abstractions, or more infrastructure than originally scoped. Flag it before building it.
+5. **Three failures on the same problem.** If three attempts at the same fix/approach fail, the diagnosis is wrong. Stop, report what you tried, and ask.
+6. **Irreversible side effects.** Deleting data, sending messages, publishing, pushing to shared branches. Confirmation before action, every time.
+7. **Contradictory constraints.** Two rules, specs, or prior decisions conflict. Don't silently pick one — surface the conflict.
+
+**What is NOT an escalation trigger:** routine implementation decisions (variable names, loop structure, error message wording), choosing between equivalent approaches when both fit the spec, fixing test failures where the fix is obvious.
+
 ## Root Cause First — No Bandaids (HARD RULE)
 
 When a data quality or behavior problem is reported:
