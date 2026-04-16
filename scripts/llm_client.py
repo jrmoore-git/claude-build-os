@@ -107,7 +107,6 @@ _RETRY_BASE_DELAY = 1.0  # seconds
 _RETRYABLE_OPENAI_CLASS_NAMES = frozenset({
     "RateLimitError",
     "APIConnectionError",
-    "APITimeoutError",       # subclass of APIConnectionError but type().__name__ is exact
     "InternalServerError",
 })
 
@@ -142,6 +141,16 @@ def _is_retryable(exc):
     # Connection refused means proxy isn't running — retrying won't help
     if _is_connection_refused(exc):
         return False
+    # Timeouts at 120-240s indicate model slowness, not transient network issues.
+    # Network problems surface as ConnectionError/URLError, not TimeoutError
+    # after 2+ minutes. debate.py's fallback mechanism handles model-swap.
+    # MUST come before the MRO walk: APITimeoutError inherits APIConnectionError,
+    # so the walk would match the parent and incorrectly retry.
+    if isinstance(exc, TimeoutError):
+        return False
+    for cls in type(exc).__mro__:
+        if cls.__name__ == "APITimeoutError":
+            return False
     # OpenAI SDK errors with status codes
     if hasattr(exc, "status_code") and exc.status_code in (429, 500, 502, 503, 504):
         return True
@@ -149,12 +158,10 @@ def _is_retryable(exc):
     if isinstance(exc, urllib.error.HTTPError):
         return exc.code in (429, 500, 502, 503, 504)
     # Network / connection errors (URLError without HTTP status, plus others)
-    if isinstance(exc, (urllib.error.URLError, ConnectionError, TimeoutError, OSError)):
+    if isinstance(exc, (urllib.error.URLError, ConnectionError, OSError)):
         return True
     # OpenAI SDK exception class names (avoid importing them).
-    # Walk the MRO so subclasses of retryable types are also caught — without
-    # this, APITimeoutError (which inherits from APIConnectionError) is missed
-    # because type(exc).__name__ returns the exact subclass name.
+    # Walk the MRO so subclasses of retryable types are also caught.
     for cls in type(exc).__mro__:
         if cls.__name__ in _RETRYABLE_OPENAI_CLASS_NAMES:
             return True

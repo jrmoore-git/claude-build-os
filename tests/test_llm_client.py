@@ -73,11 +73,23 @@ def test_categorize_error_unknown():
 
 
 def test_is_retryable_transient():
-    """429, 503, ConnectionError, TimeoutError are all retryable."""
+    """429, 503, ConnectionError are retryable."""
     assert _is_retryable(_make_http_error(429)) is True
     assert _is_retryable(_make_http_error(503)) is True
     assert _is_retryable(ConnectionError("refused")) is True
-    assert _is_retryable(TimeoutError("timed out")) is True
+
+
+def test_is_retryable_timeout_not_retried():
+    """TimeoutError and APITimeoutError are NOT retryable (model slowness)."""
+    assert _is_retryable(TimeoutError("timed out")) is False
+    # Simulate OpenAI SDK's APITimeoutError (inherits APIConnectionError)
+    class FakeAPIConnectionError(Exception):
+        pass
+    FakeAPIConnectionError.__name__ = "APIConnectionError"
+    class FakeAPITimeoutError(FakeAPIConnectionError):
+        pass
+    FakeAPITimeoutError.__name__ = "APITimeoutError"
+    assert _is_retryable(FakeAPITimeoutError("Request timed out")) is False
 
 
 def test_is_retryable_permanent():
@@ -199,6 +211,7 @@ TESTS = [
     test_categorize_error_network,
     test_categorize_error_unknown,
     test_is_retryable_transient,
+    test_is_retryable_timeout_not_retried,
     test_is_retryable_permanent,
     test_get_base_url_normalization,
     test_load_api_key_from_env,

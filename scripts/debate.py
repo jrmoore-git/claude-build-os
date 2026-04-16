@@ -1306,29 +1306,59 @@ def cmd_challenge(args):
                 from llm_client import llm_tool_loop
                 model_suffix = MODEL_PROMPT_OVERRIDES.get(model, "")
                 tool_log = []
-                tool_result = llm_tool_loop(
-                    system=sys_prompt + TOOL_INJECTION_DEFENSE + model_suffix,
-                    user=proposal,
-                    tools=debate_tools.TOOL_DEFINITIONS,
-                    tool_executor=debate_tools.execute_tool,
-                    model=model,
-                    temperature=challenger_temp,
-                    max_turns=TOOL_LOOP_DEFAULTS["max_turns"],
-                    max_tokens=TOOL_LOOP_MAX_OUTPUT_TOKENS,
-                    timeout=TOOL_LOOP_TIMEOUT_SECONDS,
-                    base_url=litellm_url,
-                    api_key=api_key,
-                    on_tool_call=lambda turn, name, targs, res: tool_log.append(
-                        {"turn": turn, "tool": name}
-                    ),
-                )
-                _track_tool_loop_cost(model, tool_result)
+                active_model = model
+                try:
+                    tool_result = llm_tool_loop(
+                        system=sys_prompt + TOOL_INJECTION_DEFENSE + model_suffix,
+                        user=proposal,
+                        tools=debate_tools.TOOL_DEFINITIONS,
+                        tool_executor=debate_tools.execute_tool,
+                        model=model,
+                        temperature=challenger_temp,
+                        max_turns=TOOL_LOOP_DEFAULTS["max_turns"],
+                        max_tokens=TOOL_LOOP_MAX_OUTPUT_TOKENS,
+                        timeout=MODEL_TIMEOUTS.get(model, TOOL_LOOP_TIMEOUT_SECONDS),
+                        base_url=litellm_url,
+                        api_key=api_key,
+                        on_tool_call=lambda turn, name, targs, res: tool_log.append(
+                            {"turn": turn, "tool": name}
+                        ),
+                    )
+                except LLM_SAFE_EXCEPTIONS as e:
+                    if not _is_timeout_error(e):
+                        raise
+                    fallback = _get_fallback_model(model, config)
+                    if not fallback or fallback == model:
+                        raise
+                    print(f"  TOOL FALLBACK: {label} ({model}) timed out, "
+                          f"retrying with {fallback}", file=sys.stderr)
+                    active_model = fallback
+                    fb_suffix = MODEL_PROMPT_OVERRIDES.get(fallback, "")
+                    fb_temp = _challenger_temperature(fallback)
+                    tool_log = []
+                    tool_result = llm_tool_loop(
+                        system=sys_prompt + TOOL_INJECTION_DEFENSE + fb_suffix,
+                        user=proposal,
+                        tools=debate_tools.TOOL_DEFINITIONS,
+                        tool_executor=debate_tools.execute_tool,
+                        model=fallback,
+                        temperature=fb_temp,
+                        max_turns=TOOL_LOOP_DEFAULTS["max_turns"],
+                        max_tokens=TOOL_LOOP_MAX_OUTPUT_TOKENS,
+                        timeout=MODEL_TIMEOUTS.get(fallback, TOOL_LOOP_TIMEOUT_SECONDS),
+                        base_url=litellm_url,
+                        api_key=api_key,
+                        on_tool_call=lambda turn, name, targs, res: tool_log.append(
+                            {"turn": turn, "tool": name}
+                        ),
+                    )
+                _track_tool_loop_cost(active_model, tool_result)
                 response = tool_result["content"]
                 if tool_result["turns"] > 20:
                     print(f"  {label}: hit max turns, used partial tool evidence ({len(tool_log)} calls)",
                           file=sys.stderr)
                 if not tool_log:
-                    print(f"WARNING: {label} ({model}) made 0 tool calls "
+                    print(f"WARNING: {label} ({active_model}) made 0 tool calls "
                           f"despite tools being enabled", file=sys.stderr)
             else:
                 fallback = _get_fallback_model(model, config)
@@ -1354,17 +1384,25 @@ def cmd_challenge(args):
             pool.submit(_run_challenger, i, model, sys_prompt): CHALLENGER_LABELS[i]
             for i, (model, sys_prompt) in enumerate(challengers)
         }
-        for fut in concurrent.futures.as_completed(futures):
-            label, response, warnings, tool_log = fut.result()
-            results[label] = response
-            if tool_log:
-                all_tool_calls[label] = tool_log
-            if warnings:
-                all_warnings.extend([f"Challenger {label}: {w}" for w in warnings])
+        try:
+            for fut in concurrent.futures.as_completed(futures, timeout=PARALLEL_MODEL_DEADLINE):
+                label, response, warnings, tool_log = fut.result()
+                results[label] = response
+                if tool_log:
+                    all_tool_calls[label] = tool_log
+                if warnings:
+                    all_warnings.extend([f"Challenger {label}: {w}" for w in warnings])
+        except concurrent.futures.TimeoutError:
+            for fut in futures:
+                fut.cancel()
+            completed = set(results.keys())
+            pending = [l for l in futures.values() if l not in completed]
+            print(f"WARNING: deadline expired ({PARALLEL_MODEL_DEADLINE}s), "
+                  f"cancelling pending challengers: {pending}", file=sys.stderr)
 
     successful = sum(1 for v in results.values() if not v.startswith("[ERROR:"))
     if successful == 0:
-        print("ERROR: all challenger calls failed", file=sys.stderr)
+        print("ERROR: all challenger calls failed or timed out", file=sys.stderr)
         return 2
 
     # Build output
@@ -2116,6 +2154,12 @@ LLM_CALL_DEFAULTS = {
 MODEL_TIMEOUTS = {
     "gemini-3.1-pro": 120,
 }
+
+# Total wall-clock deadline for parallel model execution (challenge, review,
+# pressure-test). Enough for normal calls (30-90s) + one fallback (Fix 3)
+# but cuts the long tail if multiple models hang. After deadline, proceed
+# with whatever results exist if quorum is met.
+PARALLEL_MODEL_DEADLINE = 180
 
 # LLM_SAFE_EXCEPTIONS — recoverable errors from LLM calls. Network, API,
 # parsing, and protocol-level failures from llm_client + urllib + the LLM
@@ -3032,7 +3076,7 @@ def cmd_refine(args):
                     model=model,
                     max_turns=TOOL_LOOP_DEFAULTS["max_turns"],
                     max_tokens=REFINE_MAX_OUTPUT_TOKENS,
-                    timeout=REFINE_TIMEOUT_SECONDS,
+                    timeout=MODEL_TIMEOUTS.get(model, REFINE_TIMEOUT_SECONDS),
                     base_url=litellm_url,
                     api_key=api_key,
                     on_tool_call=lambda turn, name, targs, res: tool_log.append(
@@ -3492,28 +3536,60 @@ def cmd_review(args):
     def _run_reviewer(persona):
         model = pmap[persona]
         print(f"Calling {persona}...", file=sys.stderr)
+        t0 = time.time()
         challenger_temp = _challenger_temperature(model)
         tool_log = []
         try:
             if tool_defs is not None:
                 from llm_client import llm_tool_loop
-                tool_result = llm_tool_loop(
-                    system=prompt + TOOL_INJECTION_DEFENSE,
-                    user=input_text,
-                    tools=tool_defs,
-                    tool_executor=tool_exec,
-                    model=model,
-                    temperature=challenger_temp,
-                    max_turns=TOOL_LOOP_DEFAULTS["max_turns"],
-                    max_tokens=TOOL_LOOP_MAX_OUTPUT_TOKENS,
-                    timeout=TOOL_LOOP_TIMEOUT_SECONDS,
-                    base_url=litellm_url,
-                    api_key=api_key,
-                    on_tool_call=lambda turn, name, targs, res: tool_log.append(
-                        {"turn": turn, "tool": name}
-                    ),
-                )
-                _track_tool_loop_cost(model, tool_result)
+                active_model = model
+                try:
+                    tool_result = llm_tool_loop(
+                        system=prompt + TOOL_INJECTION_DEFENSE,
+                        user=input_text,
+                        tools=tool_defs,
+                        tool_executor=tool_exec,
+                        model=model,
+                        temperature=challenger_temp,
+                        max_turns=TOOL_LOOP_DEFAULTS["max_turns"],
+                        max_tokens=TOOL_LOOP_MAX_OUTPUT_TOKENS,
+                        timeout=MODEL_TIMEOUTS.get(model, TOOL_LOOP_TIMEOUT_SECONDS),
+                        base_url=litellm_url,
+                        api_key=api_key,
+                        on_tool_call=lambda turn, name, targs, res: tool_log.append(
+                            {"turn": turn, "tool": name}
+                        ),
+                    )
+                except LLM_SAFE_EXCEPTIONS as e:
+                    if not _is_timeout_error(e):
+                        raise
+                    fallback = _get_fallback_model(model, config)
+                    if not fallback or fallback == model:
+                        raise
+                    elapsed_so_far = time.time() - t0
+                    print(f"  TOOL FALLBACK: {persona} ({model}) timed out "
+                          f"after {elapsed_so_far:.0f}s, retrying with {fallback}",
+                          file=sys.stderr)
+                    active_model = fallback
+                    fb_temp = _challenger_temperature(fallback)
+                    tool_log = []
+                    tool_result = llm_tool_loop(
+                        system=prompt + TOOL_INJECTION_DEFENSE,
+                        user=input_text,
+                        tools=tool_defs,
+                        tool_executor=tool_exec,
+                        model=fallback,
+                        temperature=fb_temp,
+                        max_turns=TOOL_LOOP_DEFAULTS["max_turns"],
+                        max_tokens=TOOL_LOOP_MAX_OUTPUT_TOKENS,
+                        timeout=MODEL_TIMEOUTS.get(fallback, TOOL_LOOP_TIMEOUT_SECONDS),
+                        base_url=litellm_url,
+                        api_key=api_key,
+                        on_tool_call=lambda turn, name, targs, res: tool_log.append(
+                            {"turn": turn, "tool": name}
+                        ),
+                    )
+                _track_tool_loop_cost(active_model, tool_result)
                 response = tool_result["content"]
                 if tool_result["turns"] > 20:
                     print(f"  {persona}: hit max turns, used partial tool evidence ({len(tool_log)} calls)",
@@ -3521,31 +3597,43 @@ def cmd_review(args):
                 if tool_log:
                     all_tool_calls[persona] = tool_log
                 else:
-                    print(f"WARNING: {persona} ({model}) made 0 tool calls "
+                    print(f"WARNING: {persona} ({active_model}) made 0 tool calls "
                           f"despite tools being enabled", file=sys.stderr)
             else:
                 fallback = _get_fallback_model(model, config)
                 response, _used = _call_with_model_fallback(
                     model, fallback, prompt, input_text, litellm_url, api_key,
                     temperature=challenger_temp)
+            elapsed = time.time() - t0
             if response and response.strip():
+                print(f"  {persona} ({model}): {elapsed:.1f}s", file=sys.stderr)
                 return (persona, model, response, True)
             else:
-                print(f"WARNING: {persona} returned empty response", file=sys.stderr)
+                print(f"WARNING: {persona} returned empty response ({elapsed:.1f}s)",
+                      file=sys.stderr)
                 return (persona, model, "Empty response", False)
         except LLM_SAFE_EXCEPTIONS as e:
-            print(f"WARNING: {persona} failed — {e}", file=sys.stderr)
+            elapsed = time.time() - t0
+            print(f"WARNING: {persona} failed — {e} ({elapsed:.1f}s)", file=sys.stderr)
             return (persona, model, str(e), False)
 
     reviews = []
     with concurrent.futures.ThreadPoolExecutor(max_workers=len(personas)) as pool:
         futures = {pool.submit(_run_reviewer, p): p for p in personas}
-        for fut in concurrent.futures.as_completed(futures):
-            reviews.append(fut.result())
+        try:
+            for fut in concurrent.futures.as_completed(futures, timeout=PARALLEL_MODEL_DEADLINE):
+                reviews.append(fut.result())
+        except concurrent.futures.TimeoutError:
+            for fut in futures:
+                fut.cancel()
+            completed = {r[0] for r in reviews}
+            pending = [p for p in personas if p not in completed]
+            print(f"WARNING: review deadline expired ({PARALLEL_MODEL_DEADLINE}s), "
+                  f"cancelling pending reviewers: {pending}", file=sys.stderr)
 
     successful = [r for r in reviews if r[3]]
     if not successful:
-        print("ERROR: all reviewers failed", file=sys.stderr)
+        print("ERROR: all reviewers failed or timed out", file=sys.stderr)
         return 1
 
     # N=1 with tools: single-review output format (no label suffix)
@@ -4089,28 +4177,41 @@ def cmd_pressure_test(args):
 
     # Parallel execution
     def _run_pt_model(idx, m):
-        """Returns (idx, actual_model_used, response, success)."""
+        """Returns (idx, actual_model_used, response, success, elapsed)."""
+        t0 = time.time()
         try:
             fb = _get_fallback_model(m, config)
             resp, used = _call_with_model_fallback(
                 m, fb, prompt, user_content,
                 litellm_url, api_key,
                 temperature=LLM_CALL_DEFAULTS["pressure_test_temperature"])
+            elapsed = time.time() - t0
             if resp and resp.strip():
-                return (idx, used, resp, True)
+                print(f"  {m}: {elapsed:.1f}s", file=sys.stderr)
+                return (idx, used, resp, True, elapsed)
             else:
-                print(f"WARNING: {m} returned empty response", file=sys.stderr)
-                return (idx, m, "Empty response", False)
+                print(f"WARNING: {m} returned empty response ({elapsed:.1f}s)",
+                      file=sys.stderr)
+                return (idx, m, "Empty response", False, elapsed)
         except LLM_SAFE_EXCEPTIONS as e:
-            print(f"WARNING: {m} failed — {e}", file=sys.stderr)
-            return (idx, m, str(e), False)
+            elapsed = time.time() - t0
+            print(f"WARNING: {m} failed — {e} ({elapsed:.1f}s)", file=sys.stderr)
+            return (idx, m, str(e), False, elapsed)
 
     print(f"Multi-model {label} ({', '.join(models)})...", file=sys.stderr)
     results = []
     with concurrent.futures.ThreadPoolExecutor(max_workers=len(models)) as pool:
         futures = {pool.submit(_run_pt_model, i, m): i for i, m in enumerate(models)}
-        for fut in concurrent.futures.as_completed(futures):
-            results.append(fut.result())
+        try:
+            for fut in concurrent.futures.as_completed(futures, timeout=PARALLEL_MODEL_DEADLINE):
+                results.append(fut.result())
+        except concurrent.futures.TimeoutError:
+            for fut in futures:
+                fut.cancel()
+            completed_idx = {r[0] for r in results}
+            pending = [m for i, m in enumerate(models) if i not in completed_idx]
+            print(f"WARNING: pressure-test deadline expired ({PARALLEL_MODEL_DEADLINE}s), "
+                  f"cancelling pending models: {pending}", file=sys.stderr)
 
     successful = [r for r in results if r[3]]
     failed = [r for r in results if not r[3]]
@@ -4132,7 +4233,7 @@ def cmd_pressure_test(args):
     random.shuffle(successful)
     mapping = {}
     analysis_sections = []
-    for i, (_idx, m, resp, _ok) in enumerate(successful):
+    for i, (_idx, m, resp, _ok, _elapsed) in enumerate(successful):
         lbl = CHALLENGER_LABELS[i]
         mapping[lbl] = m
         analysis_sections.append(f"## Analyst {lbl}\n\n{resp}")
