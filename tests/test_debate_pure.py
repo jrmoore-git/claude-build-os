@@ -805,3 +805,55 @@ class TestLoadPrompt:
         # No closing --- means frontmatter isn't stripped
         assert "version: 5" in text
         assert version is None
+
+
+# ── Judge mapping flexibility ────────────────────────────────────────────
+
+
+class TestAutoGenerateMapping:
+    """Test _auto_generate_mapping helper used by cmd_judge and cmd_verdict."""
+
+    def test_challenger_headers(self):
+        challenge_text = (
+            "---\ndebate_id: test\n---\n"
+            "## Challenger A\n\nFindings here.\n\n"
+            "## Challenger B\n\nMore findings.\n\n"
+            "## Challenger C\n\nEven more.\n"
+        )
+        meta, body = debate._parse_frontmatter(challenge_text)
+        assert not meta.get("mapping")
+        debate._auto_generate_mapping(meta, body)
+        assert meta["mapping"] == {"A": "unknown", "B": "unknown", "C": "unknown"}
+
+    def test_reviewer_headers(self):
+        meta = {}
+        body = (
+            "## Reviewer A\n\nReview.\n\n"
+            "## Reviewer B\n\nAnother review.\n"
+        )
+        debate._auto_generate_mapping(meta, body)
+        assert meta["mapping"] == {"A": "unknown", "B": "unknown"}
+
+    def test_analyst_headers(self):
+        meta = {}
+        body = (
+            "## Analyst A\n\nAnalysis.\n\n"
+            "## Analyst B\n\nMore analysis.\n"
+        )
+        debate._auto_generate_mapping(meta, body)
+        assert meta["mapping"] == {"A": "unknown", "B": "unknown"}
+
+    def test_no_headers_produces_empty_mapping(self):
+        meta = {}
+        body = "Just some text without any labeled sections.\n"
+        debate._auto_generate_mapping(meta, body)
+        assert meta["mapping"] == {}
+
+    def test_existing_mapping_preserved(self):
+        challenge_text = (
+            "---\ndebate_id: test\nmapping:\n  A: claude-opus-4-6\n  B: gpt-5.4\n---\n"
+            "## Challenger A\n\nText.\n\n## Challenger B\n\nText.\n"
+        )
+        meta, body = debate._parse_frontmatter(challenge_text)
+        debate._auto_generate_mapping(meta, body)
+        assert meta["mapping"] == {"A": "claude-opus-4-6", "B": "gpt-5.4"}

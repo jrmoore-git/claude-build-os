@@ -975,6 +975,28 @@ def _get_model_family(model_name):
     return name.split("-")[0].split("/")[-1]
 
 
+def _auto_generate_mapping(meta, body, verbose=False):
+    """Auto-generate mapping from section headers if absent in frontmatter.
+
+    Searches for '## Challenger/Reviewer/Analyst [A-Z]' headers and builds
+    a synthetic mapping. Modifies meta in-place.
+    """
+    if meta.get("mapping"):
+        return  # Existing mapping — keep it
+    labels = re.findall(r"^## (?:Challenger|Reviewer|Analyst) ([A-Z])",
+                        body, re.MULTILINE)
+    if labels:
+        meta["mapping"] = {lbl: "unknown" for lbl in labels}
+        if verbose:
+            print(f"Note: no mapping in frontmatter — generated synthetic labels "
+                  f"from {len(labels)} sections.", file=sys.stderr)
+    else:
+        meta["mapping"] = {}
+        if verbose:
+            print("Note: no mapping and no labeled sections — proceeding without "
+                  "challenger identity.", file=sys.stderr)
+
+
 def _get_fallback_model(primary, config):
     """Return a fallback model different from primary for timeout recovery.
 
@@ -1362,10 +1384,12 @@ def cmd_verdict(args):
         return 1
 
     challenge_text = args.challenge.read()
-    meta, _ = _parse_frontmatter(challenge_text)
-    if not meta or not meta.get("mapping"):
-        print("ERROR: challenge file has no frontmatter mapping", file=sys.stderr)
+    meta, challenge_body = _parse_frontmatter(challenge_text)
+    if not meta:
+        print("ERROR: challenge file has no frontmatter", file=sys.stderr)
         return 1
+
+    _auto_generate_mapping(meta, challenge_body)
 
     resolution = args.resolution.read()
     if not resolution.strip():
@@ -1615,9 +1639,11 @@ def cmd_judge(args):
 
     challenge_text = args.challenge.read()
     meta, challenge_body = _parse_frontmatter(challenge_text)
-    if not meta or not meta.get("mapping"):
-        print("ERROR: challenge file has no frontmatter mapping", file=sys.stderr)
+    if not meta:
+        print("ERROR: challenge file has no frontmatter", file=sys.stderr)
         return 1
+
+    _auto_generate_mapping(meta, challenge_body, verbose=True)
 
     debate_id = meta.get("debate_id", "unknown")
     config = _load_config()
