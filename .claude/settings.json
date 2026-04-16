@@ -39,6 +39,11 @@
             "type": "command",
             "command": "python3 hooks/hook-memory-size-gate.py",
             "timeout": 2
+          },
+          {
+            "type": "command",
+            "command": "HOOK_EVENT=PreToolUse python3 hooks/hook-read-before-edit.py",
+            "timeout": 2
           }
         ]
       },
@@ -131,6 +136,11 @@
             "type": "command",
             "command": "python3 hooks/hook-spec-status-check.py",
             "timeout": 5
+          },
+          {
+            "type": "command",
+            "command": "HOOK_EVENT=PostToolUse python3 hooks/hook-read-before-edit.py",
+            "timeout": 2
           }
         ]
       }
