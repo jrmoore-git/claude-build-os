@@ -28,7 +28,6 @@
 | "Update the docs", "sync docs" | `/sync` |
 | "What is this?", "classify this", "where does this go?" | `/triage` |
 | "Audit this codebase", "what's in here?" | `/audit` |
-| "Test this skill", "simulate", "does this skill work?", "validate this skill", "run this skill" | `/simulate` |
 
 ## Disambiguating /challenge vs /pressure-test
 
@@ -66,6 +65,5 @@ Match intent, not keywords. Invoke directly — don't explain the skill first. W
 | User says "is this a good idea?" and plan already exists | `/pressure-test` — route to adversarial analysis (see disambiguation table above) |
 | User mentions something they learned from a meeting or conversation | `/log` — "Want me to capture that as a decision/lesson?" |
 | Session is getting long, lots of context consumed | `/wrap` — "We've covered a lot. Want to save state before we lose context?" |
-| User just edited or created a skill SKILL.md | `/simulate` — "Skill updated. Want me to run a simulation to validate it?" |
 
 **The rule:** if you see a pattern that a skill is designed to handle, suggest it once. Don't nag — one suggestion per pattern per session. If the user declines, drop it.

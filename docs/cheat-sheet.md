@@ -55,7 +55,6 @@ If it has a UI, wire in `/design consult` (before plan) and `/design review` (be
 | Session | `/wrap` | Write handoff, session log, current state |
 | Session | `/log` | Extract decisions/lessons from conversation |
 | Session | `/triage` | Classify and route incoming information |
-| QA | `/simulate` | Zero-config skill simulation (smoke-test + quality-eval) |
 | System | `/healthcheck` | Learning system health check (scans lessons, decisions, rules) |
 | Bootstrap | `/setup` | Interactive project setup |
 | Bootstrap | `/audit` | Two-phase blind discovery audit |
