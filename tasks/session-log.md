@@ -2766,3 +2766,29 @@ ended without running `/wrap-session`. Review and enrich in the next session.
 - **tests/**: test_eval_intake.py, test_sim_compiler.py, test_sim_driver.py, test_sim_persona_gen.py, test_sim_rubric_gen.py
 
 **Auto-committed:** 2026-04-15 22:19 PT
+
+---
+
+## 2026-04-15 — Sim ecosystem shelved: spike disproved, /simulate removed
+
+**Decided:**
+- D22 critique loop: directive injection is wrong mechanism — runtime injection degrades quality (L32)
+- /simulate smoke-test has no standalone value (0/23 real issues, 29 false positives)
+- Shelve all sim-related work to archive/sim/ for future revisit
+- Skill count 23→22
+
+**Implemented:**
+- 3v3 directive injection spike (critique_spike.py): baseline 2.50 avg vs critique 1.78 avg — degradation
+- 3-model pre-mortem on D22 critique loop (all converged: "wrong mechanism")
+- /simulate smoke-test against all 23 skills (simulate_value_test.py)
+- Full sim archival: 7 scripts, 5 test files, 40+ task artifacts, fixtures, logs → archive/sim/
+- Doc cleanup: CLAUDE.md, README, cheat-sheet, routing rules, intent router — all /simulate refs removed
+- D9 read-before-edit hook committed (session 16 work)
+- .gitignore: added .claude/projects/
+- L32 added: runtime directive injection ≠ skill prompt editing
+
+**Not Finished:** Nothing outstanding. Sim work cleanly shelved with full archive for future revisit.
+
+**Next Session:** Choose next product work. Context-packet-anchors artifacts in archive/sim/tasks/.
+
+**Commits:** 78af016, 1cdd2fc, 2de5a04, d9139f8
