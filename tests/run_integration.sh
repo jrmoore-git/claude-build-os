@@ -1,9 +1,9 @@
 #!/bin/bash
-# Comprehensive integration test for all new debate.py subcommands,
-# managed_agent.py, check_conviction_gate.py, and config prompts.
+# Comprehensive integration test for debate.py subcommands,
+# managed_agent.py, and config prompts.
 #
 # Usage:
-#   ./tests/run_integration.sh              # run all 7 tests
+#   ./tests/run_integration.sh              # run all 6 tests
 #   ./tests/run_integration.sh 3            # run only test 3
 #   ./tests/run_integration.sh 1 3 5        # run tests 1, 3, 5
 #
@@ -101,7 +101,7 @@ echo ""
 
 echo "Pre-flight: running unit tests..."
 if python3.11 -m pytest tests/test_debate_smoke.py tests/test_managed_agent.py \
-    tests/test_conviction_gate.py tests/test_tool_loop_config.py -q 2>&1; then
+    tests/test_tool_loop_config.py -q 2>&1; then
     echo "Pre-flight: unit tests PASS"
 else
     echo "WARNING: unit tests failed — continuing with integration tests"
@@ -286,68 +286,15 @@ if [ ${#REQUESTED[@]} -eq 0 ] || printf '%s\n' "${REQUESTED[@]}" | grep -qx 5; t
 fi
 
 # ════════════════════════════════════════════════════════════════════════════
-# TEST 6: Conviction Gate + Pressure-Test (premortem frame)
-#   Domain: velocity optimization with recommendations
-#   Exercises: check_conviction_gate.py validation, then pressure-test --frame premortem
-# ════════════════════════════════════════════════════════════════════════════
-
-run_test 6 "conviction-gate" "Conviction gate + premortem pressure-test"
-
-if [ ${#REQUESTED[@]} -eq 0 ] || printf '%s\n' "${REQUESTED[@]}" | grep -qx 6; then
-    testdir="$OUTDIR/conviction-gate"
-
-    echo "  Step 1/2: conviction gate validation..."
-    # This proposal has intentional failures (empty Owner on #4, TBD why-now on #2)
-    gate_exit=0
-    python3.11 scripts/check_conviction_gate.py \
-        --proposal "$FIXTURES/proposal-conviction-gate-sample.md" \
-        --json > "$testdir/gate-result.json" 2>&1 || gate_exit=$?
-
-    echo "    Gate exit code: $gate_exit"
-    python3.11 -m json.tool "$testdir/gate-result.json" 2>/dev/null | head -20 || cat "$testdir/gate-result.json" | head -20
-
-    # Gate SHOULD fail — the fixture has intentional issues
-    if [ "$gate_exit" -ne 0 ]; then
-        echo "    Gate correctly rejected (exit $gate_exit) — checking details..."
-        if grep -qi "owner\|why.now\|generic\|vague\|tbd" "$testdir/gate-result.json" 2>/dev/null; then
-            echo "    Gate caught expected issues"
-            gate_ok=true
-        else
-            echo "    Gate failed but didn't report expected issues"
-            gate_ok=false
-        fi
-    else
-        echo "    WARNING: gate passed but fixture has intentional issues"
-        gate_ok=true
-    fi
-
-    echo ""
-    echo "  Step 2/2: pressure-test (premortem frame)..."
-    if python3.11 scripts/debate.py pressure-test \
-        --proposal "$FIXTURES/proposal-conviction-gate-sample.md" \
-        --frame premortem \
-        --output "$testdir/premortem.md" 2>&1 | tail -5; then
-
-        if check_output "$testdir/premortem.md" 15 "premortem output" && $gate_ok; then
-            log_result 6 "conviction-gate" "PASS" "gate validated + premortem generated"
-        else
-            log_result 6 "conviction-gate" "FAIL" "gate or premortem output issues"
-        fi
-    else
-        log_result 6 "conviction-gate" "FAIL" "premortem command failed"
-    fi
-fi
-
-# ════════════════════════════════════════════════════════════════════════════
-# TEST 7: Managed Agents Consolidation Path
+# TEST 6: Managed Agents Consolidation Path
 #   Domain: email pipeline proposal
 #   Exercises: challenge → judge --use-ma-consolidation (with fallback test)
 #   Also exercises: challenge with different personas, judge --no-consolidate
 # ════════════════════════════════════════════════════════════════════════════
 
-run_test 7 "managed-agents" "Managed Agents: MA consolidation + fallback"
+run_test 6 "managed-agents" "Managed Agents: MA consolidation + fallback"
 
-if [ ${#REQUESTED[@]} -eq 0 ] || printf '%s\n' "${REQUESTED[@]}" | grep -qx 7; then
+if [ ${#REQUESTED[@]} -eq 0 ] || printf '%s\n' "${REQUESTED[@]}" | grep -qx 6; then
     testdir="$OUTDIR/managed-agents"
 
     echo "  Step 1/3: challenge (architect, security, pm)..."
@@ -416,15 +363,15 @@ if [ ${#REQUESTED[@]} -eq 0 ] || printf '%s\n' "${REQUESTED[@]}" | grep -qx 7; t
             check_output "$testdir/judgment-no-consolidate.md" 20 "no-consolidate judgment" || ok=false
 
             if $ok; then
-                log_result 7 "managed-agents" "PASS" "MA path: $ma_status, no-consolidate: OK"
+                log_result 6 "managed-agents" "PASS" "MA path: $ma_status, no-consolidate: OK"
             else
-                log_result 7 "managed-agents" "FAIL" "output files incomplete"
+                log_result 6 "managed-agents" "FAIL" "output files incomplete"
             fi
         else
-            log_result 7 "managed-agents" "FAIL" "no-consolidate judge failed"
+            log_result 6 "managed-agents" "FAIL" "no-consolidate judge failed"
         fi
     else
-        log_result 7 "managed-agents" "FAIL" "challenge failed"
+        log_result 6 "managed-agents" "FAIL" "challenge failed"
     fi
 fi
 

@@ -68,7 +68,7 @@ class TestCheckTestCoverage:
 
     def test_module_without_test(self):
         result = json.loads(debate_tools._check_test_coverage(
-            {"module_path": "scripts/check_conviction_gate.py"}
+            {"module_path": "scripts/check-current-state-freshness.py"}
         ))
         assert result["has_test"] is False
         assert result["test_files"] == []

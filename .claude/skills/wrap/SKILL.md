@@ -1,6 +1,7 @@
 ---
 name: wrap
 description: "End-of-session wrap-up. Use when the user says 'wrap up', 'end session', 'wrap it up', or 'close out'. Checks doc hygiene, writes docs/current-state.md and tasks/handoff.md, appends to tasks/session-log.md, and commits everything."
+user-invocable: true
 version: 1.0.0
 lint-exempt: ["output-silence"]
 metadata:

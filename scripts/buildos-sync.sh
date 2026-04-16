@@ -110,7 +110,6 @@ MANIFEST=(
   scripts/buildos-sync.sh
   scripts/debate_tools.py
   scripts/llm_client.py
-  scripts/check_conviction_gate.py
   scripts/deploy_all.sh
   scripts/deploy_skills.sh
   scripts/managed_agent.py
