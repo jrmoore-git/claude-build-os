@@ -2689,3 +2689,23 @@ ended without running `/wrap-session`. Review and enrich in the next session.
 **Not Finished:** D22 iterative critique loop (next major work). V2 pipeline formal archive (low priority).
 
 **Next Session:** Design iterative critique loop (D22) — what's the minimal annotation that produces meaningful improvement?
+
+---
+
+## 2026-04-15 (session 20) — D22 pre-mortem + directive injection spike test
+
+**Focus:** Pressure-test the D22 critique loop plan before building. Created spike test script.
+
+**Decided:**
+- Multi-model pre-mortem (GPT-5.4, Opus, Gemini) converges: Turn 1 directive injection unlikely to fix hidden_truth; extraction via Haiku too lossy; workflow friction risk
+- Spike test must run before building extraction pipeline — validates whether the mechanism works at all
+- Pre-mortem recommended fail-closed extraction (no silent empty-list fallback)
+
+**Implemented:**
+- `scripts/critique_spike.py` — A/B spike test (3 trials with hand-crafted directives vs 3 baseline, anchor-1 persona)
+- `tasks/critique-loop-premortem.md` — 3-model pre-mortem with synthesis
+- debate-log.jsonl updated (1 new pre-mortem entry, $0.20 cost)
+
+**Not Finished:** Running the spike test. D22 implementation gated on spike results. V2 archive (low priority).
+
+**Next Session:** Run critique_spike.py. If hidden_truth delta >= 0.5, proceed with D22 (with pre-mortem adjustments). If < 0.5, pivot to direct prompt editing approach.

@@ -1,34 +1,36 @@
-# Handoff — 2026-04-15 (session 19)
+# Handoff — 2026-04-15 (session 20)
 
 ## Session Focus
-Closed the last audit straggler (D4 posture floors) and marked the entire decision foundation audit as resolved.
+Ran multi-model pre-mortem on D22 critique loop plan. Created directive injection spike test.
 
 ## Decided
-- D4 and D21 are orthogonal, not redundant — D21 fixes pipeline structure, D4 communicates user intent. A/B test unnecessary.
-- Posture floors warranted: credentials/auth/destructive content should never run at posture 1-2.
+- Pre-mortem validates concern: directive injection at Turn 1 may not fix hidden_truth (the primary quality gap)
+- Must run spike test before building extraction pipeline — if directives don't move scores, the mechanism is wrong
+- Pre-mortem artifacts: `tasks/critique-loop-premortem.md`
 
 ## Implemented
-- `_apply_posture_floor()` in debate.py — 15 regex patterns, clamps posture to >= 3 with warning
-- Wired in cmd_challenge, cmd_judge, cmd_review
-- 32 tests in test_debate_posture_floor.py (988 total passing)
-- All 8 audit action items marked RESOLVED in decision-foundation-audit.md
-- D4 audit closure annotation in decisions.md
+- `scripts/critique_spike.py` — spike test: 3 trials with hand-crafted directives vs 3 baseline, same persona (anchor-1)
+- Multi-model pre-mortem via debate.py (3 models, synthesis by GPT-5.4)
+- debate-log.jsonl updated with pre-mortem run
 
 ## NOT Finished
-- D22 iterative critique loop (next major work)
+- Running the spike test (critique_spike.py) — next action
+- D22 critique loop implementation (gated on spike results)
 - V2 pipeline formal archive (low priority)
 
 ## Next Session Should
-1. Read D22 in decisions.md + pressure test at /tmp/sim-pivot-pressure-test.md
-2. Design critique loop: run fast sim → review transcript → annotate product failures → adjust → rerun
-3. Key question: what's the minimal annotation that produces meaningful improvement?
+1. Run `python3.11 scripts/critique_spike.py` and evaluate results
+2. If hidden_truth delta >= 0.5: proceed with D22 plan (adjust extraction model per pre-mortem feedback)
+3. If hidden_truth delta < 0.5: pivot — critique loop should modify skill/persona prompts directly, not inject runtime reminders
+4. Either way, address pre-mortem finding #3: fail-closed extraction (no silent empty-list fallback)
 
 ## Key Files Changed
-- scripts/debate.py (posture floor function + wiring in 3 commands)
-- tests/test_debate_posture_floor.py (new, 32 tests)
-- tasks/decision-foundation-audit.md (all items RESOLVED)
-- tasks/decision-audit-d4.md (gap marked FIXED)
-- tasks/decisions.md (D4 audit closure annotation)
+- scripts/critique_spike.py (new — spike test)
+- tasks/critique-loop-premortem.md (new — 3-model pre-mortem)
+- stores/debate-log.jsonl (1 new entry)
+- docs/current-state.md (updated)
+- tasks/session-log.md (session 20 added)
+- tasks/decisions.md (D22 pre-mortem annotation)
 
 ## Doc Hygiene Warnings
 - None
