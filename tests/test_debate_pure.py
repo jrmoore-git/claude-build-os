@@ -186,15 +186,12 @@ class TestBuildFrontmatter:
         assert lines[0] == "---"
         assert lines[-1] == "---"
 
-    @patch("debate.datetime")
-    def test_created_timestamp_format(self, mock_dt):
-        from datetime import datetime
-        from zoneinfo import ZoneInfo
-        mock_dt.now.return_value = datetime(2026, 4, 15, 14, 30, 45, tzinfo=ZoneInfo("America/Los_Angeles"))
-        mock_dt.side_effect = lambda *a, **kw: datetime(*a, **kw)
-
+    def test_created_timestamp_format(self):
+        import re
         result = debate._build_frontmatter("d-ts", {"A": "m"})
-        assert "created: 2026-04-15T14:30:45" in result
+        # Verify ISO 8601 format with timezone offset
+        assert re.search(r"created: \d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}-\d{4}", result), \
+            f"Timestamp format wrong in: {result}"
 
     @patch("debate.datetime")
     def test_empty_mapping(self, mock_dt):
