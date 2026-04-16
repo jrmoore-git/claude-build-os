@@ -29,6 +29,10 @@ ALLOWED_FILE_SETS = {
     # check_code_presence(file_set='skills') call to return exists=false.
     "skills": ".claude/skills/*/SKILL.md",
     "config": "config/*.json",
+    "hooks": "hooks/*.py",
+    "tests": "tests/*.py",
+    "rules": ".claude/rules/*.md",
+    "docs": "docs/*.md",
 }
 
 ALLOWED_CONFIG_KEYS = {"judge_default", "refine_rotation", "persona_model_map",
@@ -45,6 +49,8 @@ ALLOWED_SNIPPET_PATHS = {
     "config": "config/",
     "tests": "tests/",
     "hooks": "hooks/",
+    "rules": ".claude/rules/",
+    "docs": "docs/",
 }
 SNIPPET_BLOCKED_EXTENSIONS = {".env", ".key", ".pem", ".p12", ".json.bak"}
 
@@ -207,7 +213,9 @@ def _read_file_snippet(args):
         start_line = 1
 
     # Check file is in an allowed directory
-    file_path = file_path.lstrip("./")
+    # Strip leading ./ but not bare . (preserves .claude/ paths)
+    if file_path.startswith("./"):
+        file_path = file_path[2:]
     allowed = False
     for prefix in ALLOWED_SNIPPET_PATHS.values():
         if file_path.startswith(prefix):
@@ -257,6 +265,123 @@ def _read_file_snippet(args):
         })
     except OSError as e:
         return json.dumps({"error": str(e)})
+
+
+# --- Repo manifest (deterministic discovery) ---
+
+
+MAX_MANIFEST_FILES = 50
+
+# Directories included in the manifest. Challengers see these as
+# ground-truth facts about repo structure — no tool calls needed.
+MANIFEST_DIRS = {
+    "scripts": "scripts",
+    "hooks": "hooks",
+    "tests": "tests",
+    "skills": ".claude/skills",
+    "rules": ".claude/rules",
+    "config": "config",
+    "docs": "docs",
+}
+
+
+def generate_repo_manifest():
+    """Build a deterministic repo manifest: directories, files, and exports.
+
+    Returns a dict with:
+      directories: list of top-level dirs that exist
+      files: {category: [relative paths]}
+      exports: {file: [function/class names]}  (Python files only)
+    """
+    manifest = {"directories": [], "files": {}, "exports": {}}
+
+    # Top-level directories
+    try:
+        entries = os.listdir(PROJECT_ROOT)
+    except OSError:
+        return manifest
+    manifest["directories"] = sorted(
+        e for e in entries
+        if os.path.isdir(os.path.join(PROJECT_ROOT, e)) and not e.startswith(".")
+    )
+    # Include .claude since skills/rules live there
+    if os.path.isdir(os.path.join(PROJECT_ROOT, ".claude")):
+        manifest["directories"].append(".claude")
+        manifest["directories"].sort()
+
+    # Files per category
+    for category, dirpath in MANIFEST_DIRS.items():
+        full_dir = os.path.join(PROJECT_ROOT, dirpath)
+        if not os.path.isdir(full_dir):
+            continue
+        files = []
+        for entry in sorted(os.listdir(full_dir)):
+            entry_path = os.path.join(full_dir, entry)
+            if os.path.isfile(entry_path):
+                # Skip secret-like files
+                if any(p in entry.lower() for p in SECRET_PATTERNS):
+                    continue
+                _, ext = os.path.splitext(entry)
+                if ext in SNIPPET_BLOCKED_EXTENSIONS:
+                    continue
+                rel = os.path.join(dirpath, entry)
+                files.append(rel)
+        # For skills, list subdirectory names instead of files
+        if category == "skills":
+            files = []
+            for entry in sorted(os.listdir(full_dir)):
+                skill_dir = os.path.join(full_dir, entry)
+                if os.path.isdir(skill_dir) and os.path.isfile(
+                    os.path.join(skill_dir, "SKILL.md")
+                ):
+                    files.append(entry)
+        manifest["files"][category] = files[:MAX_MANIFEST_FILES]
+
+    # Exports for Python files (hooks + scripts)
+    for category in ("hooks", "scripts"):
+        for rel_path in manifest["files"].get(category, []):
+            full_path = os.path.join(PROJECT_ROOT, rel_path)
+            try:
+                with open(full_path, "r", encoding="utf-8", errors="ignore") as f:
+                    content = f.read()
+            except OSError:
+                continue
+            exports = []
+            for match in re.finditer(
+                r"^(?:def|class)\s+([a-zA-Z_]\w*)", content, re.MULTILINE
+            ):
+                exports.append(match.group(1))
+            if exports:
+                manifest["exports"][rel_path] = exports[:30]
+
+    return manifest
+
+
+def format_manifest_context(manifest):
+    """Format a manifest dict as text suitable for injection into LLM context."""
+    lines = ["## Repository Structure (deterministic — not model-generated)\n"]
+
+    lines.append("### Directories")
+    for d in manifest.get("directories", []):
+        lines.append(f"  {d}/")
+    lines.append("")
+
+    for category, files in sorted(manifest.get("files", {}).items()):
+        if not files:
+            continue
+        lines.append(f"### {category} ({len(files)} files)")
+        for f in files:
+            lines.append(f"  {f}")
+        lines.append("")
+
+    exports = manifest.get("exports", {})
+    if exports:
+        lines.append("### Exported functions/classes")
+        for fpath, names in sorted(exports.items()):
+            lines.append(f"  {fpath}: {', '.join(names)}")
+        lines.append("")
+
+    return "\n".join(lines)
 
 
 _TOOL_DISPATCH = {
@@ -310,7 +435,7 @@ TOOL_DEFINITIONS = [
                     "file_set": {
                         "type": "string",
                         "enum": list(ALLOWED_FILE_SETS),
-                        "description": "One of: 'scripts' (scripts/*.py), 'skills' (.claude/skills/*/SKILL.md), 'config' (config/*.json). All non-recursive single-glob.",
+                        "description": f"One of: {', '.join(repr(k) for k in sorted(ALLOWED_FILE_SETS))}. Non-recursive single-glob per directory.",
                     },
                 },
                 "required": ["substring", "file_set"],
@@ -373,7 +498,7 @@ TOOL_DEFINITIONS = [
                 "type": "object",
                 "properties": {
                     "identifier": {"type": "string", "description": "Function or class name (e.g., 'enrich_context' or 'LLMError')"},
-                    "file_set": {"type": "string", "enum": ["scripts", "skills", "config"]}
+                    "file_set": {"type": "string", "enum": list(ALLOWED_FILE_SETS)}
                 },
                 "required": ["identifier", "file_set"],
             },
@@ -389,7 +514,7 @@ TOOL_DEFINITIONS = [
                 "properties": {
                     "file_path": {
                         "type": "string",
-                        "description": "Relative path to file (e.g., 'scripts/debate.py', 'config/debate-models.json'). Must be in scripts/, config/, tests/, or hooks/."
+                        "description": f"Relative path to file (e.g., 'scripts/debate.py', 'hooks/hook-context-inject.py'). Allowed directories: {', '.join(sorted(ALLOWED_SNIPPET_PATHS.keys()))}."
                     },
                     "start_line": {
                         "type": "integer",

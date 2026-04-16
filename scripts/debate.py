@@ -1214,6 +1214,18 @@ def cmd_challenge(args):
         print("ERROR: proposal file is empty", file=sys.stderr)
         return 1
 
+    # Inject deterministic repo manifest so challengers never guess about
+    # repo structure. Prevents false absence claims (L33: session 18 failure).
+    if getattr(args, "enable_tools", False):
+        try:
+            import debate_tools
+            manifest = debate_tools.generate_repo_manifest()
+            manifest_text = debate_tools.format_manifest_context(manifest)
+            proposal = manifest_text + "\n---\n\n" + proposal
+        except Exception as e:
+            print(f"WARNING: repo manifest generation failed: {e}",
+                  file=sys.stderr)
+
     # Apply posture floor before anything uses the posture value
     posture = getattr(args, 'security_posture', 3)
     posture, _floored = _apply_posture_floor(posture, proposal, "proposal")
@@ -3520,6 +3532,14 @@ def cmd_review(args):
         enable_tools = False
     if enable_tools:
         import debate_tools
+        # Inject deterministic repo manifest (same as cmd_challenge)
+        try:
+            manifest = debate_tools.generate_repo_manifest()
+            manifest_text = debate_tools.format_manifest_context(manifest)
+            input_text = manifest_text + "\n---\n\n" + input_text
+        except Exception as e:
+            print(f"WARNING: repo manifest generation failed: {e}",
+                  file=sys.stderr)
         tool_defs = debate_tools.TOOL_DEFINITIONS
         tool_exec = debate_tools.execute_tool
         if args.allowed_tools:
@@ -4038,7 +4058,7 @@ def cmd_explore(args):
     with open(args.output, "w") as f:
         f.write(output_text)
 
-    print(output_text)
+    print(json.dumps({"status": "ok", "output": args.output, "directions": len(directions)}))
 
     _log_debate_event({
         "phase": "explore",
@@ -4150,7 +4170,6 @@ def cmd_pressure_test(args):
         output_text = "\n".join(output_lines)
         with open(args.output, "w") as f:
             f.write(output_text)
-        print(output_text)
 
         _log_debate_event({
             "phase": phase,
@@ -4160,8 +4179,8 @@ def cmd_pressure_test(args):
             "response_length": len(response),
         }, cost_snapshot=_cost_snapshot)
 
-        result = {"status": "ok", "model": model}
-        print(json.dumps(result), file=sys.stderr)
+        result = {"status": "ok", "model": model, "output": args.output}
+        print(json.dumps(result))
         return 0
 
     # ── Multi-model path ──
@@ -4292,7 +4311,8 @@ def cmd_pressure_test(args):
     output_text = "\n".join(output_lines)
     with open(args.output, "w") as f:
         f.write(output_text)
-    print(output_text)
+
+    print(json.dumps({"status": "ok", "output": args.output, "models": len(successful), "failed": len(failed)}))
 
     _log_debate_event({
         "phase": phase,

@@ -225,7 +225,7 @@ class TestReadFileSnippet:
 
     def test_disallowed_directory(self):
         result = json.loads(debate_tools._read_file_snippet(
-            {"file_path": "docs/infrastructure.md"}
+            {"file_path": "stores/debate-log.jsonl"}
         ))
         assert "error" in result
         assert "allowed directories" in result["error"]
@@ -317,3 +317,127 @@ class TestToolDefinitions:
             # "required" is optional but should be a list if present
             if "required" in params:
                 assert isinstance(params["required"], list)
+
+
+# ── ALLOWED_FILE_SETS / ALLOWED_SNIPPET_PATHS consistency ─────────────────
+
+
+class TestFileSetConsistency:
+    def test_hooks_in_allowed_file_sets(self):
+        assert "hooks" in debate_tools.ALLOWED_FILE_SETS
+
+    def test_tests_in_allowed_file_sets(self):
+        assert "tests" in debate_tools.ALLOWED_FILE_SETS
+
+    def test_rules_in_allowed_file_sets(self):
+        assert "rules" in debate_tools.ALLOWED_FILE_SETS
+
+    def test_docs_in_allowed_file_sets(self):
+        assert "docs" in debate_tools.ALLOWED_FILE_SETS
+
+    def test_snippet_paths_include_rules_and_docs(self):
+        assert "rules" in debate_tools.ALLOWED_SNIPPET_PATHS
+        assert "docs" in debate_tools.ALLOWED_SNIPPET_PATHS
+
+    def test_search_can_find_hooks(self):
+        """The session 18 failure: challengers couldn't search hooks/."""
+        result = json.loads(debate_tools._check_code_presence(
+            {"substring": "def ", "file_set": "hooks"}
+        ))
+        assert result["exists"] is True
+        assert result["match_count"] >= 1
+
+    def test_search_can_find_tests(self):
+        result = json.loads(debate_tools._check_code_presence(
+            {"substring": "def test_", "file_set": "tests"}
+        ))
+        assert result["exists"] is True
+
+    def test_function_exists_searches_hooks(self):
+        """check_function_exists should find hook functions."""
+        # hook-context-inject.py has exported functions
+        result = json.loads(debate_tools._check_function_exists(
+            {"identifier": "gather_context", "file_set": "hooks"}
+        ))
+        # May or may not find this specific name, but shouldn't error
+        assert "error" not in result
+
+    def test_snippet_reads_rules(self):
+        result = json.loads(debate_tools._read_file_snippet(
+            {"file_path": ".claude/rules/code-quality.md", "max_lines": 5}
+        ))
+        assert "content" in result
+
+    def test_snippet_reads_docs(self):
+        result = json.loads(debate_tools._read_file_snippet(
+            {"file_path": "docs/current-state.md", "max_lines": 5}
+        ))
+        assert "content" in result
+
+
+# ── generate_repo_manifest ────────────────────────────────────────────────
+
+
+class TestRepoManifest:
+    def test_manifest_returns_dict(self):
+        m = debate_tools.generate_repo_manifest()
+        assert isinstance(m, dict)
+        assert "directories" in m
+        assert "files" in m
+        assert "exports" in m
+
+    def test_manifest_includes_hooks_dir(self):
+        m = debate_tools.generate_repo_manifest()
+        assert "hooks" in m["directories"]
+
+    def test_manifest_lists_hook_files(self):
+        m = debate_tools.generate_repo_manifest()
+        hooks = m["files"].get("hooks", [])
+        assert len(hooks) > 0
+        assert any("hook-context-inject" in h for h in hooks)
+
+    def test_manifest_lists_scripts(self):
+        m = debate_tools.generate_repo_manifest()
+        scripts = m["files"].get("scripts", [])
+        assert any("debate.py" in s for s in scripts)
+
+    def test_manifest_lists_skills_by_name(self):
+        m = debate_tools.generate_repo_manifest()
+        skills = m["files"].get("skills", [])
+        assert "challenge" in skills
+        assert "review" in skills
+
+    def test_manifest_includes_exports(self):
+        m = debate_tools.generate_repo_manifest()
+        assert len(m["exports"]) > 0
+        # debate.py should have exported functions
+        debate_exports = m["exports"].get("scripts/debate.py", [])
+        assert len(debate_exports) > 0
+
+    def test_manifest_excludes_secrets(self):
+        m = debate_tools.generate_repo_manifest()
+        all_files = []
+        for files in m["files"].values():
+            all_files.extend(files)
+        for f in all_files:
+            basename = os.path.basename(f).lower()
+            for pattern in debate_tools.SECRET_PATTERNS:
+                assert pattern not in basename, f"Secret-like file in manifest: {f}"
+
+    def test_manifest_caps_file_count(self):
+        m = debate_tools.generate_repo_manifest()
+        for category, files in m["files"].items():
+            assert len(files) <= debate_tools.MAX_MANIFEST_FILES
+
+    def test_format_manifest_context_returns_string(self):
+        m = debate_tools.generate_repo_manifest()
+        text = debate_tools.format_manifest_context(m)
+        assert isinstance(text, str)
+        assert "Repository Structure" in text
+        assert "deterministic" in text
+
+    def test_format_manifest_includes_hooks_section(self):
+        m = debate_tools.generate_repo_manifest()
+        text = debate_tools.format_manifest_context(m)
+        assert "hooks" in text.lower()
+        assert "hook-context-inject" in text
