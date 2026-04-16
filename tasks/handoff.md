@@ -1,45 +1,40 @@
-# Handoff — 2026-04-15 (session 17)
+# Handoff — 2026-04-15 (session 18)
 
 ## Session Focus
-Ran spike experiment (turn_hooks in sim_driver.py), evaluated results against success criteria, ran cross-model tradeoff analysis + pressure test, decided direction for sim infrastructure.
+Completed all remaining audit remediation items (Sessions 3-6): D5 multi-model pressure-test, judge input flexibility, D10 /prd extraction, D4/D5 A/B validation, D20 governance confirmation.
 
 ## Decided
-- D22: V2 pipeline doesn't achieve eval_intake parity (3.70 vs 4.73), won't be maintained as running pipeline
-- Pivot to iterative critique loop: run sim → review transcript → annotate product failures → adjust → rerun
-- Rubric dimensions must measure product outcomes (problem identified, useful conclusion, decision quality) not style (tone, register, flow)
-- Cross-model panel (Opus, Gemini, GPT) unanimous: eval_intake's quality came from iteration, not upfront config
-- Questionnaire approach rejected: humans are better critics than oracles
+- D10 reversal: separate /prd skill (originally rejected) now implemented — Phase 6.5 had 100% dropout when inlined in /think
+- D4+D5 A/B: multi-model pressure-test validated — adds unique findings and disagreement adjudication worth ~3x cost
 
 ## Implemented
-- turn_hooks parameter in sim_driver.py run_simulation()
-- sufficiency_reminder_hook() built-in hook (reproduces eval_intake's mid-loop reminders)
-- --hooks CLI flag in sim_pipeline.py (maps hook names to callables)
-- Fixed missing `import random` in debate.py (multi-model pressure-test was broken)
-- 5 spike runs logged to logs/sim-pipeline/explore-spike-hooks/
+- D5: Multi-model pressure-test (--models flag, ThreadPoolExecutor, cross-family synthesis, position randomization)
+- Session 4: Judge mapping flexibility (_auto_generate_mapping helper, works in cmd_judge and cmd_verdict)
+- D10: /prd skill extracted from /think Phase 6.5, full PRD Rules preserved, routing table updated
+- D4+D5 A/B analysis written (tasks/d4-d5-ab-analysis.md)
+- All review findings addressed for each item
+- 956/956 tests passing, 23 skills (was 22)
 
 ## NOT Finished
-- Iterative critique loop not built yet (next major work)
-- V2 pipeline not yet archived (sim_pipeline.py still exists as running orchestrator)
-- IR compiler + rubric gen not yet extracted as standalone tools
-- sim_pipeline.py still has zero orchestration-level tests
-- Audit remediation sessions 3-6 (parallel track, see session 16 handoff for details)
+- All 9 audit remediation items COMPLETE
+- Iterative critique loop for sim infrastructure not yet started (D22 direction, separate track)
+- Context-packet-anchors work not yet started (separate track)
 
 ## Next Session Should
-1. Read D22 in decisions.md for full context
-2. Design the critique loop UX: how does developer annotate transcript failures?
-3. Build prototype: sim_driver runs → transcript displayed → annotation interface → adjustment engine → rerun
-4. Key design question: what's the minimal annotation that produces meaningful improvement?
-5. Consider: the critique loop may be a /simulate redesign, not a new tool
-6. Parallel: audit remediation session 3 — D5 multi-model pressure-test
+1. Choose next product work: iterative critique loop (D22) or context-packet-anchors
+2. Run /start to get full status
 
 ## Key Files Changed
-- scripts/sim_driver.py (turn_hooks param, sufficiency_reminder_hook)
-- scripts/sim_pipeline.py (--hooks flag, turn_hooks threading)
-- scripts/debate.py (import random fix)
-- tasks/decisions.md (D22)
-- tasks/lessons.md (L30, L31)
-- docs/current-state.md
-- logs/sim-pipeline/explore-spike-hooks/ (5 run results)
+- scripts/debate.py (multi-model pressure-test, _auto_generate_mapping, _get_model_family)
+- tests/test_debate_fallback.py (7 new model family tests)
+- tests/test_debate_pure.py (5 auto-mapping tests)
+- .claude/skills/prd/SKILL.md (new skill)
+- .claude/skills/think/SKILL.md (Phase 6.5 slimmed to handoff)
+- .claude/rules/natural-language-routing.md (/prd route)
+- CLAUDE.md (23 skills, pipeline updated)
+- tasks/decisions.md (D5, D10 implementation updates)
+- tasks/d4-d5-ab-analysis.md (new)
+- .claude/rules/reference/debate-invocations.md (multi-model docs)
 
 ## Doc Hygiene Warnings
-- None
+- ⚠ lessons.md NOT updated — D10 dropout finding (long skills exhaust context budget) worth capturing

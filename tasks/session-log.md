@@ -2651,3 +2651,23 @@ ended without running `/wrap-session`. Review and enrich in the next session.
 - **tasks/**: decisions.md, handoff.md, lessons.md, session-log.md
 
 **Auto-committed:** 2026-04-15 21:20 PT
+
+---
+
+## 2026-04-15 — Audit remediation Sessions 3-6 complete
+
+**Decided:**
+- D10 reversal: /prd extracted as standalone skill (100% Phase 6.5 dropout when inlined)
+- D4+D5 A/B validated: multi-model pressure-test adds unique findings worth 3x cost
+
+**Implemented:**
+- D5: multi-model pressure-test (--models, ThreadPoolExecutor, cross-family synthesis)
+- Session 4: judge mapping flexibility (_auto_generate_mapping helper)
+- D10: /prd skill extracted, /think Phase 6.5 slimmed to handoff
+- D4+D5 A/B analysis (tasks/d4-d5-ab-analysis.md)
+- D20 governance confirmed complete (all items already addressed)
+- 956/956 tests, 23 skills
+
+**Not Finished:** All 9 audit remediation items COMPLETE. Iterative critique loop (D22) and context-packet-anchors are next product work.
+
+**Next Session:** Choose next product work: iterative critique loop (D22) or context-packet-anchors.
