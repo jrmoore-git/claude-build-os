@@ -492,6 +492,42 @@ with evidence grade A or B should be ACCEPTED.""",
 }
 
 
+# ── Security posture floors ───────────────────────────────────────────────────
+# Topics involving credentials, auth, or destructive ops get posture >= 3
+# regardless of user setting. Pattern-matched on proposal/input content.
+SECURITY_FLOOR_PATTERNS = [
+    r'\bcredential', r'\bapi[_\s-]?key', r'\bsecret[_\s-]?key',
+    r'\bOAuth\b', r'\btoken\b', r'\bpassword', r'\bauth\b',
+    r'\.env\b', r'\bprivate[_\s-]?key',
+    r'\begress\b', r'\bexfiltrat',
+    r'\brm\s+-rf\b', r'\bDROP\s+TABLE\b', r'\bDELETE\s+FROM\b',
+    r'\bdestructive\b', r'\birreversible\b',
+]
+SECURITY_FLOOR_MIN = 3
+
+import re as _re
+_SECURITY_FLOOR_RE = _re.compile(
+    '|'.join(SECURITY_FLOOR_PATTERNS), _re.IGNORECASE
+)
+
+
+def _apply_posture_floor(posture, content, label="proposal"):
+    """Clamp posture to SECURITY_FLOOR_MIN if content matches security patterns.
+
+    Returns (effective_posture, was_clamped).
+    """
+    if posture >= SECURITY_FLOOR_MIN:
+        return posture, False
+    match = _SECURITY_FLOOR_RE.search(content)
+    if match:
+        print(f"WARNING: posture floor applied ({posture}→{SECURITY_FLOOR_MIN}) — "
+              f"{label} contains security-sensitive content "
+              f"(matched: '{match.group()}')",
+              file=sys.stderr)
+        return SECURITY_FLOOR_MIN, True
+    return posture, False
+
+
 CHALLENGER_LABELS = list(string.ascii_uppercase)  # A, B, C, ...
 
 
@@ -1180,6 +1216,11 @@ def cmd_challenge(args):
         print("ERROR: proposal file is empty", file=sys.stderr)
         return 1
 
+    # Apply posture floor before anything uses the posture value
+    posture = getattr(args, 'security_posture', 3)
+    posture, _floored = _apply_posture_floor(posture, proposal, "proposal")
+    args.security_posture = posture
+
     # Resolve custom prompt first — it determines whether proposal validation applies
     custom_prompt = args.system_prompt.read() if args.system_prompt else None
 
@@ -1637,6 +1678,11 @@ def cmd_judge(args):
     if not proposal.strip():
         print("ERROR: proposal file is empty", file=sys.stderr)
         return 1
+
+    # Apply posture floor based on proposal content
+    posture = getattr(args, 'security_posture', 3)
+    posture, _floored = _apply_posture_floor(posture, proposal, "proposal")
+    args.security_posture = posture
 
     challenge_text = args.challenge.read()
     meta, challenge_body = _parse_frontmatter(challenge_text)
@@ -3372,6 +3418,11 @@ def cmd_review(args):
     if not input_text.strip():
         print("ERROR: input file is empty", file=sys.stderr)
         return 1
+
+    # Apply posture floor based on input content
+    posture = getattr(args, 'security_posture', 3)
+    posture, _floored = _apply_posture_floor(posture, input_text, "input")
+    args.security_posture = posture
 
     enable_tools = getattr(args, 'enable_tools', False)
     is_panel = len(reviewers) > 1 or enable_tools

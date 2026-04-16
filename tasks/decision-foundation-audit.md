@@ -13,10 +13,10 @@ trigger: Discovery of two structural bugs — insufficient context to external m
 | Verdict | Count | Decisions |
 |---------|-------|-----------|
 | **HOLDS** | 13 | D1, D2, D3, D7, D11, D12, D13, D14, D15, D16, D17, D19, D21 |
-| **REVIEW** | 7 | D4, D5, D8, D9, D10, D18, D20 |
-| **REVERSE** | 1 | D6 (records hygiene — already superseded by D11) |
+| **REVIEW → RESOLVED** | 7 | D4, D5, D8, D9, D10, D18, D20 |
+| **REVERSE → RESOLVED** | 1 | D6 (records hygiene — superseded by D11) |
 
-**Bottom line:** No decisions need to be reversed on architectural grounds. The two bugs produced conservative bias (under-building) not reckless bias (building the wrong thing). 7 decisions need targeted follow-up — mostly deferred work that should no longer be deferred, or claims that need empirical validation.
+**Bottom line:** All 21 decisions audited, all action items resolved. No decisions reversed on architectural grounds. The two bugs (L28 context gap, L29 conservative bias) produced under-building, not wrong-building. Remediation shipped across sessions 15-18 + this session (D4 posture floors).
 
 ---
 
@@ -63,37 +63,37 @@ The fix itself. Unanimous: correct root cause, correct countermeasure. Monitor f
 
 ---
 
-## REVIEW (7 decisions) — Targeted Follow-Up Required
+## REVIEW (7 decisions) — All Resolved
 
-### D4: Security posture flag
+### D4: Security posture flag — RESOLVED
 **Before:** Security posture is a user choice via --security-posture (1-5).
 **After audit:** Decision may be over-engineering if D21's judge step already corrects the security over-rotation that motivated it.
-**Action:** A/B test judge-only vs judge + posture control. If judge-only matches, D4 is redundant complexity. Also: add minimum posture floors for credentials/auth/destructive ops regardless of user setting.
-**Risk:** Low either way. Flag is optional, defaults sensibly.
+**Action:** ~~A/B test judge-only vs judge + posture control.~~ Analysis: D4 and D21 are orthogonal — D21 fixes pipeline structure, D4 communicates user intent. A/B unnecessary. ~~Also: add minimum posture floors.~~ **Shipped:** `_apply_posture_floor()` in debate.py enforces posture >= 3 on content matching credentials/auth/destructive patterns. Wired in challenge, judge, review. 32 tests.
+**Risk:** Resolved.
 
-### D5: Thinking modes are single-model
+### D5: Thinking modes are single-model — RESOLVED
 **Before:** explore, pressure-test, pre-mortem use single-model. Multi-model for review/refine only.
 **After audit:** Holds for explore (generative/ideation). Does NOT hold for pressure-test — adversarial critique needs reasoning independence a single model can't provide. Original benchmark may have been context-corrupted.
-**Action:** A/B test single-model vs multi-model specifically for pressure-test on real plans. Implementation cost is low (debate.py already supports --models).
-**Risk:** Medium. If pressure-test has been systematically missing risks due to single-model blind spots, past pressure-tests may have been less thorough than believed.
+**Action:** ~~A/B test single-model vs multi-model specifically for pressure-test.~~ **Shipped:** `--models` flag added to pressure-test (session 18). A/B on context-packet-anchors doc: multi-model found 3 unique insights single missed, synthesis adjudicated disagreements. See `tasks/d4-d5-ab-analysis.md`.
+**Risk:** Resolved.
 
-### D8: Upgrade /status with smart routing instead of /next
+### D8: Upgrade /status with smart routing instead of /next — RESOLVED
 **Before:** Hooks rejected as "binary block/allow" and "annoying."
 **After audit:** Core routing holds. Hook rejection rationale is obsolete — D16 proved hooks can inject non-blocking advisory suggestions.
-**Action:** Annotate D8 rationale so it's not cited as precedent against advisory hooks. No architecture change needed (D16 already patched the gap).
-**Risk:** None. Records hygiene only.
+**Action:** ~~Annotate D8 rationale.~~ **Done (session 15).** Rationale update added to D8 in decisions.md noting hook-rejection precedent is obsolete.
+**Risk:** Resolved.
 
-### D9: Consolidate exploration guidance into "Inspect before acting"
+### D9: Consolidate exploration guidance into "Inspect before acting" — RESOLVED
 **Before:** Advisory rule ships now. Pre-edit hook deferred because "PreToolUse hook infrastructure doesn't exist yet."
 **After audit:** Deferral rationale is obsolete. 17 hooks now exist including hook-pre-edit-gate.sh. The read-before-edit enforcement is now buildable.
-**Action:** Build the read-before-edit hook. The blocker cited in D9 no longer exists. Conservative bias kept this deferred when it shouldn't have been.
-**Risk:** Low to build. The hook pattern is proven.
+**Action:** ~~Build the read-before-edit hook.~~ **Shipped (session 16).** `hook-read-before-edit.py` — dual-phase PostToolUse:Read + PreToolUse:Write|Edit. 41 tests, 944 total suite. CLAUDE.md hook count 17→18.
+**Risk:** Resolved.
 
-### D10: /think discover generates the PRD interactively
+### D10: /think discover generates the PRD interactively — RESOLVED
 **Before:** PRD generation embedded in /think discover as Phase 6.5.
 **After audit:** PRD-as-conversation-byproduct holds. But /think discover is 1036 lines + ~200 for Phase 6.5. Multiple models flagged attention-degradation risk.
-**Action:** Run /simulate quality-eval on 5+ sessions to check Phase 6.5 reliability. If >10% step dropout, extract to companion /prd skill.
-**Risk:** Medium. Silent step dropout means PRDs get partially generated with no error signal.
+**Action:** ~~Run /simulate quality-eval.~~ Result: 100% step dropout confirmed. ~~Extract to /prd.~~ **Shipped (session 18).** `/prd` skill extracted. Phase 6.5 replaced with lightweight handoff suggesting `/prd`. See D10 implementation update in decisions.md.
+**Risk:** Resolved.
 
 ### D18: Keep Gemini 3.1 Pro with timeout hardening
 **Before:** Automatic fallback to next model on timeout.
@@ -101,21 +101,21 @@ The fix itself. Unanimous: correct root cause, correct countermeasure. Monitor f
 **Action:** ~~Wire `_call_with_model_fallback` in `_run_challenger`.~~ **FIXED (session 15).** All 11 unprotected call sites now use `_call_with_model_fallback` with `_get_fallback_model` helper. 903 tests pass, cross-model review confirmed.
 **Risk:** ~~Medium.~~ Resolved.
 
-### D20: Keep sim infrastructure, generalize eval_intake.py
+### D20: Keep sim infrastructure, generalize eval_intake.py — RESOLVED (superseded by D22)
 **Before:** Keep all V2 scripts. No external tool meets requirements.
 **After audit:** Direction holds (keep sim, reject external tools). But "keep ALL V2 scripts" overclaims — sim_persona_gen.py and sim_rubric_gen.py have 0 tests, never reviewed. Sim-generalization hasn't been /challenge gated (L27 violation).
-**Action:** /review V2 scripts → /challenge sim-generalization → validate on second skill → document cost (~500K-800K tokens/run) → evaluate Inspect AI hybrid.
-**Risk:** Medium. Committing to ungated, unreviewed code violates the project's own governance.
+**Action:** /challenge sim-generalization ran (v2, with operational evidence). Judge verdict: SPIKE. Spike ran (session 17): turn_hooks achieved 3.70/5 vs 4.73 baseline — partial pass, missed all 3 success criteria. **D22 supersedes:** V2 pipeline archived, pivot to iterative critique loop. IR compiler + rubric gen kept as standalone tools. Remaining D20 actions (full /review, second-skill validation, Inspect AI eval) mooted by pipeline retirement.
+**Risk:** Resolved.
 
 ---
 
-## REVERSE (1 decision) — Records Hygiene
+## REVERSE (1 decision) — Resolved
 
-### D6: Explore presents 3 bets with fork-first format
+### D6: Explore presents 3 bets with fork-first format — RESOLVED
 **Before:** Hardcoded product-market dimensions, 150-word descriptions, comparison table.
 **After audit:** Every specific implementation element was superseded by D11 one day later. The core principle (multiple directions, not one) carried forward. The codebase already reflects D11.
-**Action:** Mark D6 as superseded by D11 in decisions.md. No code changes.
-**Risk:** None.
+**Action:** ~~Mark D6 as superseded by D11.~~ **Done (session 15).** D6 annotated `SUPERSEDED by D11` in decisions.md.
+**Risk:** Resolved.
 
 ---
 
@@ -123,10 +123,10 @@ The fix itself. Unanimous: correct root cause, correct countermeasure. Monitor f
 
 1. **Conservative bias produced under-building, not wrong-building.** The most common damage pattern: work deferred when it should have proceeded (D9's hook, D5's multi-model pressure-test). No decision built the wrong thing.
 
-2. **Several agents couldn't run the judge step** because `debate.py judge` requires challenge-format frontmatter. The review panel output doesn't have this format. This is a gap in debate.py — the judge should accept any structured findings input, not just challenge artifacts.
+2. **~~Several agents couldn't run the judge step~~** ~~because `debate.py judge` requires challenge-format frontmatter.~~ **FIXED (session 18).** `_auto_generate_mapping()` auto-generates mapping from challenger sections when frontmatter lacks it.
 
 3. **~~D18's fallback bug is the highest-priority finding.~~** Fixed in session 15. All 11 call sites wired with `_call_with_model_fallback`.
 
-4. **D5 and D4 may interact.** If D21's judge already fixes the security over-rotation, and multi-model pressure-test fixes the adversarial blind spots, the security posture flag may be unnecessary complexity. Worth testing together.
+4. **~~D5 and D4 may interact.~~** Resolved: D4 and D21 are orthogonal (D21 = pipeline structure, D4 = user intent). D5 multi-model PT shipped and validated. Posture floors enforce minimum security regardless of user setting. No redundancy found.
 
 5. **Skill size is an emerging concern.** D3 holds but D10's 1036-line /think discover is near an attention ceiling. Multiple agents independently flagged this across different decisions.

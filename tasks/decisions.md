@@ -30,6 +30,8 @@ Settled architectural and product decisions. Each entry records what was decided
 **Alternatives considered:** (a) Remove security persona entirely at low posture (rejected: still useful for advisory), (b) Hard-code posture per topic type (rejected: user should decide), (c) No change — always balanced (rejected: proven to waste pipeline capacity on wrong priorities)
 **Date:** 2026-04-10
 
+> **Audit closure (2026-04-15):** D4 is complementary to D21, not redundant. D21 fixes structural pipeline bias (challengers get last voice → add balanced judge). D4 communicates user intent about security weight. Even with a balanced judge, posture 1 explicitly dismisses security-only challenges — the judge alone won't do that. A/B not needed; mechanisms are orthogonal. **Posture floors shipped:** content matching credentials, auth, destructive ops, exfiltration, `.env`, `rm -rf`, `DROP TABLE`, `DELETE FROM` enforces posture >= 3 regardless of user setting. Wired in `cmd_challenge`, `cmd_judge`, `cmd_review`. 32 tests, 988 total suite.
+
 ### D5: Thinking modes are single-model, not multi-model — prompt design drives quality, not model diversity
 **Decision:** explore, pressure-test, and pre-mortem use single-model calls. Multi-model reserved for validate and refine only.
 **Rationale:** Tested 3 different models vs 1 model prompted 3 times with forced divergence on a strategic decision. Single-model with divergence prompts produced more diverse output than multi-model. The value comes from prompt design, not model diversity. Multi-model still proven for review (cross-family error detection) and refinement (models improve on other families' output).

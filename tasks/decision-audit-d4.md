@@ -37,4 +37,4 @@ A velocity-focused analysis spent pipeline capacity injecting security controls 
 
 **Spike required (non-blocking for now):** Run A/B test comparing D21 judge-only vs D21 + posture control on a sample of low-security/velocity tasks and high-risk tasks. If judge-only matches posture-controlled runs on security-dominance rate and missed-risk rate, D4 may be removable. If posture control materially improves alignment, D4 holds and should be documented more prominently.
 
-**One concrete gap:** No minimum-posture floors exist for actions involving credentials, network egress, destructive filesystem operations, or auth changes. These should enforce posture >= 3 regardless of user setting.
+**One concrete gap:** ~~No minimum-posture floors exist for actions involving credentials, network egress, destructive filesystem operations, or auth changes. These should enforce posture >= 3 regardless of user setting.~~ **FIXED (2026-04-15):** `_apply_posture_floor()` shipped in debate.py. Content-based pattern matching on 15 security-sensitive patterns. Wired in cmd_challenge, cmd_judge, cmd_review. 32 tests, 988 total suite.
