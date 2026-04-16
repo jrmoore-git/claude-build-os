@@ -23,16 +23,17 @@ except (subprocess.CalledProcessError, FileNotFoundError):
 
 
 ALLOWED_FILE_SETS = {
-    "scripts": "scripts/*.py",
+    # Use multiple globs to cover both .py and .sh files
+    "scripts": ["scripts/*.py", "scripts/*.sh"],
     # Skills live under .claude/skills/, not skills/. Earlier value
     # 'skills/*/SKILL.md' silently matched zero files, causing every
     # check_code_presence(file_set='skills') call to return exists=false.
-    "skills": ".claude/skills/*/SKILL.md",
-    "config": "config/*.json",
-    "hooks": "hooks/*.py",
-    "tests": "tests/*.py",
-    "rules": ".claude/rules/*.md",
-    "docs": "docs/*.md",
+    "skills": [".claude/skills/*/SKILL.md"],
+    "config": ["config/*.json"],
+    "hooks": ["hooks/*.py", "hooks/*.sh"],
+    "tests": ["tests/*.py"],
+    "rules": [".claude/rules/*.md"],
+    "docs": ["docs/*.md"],
 }
 
 ALLOWED_CONFIG_KEYS = {"judge_default", "refine_rotation", "persona_model_map",
@@ -83,19 +84,20 @@ def _check_code_presence(args):
         return json.dumps({"error": f"file_set not allowed: {file_set}"})
     if not substring or len(substring) > MAX_SUBSTRING_LEN:
         return json.dumps({"error": f"substring must be 1-{MAX_SUBSTRING_LEN} chars"})
-    pattern = os.path.join(PROJECT_ROOT, ALLOWED_FILE_SETS[file_set])
+    patterns = ALLOWED_FILE_SETS[file_set]
     matches = 0
-    for filepath in glob.glob(pattern):
-        try:
-            with open(filepath, "rb") as f:
-                head = f.read(1024)
-                if b"\x00" in head:
-                    continue
-            with open(filepath, "r", encoding="utf-8", errors="ignore") as f:
-                if substring in f.read():
-                    matches += 1
-        except OSError:
-            continue
+    for pat in patterns:
+        for filepath in glob.glob(os.path.join(PROJECT_ROOT, pat)):
+            try:
+                with open(filepath, "rb") as f:
+                    head = f.read(1024)
+                    if b"\x00" in head:
+                        continue
+                with open(filepath, "r", encoding="utf-8", errors="ignore") as f:
+                    if substring in f.read():
+                        matches += 1
+            except OSError:
+                continue
     return json.dumps({"exists": matches > 0, "match_count": matches})
 
 
@@ -201,18 +203,19 @@ def _check_function_exists(args):
     if not re.match(r"^[a-zA-Z_][a-zA-Z0-9_.]*$", identifier):
         return json.dumps({"error": "invalid identifier format"})
 
-    pattern = os.path.join(PROJECT_ROOT, ALLOWED_FILE_SETS[file_set])
+    patterns = ALLOWED_FILE_SETS[file_set]
     matches = []
     search_name = identifier.split(".")[0]  # For Class.method, search for class name
 
-    for filepath in glob.glob(pattern):
-        try:
-            with open(filepath, "r", encoding="utf-8", errors="ignore") as f:
-                content = f.read()
-            if re.search(rf"^(?:def|class)\s+{re.escape(search_name)}\s*[\(:]", content, re.MULTILINE):
-                matches.append(filepath.replace(PROJECT_ROOT, "").lstrip("/"))
-        except OSError:
-            continue
+    for pat in patterns:
+        for filepath in glob.glob(os.path.join(PROJECT_ROOT, pat)):
+            try:
+                with open(filepath, "r", encoding="utf-8", errors="ignore") as f:
+                    content = f.read()
+                if re.search(rf"^(?:def|class)\s+{re.escape(search_name)}\s*[\(:]", content, re.MULTILINE):
+                    matches.append(filepath.replace(PROJECT_ROOT, "").lstrip("/"))
+            except OSError:
+                continue
 
     return json.dumps({"identifier": identifier, "exists": len(matches) > 0, "files": matches})
 
