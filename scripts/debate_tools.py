@@ -114,29 +114,34 @@ def _read_config_value(args):
 
 
 def _find_test_files(module_path):
-    """Find test files for a module. Used by both check_test_coverage and manifest."""
-    dirname = os.path.dirname(module_path)
-    basename = os.path.basename(module_path)
-    name_no_ext = os.path.splitext(basename)[0]
+    """Find test files for a module by scanning tests/ and normalize-matching.
 
-    candidates = [
-        os.path.join("tests", f"test_{name_no_ext}.py"),
-        os.path.join("tests", f"{name_no_ext}_test.py"),
-        os.path.join(dirname, f"test_{basename}"),
-        os.path.join(dirname, "tests", f"test_{name_no_ext}.py"),
-    ]
+    Instead of guessing candidate filenames (which breaks on naming mismatches
+    like hyphens vs underscores), scan the actual test directory and match
+    with normalization. Used by both check_test_coverage and manifest.
+    """
+    name_no_ext = os.path.splitext(os.path.basename(module_path))[0]
+    # Normalize: hyphens → underscores (Python convention for test files)
+    normalized = name_no_ext.replace("-", "_")
+
+    test_dir = os.path.join(PROJECT_ROOT, "tests")
+    if not os.path.isdir(test_dir):
+        return []
 
     found = []
-    for c in candidates:
-        if os.path.isfile(os.path.join(PROJECT_ROOT, c)):
-            found.append(c)
-
-    # Prefix-glob: test_debate_*.py matches test_debate_commands.py, etc.
-    prefix_pattern = os.path.join(PROJECT_ROOT, "tests", f"test_{name_no_ext}_*.py")
-    for match in sorted(glob.glob(prefix_pattern)):
-        rel = os.path.relpath(match, PROJECT_ROOT)
-        if rel not in found:
-            found.append(rel)
+    for entry in sorted(os.listdir(test_dir)):
+        if not entry.endswith(".py"):
+            continue
+        entry_norm = entry.replace("-", "_")
+        # Exact match: test_hook_bash_fix_forward.py
+        if entry_norm == f"test_{normalized}.py":
+            found.append(os.path.join("tests", entry))
+        # Suffix match: test_hook_bash_fix_forward_test.py
+        elif entry_norm == f"{normalized}_test.py":
+            found.append(os.path.join("tests", entry))
+        # Prefix match: test_debate_commands.py for debate.py
+        elif entry_norm.startswith(f"test_{normalized}_"):
+            found.append(os.path.join("tests", entry))
 
     return found
 
