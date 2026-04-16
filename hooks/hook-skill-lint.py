@@ -11,6 +11,18 @@ import re
 import subprocess
 import sys
 
+# Tier gate: requires tier >= 2
+_project = subprocess.run(
+    ["git", "rev-parse", "--show-toplevel"],
+    capture_output=True, text=True
+).stdout.strip()
+_tier_result = subprocess.run(
+    ["/opt/homebrew/bin/python3.11", os.path.join(_project, "scripts/read_tier.py"), "--check", "2"],
+    capture_output=True
+)
+if _tier_result.returncode != 0:
+    sys.exit(0)
+
 
 def main():
     tool_input = os.environ.get("TOOL_INPUT", "")

@@ -22,6 +22,10 @@ set -euo pipefail
 
 INPUT=$(cat)
 
+# Tier gate: requires tier >= 2
+PROJECT_ROOT="$(git rev-parse --show-toplevel)"
+/opt/homebrew/bin/python3.11 "$PROJECT_ROOT/scripts/read_tier.py" --check 2 2>/dev/null || exit 0
+
 # Extract file_path from tool input JSON using python (minimal, just JSON parse)
 FILE_PATH=$(/opt/homebrew/bin/python3.11 -c "
 import sys, json
@@ -43,6 +47,101 @@ REL="$FILE_PATH"
 if [[ "$REL" == "$PROJECT/"* ]]; then
     REL="${REL#$PROJECT/}"
 fi
+
+# ── Scope containment: check allowed_paths in active plans ────────────
+# If any recent plan has allowed_paths AND the target file is outside them, block.
+# scope_escalation: true in frontmatter downgrades block to warning.
+SCOPE_CHECK=$(PLAN_GATE_TASKS="$TASKS" PLAN_GATE_REL="$REL" /opt/homebrew/bin/python3.11 <<'PYEOF'
+import os, sys, fnmatch, re, time
+
+tasks_dir = os.environ["PLAN_GATE_TASKS"]
+rel = os.environ["PLAN_GATE_REL"]
+now = time.time()
+MAX_AGE = 86400  # 24 hours
+
+
+def parse_frontmatter(text):
+    if not text.startswith("---"):
+        return None
+    end = text.find("---", 3)
+    if end < 0:
+        return None
+    result = {}
+    current_key = None
+    for line in text[3:end].splitlines():
+        if line.startswith("  - ") and current_key is not None:
+            if not isinstance(result[current_key], list):
+                result[current_key] = []
+            result[current_key].append(line[4:].strip().strip("'\""))
+            continue
+        m = re.match(r'^([a-z_]+)\s*:\s*(.*)', line)
+        if m:
+            current_key = m.group(1)
+            val = m.group(2).strip().strip("'\"")
+            result[current_key] = val if val else []
+            continue
+        if line.strip():
+            current_key = None
+    return result
+
+
+if not os.path.isdir(tasks_dir):
+    print("allow")
+    sys.exit(0)
+
+for fname in sorted(os.listdir(tasks_dir)):
+    if not fname.endswith("-plan.md"):
+        continue
+    path = os.path.join(tasks_dir, fname)
+    if not os.path.isfile(path):
+        continue
+    try:
+        mtime = os.path.getmtime(path)
+    except OSError:
+        continue
+    if (now - mtime) > MAX_AGE:
+        continue
+    try:
+        content = open(path).read()
+    except OSError:
+        continue
+    fm = parse_frontmatter(content)
+    if fm is None:
+        continue
+
+    allowed = fm.get("allowed_paths")
+    if not allowed or not isinstance(allowed, list) or len(allowed) == 0:
+        continue  # no scope constraint in this plan
+
+    # Check if file matches any allowed path
+    for pattern in allowed:
+        if pattern == rel or fnmatch.fnmatch(rel, pattern):
+            print("allow")
+            sys.exit(0)
+
+    # File is outside allowed_paths
+    escalation = fm.get("scope_escalation", "")
+    if escalation == "true":
+        print("warn:" + fname)
+    else:
+        print("block:" + fname)
+    sys.exit(0)
+
+print("allow")
+PYEOF
+)
+
+case "$SCOPE_CHECK" in
+  block:*)
+    PLAN_FILE="${SCOPE_CHECK#block:}"
+    printf '{"hookSpecificOutput":{"hookEventName":"PreToolUse","permissionDecision":"block","permissionDecisionReason":"SCOPE BLOCKED: %s is outside allowed_paths declared in tasks/%s. To override, add scope_escalation: true to the plan frontmatter (creates audit trail)."}}\n' "$REL" "$PLAN_FILE"
+    exit 2
+    ;;
+  warn:*)
+    PLAN_FILE="${SCOPE_CHECK#warn:}"
+    echo "SCOPE WARNING: $REL is outside allowed_paths in tasks/$PLAN_FILE (scope_escalation active — proceeding with audit trail)"
+    ;;
+esac
 
 # ── Check exempt/protected status from config/protected-paths.json ─────
 # Single source of truth — no hardcoded patterns.

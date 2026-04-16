@@ -14,7 +14,11 @@
 
 INPUT=$(cat)
 
-RESULT=$(PLAN_GATE_PROJECT="$(git rev-parse --show-toplevel)" /opt/homebrew/bin/python3.11 -c "
+# Tier gate: requires tier >= 2
+PROJECT_ROOT="$(git rev-parse --show-toplevel)"
+/opt/homebrew/bin/python3.11 "$PROJECT_ROOT/scripts/read_tier.py" --check 2 2>/dev/null || exit 0
+
+RESULT=$(PLAN_GATE_PROJECT="$PROJECT_ROOT" /opt/homebrew/bin/python3.11 -c "
 import sys, json, os, re, subprocess, time
 
 PROJECT = os.environ.get('PLAN_GATE_PROJECT', '.')

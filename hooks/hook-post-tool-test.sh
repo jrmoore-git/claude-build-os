@@ -2,6 +2,11 @@
 # PostToolUse hook: Run pytest for the corresponding test when a scripts/*_tool.py is written/edited
 
 INPUT=$(cat)
+
+# Tier gate: requires tier >= 2
+PROJECT_ROOT="$(git rev-parse --show-toplevel)"
+/opt/homebrew/bin/python3.11 "$PROJECT_ROOT/scripts/read_tier.py" --check 2 2>/dev/null || exit 0
+
 FILE_PATH=$(printf '%s' "$INPUT" | /opt/homebrew/bin/python3.11 -c "import sys,json; d=json.load(sys.stdin); print(d.get('tool_input',{}).get('file_path',''))" 2>/dev/null)
 
 # Only act on scripts/*_tool.py files
