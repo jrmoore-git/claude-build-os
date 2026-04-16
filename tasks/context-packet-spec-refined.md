@@ -246,16 +246,16 @@ Examples:
 
 ## Size Budgets
 
-Target budgets define the default operating range that keeps the packet grounded without flooding attention. The Databricks research confirms performance improves monotonically up to model-specific saturation; at these sizes we remain well below saturation for all three models.
+Target budgets define the operating range. The Databricks research (2,000+ experiments) confirms performance improves monotonically up to model-specific saturation. All three models (claude-opus-4-6, gpt-5.4, gemini-3.1-pro) have 128K-200K context windows. Previous budgets (1-8K tokens) were far too conservative — leaving significant quality on the table. Revised budgets push toward richer context while staying well below saturation.
 
 | Skill type | Skills | Target total | Rationale |
 |---|---|---|---|
-| Challenge / pressure-test | challenge, pressure-test | 150–250 lines (4–8K tokens) | Deep evaluation benefits from full project grounding and decision context |
-| Review (code) | review | 100–200 lines (3–6K tokens) | Diff/spec review needs system context but should stay focused |
-| Explore / investigate | explore, investigate | 80–150 lines (2–4K tokens) | Research questions need project framing plus external context |
-| Polish / refine | polish, elevate | 80–120 lines (2–4K tokens) | Editing must stay aligned to project goals, not generic writing norms |
-| Healthcheck / simulate | healthcheck, simulate | 50–100 lines (1–3K tokens) | Narrower tasks need lighter but still real project context |
-| Think (already rich) | think | 80–150 lines (2–4K tokens) | Already has rich context; included for completeness |
+| Challenge / pressure-test | challenge, pressure-test | 250–500 lines (8–16K tokens) | Deep evaluation is the highest-stakes use. Full project grounding, decision context, operational evidence, and evaluation anchors. |
+| Review (code) | review | 200–400 lines (6–12K tokens) | Diff + system context + governance constraints. Reviewers need enough context to judge whether code fits the system, not just whether it compiles. |
+| Explore / investigate | explore, investigate | 150–300 lines (4–10K tokens) | Research questions need project framing, constraint context, and enough background to avoid generic answers. |
+| Polish / refine | polish, elevate | 150–250 lines (4–8K tokens) | Editing must stay aligned to project goals. Richer context prevents drift toward generic prose improvements. |
+| Healthcheck / simulate | healthcheck, simulate | 100–200 lines (3–6K tokens) | Narrower tasks still benefit from real project context. Previous 50-100 floor was too lean. |
+| Think (already rich) | think | 150–300 lines (4–10K tokens) | Already has rich context; budget revised upward for consistency. |
 
 ## Required Quality Bar
 

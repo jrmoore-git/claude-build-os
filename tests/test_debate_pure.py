@@ -189,7 +189,8 @@ class TestBuildFrontmatter:
     @patch("debate.datetime")
     def test_created_timestamp_format(self, mock_dt):
         from datetime import datetime
-        mock_dt.now.return_value = datetime(2026, 4, 15, 14, 30, 45)
+        from zoneinfo import ZoneInfo
+        mock_dt.now.return_value = datetime(2026, 4, 15, 14, 30, 45, tzinfo=ZoneInfo("America/Los_Angeles"))
         mock_dt.side_effect = lambda *a, **kw: datetime(*a, **kw)
 
         result = debate._build_frontmatter("d-ts", {"A": "m"})
@@ -198,7 +199,8 @@ class TestBuildFrontmatter:
     @patch("debate.datetime")
     def test_empty_mapping(self, mock_dt):
         from datetime import datetime
-        mock_dt.now.return_value = datetime(2026, 1, 1, 0, 0, 0)
+        from zoneinfo import ZoneInfo
+        mock_dt.now.return_value = datetime(2026, 1, 1, 0, 0, 0, tzinfo=ZoneInfo("America/Los_Angeles"))
         mock_dt.side_effect = lambda *a, **kw: datetime(*a, **kw)
 
         result = debate._build_frontmatter("d-empty", {})

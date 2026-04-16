@@ -1,41 +1,38 @@
-# Handoff — 2026-04-15 (session 10)
+# Handoff — 2026-04-15 (session 11)
 
 ## Session Focus
-Built the skill linter, fixed all 22 skills to conform to the canonical sections spec, and wired a PostToolUse hook for ongoing enforcement.
+Audited the entire /simulate arc, evaluated 7 external tools, reversed the "don't build" verdict, diagnosed 3 structural bugs in the /challenge pipeline, and wrote two proposals for next session.
 
 ## Decided
-- PostToolUse (not PreToolUse) for lint hook — can't lint content before it's written
-- Tier 1 skills get `tier: 1` frontmatter override to prevent heuristic misclassification
-- `/start` and `/wrap` get `lint-exempt: ["output-silence"]` since intermediate output is their interface
+- D20: Keep sim infrastructure and generalize eval_intake.py — no external tool meets the requirements
+- L27: Scope expansion between versions = new challenge gate (V1 approval doesn't cover V2)
+- L28: Cross-model panels converge on wrong answers when operational evidence is missing from input
+- Challenge pipeline has 4 structural bugs; Layer 1 (Operational Evidence section) is the cheapest highest-impact fix
+- Don't run /challenge on the pipeline-fixes proposal (Layer 1 is trivial, Layer 2 already refined in parallel session)
 
 ## Implemented
-- `scripts/lint_skills.py` — full linter (tier classification, 9 validation checks, lint-exempt mechanism)
-- `hooks/hook-skill-lint.py` — PostToolUse hook on Write/Edit for SKILL.md files
-- `.claude/settings.json` — hook wired
-- All 22 SKILL.md files updated (version, Use when, procedure, completion codes, safety rules, output silence, output format, debate fallback)
-- `tasks/canonical-skill-sections-plan.md` — plan artifact
-- `tasks/canonical-skill-sections-review.md` — review artifact (passed, 0 material)
+- tasks/sim-generalization-proposal.md — full proposal with Operational Evidence section, ready for /challenge
+- tasks/challenge-pipeline-fixes-proposal.md — 4-layer fix proposal (written by parallel session, evaluated here)
+- L27 + L28 in tasks/lessons.md
+- Scope expansion rule in .claude/rules/workflow.md
+- D20 in tasks/decisions.md
 
 ## NOT Finished
-- IR extraction not wired into pre-commit diff (carried from session 9)
-- No `/review` on sim-compiler code (carried from session 7+8)
-- `debate.py` test coverage still 0
-- `fixtures/` still untracked
-- Advisory: `## Output` regex could false-positive on similar headings — tighten to `^##\s+Output\s*$`
-- Advisory: no automated tests for `lint_skills.py`
+- /challenge on sim-generalization-proposal.md (intentionally deferred — needs context packet from parallel session applied first)
+- Challenge pipeline Layer 1 implementation (parallel session doing this)
+- V2 sim scripts unreviewed (Phase 1 of sim-generalization proposal)
 
 ## Next Session Should
-1. Test the new lint system (edit a skill, verify hook fires and warns)
-2. Wire IR extraction into pre-commit diff
-3. Optionally: tighten `## Output` regex, add linter tests
+1. Read tasks/sim-generalization-proposal.md, then run /challenge on it (with context packet applied)
+2. If challenge passes: proceed to Phase 1 (review V2 scripts, wire end-to-end, validate against eval_intake.py baseline)
+3. Check whether parallel session completed Layer 1 (Operational Evidence section in /challenge SKILL.md)
 
 ## Key Files Changed
-- scripts/lint_skills.py (new)
-- hooks/hook-skill-lint.py (new)
-- .claude/settings.json (modified — hook added)
-- .claude/skills/*/SKILL.md (22 files modified)
-- tasks/canonical-skill-sections-plan.md (new)
-- tasks/canonical-skill-sections-review.md (new)
+- tasks/sim-generalization-proposal.md (NEW)
+- tasks/challenge-pipeline-fixes-proposal.md (NEW, from parallel session)
+- tasks/lessons.md (L27, L28 added)
+- tasks/decisions.md (D20 added)
+- .claude/rules/workflow.md (scope expansion rule)
 
 ## Doc Hygiene Warnings
-None — no new lessons or decisions this session (execution of existing spec).
+None
