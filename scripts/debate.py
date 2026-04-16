@@ -3905,7 +3905,14 @@ def cmd_explore(args):
         return 1
     config = _load_config()
 
-    model = args.model or config.get("single_review_default", "gpt-5.4")
+    # Rotate models across directions for genuine divergence (like refine).
+    # --model locks all rounds to a single model (override).
+    if args.model:
+        explore_models = [args.model]
+    else:
+        explore_models = config.get("explore_rotation",
+                                    config.get("refine_rotation",
+                                               ["gpt-5.4", "gemini-3.1-pro", "gpt-5.4"]))
     directions_count = args.directions
     question = args.question
     context = getattr(args, 'context', None) or ""
@@ -3968,6 +3975,7 @@ def cmd_explore(args):
     direction_names = []
 
     # Round 1: first direction (no divergence constraint)
+    model = explore_models[0 % len(explore_models)]
     explore_fallback = _get_fallback_model(model, config)
     print(f"Explore round 1/{directions_count} ({model})...", file=sys.stderr)
     try:
@@ -3981,8 +3989,10 @@ def cmd_explore(args):
     directions.append(resp)
     direction_names.append(_parse_explore_direction(resp))
 
-    # Rounds 2..N: forced divergence
+    # Rounds 2..N: forced divergence, rotating models
     for i in range(2, directions_count + 1):
+        model = explore_models[(i - 1) % len(explore_models)]
+        explore_fallback = _get_fallback_model(model, config)
         prev_summary = "\n".join(
             f"{j}. {name}" for j, name in enumerate(direction_names, 1)
         )
@@ -4034,7 +4044,7 @@ def cmd_explore(args):
         "---",
         f"mode: explore",
         f"created: {now.strftime('%Y-%m-%dT%H:%M:%S%z')[:25]}",
-        f"model: {model}",
+        f"models: {','.join(explore_models)}",
         f"directions: {len(directions)}",
         ver_str,
         "---",
@@ -4062,7 +4072,7 @@ def cmd_explore(args):
 
     _log_debate_event({
         "phase": "explore",
-        "model": model,
+        "models": explore_models,
         "directions": len(directions),
         "direction_names": direction_names,
         "question": question[:200],
