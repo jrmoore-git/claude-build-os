@@ -44,6 +44,11 @@
             "type": "command",
             "command": "HOOK_EVENT=PreToolUse python3 hooks/hook-read-before-edit.py",
             "timeout": 2
+          },
+          {
+            "type": "command",
+            "command": "python3 hooks/hook-context-inject.py",
+            "timeout": 2
           }
         ]
       },

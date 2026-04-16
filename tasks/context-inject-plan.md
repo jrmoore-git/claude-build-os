@@ -4,7 +4,7 @@ surfaces_affected: "hooks/hook-context-inject.py (new), .claude/settings.json, C
 verification_commands: "python3.11 -m pytest tests/test_hook_context_inject.py -v && python3.11 hooks/hook-context-inject.py < /tmp/test-hook-input.json"
 rollback: "git revert HEAD — remove hook file, revert settings.json and CLAUDE.md changes"
 review_tier: "Tier 1"
-verification_evidence: "PENDING"
+verification_evidence: "17/17 hook tests pass, 889/889 full suite passes. Manual test confirms context injection for debate.py (imports + git), tier_classify.py (test file + git), silent exit for non-Python and new files."
 ---
 
 # Plan: Context Injection Hook (P1)
