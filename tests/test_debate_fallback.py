@@ -229,3 +229,35 @@ class TestGetFallbackModel:
         }
         result = debate._get_fallback_model("model-a", config)
         assert result == "model-b"
+
+
+class TestGetModelFamily:
+    """Tests for _get_model_family."""
+
+    def test_claude_models(self):
+        assert debate._get_model_family("claude-opus-4-6") == "claude"
+        assert debate._get_model_family("claude-sonnet-4-6") == "claude"
+        assert debate._get_model_family("claude-haiku-4-5-20251001") == "claude"
+
+    def test_gpt_models(self):
+        assert debate._get_model_family("gpt-5.4") == "gpt"
+        assert debate._get_model_family("gpt-4o") == "gpt"
+
+    def test_openai_reasoning_models(self):
+        assert debate._get_model_family("o1-preview") == "gpt"
+        assert debate._get_model_family("o3-mini") == "gpt"
+
+    def test_gemini_models(self):
+        assert debate._get_model_family("gemini-3.1-pro") == "gemini"
+        assert debate._get_model_family("gemini-2.0-flash") == "gemini"
+
+    def test_litellm_prefix_stripped(self):
+        assert debate._get_model_family("litellm/claude-opus-4-6") == "claude"
+
+    def test_unknown_model_uses_first_token(self):
+        assert debate._get_model_family("mistral-large-2") == "mistral"
+        assert debate._get_model_family("llama-3.1-70b") == "llama"
+
+    def test_case_insensitive(self):
+        assert debate._get_model_family("Claude-Opus-4-6") == "claude"
+        assert debate._get_model_family("GPT-5.4") == "gpt"

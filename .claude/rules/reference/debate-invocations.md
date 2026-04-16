@@ -127,6 +127,7 @@ python3.11 scripts/debate.py explore \
 
 ## Pressure Test (counter-thesis or pre-mortem frame)
 
+**Single-model** (default):
 ```bash
 python3.11 scripts/debate.py pressure-test \
   --proposal tasks/<topic>.md \
@@ -134,7 +135,18 @@ python3.11 scripts/debate.py pressure-test \
   --output tasks/<topic>-pressure-test.md
 ```
 
-- `--frame premortem` for prospective failure analysis.
+**Multi-model** (parallel execution + synthesis):
+```bash
+python3.11 scripts/debate.py pressure-test \
+  --proposal tasks/<topic>.md \
+  --models "claude-opus-4-6,gemini-3.1-pro,gpt-5.4" \
+  --output tasks/<topic>-pressure-test.md
+```
+
+- `--model` and `--models` are mutually exclusive. `--models` requires at least 2 models.
+- `--synthesis-model` overrides the model used for cross-analysis synthesis (default: `judge_default` from config). Should be from a different family than input models.
+- `--frame premortem` for prospective failure analysis. Works with both `--model` and `--models`.
+- Multi-model output includes individual analyses (anonymized A/B/C) + synthesis section identifying agreements, disagreements, and unique findings.
 
 ## Pre-Mortem (assume plan failed, write post-mortem)
 

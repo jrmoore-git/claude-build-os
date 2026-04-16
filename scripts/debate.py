@@ -955,6 +955,26 @@ def _call_with_model_fallback(primary_model, fallback_model, system_prompt,
         raise
 
 
+def _get_model_family(model_name):
+    """Extract model family from a model name string.
+
+    Returns a lowercase family identifier for cross-family independence checks.
+    Examples: 'claude-opus-4-6' -> 'claude', 'gpt-5.4' -> 'gpt',
+              'gemini-3.1-pro' -> 'gemini'
+    """
+    name = model_name.lower()
+    if name.startswith("litellm/"):
+        name = name[len("litellm/"):]
+    if name.startswith("claude"):
+        return "claude"
+    if name.startswith("gpt") or name.startswith("o1") or name.startswith("o3"):
+        return "gpt"
+    if name.startswith("gemini"):
+        return "gemini"
+    # Fallback: first token before dash or digit
+    return name.split("-")[0].split("/")[-1]
+
+
 def _get_fallback_model(primary, config):
     """Return a fallback model different from primary for timeout recovery.
 
@@ -2724,6 +2744,26 @@ Output format:
 [One paragraph: what's the common thread across these failures? What \
 structural weakness do they reveal?]"""
 
+PRESSURE_TEST_SYNTHESIS_PROMPT = """\
+You are synthesizing multiple independent pressure-test analyses of the same \
+proposal. Each analysis was produced by a different model with no visibility \
+into the others.
+
+Your job is NOT to average or summarize. Your job is to:
+
+1. **Agreements:** What risks did multiple analysts independently identify? \
+These are high-confidence findings.
+2. **Disagreements:** Where do the analyses contradict each other? State each \
+side and which evidence is stronger.
+3. **Unique findings:** What did only one analyst catch? These are the highest \
+value — they represent blind spots the others missed.
+4. **Likely false positives:** Which findings seem speculative or unsupported \
+by the proposal's actual content?
+5. **Overall assessment:** Given the full picture, what are the 3 most \
+important risks this proposal faces?
+
+Be direct. Use evidence from the analyses. Keep it under 600 words."""
+
 
 def _parse_explore_direction(text):
     """Extract the direction name from an explore response."""
@@ -3856,9 +3896,12 @@ def cmd_explore(args):
 
 
 def cmd_pressure_test(args):
-    """Single-model strategic thinking. Two frames:
+    """Strategic pressure-test. Two frames:
     - challenge (default): counter-thesis and honest take on a proposal
     - premortem: assume the plan failed, write the post-mortem from the future
+
+    Supports single-model (--model) or multi-model (--models) execution.
+    Multi-model runs models in parallel, then synthesizes disagreements.
     """
     frame = getattr(args, 'frame', 'challenge')
     _cost_snapshot = get_session_costs()
@@ -3867,7 +3910,27 @@ def cmd_pressure_test(args):
         return 1
     config = _load_config()
 
-    model = args.model or config.get("single_review_default", "gpt-5.4")
+    # Parse model selection: --model and --models are mutually exclusive
+    models_str = getattr(args, 'models', None)
+    multi_model = False
+    if models_str and args.model:
+        print("ERROR: --model and --models are mutually exclusive",
+              file=sys.stderr)
+        return 1
+    if models_str:
+        models = [m.strip() for m in models_str.split(",") if m.strip()]
+        if len(models) < 2:
+            print("ERROR: --models requires at least 2 models (comma-separated)",
+                  file=sys.stderr)
+            return 1
+        if len(set(models)) != len(models):
+            print("ERROR: --models must contain distinct models",
+                  file=sys.stderr)
+            return 1
+        multi_model = True
+    else:
+        model = args.model or config.get("single_review_default", "gpt-5.4")
+
     input_text = args.proposal.read()
     context = getattr(args, 'context', None) or ""
     context_block = (f"\n## Context (use this to inform your thinking)\n\n"
@@ -3890,50 +3953,192 @@ def cmd_pressure_test(args):
     prompt = prompt.replace("{context}", context_block)
     user_content = input_text if not context else f"{input_text}\n{context_block}"
 
-    print(f"{label} ({model})...", file=sys.stderr)
-    try:
-        pt_fallback = _get_fallback_model(model, config)
-        response, _used = _call_with_model_fallback(
-            model, pt_fallback, prompt, user_content,
-            litellm_url, api_key,
-            temperature=LLM_CALL_DEFAULTS["pressure_test_temperature"])
-    except LLM_SAFE_EXCEPTIONS as e:
-        print(f"ERROR: {phase} failed — {e}", file=sys.stderr)
+    if not multi_model:
+        # ── Single-model path (original behavior) ──
+        print(f"{label} ({model})...", file=sys.stderr)
+        try:
+            pt_fallback = _get_fallback_model(model, config)
+            response, _used = _call_with_model_fallback(
+                model, pt_fallback, prompt, user_content,
+                litellm_url, api_key,
+                temperature=LLM_CALL_DEFAULTS["pressure_test_temperature"])
+        except LLM_SAFE_EXCEPTIONS as e:
+            print(f"ERROR: {phase} failed — {e}", file=sys.stderr)
+            return 1
+
+        if not response or not response.strip():
+            print("ERROR: model returned empty response", file=sys.stderr)
+            return 1
+
+        now = datetime.now(PROJECT_TZ)
+        output_lines = [
+            "---",
+            f"mode: {phase}",
+            f"created: {now.strftime('%Y-%m-%dT%H:%M:%S%z')[:25]}",
+            f"model: {model}",
+            f"prompt_version: {prompt_ver}",
+            "---",
+            f"# {label}",
+            "",
+            response,
+        ]
+
+        output_text = "\n".join(output_lines)
+        with open(args.output, "w") as f:
+            f.write(output_text)
+        print(output_text)
+
+        _log_debate_event({
+            "phase": phase,
+            "model": model,
+            "input_file": args.proposal.name if hasattr(args.proposal, 'name') else "stdin",
+            "success": True,
+            "response_length": len(response),
+        }, cost_snapshot=_cost_snapshot)
+
+        result = {"status": "ok", "model": model}
+        print(json.dumps(result), file=sys.stderr)
+        return 0
+
+    # ── Multi-model path ──
+    # Cross-family independence check for synthesis model
+    synth_model = getattr(args, 'synthesis_model', None) or config.get("judge_default", "gpt-5.4")
+    input_families = {_get_model_family(m) for m in models}
+    synth_family = _get_model_family(synth_model)
+    if synth_family in input_families:
+        print(f"WARNING: synthesis model ({synth_model}, family={synth_family}) "
+              f"overlaps with input model families {input_families}. "
+              f"Cross-family independence is compromised.",
+              file=sys.stderr)
+
+    # Parallel execution
+    def _run_pt_model(idx, m):
+        """Returns (idx, actual_model_used, response, success)."""
+        try:
+            fb = _get_fallback_model(m, config)
+            resp, used = _call_with_model_fallback(
+                m, fb, prompt, user_content,
+                litellm_url, api_key,
+                temperature=LLM_CALL_DEFAULTS["pressure_test_temperature"])
+            if resp and resp.strip():
+                return (idx, used, resp, True)
+            else:
+                print(f"WARNING: {m} returned empty response", file=sys.stderr)
+                return (idx, m, "Empty response", False)
+        except LLM_SAFE_EXCEPTIONS as e:
+            print(f"WARNING: {m} failed — {e}", file=sys.stderr)
+            return (idx, m, str(e), False)
+
+    print(f"Multi-model {label} ({', '.join(models)})...", file=sys.stderr)
+    results = []
+    with concurrent.futures.ThreadPoolExecutor(max_workers=len(models)) as pool:
+        futures = {pool.submit(_run_pt_model, i, m): i for i, m in enumerate(models)}
+        for fut in concurrent.futures.as_completed(futures):
+            results.append(fut.result())
+
+    successful = [r for r in results if r[3]]
+    failed = [r for r in results if not r[3]]
+
+    if len(successful) < 2:
+        print(f"ERROR: need at least 2 successful analyses for synthesis, "
+              f"got {len(successful)}", file=sys.stderr)
+        if successful:
+            print(f"  (1 succeeded: {successful[0][1]} — use --model for single-model mode)",
+                  file=sys.stderr)
         return 1
 
-    if not response or not response.strip():
-        print("ERROR: model returned empty response", file=sys.stderr)
-        return 1
+    if failed:
+        print(f"Note: {len(failed)} of {len(results)} models failed. "
+              f"Proceeding with {len(successful)} analyses.",
+              file=sys.stderr)
+
+    # Position randomization (Zheng et al.)
+    random.shuffle(successful)
+    mapping = {}
+    analysis_sections = []
+    for i, (_idx, m, resp, _ok) in enumerate(successful):
+        lbl = CHALLENGER_LABELS[i]
+        mapping[lbl] = m
+        analysis_sections.append(f"## Analyst {lbl}\n\n{resp}")
+
+    # Synthesis step
+    synth_input = "\n\n---\n\n".join(analysis_sections)
+    synth_user = (f"# Proposal\n\n{input_text}\n\n"
+                  f"# Independent Analyses\n\n{synth_input}")
+
+    print(f"Synthesizing ({synth_model})...", file=sys.stderr)
+    try:
+        synth_fb = _get_fallback_model(synth_model, config)
+        synth_response, _synth_used = _call_with_model_fallback(
+            synth_model, synth_fb,
+            PRESSURE_TEST_SYNTHESIS_PROMPT, synth_user,
+            litellm_url, api_key,
+            temperature=0.3)
+    except LLM_SAFE_EXCEPTIONS as e:
+        print(f"WARNING: synthesis failed — {e}. "
+              f"Outputting individual analyses without synthesis.",
+              file=sys.stderr)
+        synth_response = None
 
     # Build output
     now = datetime.now(PROJECT_TZ)
+    models_list = [m for _, m, _, _ in successful]
     output_lines = [
         "---",
         f"mode: {phase}",
+        f"multi_model: true",
         f"created: {now.strftime('%Y-%m-%dT%H:%M:%S%z')[:25]}",
-        f"model: {model}",
+        f"models: [{', '.join(models_list)}]",
+        f"synthesis_model: {synth_model}",
         f"prompt_version: {prompt_ver}",
-        "---",
-        f"# {label}",
-        "",
-        response,
+        f"mapping:",
     ]
+    for lbl, m in mapping.items():
+        output_lines.append(f"  {lbl}: {m}")
+    output_lines.extend([
+        "---",
+        f"# {label} (Multi-Model)",
+        "",
+    ])
+
+    for section in analysis_sections:
+        output_lines.append(section)
+        output_lines.append("\n---\n")
+
+    if synth_response:
+        output_lines.append("## Synthesis\n")
+        output_lines.append(synth_response)
+    else:
+        output_lines.append("## Synthesis\n")
+        output_lines.append("*Synthesis unavailable — individual analyses above.*")
 
     output_text = "\n".join(output_lines)
     with open(args.output, "w") as f:
         f.write(output_text)
-
     print(output_text)
 
     _log_debate_event({
         "phase": phase,
-        "model": model,
+        "multi_model": True,
+        "models": models_list,
+        "synthesis_model": synth_model,
+        "synthesis_success": synth_response is not None,
+        "successful": len(successful),
+        "failed": len(failed),
         "input_file": args.proposal.name if hasattr(args.proposal, 'name') else "stdin",
         "success": True,
-        "response_length": len(response),
+        "response_length": sum(len(r[2]) for r in successful),
     }, cost_snapshot=_cost_snapshot)
 
-    result = {"status": "ok", "model": model}
+    result = {
+        "status": "ok",
+        "multi_model": True,
+        "models": models_list,
+        "synthesis_model": synth_model,
+        "successful": len(successful),
+        "failed": len(failed),
+        "mapping": mapping,
+    }
     print(json.dumps(result), file=sys.stderr)
     return 0
 
@@ -4126,7 +4331,15 @@ def main():
                     help="Thinking frame: challenge (counter-thesis) or premortem "
                          "(assume it failed, write the post-mortem)")
     pt.add_argument("--model", default=None,
-                    help="Model for pressure-test (default: from config)")
+                    help="Model for single-model pressure-test (default: from config)")
+    pt.add_argument("--models", default=None,
+                    help="Comma-separated models for multi-model pressure-test "
+                         "(e.g., 'claude-opus-4-6,gemini-3.1-pro,gpt-5.4'). "
+                         "Mutually exclusive with --model.")
+    pt.add_argument("--synthesis-model", default=None, dest="synthesis_model",
+                    help="Model for multi-model synthesis step "
+                         "(default: judge_default from config). Should be from "
+                         "a different family than input models.")
     pt.add_argument("--context", default=None,
                     help="Market context to inject (competitors, trends, examples)")
     pt.add_argument("--output", required=True,

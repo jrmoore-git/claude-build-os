@@ -36,6 +36,8 @@ Settled architectural and product decisions. Each entry records what was decided
 **Alternatives considered:** (a) All modes multi-model (rejected: 3x cost, no quality gain for thinking modes), (b) All modes single-model (rejected: validate/refine genuinely benefit from cross-family diversity)
 **Date:** 2026-04-10
 
+> **Implementation update (2026-04-15, audit D5):** Multi-model pressure-test now supported via `--models` flag. Parallel execution via ThreadPoolExecutor, position-randomized anonymous labeling, cross-family synthesis step. Judge findings: cross-family independence warning, min-2 partial-failure threshold, synthesis prompt contract (agreements/disagreements/unique findings/false positives). Review findings: mutual exclusion enforcement, duplicate model check, actual-used-model tracking via fallback return. 951 tests pass.
+
 ### D6: Explore flow presents 3 bets with fork-first format, not 1 committed direction
 > **SUPERSEDED by D11 (2026-04-11).** Core principle (multi-direction > single-direction) carried forward. All implementation specifics (fork-first format, comparison table, 150-word descriptions, hardcoded product-market dimensions, "3 bets" framing) replaced. See tasks/decision-audit-d6.md.
 
