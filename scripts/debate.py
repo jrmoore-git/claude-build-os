@@ -4259,7 +4259,7 @@ def cmd_pressure_test(args):
 
     # Build output
     now = datetime.now(PROJECT_TZ)
-    models_list = [m for _, m, _, _ in successful]
+    models_list = [m for _, m, _, _, _ in successful]
     output_lines = [
         "---",
         f"mode: {phase}",
@@ -4305,6 +4305,7 @@ def cmd_pressure_test(args):
         "input_file": args.proposal.name if hasattr(args.proposal, 'name') else "stdin",
         "success": True,
         "response_length": sum(len(r[2]) for r in successful),
+        "per_model_timing": {r[1]: round(r[4], 1) for r in results},
     }, cost_snapshot=_cost_snapshot)
 
     result = {

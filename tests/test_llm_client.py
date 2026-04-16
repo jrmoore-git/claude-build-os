@@ -92,6 +92,14 @@ def test_is_retryable_timeout_not_retried():
     assert _is_retryable(FakeAPITimeoutError("Request timed out")) is False
 
 
+def test_is_retryable_api_connection_error_still_retried():
+    """APIConnectionError (non-timeout) IS still retryable after timeout carve-out."""
+    class FakeAPIConnectionError(Exception):
+        pass
+    FakeAPIConnectionError.__name__ = "APIConnectionError"
+    assert _is_retryable(FakeAPIConnectionError("Connection error.")) is True
+
+
 def test_is_retryable_permanent():
     """400, 404, ValueError are not retryable."""
     assert _is_retryable(_make_http_error(400)) is False
@@ -212,6 +220,7 @@ TESTS = [
     test_categorize_error_unknown,
     test_is_retryable_transient,
     test_is_retryable_timeout_not_retried,
+    test_is_retryable_api_connection_error_still_retried,
     test_is_retryable_permanent,
     test_get_base_url_normalization,
     test_load_api_key_from_env,
