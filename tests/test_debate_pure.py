@@ -11,9 +11,6 @@ import pytest
 SCRIPTS_DIR = Path(__file__).resolve().parent.parent / "scripts"
 sys.path.insert(0, str(SCRIPTS_DIR))
 
-for mod in [k for k in sys.modules if k.startswith("debate")]:
-    del sys.modules[mod]
-
 import debate
 
 
