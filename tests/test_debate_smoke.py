@@ -75,8 +75,9 @@ def test_load_config_includes_compare_default():
     try:
         if "debate" in sys.modules:
             del sys.modules["debate"]
-        import debate
-        config = debate._load_config()
+        import debate  # noqa: F401  (loads side-effects)
+        import debate_common
+        config = debate_common._load_config()
         assert "compare_default" in config, "compare_default missing from _load_config output"
         assert "judge_default" in config, "judge_default missing from _load_config output"
         # compare and judge should be distinct concepts (compare is lighter)

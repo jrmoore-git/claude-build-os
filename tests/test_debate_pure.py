@@ -498,16 +498,16 @@ class TestParseRefineResponse:
 
 class TestLoadConfig:
     def test_missing_file_returns_defaults(self, tmp_path):
-        config = debate._load_config(config_path=str(tmp_path / "nonexistent.json"))
+        config = debate_common._load_config(config_path=str(tmp_path / "nonexistent.json"))
         assert "persona_model_map" in config
-        assert config["judge_default"] == debate._DEFAULT_JUDGE
-        assert config["refine_rotation"] == list(debate._DEFAULT_REFINE_ROTATION)
+        assert config["judge_default"] == debate_common._DEFAULT_JUDGE
+        assert config["refine_rotation"] == list(debate_common._DEFAULT_REFINE_ROTATION)
 
     def test_malformed_json_returns_defaults(self, tmp_path):
         bad_file = tmp_path / "bad.json"
         bad_file.write_text("{invalid json!!!")
-        config = debate._load_config(config_path=str(bad_file))
-        assert config["judge_default"] == debate._DEFAULT_JUDGE
+        config = debate_common._load_config(config_path=str(bad_file))
+        assert config["judge_default"] == debate_common._DEFAULT_JUDGE
 
     def test_valid_config(self, tmp_path):
         cfg = {
@@ -518,7 +518,7 @@ class TestLoadConfig:
         }
         f = tmp_path / "config.json"
         f.write_text(json.dumps(cfg))
-        config = debate._load_config(config_path=str(f))
+        config = debate_common._load_config(config_path=str(f))
         assert config["persona_model_map"]["architect"] == "custom-model"
         assert config["persona_model_map"]["security"] == "sec-model"
         assert config["judge_default"] == "judge-model"
@@ -535,7 +535,7 @@ class TestLoadConfig:
         }
         f = tmp_path / "config.json"
         f.write_text(json.dumps(cfg))
-        config = debate._load_config(config_path=str(f))
+        config = debate_common._load_config(config_path=str(f))
         assert "hacker" not in config["persona_model_map"]
         assert "wizard" not in config["persona_model_map"]
         assert "architect" in config["persona_model_map"]
@@ -544,25 +544,25 @@ class TestLoadConfig:
         cfg = {"persona_model_map": {"hacker": "m1", "wizard": "m2"}}
         f = tmp_path / "config.json"
         f.write_text(json.dumps(cfg))
-        config = debate._load_config(config_path=str(f))
+        config = debate_common._load_config(config_path=str(f))
         # All filtered out -> falls back to defaults
-        assert config["persona_model_map"] == dict(debate._DEFAULT_PERSONA_MODEL_MAP)
+        assert config["persona_model_map"] == dict(debate_common._DEFAULT_PERSONA_MODEL_MAP)
 
     def test_missing_keys_use_defaults(self, tmp_path):
         cfg = {"version": "v2"}
         f = tmp_path / "config.json"
         f.write_text(json.dumps(cfg))
-        config = debate._load_config(config_path=str(f))
+        config = debate_common._load_config(config_path=str(f))
         assert config["version"] == "v2"
-        assert config["judge_default"] == debate._DEFAULT_JUDGE
-        assert config["persona_model_map"] == dict(debate._DEFAULT_PERSONA_MODEL_MAP)
+        assert config["judge_default"] == debate_common._DEFAULT_JUDGE
+        assert config["persona_model_map"] == dict(debate_common._DEFAULT_PERSONA_MODEL_MAP)
 
     def test_empty_json_object(self, tmp_path):
         f = tmp_path / "empty.json"
         f.write_text("{}")
-        config = debate._load_config(config_path=str(f))
-        assert config["persona_model_map"] == dict(debate._DEFAULT_PERSONA_MODEL_MAP)
-        assert config["judge_default"] == debate._DEFAULT_JUDGE
+        config = debate_common._load_config(config_path=str(f))
+        assert config["persona_model_map"] == dict(debate_common._DEFAULT_PERSONA_MODEL_MAP)
+        assert config["judge_default"] == debate_common._DEFAULT_JUDGE
 
 
 # ── _resolve_reviewers ────────────────────────────────────────────────────

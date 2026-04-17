@@ -34,7 +34,7 @@ def cmd_compare(args):
     # compare uses its own config key (intentionally lighter-weight than the
     # adversarial judge — compare is a side-by-side scoring tool, not the
     # truth arbiter). See tasks/debate-py-bandaid-cleanup-challenge.md A.2.
-    config = debate._load_config()
+    config = debate_common._load_config()
     judge_model = args.model or config.get("compare_default", "gemini-3.1-pro")
 
     user_content = (

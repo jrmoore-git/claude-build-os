@@ -41,7 +41,7 @@ def cmd_verdict(args):
 
     # Latent fix: original cmd_verdict referenced `config` without loading it.
     # Every other cmd_* function calls _load_config() at its top; parity fix.
-    config = debate._load_config()
+    config = debate_common._load_config()
 
     mapping = meta["mapping"]
     debate_id = meta.get("debate_id", "unknown")

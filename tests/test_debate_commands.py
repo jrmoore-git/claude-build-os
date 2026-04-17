@@ -167,7 +167,7 @@ def fake_config(monkeypatch):
         "refine_rotation": ["claude-opus-4-6", "gpt-5.4", "gemini-3.1-pro"],
         "fallback_map": {},
     }
-    monkeypatch.setattr(debate, "_load_config", lambda config_path=None: config)
+    monkeypatch.setattr(debate_common, "_load_config", lambda config_path=None: config)
 
 
 @pytest.fixture

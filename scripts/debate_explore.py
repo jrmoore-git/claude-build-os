@@ -23,7 +23,7 @@ def cmd_explore(args):
     api_key, litellm_url, _is_fallback = debate_common._load_credentials()
     if api_key is None:
         return 1
-    config = debate._load_config()
+    config = debate_common._load_config()
 
     # Rotate models across directions for genuine divergence (like refine).
     # --model locks all rounds to a single model (override).

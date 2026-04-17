@@ -6,7 +6,8 @@ subcommand modules.
 Extraction commits migrate helper groups out of debate.py incrementally.
 Current scope:
   - Credential + environment loading (e2dd116, simplest version)
-  - Cost-tracking subsystem (this commit, F4 atomic migration)
+  - Cost-tracking subsystem (12a865b, F4 atomic migration)
+  - Config loader + supporting constants (this commit)
 LLM call wrappers, prompt loading, frontmatter helpers stay in debate.py
 for now and migrate in followup commits.
 
@@ -15,6 +16,7 @@ Import style policy (per challenge F3): consumers MUST use
 NEVER use `from debate_common import foo` — that captures the local
 binding at import time and breaks monkeypatching.
 """
+import json
 import os
 import subprocess
 import sys
@@ -237,3 +239,73 @@ def _track_tool_loop_cost(model, tool_result):
     cost_usd = _estimate_cost(model, usage)
     _track_cost(model, usage, cost_usd)
     return cost_usd
+
+
+# ── Config loader (migrated from debate.py) ─────────────────────────────────
+# Hardcoded fallback mapping: persona name → LiteLLM model
+_DEFAULT_PERSONA_MODEL_MAP = {
+    "architect": "claude-sonnet-4-6",  # cost test: Sonnet vs Opus for tool-heavy challenger
+    "staff": "gemini-3.1-pro",
+    "security": "gpt-5.4",  # restored — read_file_snippet tool + P2 verifier compensate for low tool adoption
+    "pm": "gemini-3.1-pro",
+}
+
+_DEFAULT_JUDGE = "gpt-5.4"
+_DEFAULT_REFINE_ROTATION = ["gemini-3.1-pro", "gpt-5.4", "claude-opus-4-6"]
+
+VALID_PERSONAS = {"architect", "staff", "security", "pm"}
+
+
+def _load_config(config_path=None):
+    """Load debate model config from JSON file, fall back to hardcoded defaults.
+
+    Returns dict with keys: persona_model_map, judge_default, compare_default,
+    refine_rotation, single_review_default, verifier_default, version.
+    """
+    if config_path is None:
+        config_path = os.path.join(PROJECT_ROOT, "config", "debate-models.json")
+
+    defaults = {
+        "persona_model_map": dict(_DEFAULT_PERSONA_MODEL_MAP),
+        "judge_default": _DEFAULT_JUDGE,
+        # compare_default is intentionally lighter-weight than judge_default —
+        # compare is a side-by-side scoring tool, not the truth arbiter, so a
+        # cheaper/faster model is the right tradeoff.
+        "compare_default": "gemini-3.1-pro",
+        "refine_rotation": list(_DEFAULT_REFINE_ROTATION),
+        "single_review_default": "gpt-5.4",
+        "verifier_default": "claude-sonnet-4-6",
+        "version": "unknown",
+    }
+
+    if not os.path.exists(config_path):
+        print(f"WARNING: {config_path} not found, using hardcoded defaults",
+              file=sys.stderr)
+        return defaults
+
+    try:
+        with open(config_path) as f:
+            config = json.load(f)
+    except json.JSONDecodeError as e:
+        print(f"ERROR: malformed JSON in {config_path}: {e} — using defaults",
+              file=sys.stderr)
+        return defaults
+
+    # Validate persona names
+    pmap = config.get("persona_model_map", {})
+    for persona in pmap:
+        if persona not in VALID_PERSONAS:
+            print(f"WARNING: unknown persona '{persona}' in config — ignoring",
+                  file=sys.stderr)
+
+    return {
+        "persona_model_map": {k: v for k, v in pmap.items() if k in VALID_PERSONAS}
+                              or defaults["persona_model_map"],
+        "judge_default": config.get("judge_default", defaults["judge_default"]),
+        "compare_default": config.get("compare_default", defaults["compare_default"]),
+        "refine_rotation": config.get("refine_rotation", defaults["refine_rotation"]),
+        "single_review_default": config.get("single_review_default",
+                                            defaults["single_review_default"]),
+        "verifier_default": config.get("verifier_default", defaults["verifier_default"]),
+        "version": config.get("version", defaults["version"]),
+    }

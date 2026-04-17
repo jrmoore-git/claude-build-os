@@ -564,77 +564,14 @@ MODEL_PROMPT_OVERRIDES = {
     ),
 }
 
-# Hardcoded fallback mapping: persona name → LiteLLM model
-_DEFAULT_PERSONA_MODEL_MAP = {
-    "architect": "claude-sonnet-4-6",  # cost test: Sonnet vs Opus for tool-heavy challenger
-    "staff": "gemini-3.1-pro",
-    "security": "gpt-5.4",  # restored — read_file_snippet tool + P2 verifier compensate for low tool adoption
-    "pm": "gemini-3.1-pro",
-}
-
-_DEFAULT_JUDGE = "gpt-5.4"
-_DEFAULT_REFINE_ROTATION = ["gemini-3.1-pro", "gpt-5.4", "claude-opus-4-6"]
-
-VALID_PERSONAS = {"architect", "staff", "security", "pm"}
-
-
-def _load_config(config_path=None):
-    """Load debate model config from JSON file, fall back to hardcoded defaults.
-
-    Returns dict with keys: persona_model_map, judge_default, compare_default,
-    refine_rotation, single_review_default, verifier_default, version.
-    """
-    if config_path is None:
-        config_path = os.path.join(PROJECT_ROOT, "config", "debate-models.json")
-
-    defaults = {
-        "persona_model_map": dict(_DEFAULT_PERSONA_MODEL_MAP),
-        "judge_default": _DEFAULT_JUDGE,
-        # compare_default is intentionally lighter-weight than judge_default —
-        # compare is a side-by-side scoring tool, not the truth arbiter, so a
-        # cheaper/faster model is the right tradeoff.
-        "compare_default": "gemini-3.1-pro",
-        "refine_rotation": list(_DEFAULT_REFINE_ROTATION),
-        "single_review_default": "gpt-5.4",
-        "verifier_default": "claude-sonnet-4-6",
-        "version": "unknown",
-    }
-
-    if not os.path.exists(config_path):
-        print(f"WARNING: {config_path} not found, using hardcoded defaults",
-              file=sys.stderr)
-        return defaults
-
-    try:
-        with open(config_path) as f:
-            config = json.load(f)
-    except json.JSONDecodeError as e:
-        print(f"ERROR: malformed JSON in {config_path}: {e} — using defaults",
-              file=sys.stderr)
-        return defaults
-
-    # Validate persona names
-    pmap = config.get("persona_model_map", {})
-    for persona in pmap:
-        if persona not in VALID_PERSONAS:
-            print(f"WARNING: unknown persona '{persona}' in config — ignoring",
-                  file=sys.stderr)
-
-    return {
-        "persona_model_map": {k: v for k, v in pmap.items() if k in VALID_PERSONAS}
-                              or defaults["persona_model_map"],
-        "judge_default": config.get("judge_default", defaults["judge_default"]),
-        "compare_default": config.get("compare_default", defaults["compare_default"]),
-        "refine_rotation": config.get("refine_rotation", defaults["refine_rotation"]),
-        "single_review_default": config.get("single_review_default",
-                                            defaults["single_review_default"]),
-        "verifier_default": config.get("verifier_default", defaults["verifier_default"]),
-        "version": config.get("version", defaults["version"]),
-    }
-
-
-# Keep backward-compat name for any code that reads this directly
-PERSONA_MODEL_MAP = _DEFAULT_PERSONA_MODEL_MAP
+# Config loader + supporting constants live in debate_common (this commit):
+#   debate_common._DEFAULT_PERSONA_MODEL_MAP
+#   debate_common._DEFAULT_JUDGE
+#   debate_common._DEFAULT_REFINE_ROTATION
+#   debate_common.VALID_PERSONAS
+#   debate_common._load_config(config_path=None)
+# (The vestigial PERSONA_MODEL_MAP alias was deleted in the same commit — only
+# its own definition referenced it; no production code reads it.)
 
 # Role-differentiated adversarial prompts per persona
 # NOTE: .claude/skills/review/SKILL.md Step 5 has related but distinct review-specific
@@ -1042,7 +979,7 @@ def cmd_challenge(args):
     custom_prompt = args.system_prompt.read() if args.system_prompt else None
 
     # Resolve --personas to (model, prompt) pairs; --models uses generic prompt
-    config = _load_config()
+    config = debate_common._load_config()
     pmap = config["persona_model_map"]
     challengers = []  # list of (model, system_prompt)
 
@@ -1323,7 +1260,7 @@ def _run_claim_verifier(challenge_text, proposal_text, litellm_url, api_key):
     import debate_tools
     from llm_client import llm_tool_loop
 
-    config = _load_config()
+    config = debate_common._load_config()
     verifier_model = config.get("verifier_default", "claude-sonnet-4-6")
     user_content = (
         "## PROPOSAL\n\n"
@@ -1392,7 +1329,7 @@ def _consolidate_challenges(challenge_body, litellm_url, api_key, model=None):
     if challenger_count < 2:
         return challenge_body, None
 
-    config = _load_config()
+    config = debate_common._load_config()
     if model is None:
         model = config.get("verifier_default", "claude-sonnet-4-6")
 
@@ -1459,7 +1396,7 @@ def cmd_judge(args):
     _auto_generate_mapping(meta, challenge_body, verbose=True)
 
     debate_id = meta.get("debate_id", "unknown")
-    config = _load_config()
+    config = debate_common._load_config()
     judge_model = args.model or config["judge_default"]
 
     # author_models is a fact about the deployment (which model authored the
@@ -1561,7 +1498,7 @@ def cmd_judge(args):
             return body, stats
 
         def _do_verification():
-            verifier_config = _load_config()
+            verifier_config = debate_common._load_config()
             verifier_model_name = verifier_config.get("verifier_default", "claude-sonnet-4-6")
             print(f"Running claim verifier ({verifier_model_name})...", file=sys.stderr)
             v_text, v_stats = _run_claim_verifier(
@@ -1630,7 +1567,7 @@ def cmd_judge(args):
 
     # Verifier-only path (no consolidation)
     if verify_requested and not consolidate_requested:
-        verifier_config = _load_config()
+        verifier_config = debate_common._load_config()
         verifier_model_name = verifier_config.get("verifier_default", "claude-sonnet-4-6")
         print(f"Running claim verifier ({verifier_model_name})...", file=sys.stderr)
         verification_text, verifier_stats = _run_claim_verifier(
@@ -2635,7 +2572,7 @@ def cmd_refine(args):
     api_key, litellm_url, _is_fallback = debate_common._load_credentials()
     if api_key is None:
         return 1
-    config = _load_config()
+    config = debate_common._load_config()
 
     document = args.document.read()
     if not document.strip():
@@ -3077,7 +3014,7 @@ def cmd_review(args):
     api_key, litellm_url, _is_fallback = debate_common._load_credentials()
     if api_key is None:
         return 1
-    config = _load_config()
+    config = debate_common._load_config()
 
     # Resolve reviewers from flags
     reviewers = _resolve_reviewers(args, config)
@@ -3370,7 +3307,7 @@ def cmd_pressure_test(args):
     api_key, litellm_url, _is_fallback = debate_common._load_credentials()
     if api_key is None:
         return 1
-    config = _load_config()
+    config = debate_common._load_config()
 
     # Parse model selection: --model and --models are mutually exclusive
     models_str = getattr(args, 'models', None)
