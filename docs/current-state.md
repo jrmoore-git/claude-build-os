@@ -1,25 +1,15 @@
 # Current State — 2026-04-16 (late evening session)
 
 ## What Changed This Session
-- Shipped **frontmatter helpers migration** (481154a): atomic move of 4 functions (`_build_frontmatter`, `_redact_author`, `_apply_posture_floor`, `_shuffle_challenger_sections`) + 4 supporting constants (`SECURITY_FLOOR_PATTERNS`, `SECURITY_FLOOR_MIN`, `_SECURITY_FLOOR_RE`, `CHALLENGER_LABELS`) from `debate.py` to `debate_common.py`.
-- Pipeline: `/plan` → build → `/review --qa` (skipped `/challenge` per D25 mechanical-execution shortcut for verbatim migrations).
-- Pre-flight grep applied last session's lessons: covered whole-identifier patterns AND `monkeypatch.setattr` form for all 8 symbols. Zero surprises mid-build (no L40 third instance — still at 2).
-
-## Net debate.py shrinkage this session
-- 3815 → 3684 lines (−131 LOC)
-- debate_common.py: 338 → 471 (+133 LOC)
-- Cumulative across both today's sessions: 3991 → 3684 (−307 LOC) in `debate.py`; 127 → 471 (+344 LOC) in `debate_common.py`
+- Wrote `tasks/session-telemetry-plan.md` — 8-step plan for diagnostic telemetry that separates Tier 1 signal (context-file reads at session start) from Tier 2 signal (hook fires/blocks mid-execution). Motivated by Scott's BuildOS pilot framing: the two value claims have never been separated in telemetry, so cuts to the 21-hook infrastructure are hunch-driven.
+- Ran cross-model document review (3 models: gpt-5.4, gemini-3.1-pro, opus-4-6) and a pre-mortem (gpt-5.4) against the plan. Review verdict: passed-with-warnings. Artifacts: `tasks/session-telemetry-review.md`, `tasks/session-telemetry-premortem.md`.
+- Applied 2 material findings (SessionEnd backup built into Step 2 instead of just mentioned; PostToolUse:Read handler chain compatibility verified in new Step 2.5) and 5 advisory findings (latency measurement gate in Step 4, `stores/` auto-create in telemetry.py, malformed-line tolerance + 3-way session bucketing + candidates-not-evidence footer in analysis script) back into the plan.
 
 ## Current Blockers
-- None identified.
-
-## Triage flag (untracked, NOT from this session)
-- `tasks/session-telemetry-{plan,premortem,review}.md` are untracked. Origin unknown. Triage on next session before they get swept into an unrelated commit.
+- None identified. Plan is ship-ready; uncommitted changes are only session docs + the 3 telemetry artifacts.
 
 ## Next Action
-Continue the package-style migration. Two reasonable next units:
-1. **Prompt loader split** — `_load_prompt` + 3 cross-command instruction-fragment constants (`EVIDENCE_TAG_INSTRUCTION`, `IMPLEMENTATION_COST_INSTRUCTION`, `SYMMETRIC_RISK_INSTRUCTION`) move to `debate_common`; the 18 subcommand-specific prompts travel with their `cmd_*` functions when extracted.
-2. **First `cmd_*` extraction** of the remaining 6 (`cmd_pressure_test`, `cmd_review`, `cmd_challenge`, `cmd_refine`, `cmd_premortem`, `cmd_judge`).
+Execute `tasks/session-telemetry-plan.md` in a fresh session — 8 sequential steps, ~210 LOC net new + 6 hook instrumentations. Per-step verification is baked in, including the latency gate that forces `scripts/telemetry.sh` fallback if shell-hook emit adds >15ms p95.
 
 ## Recent Commits
 481154a Migrate frontmatter helpers + posture floor + challenger shuffle to debate_common.py

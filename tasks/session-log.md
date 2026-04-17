@@ -3292,3 +3292,27 @@ loader split. Apply same pre-flight grep discipline (whole-identifier +
 monkeypatch form for each of the 4 symbols).
 
 **Commits:** 481154a. One total.
+
+---
+
+## 2026-04-16 — Session-telemetry plan + cross-model review + premortem
+
+**Decided:**
+- Build session telemetry now to separate Tier 1 (context-file reads) from Tier 2 (hook fires/blocks) signal — motivated by Scott's BuildOS pilot framing question.
+- Scope: one helper (`scripts/telemetry.py`), one observer hook (SessionStart + PostToolUse:Read + SessionEnd), instrument 6 decision-gating hooks only (not all 21).
+- `/wrap` is authoritative outcome writer; `SessionEnd` hook emits minimal backup if `/wrap` didn't fire. Dual sources, deduped by session_id tail-scan.
+- Latency gate in Step 4 forces `scripts/telemetry.sh` (jq-based) fallback if shell-hook emit adds >15ms p95 — no "defer until measured."
+- Analysis output framed as "candidates for investigation, not evidence for deletion" per pre-mortem's proxy-validity concern.
+- Skipped formal `/challenge` — conversational gate sequence (two rounds of "anything worth building?" + specifics + open-questions) served the same function; captured as `challenge_skipped: true` with rationale in plan frontmatter.
+
+**Implemented:**
+- `tasks/session-telemetry-plan.md` — 8-step plan, Tier 2 review, `allowed_paths` containment, per-step verification including latency gate.
+- `tasks/session-telemetry-review.md` — cross-model document review (3 models); verdict: passed-with-warnings; 2 material + 4 advisory findings.
+- `tasks/session-telemetry-premortem.md` — pre-mortem (gpt-5.4) identifying 4 unvalidated proxies (`/wrap`=outcome, PID=identity, 6-hooks=meaningful-set, Read=used).
+- Applied 2 material + 5 advisory findings back into the plan inline — no separate patch artifact.
+
+**Not Finished:** Plan execution deferred to next session — starting a multi-step build at end of day was the wrong scope call. Tree clean aside from session docs + the 3 telemetry artifacts (commit below).
+
+**Next Session:** Execute `tasks/session-telemetry-plan.md` Steps 0-8. Per-step verification is self-contained.
+
+**Commits:** one wrap commit (this session's docs + telemetry artifacts).
