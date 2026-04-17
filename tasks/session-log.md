@@ -3510,3 +3510,33 @@ monkeypatch form for each of the 4 symbols).
 **Next Session:** Re-read handoff "⚠ READ THIS FIRST" block FIRST. Then `/think refine` or `/plan` on dual-mode generalization: for each of architect / security / pm, paired tools-on + tools-off on the 5 frame-lens-validation proposals. Methodology exists; infrastructure exists (persona expansion logic built for Frame); ~15 paired runs total. Decide per-persona whether dual-mode generalizes. If yes, ship. If no, document and add to L43.
 
 **Commits:** `1c40d6c` (off-scope ROI audit + /start grep fix), this wrap commit.
+
+
+---
+
+## 2026-04-17 (late) — Dual-mode generalization audit + Frame-reach intake audit
+
+**Focus:** Completed the dual-mode-generalization audit per prior handoff, then user reframed scope ("improve the frame across the whole debate pipeline" ≠ "persona-level dual-mode"). Ran a second audit on Frame-reach via intake-stage frame-check. Both audits landed with clean verdicts; architect ship deferred; intake-reach failed safety precondition.
+
+**Decided:**
+- Dual-mode pattern does NOT generalize uniformly: architect 5/5 ADOPT, security 4/5 DECLINE, pm 2/5 DECLINE. Pre-committed 5/5-bidirectional threshold held per L45.
+- Frame-reach via intake-stage dual-mode fails safety precondition: severity-level drift + factual-FP asymmetry make MATERIAL-count gating unreliable. Gate 1 failed (autobuild 60%, learning-velocity 40%), Gate 3 failed (negative control produced 2 MATERIAL findings).
+- Architect dual-mode NOT shipped despite clean 5/5 pass — scope pivot deprioritized persona-level optimization in favor of pipeline-reach work. Remains a clean option for future session.
+- D-entry added: scope pivot from persona-dual-mode to Frame-reach is a pipeline-stage decision, not a persona-duplication decision.
+
+**Implemented:**
+- `scripts/debate.py` — new `cmd_intake_check` subcommand (~25 LOC). Thin wrapper over `cmd_challenge`; forces `--personas frame` + `--enable-tools`. Composable primitive, NOT wired into `/challenge`.
+- `tasks/dual-mode-generalization-*` — brief, plan, 30 run outputs, 3 per-persona analyses, results.md with ADOPT/DECLINE per persona.
+- `tasks/frame-reach-intake-audit-*` — brief, plan, prompt spec, 6 intake run outputs, results.md with DECLINE verdict.
+- `tasks/negative-control-verbose-flag-proposal.md` — synthetic minimal proposal for FP check.
+- `tasks/lessons.md` — L43 extended twice (per-persona generalization + intake-reach DECLINE evidence).
+- `tasks/decisions.md` — new D-entry (scope pivot).
+
+**Not Finished:**
+- Architect dual-mode ship — passed threshold, shelved pending Frame-reach strategy. Revive or drop next session.
+- Judge/refine/premortem reach audits — deferred pending severity-drift + factual-FP integration design.
+- Autopilot `debate-efficacy-study-*` pile — ~30 uncommitted files, carryover from 2 prior sessions. Triage deferred yet again.
+
+**Next Session:** Read handoff "Next Session Should" section. Four real options: (A) revive architect dual-mode ship, (B) intake-integration-v2 with different signal than MATERIAL count, (C) judge-stage frame-reach audit, (D) triage autopilot pile. Do NOT re-litigate the DECLINE verdicts — revival = new experiment with new pre-committed criteria.
+
+**Commits:** this wrap commit covers both audits + `intake-check` primitive + L43 extensions + D-entry.

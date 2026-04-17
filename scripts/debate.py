@@ -1399,6 +1399,20 @@ def _consolidate_challenges(challenge_body, litellm_url, api_key, model=None):
     return response, stats
 
 
+def cmd_intake_check(args):
+    """Run dual-mode Frame on a proposal before /challenge fires.
+
+    Thin wrapper around cmd_challenge: forces --personas frame + --enable-tools
+    to trigger the frame persona dual-mode expansion (frame-structural +
+    frame-factual in parallel). See tasks/frame-reach-intake-audit-plan.md.
+    """
+    args.personas = "frame"
+    args.models = None
+    args.enable_tools = True
+    args.system_prompt = None
+    return cmd_challenge(args)
+
+
 def cmd_judge(args):
     """Independent judge: evaluate challenges without author self-resolution."""
     _cost_snapshot = debate_common.get_session_costs()
@@ -3624,6 +3638,16 @@ def main():
     ch.add_argument("--enable-tools", action="store_true", default=False,
                      help="Give challengers read-only verifier tools (costs, schedules, code presence)")
 
+    # intake-check
+    ic = sub.add_parser("intake-check",
+                        help="Intake: run dual-mode Frame (structural + factual) on a proposal "
+                             "before /challenge fires. Reuses Frame persona prompts; forces "
+                             "--personas frame + --enable-tools to trigger dual-mode expansion.")
+    ic.add_argument("--proposal", required=True, type=argparse.FileType("r"),
+                    help="Path to proposal markdown file")
+    ic.add_argument("--output", required=True,
+                    help="Output path for intake-check results (same format as challenge output)")
+
     # verdict
     vd = sub.add_parser("verdict", help="Round 4: final verdict from challengers")
     vd.add_argument("--resolution", required=True, type=argparse.FileType("r"),
@@ -3832,6 +3856,8 @@ def main():
 
     if args.command == "challenge":
         return cmd_challenge(args)
+    elif args.command == "intake-check":
+        return cmd_intake_check(args)
     elif args.command == "verdict":
         return cmd_verdict(args)
     elif args.command == "judge":
