@@ -130,6 +130,12 @@ Include the decomposition in the plan under a **## Execution Strategy** section:
 **Synthesis:** <how outputs merge — e.g., "main agent verifies no conflicts, runs tests">
 ```
 
+**If the decomposition identifies ≥2 independent components** (regardless of whether you choose parallel, hybrid, or sequential execution), emit a `components:` list in the plan frontmatter. This is a structured signal: `hooks/hook-decompose-gate.py` reads it to nudge toward worktree fan-out when edits begin, and future tooling (dispatch automation, session summaries) can key off it.
+
+Name each component by its deliverable, not its file — e.g., `Rewrite hook to read plan components`, not `hooks/hook-decompose-gate.py`. Keep names short; 3–6 words each.
+
+If the task has only 1 component (single-file edit, linear refactor with no independent pieces), omit the field entirely — don't write `components: [single-thing]`.
+
 If the task is below the eligibility threshold (1 file, ≤3 tool calls), skip this step.
 
 ### Step 4: Generate plan artifact
@@ -144,6 +150,11 @@ verification_commands: "<how to verify — e.g., 'python3 -m pytest tests/test_f
 rollback: "<how to undo — e.g., 'git revert <sha>'>"
 review_tier: "<Tier 1|Tier 1.5|Tier 2 — from tier_classify.py>"
 verification_evidence: "PENDING"
+# Optional — emit when Step 3b identifies ≥2 independent components.
+# Block list form (one per line). Each entry names a deliverable, not a file.
+components:
+  - <component A name>
+  - <component B name>
 ---
 ```
 
@@ -213,7 +224,8 @@ After the pipeline completes, present ALL deferred decisions in a single AskUser
 ## Output Format
 
 The plan artifact is written to `tasks/<topic>-plan.md` with:
-- YAML frontmatter containing: `scope`, `surfaces_affected`, `verification_commands`, `rollback`, `review_tier`, `verification_evidence`
+- YAML frontmatter containing required fields: `scope`, `surfaces_affected`, `verification_commands`, `rollback`, `review_tier`, `verification_evidence`
+- Optional `components:` list when Step 3b identifies ≥2 independent components — consumed by `hooks/hook-decompose-gate.py` and future dispatch tooling
 - Build order (numbered steps with dependencies)
 - Files table (create vs modify with scope per file)
 - Verification commands

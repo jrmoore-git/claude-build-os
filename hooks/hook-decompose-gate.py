@@ -1,21 +1,18 @@
 #!/usr/bin/env python3.11
 """
 hook-decompose-gate.py — PreToolUse hook that nudges toward worktree
-fan-out when a session starts editing multiple distinct files.
+fan-out when a plan artifact declares ≥2 independent components.
 
 Advisory, not blocking. Emits a prompt hint via `additionalContext`;
-does not deny. The agent receives the nudge and decides whether to
-fan out or proceed.
+does not deny. The agent receives the nudge and decides.
 
-Reads tool call JSON from stdin. Returns JSON to allow (with or
-without additionalContext).
+Signal: the newest `tasks/*-plan.md` modified within the last 24h whose
+frontmatter declares a `components:` list with ≥2 entries. Fires once
+per session on main-session Write|Edit; worktree agents are silent.
 
-Four informational states:
-  1. Worktree agent     → silent allow
-  2. Flag has bypass    → silent allow
-  3. Flag has plan+main → advisory nudge (declared fan-out but writing from main)
-  4. 2nd unique file    → advisory nudge (consider fan-out)
-Otherwise silent.
+Legacy flags still honored for backward compatibility:
+  - {"bypass": true, "reason": "..."} → suppress the nudge
+  - {"plan_submitted": true}           → nudge once if main session writes
 
 Flag file: /tmp/claude-decompose-{session_id}.json
 Session ID: $CLAUDE_SESSION_ID env var, fallback to parent PID.
@@ -23,6 +20,7 @@ Session ID: $CLAUDE_SESSION_ID env var, fallback to parent PID.
 
 import json
 import os
+import re
 import subprocess
 import sys
 from pathlib import Path
@@ -43,6 +41,8 @@ REPO_ROOT = os.environ.get(
     "PROJECT_ROOT",
     str(Path(__file__).resolve().parent.parent),
 )
+
+PLAN_RECENCY_HOURS = 24
 
 
 def get_session_id():
@@ -78,13 +78,74 @@ def is_worktree_agent():
     return False
 
 
+def _extract_components(plan_path):
+    """Parse frontmatter for a `components:` list. Stdlib only (no PyYAML)."""
+    try:
+        text = plan_path.read_text()
+    except OSError:
+        return []
+    if not text.startswith("---\n"):
+        return []
+    end = text.find("\n---\n", 4)
+    if end == -1:
+        return []
+    frontmatter = text[4:end]
+
+    lines = frontmatter.splitlines()
+    items = []
+    in_field = False
+    for line in lines:
+        # Inline array form: components: [a, b, c]
+        inline = re.match(r"^components\s*:\s*\[(.*)\]\s*$", line)
+        if inline:
+            inner = inline.group(1).strip()
+            if not inner:
+                return []
+            return [x.strip().strip('"\'') for x in inner.split(",") if x.strip()]
+        # Block list form: components: \n  - a\n  - b
+        if re.match(r"^components\s*:\s*$", line):
+            in_field = True
+            continue
+        if in_field:
+            if line.startswith("  - "):
+                items.append(line[4:].strip().strip('"\''))
+            elif line.strip() == "":
+                continue
+            elif not line.startswith(" "):
+                break
+    return items
+
+
+def find_recent_plan_with_components(repo_root):
+    """Return (path, components) for newest recent plan with ≥2 components, else None."""
+    plans_dir = Path(repo_root) / "tasks"
+    if not plans_dir.exists():
+        return None
+    cutoff = _now_timestamp() - PLAN_RECENCY_HOURS * 3600
+    candidates = []
+    for plan in plans_dir.glob("*-plan.md"):
+        try:
+            st = plan.stat()
+        except OSError:
+            continue
+        if st.st_mtime < cutoff:
+            continue
+        candidates.append((st.st_mtime, plan))
+    candidates.sort(reverse=True)
+    for _, plan in candidates:
+        components = _extract_components(plan)
+        if len(components) >= 2:
+            return plan, components
+    return None
+
+
+def _now_timestamp():
+    """Hook-injection seam for testing."""
+    import time
+    return time.time()
+
+
 NUDGE_MESSAGES = {
-    "escalated": (
-        "Decomposition nudge: this session has now edited a second distinct file. "
-        "If the work breaks into 2+ independent components, consider dispatching "
-        "worktree agents instead of editing from the main session. If components "
-        "share state, proceed and note the reason in the current plan artifact."
-    ),
     "plan_declared": (
         "Decomposition nudge: a parallel plan was declared this session (plan_submitted), "
         "but this Write|Edit is happening in the main session instead of a worktree agent. "
@@ -94,13 +155,28 @@ NUDGE_MESSAGES = {
 }
 
 
-def _with_context(kind):
-    """Return a PreToolUse allow-with-additionalContext payload."""
+def _components_nudge(plan_path, components, repo_root):
+    preview = ", ".join(components[:3])
+    if len(components) > 3:
+        preview += f", +{len(components) - 3} more"
+    try:
+        rel = plan_path.relative_to(repo_root)
+    except ValueError:
+        rel = plan_path.name
+    return (
+        f"Decomposition nudge: plan at {rel} declares {len(components)} components "
+        f"({preview}). If they're independent, consider dispatching worktree agents "
+        f"for parallel execution. If they share state, proceed — the plan's "
+        f"Execution Strategy section should explain why sequential."
+    )
+
+
+def _allow_with_context(message):
     return {
         "hookSpecificOutput": {
             "hookEventName": "PreToolUse",
             "permissionDecision": "allow",
-            "additionalContext": NUDGE_MESSAGES[kind],
+            "additionalContext": message,
         }
     }
 
@@ -119,12 +195,10 @@ def main():
         return
 
     tool_name = data.get("tool_name", "")
-
     if tool_name not in ("Write", "Edit"):
         print("{}")
         return
 
-    # Worktree agents are the goal state — never nudge them.
     if is_worktree_agent():
         print("{}")
         return
@@ -132,77 +206,46 @@ def main():
     session_id = get_session_id()
     flag_path = get_flag_path(session_id)
 
-    # Explicit bypass or plan-submitted flag → honor it
+    # Legacy bypass / plan_submitted flag handling
     if flag_path.exists():
-        sentinel = Path(f"/tmp/claude-decompose-{session_id}.pending")
-        sentinel.unlink(missing_ok=True)
-
         try:
             flag_data = json.loads(flag_path.read_text())
         except (json.JSONDecodeError, OSError):
-            # Corrupt flag — silent allow, the next clean write resets the state
-            print("{}")
-            return
+            flag_data = None
 
-        if flag_data.get("bypass"):
-            print("{}")
-            return
-        if flag_data.get("plan_submitted"):
-            # Plan declared parallel work but we're in the main session.
-            # Nudge once per session via the writes log; don't spam every write.
-            nudge_marker = Path(f"/tmp/claude-decompose-{session_id}.plan-nudged")
-            if nudge_marker.exists():
+        if isinstance(flag_data, dict):
+            if flag_data.get("bypass"):
                 print("{}")
                 return
-            try:
-                nudge_marker.touch()
-            except OSError:
-                pass
-            print(json.dumps(_with_context("plan_declared")))
-            return
+            if flag_data.get("plan_submitted"):
+                plan_nudge_marker = Path(f"/tmp/claude-decompose-{session_id}.plan-nudged")
+                if plan_nudge_marker.exists():
+                    print("{}")
+                    return
+                try:
+                    plan_nudge_marker.touch()
+                except OSError:
+                    pass
+                print(json.dumps(_allow_with_context(NUDGE_MESSAGES["plan_declared"])))
+                return
 
-    # Track writes to detect the 2nd-unique-file moment
-    writes_log = Path(f"/tmp/claude-decompose-{session_id}.writes")
-    tool_input = data.get("tool_input", {})
-    current_file = tool_input.get("file_path", "unknown")
-
-    written_files = set()
-    if writes_log.exists():
-        try:
-            written_files = set(json.loads(writes_log.read_text()))
-        except (json.JSONDecodeError, OSError):
-            written_files = set()
-
-    # First write or same file as before — silent allow
-    if len(written_files) == 0 or (written_files == {current_file}):
-        written_files.add(current_file)
-        try:
-            writes_log.write_text(json.dumps(list(written_files)))
-        except OSError:
-            pass
+    # Plan-components trigger
+    match = find_recent_plan_with_components(REPO_ROOT)
+    if match is None:
         print("{}")
         return
+    plan_path, components = match
 
-    # Second unique file — nudge once, then stay silent
-    nudge_marker = Path(f"/tmp/claude-decompose-{session_id}.nudged")
-    already_nudged = nudge_marker.exists()
-
-    written_files.add(current_file)
+    components_nudge_marker = Path(f"/tmp/claude-decompose-{session_id}.components-nudged")
+    if components_nudge_marker.exists():
+        print("{}")
+        return
     try:
-        writes_log.write_text(json.dumps(list(written_files)))
+        components_nudge_marker.touch()
     except OSError:
         pass
 
-    if already_nudged:
-        print("{}")
-        return
-
-    try:
-        nudge_marker.touch()
-    except OSError:
-        pass
-
-    print(json.dumps(_with_context("escalated")))
+    print(json.dumps(_allow_with_context(_components_nudge(plan_path, components, REPO_ROOT))))
 
 
 if __name__ == "__main__":
