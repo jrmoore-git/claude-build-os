@@ -3356,3 +3356,25 @@ monkeypatch form for each of the 4 symbols).
 **Next Session:** Start fresh. Confirm session_start event appears. After ~1 week of sessions, run `session_telemetry_query.py hook-fires --window 7d` + `outcome-correlate tasks/handoff.md` and begin answering the Tier 1 vs Tier 2 question.
 
 **Commits:** fee8ee0 (build), plus the wrap commit below.
+
+---
+
+## 2026-04-16 (overnight 3) — Bumped Opus 4.6 → 4.7 across production
+
+**Decided:**
+- Mechanical version bump only — Opus 4.6 → 4.7. Sonnet 4.6 / Haiku 4.5 unchanged (no 4.7 exists for those families).
+- Pricing prefix `claude-opus-4` already covers 4.7 — no `_TOKEN_PRICING` table change.
+- Hardcoded Sonnet fallback for architect in `debate_common.py:253` left as-is (intentional cost-test fallback per inline comment).
+- Historical artifacts (`tasks/`, `archive/`, `tests/integration-output/`, `tests/pipeline-quality-output/`) not touched — immutable run records.
+
+**Implemented:**
+- `config/debate-models.json` — architect, refine_rotation, version → 2026-04-16, notes appended.
+- `config/litellm-config.example.yaml`, `scripts/debate.py` (4 occurrences), `scripts/debate_common.py` (2 occurrences).
+- 4 SKILL.md files (think, review, investigate, healthcheck), 3 docs files (how-it-works, infrastructure, debate-invocations).
+- 5 active test files + 2 run scripts. `pytest tests/test_debate_*.py tests/test_hook_bash_fix_forward.py` → 260 passed in 0.54s.
+
+**Not Finished:** LiteLLM proxy alias change is staged but takes effect on proxy restart. Carryover: 3 untracked `tasks/buildos-improvements-*.md` files from session 2 still pending parallel-workstream owner.
+
+**Next Session:** Start fresh; run `scripts/debate.py check-models` to confirm `claude-opus-4-7` resolves end-to-end against the LiteLLM proxy.
+
+**Commits:** [wrap commit below].
