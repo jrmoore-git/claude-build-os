@@ -37,6 +37,13 @@ _tier_result = subprocess.run(
 if _tier_result.returncode != 0:
     sys.exit(0)
 
+sys.path.insert(0, os.path.join(_project, "scripts"))
+try:
+    from telemetry import log_event  # type: ignore
+except Exception:
+    def log_event(*args, **kwargs):
+        return
+
 REPO_ROOT = os.environ.get(
     "PROJECT_ROOT",
     str(Path(__file__).resolve().parent.parent),
@@ -226,6 +233,8 @@ def main():
                     plan_nudge_marker.touch()
                 except OSError:
                     pass
+                log_event("hook_fire", hook_name="decompose-gate", tool_name=tool_name,
+                          decision="warn", reason="plan-declared-nudge")
                 print(json.dumps(_allow_with_context(NUDGE_MESSAGES["plan_declared"])))
                 return
 
@@ -245,6 +254,8 @@ def main():
     except OSError:
         pass
 
+    log_event("hook_fire", hook_name="decompose-gate", tool_name=tool_name,
+              decision="warn", reason=f"components-nudge-n{len(components)}")
     print(json.dumps(_allow_with_context(_components_nudge(plan_path, components, REPO_ROOT))))
 
 

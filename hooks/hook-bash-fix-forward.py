@@ -29,6 +29,13 @@ _tier_result = subprocess.run(
 if _tier_result.returncode != 0:
     sys.exit(0)
 
+sys.path.insert(0, os.path.join(_project, "scripts"))
+try:
+    from telemetry import log_event  # type: ignore
+except Exception:
+    def log_event(*args, **kwargs):
+        return
+
 
 def check_command(cmd):
     """Return a warning message if cmd matches a bandaid pattern, else None."""
@@ -115,9 +122,23 @@ def main():
 
     warning = check_command(cmd)
     if warning:
+        log_event(
+            "hook_fire",
+            hook_name="bash-fix-forward",
+            tool_name="Bash",
+            decision="warn",
+            reason=warning[:80],
+        )
         result = {"permissionDecision": "ask", "message": warning}
         print(json.dumps(result))
     else:
+        log_event(
+            "hook_fire",
+            hook_name="bash-fix-forward",
+            tool_name="Bash",
+            decision="allow",
+            reason="no-pattern-match",
+        )
         print("{}")
 
 

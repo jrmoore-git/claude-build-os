@@ -230,6 +230,96 @@ Co-Authored-By: Claude Sonnet 4.6 <noreply@anthropic.com>"
 
 Report the commit hash and: "Session wrapped. Next: [next action from Step 3]."
 
+### Step 9 — Emit session_outcome telemetry
+
+After the wrap commit, emit the authoritative session_outcome event. This is what separates "wrap-completed" sessions from the minimal SessionEnd backup (Tier 1 vs Tier 2 signal analysis depends on it).
+
+```bash
+python3.11 <<'PY'
+import json, os, subprocess, sys, time
+sys.path.insert(0, "scripts")
+from telemetry import log_event
+
+# Session start ts from JSONL (most recent session_start for current session_id)
+sid = os.environ.get("CLAUDE_SESSION_ID") or f"pid-{os.getppid()}"
+start_ts = 0.0
+store = "stores/session-telemetry.jsonl"
+if os.path.exists(store):
+    with open(store) as f:
+        for line in reversed(f.readlines()):
+            try:
+                ev = json.loads(line)
+            except Exception:
+                continue
+            if ev.get("event_type") == "session_start" and ev.get("session_id") == sid:
+                start_ts = float(ev.get("ts") or 0)
+                break
+
+# Commits since session start (or last 5 if start_ts unknown)
+if start_ts:
+    r = subprocess.run(["git", "log", "--format=%H", f"--since=@{int(start_ts)}"],
+                       capture_output=True, text=True)
+    commits = [h for h in r.stdout.strip().splitlines() if h]
+else:
+    r = subprocess.run(["git", "log", "--format=%H", "-5"],
+                       capture_output=True, text=True)
+    commits = [h for h in r.stdout.strip().splitlines() if h]
+
+# review_findings_count: tasks/*-review.md modified this session, grep MATERIAL/findings
+findings = 0
+if start_ts:
+    r = subprocess.run(
+        ["git", "log", "--name-only", "--format=", f"--since=@{int(start_ts)}", "--",
+         "tasks/*-review.md"],
+        capture_output=True, text=True,
+    )
+    touched = {p for p in r.stdout.splitlines() if p.strip()}
+    for p in touched:
+        try:
+            with open(p) as f:
+                content = f.read()
+            findings += content.upper().count("MATERIAL")
+        except OSError:
+            pass
+
+# lessons_created_count: lines added to tasks/lessons.md this session
+lessons = 0
+if start_ts and commits:
+    r = subprocess.run(
+        ["git", "log", "-p", f"--since=@{int(start_ts)}", "--", "tasks/lessons.md"],
+        capture_output=True, text=True,
+    )
+    lessons = sum(1 for line in r.stdout.splitlines()
+                  if line.startswith("+| L") and not line.startswith("+++"))
+
+# shipped: true if any *-ship.md or deploy_all.sh ran this session
+shipped = False
+if start_ts:
+    r = subprocess.run(
+        ["git", "log", "--name-only", "--format=", f"--since=@{int(start_ts)}"],
+        capture_output=True, text=True,
+    )
+    for path in r.stdout.splitlines():
+        if "-ship.md" in path or "deploy_all.sh" in path:
+            shipped = True
+            break
+
+log_event(
+    "session_outcome",
+    session_id=sid,
+    ts_end=time.time(),
+    commits=commits,
+    review_findings_count=findings,
+    lessons_created_count=lessons,
+    shipped=shipped,
+    outcome_source="wrap",
+)
+print(f"telemetry: session_outcome(wrap) commits={len(commits)} findings={findings} lessons={lessons} shipped={shipped}")
+PY
+```
+
+Silent-on-error if telemetry import or git lookups fail — the wrap is already committed. The SessionEnd hook will emit a backup outcome if this step is skipped or crashes.
+
 ## Completion
 
 Report status:

@@ -22,6 +22,7 @@ case "$COMMAND" in
   git\ commit*)
     # --- Check [TRIVIAL] bypass ---
     if printf '%s' "$COMMAND" | grep -q '\[TRIVIAL\]'; then
+      "$PROJECT_ROOT/scripts/telemetry.sh" hook_fire hook_name=review-gate tool_name=Bash decision=warn reason=trivial-bypass
       echo "NOTICE: [TRIVIAL] bypass — review gate skipped. Logged."
       exit 0
     fi
@@ -136,17 +137,20 @@ print('yes' if found_valid else 'no')
 " 2>/dev/null)
 
     if [ "$ARTIFACT_VALID" = "yes" ]; then
+      "$PROJECT/scripts/telemetry.sh" hook_fire hook_name=review-gate tool_name=Bash decision=allow reason=artifact-valid
       exit 0
     fi
 
     # --- No valid artifacts found ---
     if [ "$RISK_LEVEL" = "tier1" ]; then
       # HARD BLOCK for Tier 1 files (PRD, schema, trust boundary)
+      "$PROJECT/scripts/telemetry.sh" hook_fire hook_name=review-gate tool_name=Bash decision=block reason=tier1-no-artifact
       printf '{"hookSpecificOutput":{"hookEventName":"PreToolUse","permissionDecision":"block","permissionDecisionReason":"BLOCKED: Tier 1 files staged without debate artifacts. Run cross-model debate before committing. See .claude/rules/review-protocol.md."}}\n'
       exit 2
     fi
 
     # Advisory for Tier 2 files
+    "$PROJECT/scripts/telemetry.sh" hook_fire hook_name=review-gate tool_name=Bash decision=warn reason=tier2-advisory
     echo "NOTICE: High-risk files staged without debate artifacts. Log decision in tasks/decisions.md."
     ;;
 esac

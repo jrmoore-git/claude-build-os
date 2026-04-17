@@ -28,6 +28,13 @@ _tier_result = subprocess.run(
 if _tier_result.returncode != 0:
     sys.exit(0)
 
+sys.path.insert(0, os.path.join(_project, "scripts"))
+try:
+    from telemetry import log_event  # type: ignore
+except Exception:
+    def log_event(*args, **kwargs):
+        return
+
 LINE_LIMIT = 150
 
 
@@ -84,16 +91,21 @@ def main():
 
     # Under limit — allow
     if current_lines < LINE_LIMIT:
+        log_event("hook_fire", hook_name="memory-size-gate", tool_name=tool_name,
+                  decision="allow", reason="under-limit")
         print("{}")
         return
 
     # At or above limit — check if adding lines
     if not would_add_lines(tool_name, tool_input, current_lines):
-        # Edit that removes or keeps same line count — allow (pruning)
+        log_event("hook_fire", hook_name="memory-size-gate", tool_name=tool_name,
+                  decision="allow", reason="pruning-or-neutral")
         print("{}")
         return
 
     # Block: file is at limit and edit would add lines
+    log_event("hook_fire", hook_name="memory-size-gate", tool_name=tool_name,
+              decision="block", reason="over-limit-and-adding")
     message = (
         f"MEMORY.md is at {current_lines} lines (limit: {LINE_LIMIT}). "
         "Prune old entries before adding new ones. "

@@ -146,6 +146,33 @@
             "type": "command",
             "command": "HOOK_EVENT=PostToolUse python3 \"$CLAUDE_PROJECT_DIR/hooks/hook-read-before-edit.py\"",
             "timeout": 2
+          },
+          {
+            "type": "command",
+            "command": "python3 \"$CLAUDE_PROJECT_DIR/hooks/hook-session-telemetry.py\"",
+            "timeout": 2
+          }
+        ]
+      }
+    ],
+    "SessionStart": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3 \"$CLAUDE_PROJECT_DIR/hooks/hook-session-telemetry.py\"",
+            "timeout": 2
+          }
+        ]
+      }
+    ],
+    "SessionEnd": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3 \"$CLAUDE_PROJECT_DIR/hooks/hook-session-telemetry.py\"",
+            "timeout": 2
           }
         ]
       }

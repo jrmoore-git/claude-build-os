@@ -134,11 +134,13 @@ PYEOF
 case "$SCOPE_CHECK" in
   block:*)
     PLAN_FILE="${SCOPE_CHECK#block:}"
+    "$PROJECT/scripts/telemetry.sh" hook_fire hook_name=pre-edit-gate tool_name=WriteEdit decision=block reason=scope-out-of-allowed
     printf '{"hookSpecificOutput":{"hookEventName":"PreToolUse","permissionDecision":"block","permissionDecisionReason":"SCOPE BLOCKED: %s is outside allowed_paths declared in tasks/%s. To override, add scope_escalation: true to the plan frontmatter (creates audit trail)."}}\n' "$REL" "$PLAN_FILE"
     exit 2
     ;;
   warn:*)
     PLAN_FILE="${SCOPE_CHECK#warn:}"
+    "$PROJECT/scripts/telemetry.sh" hook_fire hook_name=pre-edit-gate tool_name=WriteEdit decision=warn reason=scope-escalation
     echo "SCOPE WARNING: $REL is outside allowed_paths in tasks/$PLAN_FILE (scope_escalation active — proceeding with audit trail)"
     ;;
 esac
@@ -291,9 +293,11 @@ PYEOF
 )
 
 if [ "$PLAN_MATCH" = "yes" ]; then
+    "$PROJECT/scripts/telemetry.sh" hook_fire hook_name=pre-edit-gate tool_name=WriteEdit decision=allow reason=plan-covers
     exit 0
 fi
 
 # ── No matching plan found → BLOCK ────────────────────────────────────
+"$PROJECT/scripts/telemetry.sh" hook_fire hook_name=pre-edit-gate tool_name=WriteEdit decision=block reason=no-plan
 printf '{"hookSpecificOutput":{"hookEventName":"PreToolUse","permissionDecision":"block","permissionDecisionReason":"BLOCKED: %s is a protected path. Write tasks/<topic>-plan.md with surfaces_affected listing this file before editing. Required frontmatter: scope, surfaces_affected, verification_commands, rollback, review_tier. See .claude/rules/session-discipline.md."}}\n' "$REL"
 exit 2

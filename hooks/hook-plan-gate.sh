@@ -93,12 +93,14 @@ PYEOF
 
     # --- Protected files staged. Check for [TRIVIAL] (BLOCKED on protected paths) ---
     if printf '%s' "$COMMAND" | grep -q '\[TRIVIAL\]'; then
+      "$PROJECT/scripts/telemetry.sh" hook_fire hook_name=plan-gate tool_name=Bash decision=block reason=trivial-on-protected
       printf '{"hookSpecificOutput":{"hookEventName":"PreToolUse","permissionDecision":"block","permissionDecisionReason":"BLOCKED: [TRIVIAL] bypass not allowed for protected paths (skills, tools, rules). Write a plan to tasks/<topic>-plan.md first. See config/protected-paths.json for protected paths."}}\n'
       exit 2
     fi
 
     # --- Check for [EMERGENCY] bypass ---
     if printf '%s' "$COMMAND" | grep -q '\[EMERGENCY\]'; then
+      "$PROJECT/scripts/telemetry.sh" hook_fire hook_name=plan-gate tool_name=Bash decision=warn reason=emergency-bypass
       echo "WARNING: [EMERGENCY] bypass — plan gate skipped for protected paths. This will be audited in weekly review." >&2
       exit 0
     fi
@@ -160,10 +162,12 @@ PYEOF
     )
 
     if [ "$PLAN_VALID" = "yes" ]; then
+      "$PROJECT/scripts/telemetry.sh" hook_fire hook_name=plan-gate tool_name=Bash decision=allow reason=plan-valid
       exit 0
     fi
 
     # --- No valid plan found ---
+    "$PROJECT/scripts/telemetry.sh" hook_fire hook_name=plan-gate tool_name=Bash decision=block reason=no-plan
     printf '{"hookSpecificOutput":{"hookEventName":"PreToolUse","permissionDecision":"block","permissionDecisionReason":"BLOCKED: Protected files staged without a valid plan artifact. Create tasks/<topic>-plan.md with YAML frontmatter containing: scope, surfaces_affected, verification_commands, rollback, review_tier. verification_evidence must not be PENDING. See config/protected-paths.json."}}\n'
     exit 2
     ;;
