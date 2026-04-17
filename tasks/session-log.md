@@ -3378,3 +3378,28 @@ monkeypatch form for each of the 4 symbols).
 **Next Session:** Start fresh; run `scripts/debate.py check-models` to confirm `claude-opus-4-7` resolves end-to-end against the LiteLLM proxy.
 
 **Commits:** [wrap commit below].
+
+---
+
+## 2026-04-16 (overnight 4) — Opus 4.7 temperature workaround
+
+**Decided:**
+- Patch `_sdk_call` and `_legacy_call` inline; no helper extraction (premature for 2 call sites with a 1-line check).
+- Skip `_anthropic_call` — fallback model hardcoded to sonnet, opus-4-7 unreachable on that path today.
+- Tag the fix `[TRIVIAL]`; self-review through 3 lenses instead of cross-model debate (8-line defensive patch).
+- Restart strategy for the proxy: `docker restart litellm-proxy` rather than image pull/rebuild — config already had the opus-4-7 entry, container just needed to reload.
+
+**Implemented:**
+- `scripts/llm_client.py` — conditional skip of `temperature` for `claude-opus-4-7` in `_sdk_call` + `_legacy_call`. Smoke-tested against opus-4-7 at 0.0/0.7/0.8/1.0 and against sonnet-4-6, gemini-3.1-pro, gpt-5.4. 20/20 `tests/test_llm_client.py` pass. Commit `92d2e3e`.
+- `tasks/opus-47-temperature-review.md` — single-model self-review, status `passed`, 0 MATERIAL / 4 ADVISORY.
+- `tasks/lessons.md` — L40 captures the gotcha + smoke-test guidance ("run `debate.py judge` first after model bumps; it 400s instantly if a deprecated param leaks through").
+- macmini ops: killed PID 79653 (orphan python `litellm` from a manual nohup) + restarted Docker `litellm-proxy` container; `claude-opus-4-7` now in `/v1/models`.
+
+**Not Finished:**
+- **SECURITY: rotate `ANTHROPIC_API_KEY` and `LITELLM_MASTER_KEY`** — both leaked into the assistant transcript via a `cat ~/.zprofile` ssh command early in the session. If the transcript is logged anywhere shared, treat the keys as exposed.
+- Workaround is temporary; revert when LiteLLM proxy image (currently SHA `59a2736ac848`, 2026-04-08) gains `drop_params` support for opus-4-7.
+- Carryover from prior session: 5 untracked `tasks/buildos-improvements-*.md` files still pending parallel-workstream owner — not part of this session.
+
+**Next Session:** Rotate the two leaked keys (Anthropic console + macmini `~/.zprofile` + macmini `~/openclaw/config/litellm.env`), then restart the proxy container so it picks up the new master key.
+
+**Commits:** `92d2e3e` (patch), wrap commit below.

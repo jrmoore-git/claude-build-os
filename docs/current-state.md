@@ -1,20 +1,18 @@
-# Current State — 2026-04-16 (overnight session 3)
+# Current State — 2026-04-16 (Opus 4.7 temperature workaround)
 
 ## What Changed This Session
-- Bumped Opus model `claude-opus-4-6` → `claude-opus-4-7` across all production references: `config/debate-models.json` (architect persona, refine_rotation, version → 2026-04-16), `config/litellm-config.example.yaml` (model alias), `scripts/debate.py` (prompt-overrides key, author_models set, 3 help strings), `scripts/debate_common.py` (docstring + `_DEFAULT_REFINE_ROTATION`).
-- Updated user-facing references: `.claude/skills/{think,review,investigate,healthcheck}/SKILL.md`, `docs/{how-it-works,infrastructure}.md`, `docs/reference/debate-invocations.md`.
-- Updated active tests: `tests/test_debate_{pure,utils,fallback,commands}.py`, `tests/test_hook_bash_fix_forward.py`, `tests/run_{integration,pipeline_quality}.sh`. All 260 debate tests pass.
-- Sonnet 4.6 / Haiku 4.5 references intentionally untouched (no 4.7 exists for those families). Pricing prefix `claude-opus-4` already covers 4.7 — no pricing table change needed. Hardcoded fallback `architect: claude-sonnet-4-6` in `debate_common.py:253` left as-is per its cost-test comment. Historical artifacts in `tasks/`, `archive/`, `tests/integration-output/`, `tests/pipeline-quality-output/` not modified.
+- Restarted `litellm-proxy` Docker container on macmini (image `ghcr.io/berriai/litellm@sha256:59a2736ac848`, started 2026-04-08) to load the `claude-opus-4-7` model entry that was already in `/Users/macmini/openclaw/config/litellm-config.yaml` but not yet hot — `claude-opus-4-7` now appears in `/v1/models`.
+- Discovered Opus 4.7 returns HTTP 400 ("temperature is deprecated for this model") on any explicit `temperature` param, and the proxy's `drop_params: true` does NOT strip it for this model on the current image.
+- Patched `scripts/llm_client.py:_sdk_call` and `_legacy_call` to omit `temperature` when `model.startswith("claude-opus-4-7")`. `_anthropic_call` left unpatched (fallback model is hardcoded to sonnet — opus-4-7 is unreachable on that path today). Verified across temps 0.0/0.7/0.8/1.0 plus sonnet-4-6, gemini-3.1-pro, gpt-5.4 still receiving the param. 20/20 `tests/test_llm_client.py` pass.
+- Captured L40 (Opus 4.7 + drop_params gap) in `tasks/lessons.md` with smoke-test guidance for future model bumps.
 
 ## Current Blockers
-- None. Model bump shipped and tests green.
-- Carryover from overnight session 2: 3 untracked `tasks/buildos-improvements-*.md` files (proposal/findings/enriched/challenge/judgment) from the parallel Scott-note-review workstream. Still owned elsewhere; not this session's work.
-- Carryover: parallel session's PAUSE recommendation on session-telemetry. Revisit once telemetry data accrues.
+- **SECURITY: rotate `ANTHROPIC_API_KEY` and `LITELLM_MASTER_KEY`** — both leaked into the assistant transcript via a `cat ~/.zprofile` ssh command earlier in the session. If transcripts are logged/synced anywhere shared, treat as exposed.
 
 ## Next Action
-Start a fresh Claude Code session so the LiteLLM proxy picks up the new `claude-opus-4-7` alias. First debate run will validate the alias resolves end-to-end (run `python3.11 scripts/debate.py check-models` if uncertain).
+Rotate the two leaked keys (Anthropic console + macmini `~/.zprofile` + macmini `~/openclaw/config/litellm.env`), then restart `litellm-proxy` container so it picks up the new `LITELLM_MASTER_KEY`. After that, any pending session can run `/start`.
 
 ## Recent Commits
-2a550e0 Session wrap 2026-04-16 (overnight 2): session-telemetry execution fee8ee0
-fee8ee0 Session telemetry: separate Tier 1 (context reads) from Tier 2 (hook fires)
-1c2b7fb Session wrap 2026-04-16 (overnight): Scott note review + /challenge on 5-item list
+- `92d2e3e` llm_client: omit temperature param for Opus 4.7
+- `321323a` Session wrap 2026-04-16 (overnight 3): Opus 4.6 → 4.7 bump
+- `d2a0da2` Bump Opus 4.6 → 4.7 across production references
