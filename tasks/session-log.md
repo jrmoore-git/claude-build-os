@@ -3426,3 +3426,25 @@ monkeypatch form for each of the 4 symbols).
 **Next Session:** Rotate leaked keys + restart proxy FIRST. Then normal work.
 
 **Commits:** `4ba6912`, `62e317b`, `6a3fb0b`, `e60e35b` (bundle-1), `750fe9b` (foundational), `8a0130c`, `34cdf42`, `b1a5ca4`, `fde8fa3` (bundle-2), wrap commit below.
+
+
+---
+
+## 2026-04-16 — Frame lens recovery + plan
+
+**Decided:**
+- Frame lens implemented as 4th persona slot (not separate phase). Same parallel architecture as architect/security/pm.
+- Model: claude-sonnet-4-6 (focused critique, not synthesis).
+- Validation gate: gbrain replay must surface ≥1 of 3 known frame defects; false-positive check on buildos-improvements-proposal.md.
+- No separate /challenge cycle on this plan — case for building came from real failure, prior session conversation already approved the 4-part fix.
+
+**Implemented:**
+- Recovered design from session 1678d9f8 (transcript intact, work uncommitted).
+- Pulled gbrain artifacts from macmini to /tmp/gbrain-validation/.
+- Wrote tasks/frame-lens-plan.md with valid frontmatter, 7 changes, validation procedure, single-revert rollback.
+
+**Not Finished:** Implementation itself — plan is the deliverable. L41 lesson is queued inside the plan, ships with the fix.
+
+**Next Session:** Read frame-lens-plan.md → atomic changes 1-3 → run gbrain validation → ship if pass.
+
+**Commits:** wrap commit below.
