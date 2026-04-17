@@ -81,11 +81,11 @@ Include results with similarity > 0.5. Treat scores below 0.55 as low-confidence
 Quick staleness scan — output ONLY if something needs attention. Silence = healthy.
 
 ```bash
-# Count active lessons
-active_count=$(grep -c '^| L[0-9]' tasks/lessons.md 2>/dev/null) || active_count=0
+# Count active lessons (rows before the "## Promoted" header — excludes Promoted + Archived)
+active_count=$(awk '/^## Promoted/{exit} /^\| L[0-9]/{n++} END{print n+0}' tasks/lessons.md 2>/dev/null) || active_count=0
 
 # Check for Resolved lessons still in active table (stale from prior sessions)
-resolved_active=$(grep -E '^\| L[0-9]+.*\[Resolved' tasks/lessons.md 2>/dev/null || true)
+resolved_active=$(awk '/^## Promoted/{exit} /^\| L[0-9]+.*\[Resolved/' tasks/lessons.md 2>/dev/null || true)
 
 # Days since last full healthcheck (check git log, not session-log markers)
 last_hc=$(git log --oneline --grep="healthcheck" --since="7 days ago" 2>/dev/null | head -1 || true)
