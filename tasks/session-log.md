@@ -3160,3 +3160,23 @@ ended without running `/wrap-session`. Review and enrich in the next session.
 
 **Commits:** 0b46b2b Tier 1; abe6238 F5 promote; 9e69929 kill auto-capture; b818579 split 1/N; 1b61b05 split 2/N; 63cc96c split 3/N; efe70df split 4/N. Plus concurrent: 416004d, 6e65a51 (hook-decompose-gate message translation + advisory flip).
 
+
+---
+
+## 2026-04-16 — Silent-on-success bootstrap diagnostics
+
+**Decided:**
+- D24: Session-start diagnostic scripts are silent-on-success; `scripts/bootstrap_diagnostics.py` owns user-visible output. New diagnostics register with the wrapper's `CHECKS` list — they don't add new Bash calls to `/start`. Moves enforcement from author-discipline prose (which kept failing) into a single-owner file on the lesson → rule → hook → architecture ladder.
+- L37: Rules that depend on author discipline keep failing. When a class of violation recurs despite an existing rule, escalate to structural ownership so authors physically can't leak.
+
+**Implemented:**
+- 4 diagnostic scripts (`detect-uncommitted`, `verify-plan-progress`, `check-current-state-freshness`, `check-infra-versions`) now exit silent on healthy; emit JSON only when there's something to report.
+- `scripts/bootstrap_diagnostics.py` — new wrapper, parallel execution via ThreadPoolExecutor, consolidates non-silent results into one JSON object.
+- `/start` Step 1: four Bash invocations collapsed to one wrapper call; per-key handling documented inline.
+- `.claude/rules/skill-authoring.md` gained a "Diagnostic scripts: silent-on-success, register with the wrapper" pointer.
+- `tests/test_detect_uncommitted.py`: healthy-path test rewritten to assert silence; issue-path test added. 932 tests pass.
+- Latent bug fix: `has_stale_marker` undefined-variable reference removed from `check-current-state-freshness.py` stale path.
+
+**Not Finished:** debate.py split 5/N (cmd_verdict next). Audit F6/F7/F8 still open. Lessons at 28/30 — triage before adding more.
+
+**Next Session:** Verify silent-bootstrap path in a fresh `/start`, then resume debate.py split with `cmd_verdict`. Or pick F6 for a fast 30-min telemetry win.
