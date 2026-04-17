@@ -16,8 +16,9 @@ BANNED_PATTERN='sk-ant-|xoxb-|xapp-'
 # Edit the word list in .claude/rules/code-quality.md to keep rule and hook in sync.
 SLOP_PATTERN='\b(delve|cutting-edge|state-of-the-art|seamless|innovative|synergy|paradigm|holistic|empower|transformative)\b'
 
-# AI-slop phrases (case-insensitive). Whitespace-flexible via \s+.
-SLOP_PHRASES='(a\s+testament\s+to|at\s+its\s+core)'
+# AI-slop phrases (case-insensitive). Whitespace via POSIX [[:space:]]+ — \s is a
+# GNU extension that silently matches literal 's' on strict POSIX ERE (BSD grep).
+SLOP_PHRASES='(a[[:space:]]+testament[[:space:]]+to|at[[:space:]]+its[[:space:]]+core)'
 
 # Files/patterns to skip (these legitimately mention banned terms)
 SKIP_PATTERNS=(

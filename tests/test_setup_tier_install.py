@@ -1,9 +1,21 @@
 #!/usr/bin/env python3.11
 """Tier-install drift test for /setup skill.
 
-Catches the case where someone adds a template without wiring it into the
-setup skill's Step 3 (or vice versa). Does not enforce behavior — just
-detects drift between declared tier-files and templates on disk.
+Scope (what this DOES catch):
+  - A template added to templates/ without being wired into any tier.
+  - A tier-file declaration in SKILL.md without a corresponding template.
+  - Structural absence of the Tier 0/1/2 subsection headings.
+
+Out of scope (what this does NOT catch):
+  - A file silently moved between tiers (e.g., Tier 1 → Tier 2). Both tiers
+    still pass "declared ↔ template exists" checks; the semantic install
+    behavior changed but the tier-file manifest structure did not. Catching
+    this would require an expected_tier manifest — rejected as over-engineering
+    for single-developer usage. If this scenario matters later, add a test
+    that asserts a frozen {filename: tier} mapping.
+  - Parser drift: this test relies on `### Tier N` heading format and
+    `- `filepath`` bullet format in SKILL.md Step 3. Style changes to that
+    section may produce false drift.
 
 Background: the setup skill at .claude/skills/setup/SKILL.md contains a
 Step 3 that lists, per tier, the files to create in a new BuildOS project.

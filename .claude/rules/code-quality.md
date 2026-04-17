@@ -22,7 +22,7 @@ Hook-enforced via `hooks/pre-commit-banned-terms.sh` (SLOP_PATTERN). Commits wit
 
 **Banned phrases (2):** `a testament to` · `at its core`
 
-**Source:** evidence-based from `tasks/llm-slop-vocabulary-research.md` — first 5 words have direct research support (Pangram, Grammarly, Futurism's 14M biomedical abstracts study); last 5 plus the two phrases are editorial-judgment marketing-empty. Dropped from prior list (`robust`, `comprehensive`, `nuanced`, `crucial`, `leverage`, `facilitate`, `utilize`, `streamline`) because they have legitimate technical use and false-positive cost exceeded slop-catching benefit.
+**Source:** evidence from `tasks/llm-slop-vocabulary-research.md`. Strong research support (Pangram, Grammarly, Futurism's 14M biomedical abstracts study): `delve`, `cutting-edge`, `state-of-the-art`, `innovative` and the two phrases. Moderate support: `seamless`. Editorial-judgment marketing-empty (weak research signal but indefensible as technical writing): `synergy`, `paradigm`, `holistic`, `empower`, `transformative`. Dropped from prior list (`robust`, `comprehensive`, `nuanced`, `crucial`, `leverage`, `facilitate`, `utilize`, `streamline`) because they have legitimate technical use and false-positive cost exceeded slop-catching benefit.
 
 Use plain, direct language instead.
 
