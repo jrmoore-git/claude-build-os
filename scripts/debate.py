@@ -65,6 +65,8 @@ from zoneinfo import ZoneInfo
 
 from llm_client import llm_call, llm_call_raw, LLMError
 
+import debate_common
+
 # Project timezone for all timestamps in debate artifacts and logs.
 # See platform.md: stdlib zoneinfo, IANA name "America/Los_Angeles".
 PROJECT_TZ = ZoneInfo("America/Los_Angeles")
@@ -88,42 +90,7 @@ def _file_or_string(value):
     return io.StringIO(value)
 
 
-def _load_dotenv():
-    """Load .env from project root for any env vars not already set.
-
-    Supported .env format: KEY=value, KEY="value", KEY='value',
-    optional 'export ' prefix, # comments. No multiline values,
-    no variable interpolation.
-    """
-    dotenv_path = os.path.join(PROJECT_ROOT, ".env")
-    if not os.path.exists(dotenv_path):
-        print(f"WARNING: {dotenv_path} not found, env vars may be missing",
-              file=sys.stderr)
-        return
-    with open(dotenv_path) as f:
-        for line in f:
-            line = line.strip()
-            if not line or line.startswith("#"):
-                continue
-            # Strip optional 'export ' prefix
-            if line.startswith("export "):
-                line = line[7:]
-            if "=" not in line:
-                continue
-            key, _, value = line.partition("=")
-            key = key.strip()
-            value = value.strip()
-            # Strip matching quotes
-            if len(value) >= 2 and value[0] == value[-1] and value[0] in ('"', "'"):
-                value = value[1:-1]
-            # Strip inline comments (only outside quotes — already stripped above)
-            if " #" in value:
-                value = value[:value.index(" #")].rstrip()
-            if key and key not in os.environ:
-                os.environ[key] = value
-
-
-_load_dotenv()
+debate_common._load_dotenv()
 
 # ── Prompt loader ───────────────────────────────────────────────────────────
 
@@ -163,7 +130,6 @@ def _load_prompt(filename, fallback_constant):
 
 # ── Constants ────────────────────────────────────────────────────────────────
 
-DEFAULT_LITELLM_URL = "http://localhost:4000"
 
 # ── Evidence & risk instructions (appended to all persona prompts) ───────────
 
@@ -990,26 +956,6 @@ def _call_with_model_fallback(primary_model, fallback_model, system_prompt,
         raise
 
 
-def _get_model_family(model_name):
-    """Extract model family from a model name string.
-
-    Returns a lowercase family identifier for cross-family independence checks.
-    Examples: 'claude-opus-4-6' -> 'claude', 'gpt-5.4' -> 'gpt',
-              'gemini-3.1-pro' -> 'gemini'
-    """
-    name = model_name.lower()
-    if name.startswith("litellm/"):
-        name = name[len("litellm/"):]
-    if name.startswith("claude"):
-        return "claude"
-    if name.startswith("gpt") or name.startswith("o1") or name.startswith("o3"):
-        return "gpt"
-    if name.startswith("gemini"):
-        return "gemini"
-    # Fallback: first token before dash or digit
-    return name.split("-")[0].split("/")[-1]
-
-
 def _auto_generate_mapping(meta, body, verbose=False):
     """Auto-generate mapping from section headers if absent in frontmatter.
 
@@ -1030,23 +976,6 @@ def _auto_generate_mapping(meta, body, verbose=False):
         if verbose:
             print("Note: no mapping and no labeled sections — proceeding without "
                   "challenger identity.", file=sys.stderr)
-
-
-def _get_fallback_model(primary, config):
-    """Return a fallback model different from primary for timeout recovery.
-
-    Tries single_review_default, verifier_default, judge_default in order.
-    Returns the first candidate whose name differs from primary, or None.
-    """
-    candidates = [
-        config.get("single_review_default", "gpt-5.4"),
-        config.get("verifier_default", "claude-sonnet-4-6"),
-        config.get("judge_default", "gpt-5.4"),
-    ]
-    for c in candidates:
-        if c and c != primary:
-            return c
-    return None
 
 
 # ── Frontmatter ──────────────────────────────────────────────────────────────
@@ -1170,41 +1099,13 @@ def _log_debate_event(event, log_path=None, cost_snapshot=None):
         f.write(json.dumps(event) + "\n")
 
 
-def _load_credentials():
-    """Load LLM credentials, supporting fallback to ANTHROPIC_API_KEY.
-
-    Returns (api_key, litellm_url, is_fallback).
-    On failure, prints actionable error to stderr and returns (None, None, False).
-    """
-    api_key = os.environ.get("LITELLM_MASTER_KEY")
-    if api_key:
-        litellm_url = os.environ.get("LITELLM_URL", DEFAULT_LITELLM_URL)
-        return api_key, litellm_url, False
-
-    anthropic_key = os.environ.get("ANTHROPIC_API_KEY")
-    if anthropic_key:
-        from llm_client import activate_fallback
-        activate_fallback()
-        litellm_url = os.environ.get("LITELLM_URL", DEFAULT_LITELLM_URL)
-        return anthropic_key, litellm_url, True
-
-    print(
-        "ERROR: No LLM credentials found.\n"
-        "Set LITELLM_MASTER_KEY for full cross-model review,\n"
-        "or set ANTHROPIC_API_KEY for single-model fallback.\n"
-        "See docs/infrastructure.md for setup instructions.",
-        file=sys.stderr,
-    )
-    return None, None, False
-
-
 # ── Subcommands ──────────────────────────────────────────────────────────────
 
 
 def cmd_challenge(args):
     """Round 2: send proposal to challenger models, write anonymized output."""
     _cost_snapshot = get_session_costs()
-    api_key, litellm_url, _is_fallback = _load_credentials()
+    api_key, litellm_url, _is_fallback = debate_common._load_credentials()
     if api_key is None:
         return 1
 
@@ -1339,7 +1240,7 @@ def cmd_challenge(args):
                 except LLM_SAFE_EXCEPTIONS as e:
                     if not _is_timeout_error(e):
                         raise
-                    fallback = _get_fallback_model(model, config)
+                    fallback = debate_common._get_fallback_model(model, config)
                     if not fallback or fallback == model:
                         raise
                     print(f"  TOOL FALLBACK: {label} ({model}) timed out, "
@@ -1373,7 +1274,7 @@ def cmd_challenge(args):
                     print(f"WARNING: {label} ({active_model}) made 0 tool calls "
                           f"despite tools being enabled", file=sys.stderr)
             else:
-                fallback = _get_fallback_model(model, config)
+                fallback = debate_common._get_fallback_model(model, config)
                 response, _used = _call_with_model_fallback(
                     model, fallback, sys_prompt, proposal, litellm_url, api_key,
                     temperature=challenger_temp)
@@ -1591,7 +1492,7 @@ def _consolidate_challenges(challenge_body, litellm_url, api_key, model=None):
 
     print(f"Consolidating {challenger_count} challenger reviews...", file=sys.stderr)
     try:
-        fallback = _get_fallback_model(model, config)
+        fallback = debate_common._get_fallback_model(model, config)
         response, _used = _call_with_model_fallback(
             primary_model=model,
             fallback_model=fallback,
@@ -1629,7 +1530,7 @@ def _consolidate_challenges(challenge_body, litellm_url, api_key, model=None):
 def cmd_judge(args):
     """Independent judge: evaluate challenges without author self-resolution."""
     _cost_snapshot = get_session_costs()
-    api_key, litellm_url, _is_fallback = _load_credentials()
+    api_key, litellm_url, _is_fallback = debate_common._load_credentials()
     if api_key is None:
         return 1
 
@@ -1881,7 +1782,7 @@ def cmd_judge(args):
     print(f"Calling judge ({judge_model})...", file=sys.stderr)
     t_judge_start = time.time()
     try:
-        judge_fallback = _get_fallback_model(judge_model, config)
+        judge_fallback = debate_common._get_fallback_model(judge_model, config)
         response, _used = _call_with_model_fallback(
             judge_model, judge_fallback, system_prompt, user_content,
             litellm_url, api_key)
@@ -2825,7 +2726,7 @@ def _parse_refine_response(text):
 def cmd_refine(args):
     """Iterative cross-model refinement: each model improves the document in turn."""
     _cost_snapshot = get_session_costs()
-    api_key, litellm_url, _is_fallback = _load_credentials()
+    api_key, litellm_url, _is_fallback = debate_common._load_credentials()
     if api_key is None:
         return 1
     config = _load_config()
@@ -3267,7 +3168,7 @@ def cmd_review(args):
               "removed in a future version.", file=sys.stderr)
 
     _cost_snapshot = get_session_costs()
-    api_key, litellm_url, _is_fallback = _load_credentials()
+    api_key, litellm_url, _is_fallback = debate_common._load_credentials()
     if api_key is None:
         return 1
     config = _load_config()
@@ -3305,7 +3206,7 @@ def cmd_review(args):
         label, model, _persona_framing = reviewers[0]
         print(f"Calling reviewer ({label})...", file=sys.stderr)
         try:
-            review_fallback = _get_fallback_model(model, config)
+            review_fallback = debate_common._get_fallback_model(model, config)
             response, _used = _call_with_model_fallback(
                 model, review_fallback, prompt, input_text, litellm_url, api_key)
         except LLM_SAFE_EXCEPTIONS as e:
@@ -3402,7 +3303,7 @@ def cmd_review(args):
                 except LLM_SAFE_EXCEPTIONS as e:
                     if not _is_timeout_error(e):
                         raise
-                    fallback = _get_fallback_model(model, config)
+                    fallback = debate_common._get_fallback_model(model, config)
                     if not fallback or fallback == model:
                         raise
                     elapsed_so_far = time.time() - t0
@@ -3439,7 +3340,7 @@ def cmd_review(args):
                     print(f"WARNING: {persona} ({active_model}) made 0 tool calls "
                           f"despite tools being enabled", file=sys.stderr)
             else:
-                fallback = _get_fallback_model(model, config)
+                fallback = debate_common._get_fallback_model(model, config)
                 response, _used = _call_with_model_fallback(
                     model, fallback, prompt, input_text, litellm_url, api_key,
                     temperature=challenger_temp)
@@ -3560,7 +3461,7 @@ def cmd_pressure_test(args):
     """
     frame = getattr(args, 'frame', 'challenge')
     _cost_snapshot = get_session_costs()
-    api_key, litellm_url, _is_fallback = _load_credentials()
+    api_key, litellm_url, _is_fallback = debate_common._load_credentials()
     if api_key is None:
         return 1
     config = _load_config()
@@ -3612,7 +3513,7 @@ def cmd_pressure_test(args):
         # ── Single-model path (original behavior) ──
         print(f"{label} ({model})...", file=sys.stderr)
         try:
-            pt_fallback = _get_fallback_model(model, config)
+            pt_fallback = debate_common._get_fallback_model(model, config)
             response, _used = _call_with_model_fallback(
                 model, pt_fallback, prompt, user_content,
                 litellm_url, api_key,
@@ -3657,8 +3558,8 @@ def cmd_pressure_test(args):
     # ── Multi-model path ──
     # Cross-family independence check for synthesis model
     synth_model = getattr(args, 'synthesis_model', None) or config.get("judge_default", "gpt-5.4")
-    input_families = {_get_model_family(m) for m in models}
-    synth_family = _get_model_family(synth_model)
+    input_families = {debate_common._get_model_family(m) for m in models}
+    synth_family = debate_common._get_model_family(synth_model)
     if synth_family in input_families:
         print(f"WARNING: synthesis model ({synth_model}, family={synth_family}) "
               f"overlaps with input model families {input_families}. "
@@ -3670,7 +3571,7 @@ def cmd_pressure_test(args):
         """Returns (idx, actual_model_used, response, success, elapsed)."""
         t0 = time.time()
         try:
-            fb = _get_fallback_model(m, config)
+            fb = debate_common._get_fallback_model(m, config)
             resp, used = _call_with_model_fallback(
                 m, fb, prompt, user_content,
                 litellm_url, api_key,
@@ -3735,7 +3636,7 @@ def cmd_pressure_test(args):
 
     print(f"Synthesizing ({synth_model})...", file=sys.stderr)
     try:
-        synth_fb = _get_fallback_model(synth_model, config)
+        synth_fb = debate_common._get_fallback_model(synth_model, config)
         synth_response, _synth_used = _call_with_model_fallback(
             synth_model, synth_fb,
             PRESSURE_TEST_SYNTHESIS_PROMPT, synth_user,

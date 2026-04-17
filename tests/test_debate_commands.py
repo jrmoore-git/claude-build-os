@@ -19,10 +19,8 @@ SCRIPTS_DIR = Path(__file__).resolve().parent.parent / "scripts"
 if str(SCRIPTS_DIR) not in sys.path:
     sys.path.insert(0, str(SCRIPTS_DIR))
 
-for mod in [k for k in sys.modules if k.startswith("debate")]:
-    del sys.modules[mod]
-
 import debate
+import debate_common
 
 
 # ── Fixtures ─────────────────────────────────────────────────────────────────
@@ -114,7 +112,7 @@ This document describes the system architecture.
 def fake_credentials(monkeypatch):
     """Monkeypatch _load_credentials to return test values."""
     monkeypatch.setattr(
-        debate, "_load_credentials",
+        debate_common, "_load_credentials",
         lambda: ("test-key", "http://test:4000", False),
     )
 
@@ -123,7 +121,7 @@ def fake_credentials(monkeypatch):
 def fake_credentials_fallback(monkeypatch):
     """Monkeypatch _load_credentials for fallback mode."""
     monkeypatch.setattr(
-        debate, "_load_credentials",
+        debate_common, "_load_credentials",
         lambda: ("test-key", "http://test:4000", True),
     )
 
@@ -959,7 +957,7 @@ class TestCredentialFailures:
         return (None, None, False)
 
     def test_challenge_no_creds(self, monkeypatch, tmp_output, proposal_file):
-        monkeypatch.setattr(debate, "_load_credentials", self._no_creds)
+        monkeypatch.setattr(debate_common, "_load_credentials", self._no_creds)
         args = Namespace(
             proposal=proposal_file,
             models="gpt-5.4",
@@ -972,7 +970,7 @@ class TestCredentialFailures:
         assert debate.cmd_challenge(args) == 1
 
     def test_judge_no_creds(self, monkeypatch, tmp_output, proposal_file, challenge_file):
-        monkeypatch.setattr(debate, "_load_credentials", self._no_creds)
+        monkeypatch.setattr(debate_common, "_load_credentials", self._no_creds)
         args = Namespace(
             proposal=proposal_file,
             challenge=challenge_file,
@@ -988,7 +986,7 @@ class TestCredentialFailures:
         assert debate.cmd_judge(args) == 1
 
     def test_review_no_creds(self, monkeypatch):
-        monkeypatch.setattr(debate, "_load_credentials", self._no_creds)
+        monkeypatch.setattr(debate_common, "_load_credentials", self._no_creds)
         input_file = io.StringIO(SAMPLE_DOCUMENT)
         input_file.name = "doc.md"
         args = Namespace(
@@ -1007,7 +1005,7 @@ class TestCredentialFailures:
         assert debate.cmd_review(args) == 1
 
     def test_explore_no_creds(self, monkeypatch, tmp_output):
-        monkeypatch.setattr(debate, "_load_credentials", self._no_creds)
+        monkeypatch.setattr(debate_common, "_load_credentials", self._no_creds)
         args = Namespace(
             question="test?",
             directions=2,
@@ -1020,7 +1018,7 @@ class TestCredentialFailures:
         assert debate.cmd_explore(args) == 1
 
     def test_pressure_test_no_creds(self, monkeypatch, tmp_output, proposal_file):
-        monkeypatch.setattr(debate, "_load_credentials", self._no_creds)
+        monkeypatch.setattr(debate_common, "_load_credentials", self._no_creds)
         args = Namespace(
             proposal=proposal_file,
             frame="challenge",
@@ -1034,7 +1032,7 @@ class TestCredentialFailures:
         assert debate.cmd_pressure_test(args) == 1
 
     def test_refine_no_creds(self, monkeypatch, tmp_output, document_file):
-        monkeypatch.setattr(debate, "_load_credentials", self._no_creds)
+        monkeypatch.setattr(debate_common, "_load_credentials", self._no_creds)
         args = Namespace(
             document=document_file,
             mode=None,

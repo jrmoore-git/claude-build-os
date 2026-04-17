@@ -15,9 +15,10 @@ import urllib.request
 def cmd_check_models(args):
     """Compare LiteLLM available models against config."""
     import debate  # lazy import: debate.py is the source of truth for helpers
+    import debate_common
 
     config = debate._load_config()
-    api_key, litellm_url, _is_fallback = debate._load_credentials()
+    api_key, litellm_url, _is_fallback = debate_common._load_credentials()
     if api_key is None:
         return 1
     if _is_fallback:

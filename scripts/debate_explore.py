@@ -17,9 +17,10 @@ def cmd_explore(args):
     """Divergent exploration: single model generates N distinct directions,
     then a synthesis pass maps the solution space."""
     import debate  # lazy: pulls credentials, config, dispatch, prompts, logger
+    import debate_common
 
     _cost_snapshot = debate.get_session_costs()
-    api_key, litellm_url, _is_fallback = debate._load_credentials()
+    api_key, litellm_url, _is_fallback = debate_common._load_credentials()
     if api_key is None:
         return 1
     config = debate._load_config()
@@ -95,7 +96,7 @@ def cmd_explore(args):
 
     # Round 1: first direction (no divergence constraint)
     model = explore_models[0 % len(explore_models)]
-    explore_fallback = debate._get_fallback_model(model, config)
+    explore_fallback = debate_common._get_fallback_model(model, config)
     print(f"Explore round 1/{directions_count} ({model})...", file=sys.stderr)
     try:
         resp, _used = debate._call_with_model_fallback(
@@ -111,7 +112,7 @@ def cmd_explore(args):
     # Rounds 2..N: forced divergence, rotating models
     for i in range(2, directions_count + 1):
         model = explore_models[(i - 1) % len(explore_models)]
-        explore_fallback = debate._get_fallback_model(model, config)
+        explore_fallback = debate_common._get_fallback_model(model, config)
         prev_summary = "\n".join(
             f"{j}. {name}" for j, name in enumerate(direction_names, 1)
         )
@@ -148,7 +149,7 @@ def cmd_explore(args):
     synth_prompt = synth_prompt_tpl.format(n=len(directions), dimensions=dimensions_block)
     print(f"Synthesizing ({synth_model})...", file=sys.stderr)
     try:
-        synth_fallback = debate._get_fallback_model(synth_model, config)
+        synth_fallback = debate_common._get_fallback_model(synth_model, config)
         synthesis, _used = debate._call_with_model_fallback(
             synth_model, synth_fallback, synth_prompt, combined,
             litellm_url, api_key)

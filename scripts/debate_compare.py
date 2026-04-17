@@ -16,9 +16,10 @@ from datetime import datetime
 def cmd_compare(args):
     """Compare two review methods on the same original document."""
     import debate  # lazy: pulls credentials, config, dispatch helpers, prompt, logger
+    import debate_common
 
     _cost_snapshot = debate.get_session_costs()
-    api_key, litellm_url, _is_fallback = debate._load_credentials()
+    api_key, litellm_url, _is_fallback = debate_common._load_credentials()
     if api_key is None:
         return 1
 
@@ -49,7 +50,7 @@ def cmd_compare(args):
 
     print(f"Calling compare judge ({judge_model})...", file=sys.stderr)
     try:
-        compare_fallback = debate._get_fallback_model(judge_model, config)
+        compare_fallback = debate_common._get_fallback_model(judge_model, config)
         response, _used = debate._call_with_model_fallback(
             judge_model, compare_fallback, debate.COMPARE_JUDGE_PROMPT, user_content,
             litellm_url, api_key)

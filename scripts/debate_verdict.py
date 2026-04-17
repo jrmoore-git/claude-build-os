@@ -15,9 +15,10 @@ import sys
 def cmd_verdict(args):
     """Round 4: send resolution back to original challengers for final verdict."""
     import debate  # lazy: pulls credentials, config, dispatch helpers, prompt, logger
+    import debate_common
 
     _cost_snapshot = debate.get_session_costs()
-    api_key, litellm_url, _is_fallback = debate._load_credentials()
+    api_key, litellm_url, _is_fallback = debate_common._load_credentials()
     if api_key is None:
         return 1
 
@@ -50,7 +51,7 @@ def cmd_verdict(args):
     def _run_verdict(label, model):
         print(f"Calling {label} for verdict...", file=sys.stderr)
         try:
-            fallback = debate._get_fallback_model(model, config)
+            fallback = debate_common._get_fallback_model(model, config)
             response, _used = debate._call_with_model_fallback(
                 model, fallback, system_prompt, resolution, litellm_url, api_key)
             return label, response, None
