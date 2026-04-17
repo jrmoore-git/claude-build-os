@@ -1,26 +1,27 @@
-# Current State — 2026-04-16 (evening session)
+# Current State — 2026-04-16 (late evening session)
 
 ## What Changed This Session
-- Shipped **F4 atomic cost-tracking migration** (12a865b): 8 cost symbols + `_TOKEN_PRICING` table moved from debate.py → debate_common.py atomically, with `/plan → /challenge → build → /review --qa` pipeline. Both accepted challenge findings (import style, re-export prohibition) resolved pre-commit via plan text + pre-flight grep verification.
-- QA artifact for F4 (cc7271d): GO verdict, all 5 dimensions pass.
-- **Lessons triage** (ba8ab6e, `[healthcheck]` marker): 5 fully-addressed lessons moved out of active table (L27 → workflow.md cite, L34 → hook-context-inject.py, L38 → settings.json, L29 → archived/D21, L35 → archived/9e69929). Active count dropped 14 → 9; total L## rows preserved at 30.
-- Shipped **`_load_config` migration** (50a7fbd): `_load_config` + 4 supporting constants + dead `PERSONA_MODEL_MAP` alias deleted. 9 internal + 4 sibling + 3 test files retargeted. Skipped /challenge per D25 (parent challenge gates the migration architecture).
-- Shipped **`_log_debate_event` migration** (170a3e6): `_log_debate_event` + `PROJECT_TZ` + `DEFAULT_LOG_PATH` moved. 11 internal + 5 sibling + 1 test fixture retargeted. Dropped vestigial `import debate` from debate_outcome.py.
-- Set local git config: `user.name=Justin Moore`, `user.email=justin.rinfret.moore@gmail.com` (was hostname-derived before).
+- Shipped **frontmatter helpers migration** (481154a): atomic move of 4 functions (`_build_frontmatter`, `_redact_author`, `_apply_posture_floor`, `_shuffle_challenger_sections`) + 4 supporting constants (`SECURITY_FLOOR_PATTERNS`, `SECURITY_FLOOR_MIN`, `_SECURITY_FLOOR_RE`, `CHALLENGER_LABELS`) from `debate.py` to `debate_common.py`.
+- Pipeline: `/plan` → build → `/review --qa` (skipped `/challenge` per D25 mechanical-execution shortcut for verbatim migrations).
+- Pre-flight grep applied last session's lessons: covered whole-identifier patterns AND `monkeypatch.setattr` form for all 8 symbols. Zero surprises mid-build (no L40 third instance — still at 2).
 
 ## Net debate.py shrinkage this session
-- 3991 → 3815 lines (−176 LOC across 3 migration commits)
-- debate_common.py: 127 → 338 (+211 LOC)
+- 3815 → 3684 lines (−131 LOC)
+- debate_common.py: 338 → 471 (+133 LOC)
+- Cumulative across both today's sessions: 3991 → 3684 (−307 LOC) in `debate.py`; 127 → 471 (+344 LOC) in `debate_common.py`
 
 ## Current Blockers
 - None identified.
 
+## Triage flag (untracked, NOT from this session)
+- `tasks/session-telemetry-{plan,premortem,review}.md` are untracked. Origin unknown. Triage on next session before they get swept into an unrelated commit.
+
 ## Next Action
-Continue the package-style migration: next single-purpose commit is the **frontmatter helpers** unit (`_build_frontmatter`, `_redact_author`, `_apply_posture_floor`, `_shuffle_challenger_sections`). After that: prompt loader migration is split between shared instruction fragments (move) and subcommand-specific prompts (travel with their cmd_*). Then begin the 6 remaining cmd_* extractions (cmd_pressure_test, cmd_review, cmd_challenge, cmd_refine, cmd_premortem, cmd_judge).
+Continue the package-style migration. Two reasonable next units:
+1. **Prompt loader split** — `_load_prompt` + 3 cross-command instruction-fragment constants (`EVIDENCE_TAG_INSTRUCTION`, `IMPLEMENTATION_COST_INSTRUCTION`, `SYMMETRIC_RISK_INSTRUCTION`) move to `debate_common`; the 18 subcommand-specific prompts travel with their `cmd_*` functions when extracted.
+2. **First `cmd_*` extraction** of the remaining 6 (`cmd_pressure_test`, `cmd_review`, `cmd_challenge`, `cmd_refine`, `cmd_premortem`, `cmd_judge`).
 
 ## Recent Commits
+481154a Migrate frontmatter helpers + posture floor + challenger shuffle to debate_common.py
+4996223 Session wrap 2026-04-16 (evening): 3 incremental debate.py migrations + lessons triage
 170a3e6 Migrate _log_debate_event + PROJECT_TZ + DEFAULT_LOG_PATH to debate_common.py
-50a7fbd Migrate _load_config + supporting constants to debate_common.py
-ba8ab6e [healthcheck] Triage 5 fully-addressed lessons (active 14 → 9)
-cc7271d QA artifact: debate-cost-tracking (commit 12a865b) — go
-12a865b F4 atomic cost-tracking migration: debate.py → debate_common.py

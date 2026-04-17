@@ -3246,3 +3246,49 @@ ended without running `/wrap-session`. Review and enrich in the next session.
 **Next Session:** Pick the frontmatter helpers migration. Pre-flight grep with whole-identifier patterns AND monkeypatch.setattr form (apply this session's lessons). Run plan → build → /review --qa.
 
 **Commits:** 12a865b, cc7271d, ba8ab6e, 50a7fbd, 170a3e6. Five total.
+
+---
+
+## 2026-04-16 (late evening) — Frontmatter helpers migration
+
+**Decided:**
+- No new architectural decisions; D25 still authoritative.
+- L40 candidate (scout grep blind spots) stays at 2 instances — no recurrence
+  this commit. Pre-flight grep covering whole-identifier + `monkeypatch.setattr`
+  forms held cleanly.
+
+**Implemented:**
+- `481154a` — Atomic verbatim move of frontmatter helpers + posture floor +
+  challenger shuffle: 4 functions (`_build_frontmatter`, `_redact_author`,
+  `_apply_posture_floor`, `_shuffle_challenger_sections`) + 4 supporting
+  constants (`SECURITY_FLOOR_PATTERNS`, `SECURITY_FLOOR_MIN`,
+  `_SECURITY_FLOOR_RE`, `CHALLENGER_LABELS`). Pipeline: `/plan` → build →
+  `/review --qa` (skip `/challenge` per D25 mechanical-execution shortcut).
+  9 internal function calls + 6 `CHALLENGER_LABELS` reads retargeted in
+  debate.py; 1 sibling (`debate_verdict.py:82`); 4 test files (~30 refs).
+  `import debate_common` added to `test_debate_posture_floor.py` (was
+  missing). Dropped now-dead `import string` and `import re as _re` from
+  `debate.py`. 932/932 pass. QA: go.
+
+**Observation worth noting (not a lesson):** `CHALLENGER_LABELS` had to move
+with its function to avoid a backward `debate_common → debate` layering edge.
+This will recur whenever a constant is read by both a migrating function AND
+remaining cmd_* code in the monolith. Plan-time check: for each constant in
+the migration unit, grep for callers in debate.py that aren't part of the
+migration. If any exist, count the extra retargets in the LOC budget.
+
+**Net debate.py shrinkage this session:** 3815 → 3684 lines (−131 LOC).
+**Net debate.py shrinkage today (both sessions combined):** 3991 → 3684
+(−307 LOC in `debate.py`); 127 → 471 (+344 LOC in `debate_common.py`).
+
+**Not Finished:** Prompt loader split is the next single-purpose commit.
+Then 6 remaining `cmd_*` extractions. 3 untracked `session-telemetry-*`
+files — origin unknown, need triage on next session before they get swept
+into an unrelated commit. Audit findings F6/F7/F8 still open.
+
+**Next Session:** Triage the untracked `session-telemetry-*` files first
+(read + decide if live work or stale exploration). Then pick the prompt
+loader split. Apply same pre-flight grep discipline (whole-identifier +
+monkeypatch form for each of the 4 symbols).
+
+**Commits:** 481154a. One total.
