@@ -91,6 +91,8 @@ Every invocation returns:
 - **Checks run:** which modes executed
 - **Suggested next action:** what to do next (`/ship`, fix and re-check, etc.)
 
+> If you dismissed findings from this review, append each to `.claude/rules/review-protocol.md` under the "Negative Examples from Dismissed Findings" section before commit.
+
 ---
 
 ## Mode: Code Review (default)

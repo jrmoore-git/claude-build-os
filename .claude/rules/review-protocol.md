@@ -80,3 +80,16 @@ Behavior matches spec. Tests pass. Audit log shows expected events. Rollback pla
 After writing a rule, deliberately test whether Claude follows it. If it doesn't trigger reliably, escalate: move closer to action point, add a hook, or make it architectural. Any enforcement hook must include its own file path in the set of files it checks -- a hook that doesn't check itself can be silently bypassed.
 
 At 60% context: STOP and run review if not done. At 75%: run review NOW.
+
+## Negative Examples from Dismissed Findings
+
+When a `/review` finding is dismissed (confirmed false positive), append it here under the relevant lens. Future `/review` runs read this section and treat these as patterns to not re-flag.
+
+### PM lens negative examples
+<!-- append dismissed PM-lens findings as markdown list items -->
+
+### Security lens negative examples
+<!-- append dismissed Security-lens findings -->
+
+### Architecture lens negative examples
+<!-- append dismissed Architecture-lens findings -->
