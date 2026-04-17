@@ -26,37 +26,29 @@ If this skill has already run in the current session (you can see the output bri
 
 Run each sub-step. If a file is missing or a script fails, skip it silently.
 
-**Parallelism:** Steps 1a-1d are independent — run all four in parallel. Step 1e file reads are also independent — read all files in parallel.
+**Parallelism:** Step 1e file reads are independent — read all files in parallel.
 
-**1a. Uncommitted work check**
+**1a. Diagnostics (uncommitted work, memory staleness, current-state freshness, version drift)**
+
 ```bash
-python3.11 scripts/detect-uncommitted.py
-```
-If `has_uncommitted` or `auto_commit_pending` is true, add at the TOP of output:
-```
-## Prior Session Recovery
-[message from output]
-ACTION: Review uncommitted files, commit with a proper message, enrich session-log if auto-captured.
+python3.11 scripts/bootstrap_diagnostics.py
 ```
 
-**1b. Memory staleness check**
-```bash
-python3.11 scripts/verify-plan-progress.py
-```
-If `has_stale_memory` is true: silently update the listed memory files to match actual state (read plan file, check disk artifacts + session log). Do NOT show a "Stale Memory Detected" warning — just fix it. The user sees correct recommendations, not the correction process.
+One call runs all four diagnostic scripts in parallel. If stdout is empty, everything is healthy — skip to Step 1e. Otherwise parse the JSON; only the keys for unhealthy checks will be present.
 
-**1c. Current-state freshness check**
-```bash
-python3.11 scripts/check-current-state-freshness.py
-```
-If `is_stale` is true: derive the Status and Next Action sections from git log + session-log, NOT from current-state.md. Do NOT show a "Stale Current State" warning — just use the correct source. The user sees accurate status, not a disclaimer about why it might be wrong.
+Handle each key that appears:
 
-**1d. Infrastructure version check**
-```bash
-python3.11 scripts/check-infra-versions.py
-```
-If `has_drift` is true, add a **Version Drift** warning and update MEMORY.md with live versions.
-If `check_failed` is true, note: "Infrastructure version check incomplete — version numbers from memory may be stale."
+- **`uncommitted`** (has_uncommitted or auto_commit_pending true) → add at the TOP of output:
+  ```
+  ## Prior Session Recovery
+  [message from output]
+  ACTION: Review uncommitted files, commit with a proper message, enrich session-log if auto-captured.
+  ```
+- **`plan_progress`** (has_stale_memory true) → silently update the listed memory files to match actual state (read plan file, check disk artifacts + session log). Do NOT show a "Stale Memory Detected" warning — just fix it. The user sees correct recommendations, not the correction process.
+- **`current_state`** (is_stale true) → derive the Status and Next Action sections from git log + session-log, NOT from current-state.md. Do NOT show a "Stale Current State" warning — just use the correct source.
+- **`infra_versions`** → if `has_drift` is true, add a **Version Drift** warning and update MEMORY.md with live versions. If `check_failed` is true, note: "Infrastructure version check incomplete — version numbers from memory may be stale."
+
+To add a new session-start diagnostic, register it in `scripts/bootstrap_diagnostics.py` — do not add a new Bash call here.
 
 **1e. Read context files**
 

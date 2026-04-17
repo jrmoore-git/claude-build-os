@@ -89,17 +89,17 @@ def get_live_version(check):
 def main():
     memory_file = find_memory_file()
     if not memory_file:
-        print(json.dumps({"has_drift": False, "message": "No MEMORY.md found — skipping version check."}))
+        # Silent-on-success: no MEMORY.md means nothing to compare against.
         return
 
     if not CHECKS:
-        print(json.dumps({"has_drift": False, "message": "No version checks configured — add entries to CHECKS list."}))
+        # Silent-on-success: no version checks configured is the default template state.
         return
 
     try:
         text = memory_file.read_text(encoding="utf-8")
     except Exception as e:
-        print(json.dumps({"has_drift": False, "check_failed": True,
+        print(json.dumps({"check_failed": True,
                           "error": f"Failed to read MEMORY.md: {e}"}))
         return
 
@@ -125,6 +125,10 @@ def main():
                 "memory": memory_ver,
                 "live": live_ver,
             })
+
+    if not drifts and not errors:
+        # Silent-on-success: all versions match and no errors.
+        return
 
     result = {"has_drift": len(drifts) > 0, "live_versions": live_versions}
 

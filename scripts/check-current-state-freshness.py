@@ -18,13 +18,13 @@ def main():
     try:
         # 1. Read current-state.md and extract the date from the header
         if not CURRENT_STATE.exists():
-            print(json.dumps({"is_stale": False, "error": "docs/current-state.md not found"}))
+            # Silent-on-success: no current-state.md means nothing to compare against.
             return
 
         text = CURRENT_STATE.read_text()
         match = re.search(r"^# Current State\s*[—–-]\s*(\d{4}-\d{2}-\d{2})", text, re.MULTILINE)
         if not match:
-            print(json.dumps({"is_stale": False, "error": "Could not parse date from current-state.md header"}))
+            # Silent-on-success: unparseable header is not a staleness signal.
             return
 
         cs_date_str = match.group(1)
@@ -36,7 +36,6 @@ def main():
             cwd=REPO, capture_output=True, text=True, timeout=10,
         )
         if result.returncode != 0:
-            print(json.dumps({"is_stale": False, "error": f"git log failed: {result.stderr.strip()}"}))
             return
 
         commit_dt_str = result.stdout.strip()
@@ -44,15 +43,7 @@ def main():
         commit_dt = datetime.strptime(commit_dt_str, "%Y-%m-%d %H:%M:%S %z").astimezone(PACIFIC)
         commit_date_str = commit_dt.strftime("%Y-%m-%d")
 
-        # 4. Get 5 most recent commit subjects
-        result = subprocess.run(
-            ["git", "log", "-5", "--format=%h %s"],
-            cwd=REPO, capture_output=True, text=True, timeout=10,
-        )
-        recent_commits = [line for line in result.stdout.strip().splitlines() if line]
-
-        # 5. Compare: stale if latest commit is >24h after current-state date
-        # Use end-of-day for the current-state date (it's just a date, no time)
+        # 3. Compare: stale if latest commit is >24h after current-state date
         cs_end_of_day = cs_date.replace(hour=23, minute=59, second=59)
         delta = commit_dt - cs_end_of_day
         days_behind = max(0, delta.days)
@@ -60,8 +51,15 @@ def main():
         is_stale = delta > timedelta(hours=24)
 
         if not is_stale:
-            print(json.dumps({"is_stale": False}))
+            # Silent-on-success: healthy state emits no stdout.
             return
+
+        # 4. Get 5 most recent commit subjects (only needed for the stale report)
+        result = subprocess.run(
+            ["git", "log", "-5", "--format=%h %s"],
+            cwd=REPO, capture_output=True, text=True, timeout=10,
+        )
+        recent_commits = [line for line in result.stdout.strip().splitlines() if line]
 
         msg_parts = []
         if days_behind > 0:
@@ -78,7 +76,6 @@ def main():
             "current_state_date": cs_date_str,
             "latest_commit_date": commit_date_str,
             "days_behind": days_behind,
-            "has_stale_marker": has_stale_marker,
             "recent_commits": recent_commits,
             "message": " ".join(msg_parts),
         }))

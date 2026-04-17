@@ -260,7 +260,7 @@ def verify_project(project):
 def main():
     projects = find_project_memories()
     if not projects:
-        json.dump({"corrections": [], "message": "No active project memories with plan references."}, sys.stdout, indent=2)
+        # Silent-on-success: no project memories to verify.
         return
 
     all_corrections = []
@@ -268,21 +268,17 @@ def main():
         corrections = verify_project(project)
         all_corrections.extend(corrections)
 
-    if all_corrections:
-        messages = [c["message"] for c in all_corrections]
-        json.dump({
-            "has_stale_memory": True,
-            "correction_count": len(all_corrections),
-            "corrections": all_corrections,
-            "message": "\n".join(messages),
-        }, sys.stdout, indent=2)
-    else:
-        json.dump({
-            "has_stale_memory": False,
-            "corrections": [],
-            "projects_checked": len(projects),
-            "message": f"Checked {len(projects)} project memories — all consistent with disk.",
-        }, sys.stdout, indent=2)
+    if not all_corrections:
+        # Silent-on-success: all memories consistent with disk.
+        return
+
+    messages = [c["message"] for c in all_corrections]
+    json.dump({
+        "has_stale_memory": True,
+        "correction_count": len(all_corrections),
+        "corrections": all_corrections,
+        "message": "\n".join(messages),
+    }, sys.stdout, indent=2)
 
 
 if __name__ == "__main__":

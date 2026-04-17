@@ -24,6 +24,8 @@ User-invocable skill output must not surface framework internals. A user asking 
 
 **Test at review time:** grep skill output for framework terms (flag names, script filenames, internal JSON keys). Any match → rewrite the output path to translate or suppress.
 
+**Diagnostic scripts: silent-on-success, register with the wrapper.** Session-start diagnostics (the scripts `/start` runs before the brief) must exit silent when healthy and emit one JSON object to stdout only when there's something to report. New diagnostics register with `scripts/bootstrap_diagnostics.py` (add a `(key, filename)` entry to `CHECKS`) — do not add new `Bash` calls to `/start`. The wrapper owns the output surface so individual scripts physically cannot leak framework plumbing to the chat.
+
 ## Persona Definition — Problem-First, No Style Classification
 
 Personas in skills and tests are defined by **problem and answers only**. No style tables, no style columns, no style matrices, no communication-style stress tests. Register is observed in transcripts, not designed into test personas.

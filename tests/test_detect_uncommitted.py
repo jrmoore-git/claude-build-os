@@ -105,12 +105,19 @@ class TestFileCategorization:
 
 
 class TestMainOutput:
-    def test_clean_repo_output(self, tmp_path, monkeypatch, capsys):
-        """When there are no uncommitted files, output should be clean JSON."""
+    def test_clean_repo_silent(self, tmp_path, monkeypatch, capsys):
+        """Healthy state emits no stdout — bootstrap_diagnostics treats silence as OK."""
         monkeypatch.setattr(detect_uncommitted, "get_uncommitted_files", lambda: [])
         monkeypatch.setattr(detect_uncommitted, "check_auto_commit_pending", lambda: False)
         detect_uncommitted.main()
+        assert capsys.readouterr().out == ""
+
+    def test_uncommitted_emits_json(self, tmp_path, monkeypatch, capsys):
+        """Issue state emits one JSON object with the findings."""
+        monkeypatch.setattr(detect_uncommitted, "get_uncommitted_files", lambda: ["tasks/foo.md"])
+        monkeypatch.setattr(detect_uncommitted, "check_auto_commit_pending", lambda: False)
+        monkeypatch.setattr(detect_uncommitted, "file_age_summary", lambda files: (None, None))
+        detect_uncommitted.main()
         output = json.loads(capsys.readouterr().out)
-        assert output["has_uncommitted"] is False
-        assert output["files"] == []
-        assert output["auto_commit_pending"] is False
+        assert output["has_uncommitted"] is True
+        assert output["files"] == ["tasks/foo.md"]

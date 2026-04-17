@@ -107,13 +107,7 @@ def main():
     auto_pending = check_auto_commit_pending()
 
     if not files and not auto_pending:
-        json.dump({
-            "has_uncommitted": False,
-            "files": [],
-            "categories": {},
-            "auto_commit_pending": False,
-            "message": "",
-        }, sys.stdout, indent=2)
+        # Silent-on-success: healthy state emits no stdout.
         return
 
     categories = {}
