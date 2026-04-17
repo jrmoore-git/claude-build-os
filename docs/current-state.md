@@ -1,27 +1,24 @@
-# Current State — 2026-04-17 (Frame lens shipped)
+# Current State — 2026-04-17 (Session drift + unfinished dual-mode generalization)
 
 ## What Changed This Session
-- Frame lens shipped as 4th `/challenge` persona — critiques the candidate set itself (binary framings, missing compositional candidates, source-driven proposals, problem inflation), not the candidates inside the proposal.
-- Dual-mode expansion under `--enable-tools`: `frame-structural` (claude-sonnet-4-6, no tools — structural reasoning) + `frame-factual` (gpt-5.4, tools on — staleness/already-shipped verification) running in parallel.
-- Cross-family routing (sonnet structural + gpt-5.4 factual) via new config key `frame_factual_model`. Validated as BETTER on 4/5 historical proposals than same-family.
-- n=5 paired validation across historical proposals (autobuild, explore-intake, learning-velocity, streamline-rules, litellm-fallback): ~30 novel MATERIAL findings beyond the original 3-persona panel; one verdict flipped REVISE → REJECT.
-- Orthogonal fixes shipped alongside: `_validate_challenge` scoped to `## Challenges` section (no more false-positive Concessions warnings); `_build_frontmatter` expands nested dicts as YAML keys (no more Python repr); fallback flip moved before persona expansion (`/review`-found bug).
-- Cross-model `/review` PASSED. 1 MATERIAL fixed inline (fallback ordering), 6 advisories tracked.
-- Lessons L43 (tool-bias on frame critique + dual-mode + cross-family) and L44 (n=1 is not data; quality-first methodology) added. Decision D28 recorded.
-- 965 tests pass (was 957). Added `TestFramePersona` (6 tests) + 2 new validator scope tests.
+- **Task B (lessons triage) — done.** False alarm. Active lesson count is 12/30, not 34/30. The warning came from `/start`'s grep counting all three tables (Active + Promoted + Archived). Fixed in `1c40d6c`: scoped grep to Active section only using awk with `## Promoted` as the terminator.
+- **Task A (/think discover) — off-scope. Commit `1c40d6c` does not address the real ask.** Original handoff: "Apply L44 paired-output-quality audit method across other personas (architect, security, pm) and other multi-model dispatch systems (judge, refine, /review, /polish, /explore, /pressure-test). Determine where the L43 verification-vs-reasoning tool-posture axis generalizes." That is a **dual-mode generalization** question — does the Frame persona's tools-on + tools-off dual-mode pattern work for the other 3 personas too? Methodology already exists (frame-lens-validation Round 1). Scoped to ~15 paired runs.
+- **What I wrote instead:** a full ROI audit of the whole debate system — design doc + Phase 0 corpus feasibility + labeling rubric. Valid infrastructure for a **different** question (is debate worth its cost). 451 findings labeled at 20 hours of labor. None of that answers the handoff's question.
+- **L45 added:** "/think discover drifts off-scope when user mentions evaluative criteria mid-conversation." The drift pattern + how to detect and recover.
+- **Autopilot pile still on disk, uncommitted:** `tasks/debate-efficacy-study-*` (25+ files from prior autopilot run), `config/debate-models-arm-c.json`, `scripts/debate_efficacy_*.py`, 18 new lines in `stores/debate-log.jsonl`. Not this session's work. Flagging for triage next session.
 
 ## Current Blockers
-- None blocking next-session work.
+- None technical. Blocker is clarity: next session must start by re-reading the handoff verbatim and NOT by reading the off-scope ROI audit design doc.
 
 ## Next Action
-Run paired output-quality audit (n=5, paired comparisons, quality first per L44) across other personas (architect, security, pm) and other multi-model systems (judge round, refine rotation, `/review` lenses, `/polish` rounds, `/explore` directions, `/pressure-test` models). Determine where the verification-vs-reasoning tool-posture axis from L43 generalizes.
+Re-read `tasks/handoff.md` "Next Session Should" section verbatim, then `/think refine` or `/plan` directly on the **dual-mode generalization question** (does tools-on + tools-off paired-run pattern from Frame work for architect, security, pm?). Scope: ~15 paired runs using frame-lens-validation methodology. Ignore `tasks/multi-model-skills-roi-audit-design.md` unless separately choosing to do the ROI audit as a second/later task.
 
 ## Recent Commits
+- `1c40d6c` — Multi-model skills ROI audit: design + Phase 0 feasibility (GO) **[OFF-SCOPE]**
+- `0701c17` — Session wrap 2026-04-17: Frame lens shipped + n=5 validation method
 - `b9b3a79` — Frame lens plan: record shipped_commit bfdf4ff
-- `bfdf4ff` — Frame lens: 4th /challenge persona with dual-mode cross-family expansion
-- `72e145e` — Session wrap 2026-04-16: Frame lens plan recovered + on disk
 
-## Followup tracked (post-ship, not blocking)
-- Sonnet structural latency outlier (324s on litellm-fallback in cross-family run) — separate investigation.
-- Lessons at 34/30 — triage needed (candidates: L41 hook-symlink now resolved; L43 could promote to .claude/rules/).
-- Application of paired audit to other personas — primary goal of next session.
+## Followup tracked (post-session, not blocking)
+- Autopilot `debate-efficacy-study-*` pile: ~25 untracked files + 18 new log lines. Triage: absorb, commit-as-is, or delete.
+- ROI audit design (`multi-model-skills-roi-audit-design.md`) is still a valid question for a LATER session, just not what was asked.
+- `.claude/scheduled_tasks.lock` untracked runtime artifact — expected, ignore.

@@ -3487,3 +3487,26 @@ monkeypatch form for each of the 4 symbols).
 **Next Session:** Apply paired output-quality audit (n=5 per L44 method) across other personas (architect, security, pm) and other multi-model systems (judge, refine rotation, `/review`, `/polish`, `/explore`, `/pressure-test`). Goal: figure out where the L43 verification-vs-reasoning tool-posture axis generalizes. Also triage lessons to ≤30 (currently 34/30).
 
 **Commits:** `bfdf4ff` (frame lens implementation + validation + tests + docs), `b9b3a79` (plan shipped_commit recorded), wrap commit below.
+
+## 2026-04-17 (evening) — Session drift + recovery: dual-mode generalization deferred
+
+**Focus:** Resume from morning wrap (`0701c17`) to do B (lessons triage) + A (/think discover on dual-mode generalization across personas/systems per L43/L44). B landed. A drifted hard into a retrospective ROI audit of the whole debate system. Caught by user. Wrapped to preserve state.
+
+**Decided:**
+- **L45** added: `/think discover` must re-read the handoff before Phase 4 (alternatives generation). Evaluative language mid-conversation ("worth it", "ROI", "save time") names the *criterion* for the scoped work, not a new scope. Drift happens when motivation is treated as pivot.
+- `/start` lesson-count grep is Active-scoped now (awk terminator at `## Promoted`). Prevents the false 34/30 warning that the handoff showed — actual active count is 12.
+- No new decisions. The off-scope ROI-audit framing was not load-bearing enough to encode as a D-entry.
+
+**Implemented:**
+- `.claude/skills/start/SKILL.md` — lesson count grep fix (task B). Commit `1c40d6c`.
+- `tasks/multi-model-skills-roi-audit-design.md` + `-phase0.md` + `-rubric.md` — **OFF-SCOPE** artifacts. Design doc + Phase 0 feasibility (GO verdict, 451 MATERIAL findings across 66 runs) + labeling rubric. All valid infrastructure for a different question (whole-system ROI audit), none of it addresses the handoff's dual-mode generalization ask. Kept in history rather than reverted — honest trail over clean one.
+- `tasks/lessons.md` — L45. `docs/current-state.md` + `tasks/handoff.md` — rewritten to flag the drift explicitly.
+
+**Not Finished:**
+- **The actual task: dual-mode generalization across architect / security / pm** — not started. Next-session work. See handoff "Next Session Should" section.
+- Autopilot `debate-efficacy-study-*` pile — 25+ untracked files from a prior autopilot run, still uncommitted. Deferred.
+- 18 new lines in `stores/debate-log.jsonl` from autopilot runs — uncommitted.
+
+**Next Session:** Re-read handoff "⚠ READ THIS FIRST" block FIRST. Then `/think refine` or `/plan` on dual-mode generalization: for each of architect / security / pm, paired tools-on + tools-off on the 5 frame-lens-validation proposals. Methodology exists; infrastructure exists (persona expansion logic built for Frame); ~15 paired runs total. Decide per-persona whether dual-mode generalizes. If yes, ship. If no, document and add to L43.
+
+**Commits:** `1c40d6c` (off-scope ROI audit + /start grep fix), this wrap commit.
