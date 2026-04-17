@@ -16,7 +16,15 @@ Avoid over-engineering. Only make changes that are directly requested or clearly
 
 ## Anti-Slop Vocabulary
 
-Never use these words in output, docs, commit messages, or generated content: delve, crucial, robust, comprehensive, nuanced, leverage, facilitate, utilize, streamline, cutting-edge, state-of-the-art, paradigm, synergy, holistic, empower, innovative, seamless, transformative. Use plain, direct language instead.
+Hook-enforced via `hooks/pre-commit-banned-terms.sh` (SLOP_PATTERN). Commits with these words or phrases in tracked files are blocked. Skip list covers tasks/, .github/workflows/, and this rule file itself.
+
+**Banned words (10):** delve · cutting-edge · state-of-the-art · seamless · innovative · synergy · paradigm · holistic · empower · transformative
+
+**Banned phrases (2):** `a testament to` · `at its core`
+
+**Source:** evidence-based from `tasks/llm-slop-vocabulary-research.md` — first 5 words have direct research support (Pangram, Grammarly, Futurism's 14M biomedical abstracts study); last 5 plus the two phrases are editorial-judgment marketing-empty. Dropped from prior list (`robust`, `comprehensive`, `nuanced`, `crucial`, `leverage`, `facilitate`, `utilize`, `streamline`) because they have legitimate technical use and false-positive cost exceeded slop-catching benefit.
+
+Use plain, direct language instead.
 
 ## Exceptions
 
