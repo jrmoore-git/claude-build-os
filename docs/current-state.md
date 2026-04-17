@@ -1,21 +1,21 @@
 # Current State — 2026-04-16
 
 ## What Changed This Session
-- Full audit of all prose/documentation MD files against last 24 hours of changes
-- Fixed README hook count (20 → 22)
-- Fixed hooks.md: pre-edit-gate "2 hours" → "24 hours" to match actual code, added scope containment docs, added 3 missing detailed hook sections (read-before-edit, skill-lint, spec-status-check)
-- Fixed hook-pre-edit-gate.sh comments to match code (24 hours, not 2)
-- Updated how-it-works.md: added explore model rotation detail
-- Updated changelog: extended from April 1-10 to full April 2026, fixed stale skill/hook counts
-- Updated platform-features.md verification date to April 2026
+- Fresh-eyes audit (Claude 4.7) identifying 8 structural findings complementing the earlier doc-accuracy audit
+- Tier 1 remediation: added `requirements.txt` + `requirements-dev.txt`, made `tests/run_all.sh` exit non-zero when pytest missing (was silently skipping ~913 tests)
+- Archive sweep: 170 → 134 active `tasks/*.md` (moved 21 decision-audit-d*.md, 6 audit-batch2, 4 canonical-skill-sections, context-optimization-v2 proposal, 2 superseded gstack retests)
+- `audit.db`/`metrics.db` doc cleanup — zero Python references existed; removed stale schema mentions in `operational-context.md` and `changelog-april-2026.md`
+- F5 (/wrap discipline) — briefly promoted via visibility/reconciliation, then fully rejected: killed `hook-stop-autocommit.py` entirely. Auto-capture converted "uncommitted" (fine) into "committed half-work" (worse); `detect-uncommitted.py` at `/start` + filesystem durability is the real safety net. Removed 22nd hook, ~141 lines net.
+- debate.py split in progress (4/N): extracted `cmd_check_models`, `cmd_outcome_update`, `cmd_stats`, `cmd_compare` to sibling modules (`scripts/debate_<topic>.py`). debate.py: 4,629 → 4,369 lines. 923 tests green between every commit.
+- L35 + L36 added to lessons.md (safety-net anti-pattern, fast-test-enabled monolith extraction)
 
 ## Current Blockers
 - None identified
 
 ## Next Action
-Lessons at ~29/30 — triage needed soon. Otherwise continue with gstack integration or other priorities.
+Continue debate.py split — next targets in order of safety: `cmd_verdict` (250L, legacy), `cmd_explore` (193L), `cmd_pressure_test` (262L), then heavier (`cmd_review`, `cmd_challenge`, `cmd_refine`, `cmd_judge`). Pattern is in `tasks/audit-2026-04-16-fresh-eyes.md` and the 4 landed commits.
 
 ## Recent Commits
-64cec7a Fix remaining doc accuracy: README hook count, pre-edit-gate comment
-7ecb733 [auto] Session work captured 2026-04-16 13:40 PT
-fd988ad Session wrap 2026-04-16: explore model rotation fix
+efe70df debate.py split (4/N): extract cmd_compare to scripts/debate_compare.py
+63cc96c debate.py split (3/N): extract cmd_stats to scripts/debate_stats.py
+1b61b05 debate.py split (2/N): extract cmd_outcome_update to scripts/debate_outcome.py

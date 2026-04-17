@@ -3135,3 +3135,28 @@ ended without running `/wrap-session`. Review and enrich in the next session.
 - **tasks/**: decisions.md, hook-decompose-gate-message-plan.md, session-log.md
 
 **Auto-committed:** 2026-04-16 16:13 PT
+
+---
+
+## 2026-04-16 — Fresh-eyes audit + Tier 1 + F5 killed + debate.py split 4/N
+
+**Decided:**
+- D: Kill `hook-stop-autocommit.py` entirely (9e69929). F5's reconciliation was debt created by the safety net itself — the net was never preventing data loss. `detect-uncommitted.py` at `/start` + filesystem durability is the real safety net.
+- D: debate.py split uses sibling modules (`scripts/debate_<topic>.py`), not a package. Tests reach into ~80 private symbols; sibling-module pattern avoids package re-export complexity. Lazy `import debate` inside each new module pulls shared state.
+- D: `.claude/rules/skill-authoring.md` gains "User-Facing Output — No Framework Plumbing" rule. No raw flag names, script filenames, or JSON keys in user-visible skill output.
+
+**Implemented:**
+- Fresh-eyes audit (8 findings) → `tasks/audit-2026-04-16-fresh-eyes.md`
+- Tier 1: requirements.txt + requirements-dev.txt, `tests/run_all.sh` exits 1 on missing pytest (was silently skipping 913 tests)
+- Archive sweep: 170 → 134 active `tasks/*.md` (34 files moved)
+- audit.db/metrics.db doc cleanup (zero code references)
+- Kill auto-capture: removed hook, reverted F5 visibility/reconciliation, simplified session-discipline.md, trimmed STALE-marker branch from check-current-state-freshness.py
+- debate.py split 1/N–4/N: cmd_check_models, cmd_outcome_update, cmd_stats, cmd_compare → sibling modules. debate.py: 4,629 → 4,369 (-260 lines). 923 tests green between every commit.
+- L35 + L36 added (safety-net anti-pattern, monolith extraction pattern)
+
+**Not Finished:** debate.py split 5/N onward (cmd_verdict 250L next, then cmd_explore, cmd_pressure_test, cmd_review, cmd_challenge, cmd_refine, cmd_judge). Audit F6 (hook latency telemetry), F7 (external BuildOS user), F8 (contract tests) still open.
+
+**Next Session:** Resume debate.py split with cmd_verdict; or F6 for a quick telemetry win. Pattern: `scripts/debate_<topic>.py` + lazy `import debate` + re-import name in debate.py; pytest between every commit (~7s).
+
+**Commits:** 0b46b2b Tier 1; abe6238 F5 promote; 9e69929 kill auto-capture; b818579 split 1/N; 1b61b05 split 2/N; 63cc96c split 3/N; efe70df split 4/N. Plus concurrent: 416004d, 6e65a51 (hook-decompose-gate message translation + advisory flip).
+
