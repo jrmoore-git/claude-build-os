@@ -5,7 +5,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "python3 hooks/hook-intent-router.py",
+            "command": "python3 \"$CLAUDE_PROJECT_DIR/hooks/hook-intent-router.py\"",
             "timeout": 2
           }
         ]
@@ -17,37 +17,37 @@
         "hooks": [
           {
             "type": "command",
-            "command": "python3 hooks/hook-decompose-gate.py",
+            "command": "python3 \"$CLAUDE_PROJECT_DIR/hooks/hook-decompose-gate.py\"",
             "timeout": 2
           },
           {
             "type": "command",
-            "command": "bash hooks/hook-guard-env.sh",
+            "command": "bash \"$CLAUDE_PROJECT_DIR/hooks/hook-guard-env.sh\"",
             "timeout": 10
           },
           {
             "type": "command",
-            "command": "bash hooks/hook-tier-gate.sh \"$TOOL_INPUT\"",
+            "command": "bash \"$CLAUDE_PROJECT_DIR/hooks/hook-tier-gate.sh\" \"$TOOL_INPUT\"",
             "timeout": 10
           },
           {
             "type": "command",
-            "command": "bash hooks/hook-pre-edit-gate.sh",
+            "command": "bash \"$CLAUDE_PROJECT_DIR/hooks/hook-pre-edit-gate.sh\"",
             "timeout": 10
           },
           {
             "type": "command",
-            "command": "python3 hooks/hook-memory-size-gate.py",
+            "command": "python3 \"$CLAUDE_PROJECT_DIR/hooks/hook-memory-size-gate.py\"",
             "timeout": 2
           },
           {
             "type": "command",
-            "command": "HOOK_EVENT=PreToolUse python3 hooks/hook-read-before-edit.py",
+            "command": "HOOK_EVENT=PreToolUse python3 \"$CLAUDE_PROJECT_DIR/hooks/hook-read-before-edit.py\"",
             "timeout": 2
           },
           {
             "type": "command",
-            "command": "python3 hooks/hook-context-inject.py",
+            "command": "python3 \"$CLAUDE_PROJECT_DIR/hooks/hook-context-inject.py\"",
             "timeout": 2
           }
         ]
@@ -57,7 +57,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "python3 hooks/hook-agent-isolation.py",
+            "command": "python3 \"$CLAUDE_PROJECT_DIR/hooks/hook-agent-isolation.py\"",
             "timeout": 2
           }
         ]
@@ -67,32 +67,32 @@
         "hooks": [
           {
             "type": "command",
-            "command": "bash hooks/hook-guard-env.sh",
+            "command": "bash \"$CLAUDE_PROJECT_DIR/hooks/hook-guard-env.sh\"",
             "timeout": 10
           },
           {
             "type": "command",
-            "command": "bash hooks/hook-pre-commit-tests.sh",
+            "command": "bash \"$CLAUDE_PROJECT_DIR/hooks/hook-pre-commit-tests.sh\"",
             "timeout": 60
           },
           {
             "type": "command",
-            "command": "bash hooks/hook-prd-drift-check.sh",
+            "command": "bash \"$CLAUDE_PROJECT_DIR/hooks/hook-prd-drift-check.sh\"",
             "timeout": 10
           },
           {
             "type": "command",
-            "command": "bash hooks/hook-review-gate.sh",
+            "command": "bash \"$CLAUDE_PROJECT_DIR/hooks/hook-review-gate.sh\"",
             "timeout": 10
           },
           {
             "type": "command",
-            "command": "bash hooks/hook-plan-gate.sh",
+            "command": "bash \"$CLAUDE_PROJECT_DIR/hooks/hook-plan-gate.sh\"",
             "timeout": 10
           },
           {
             "type": "command",
-            "command": "python3 hooks/hook-bash-fix-forward.py",
+            "command": "python3 \"$CLAUDE_PROJECT_DIR/hooks/hook-bash-fix-forward.py\"",
             "timeout": 5
           }
         ]
@@ -104,22 +104,22 @@
         "hooks": [
           {
             "type": "command",
-            "command": "bash hooks/hook-syntax-check-python.sh",
+            "command": "bash \"$CLAUDE_PROJECT_DIR/hooks/hook-syntax-check-python.sh\"",
             "timeout": 30
           },
           {
             "type": "command",
-            "command": "bash hooks/hook-post-tool-test.sh",
+            "command": "bash \"$CLAUDE_PROJECT_DIR/hooks/hook-post-tool-test.sh\"",
             "timeout": 60
           },
           {
             "type": "command",
-            "command": "bash hooks/hook-ruff-check.sh",
+            "command": "bash \"$CLAUDE_PROJECT_DIR/hooks/hook-ruff-check.sh\"",
             "timeout": 15
           },
           {
             "type": "command",
-            "command": "python3 hooks/hook-skill-lint.py",
+            "command": "python3 \"$CLAUDE_PROJECT_DIR/hooks/hook-skill-lint.py\"",
             "timeout": 10
           }
         ]
@@ -129,7 +129,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "python3 hooks/hook-error-tracker.py",
+            "command": "python3 \"$CLAUDE_PROJECT_DIR/hooks/hook-error-tracker.py\"",
             "timeout": 2
           }
         ]
@@ -139,12 +139,12 @@
         "hooks": [
           {
             "type": "command",
-            "command": "python3 hooks/hook-spec-status-check.py",
+            "command": "python3 \"$CLAUDE_PROJECT_DIR/hooks/hook-spec-status-check.py\"",
             "timeout": 5
           },
           {
             "type": "command",
-            "command": "HOOK_EVENT=PostToolUse python3 hooks/hook-read-before-edit.py",
+            "command": "HOOK_EVENT=PostToolUse python3 \"$CLAUDE_PROJECT_DIR/hooks/hook-read-before-edit.py\"",
             "timeout": 2
           }
         ]

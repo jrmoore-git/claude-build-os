@@ -3180,3 +3180,19 @@ ended without running `/wrap-session`. Review and enrich in the next session.
 **Not Finished:** debate.py split 5/N (cmd_verdict next). Audit F6/F7/F8 still open. Lessons at 28/30 — triage before adding more.
 
 **Next Session:** Verify silent-bootstrap path in a fresh `/start`, then resume debate.py split with `cmd_verdict`. Or pick F6 for a fast 30-min telemetry win.
+
+---
+
+## 2026-04-16 — Hook-path Bash deadlock fix
+
+**Decided:**
+- All 14 hook commands in `.claude/settings.json` use `$CLAUDE_PROJECT_DIR/hooks/...` (absolute), not `hooks/...` (relative). The "avoid `cd`" prose rule in CLAUDE.md was insufficient — one mid-session `cd scripts && pytest` in the prior session bricked PreToolUse:Bash for the rest of the session.
+- L38 added documenting the deadlock pattern and the structural fix.
+
+**Implemented:**
+- `.claude/settings.json`: 14 hook entries rewritten to use `$CLAUDE_PROJECT_DIR/hooks/...`. JSON validates.
+- `tasks/lessons.md`: L38 appended.
+
+**Not Finished:** Settings.json change requires a fresh session to take effect. Pre-existing uncommitted code from prior session left in place: `scripts/debate.py` (modified, -192L), `scripts/debate_explore.py` (untracked), `stores/debate-log.jsonl` (audit appends) — that's the cmd_explore extraction (split 6/N) the prior session was working on when Bash deadlocked. Next session verifies the 3 pre-existing test-pollution failures aren't extraction regressions and commits.
+
+**Next Session:** Start fresh, sanity-check that absolute-path hooks load (deliberate `cd /tmp` and confirm Bash still works after), then triage the uncommitted debate.py split 6/N.
