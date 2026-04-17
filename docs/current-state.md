@@ -1,19 +1,27 @@
-# Current State — 2026-04-16 (Frame lens plan on disk)
+# Current State — 2026-04-17 (Frame lens shipped)
 
 ## What Changed This Session
-- Recovered the lost Frame lens design from session `1678d9f8` (transcript intact, work uncommitted).
-- Pulled gbrain artifacts from macmini (`~/openclaw/tasks/gbrain-adoption-*.md`, `hybrid-knowledge-arch-design.md`) to `/tmp/gbrain-validation/` for validation use.
-- Confirmed the bug from artifacts: gbrain proposal framed Candidate E as "markdown INSTEAD OF SQLite"; all 3 challengers + judge converged on "reject git-markdown" with 0 dismissed findings; the right compositional answer (SQLite + gbrain information shape as TEXT column) was never enumerated.
-- Wrote `tasks/frame-lens-plan.md` — adds `frame` as a 4th persona to `/challenge`, runs in parallel with architect/security/pm, critiques the candidate set rather than the candidates. Sonnet 4.6, 7 changes, additive only, single revert rollback.
-- Validation built into plan: gbrain replay (must surface ≥1 of 3 frame defects) + buildos-improvements false-positive (must produce ≤2 MATERIAL findings on a well-framed proposal).
+- Frame lens shipped as 4th `/challenge` persona — critiques the candidate set itself (binary framings, missing compositional candidates, source-driven proposals, problem inflation), not the candidates inside the proposal.
+- Dual-mode expansion under `--enable-tools`: `frame-structural` (claude-sonnet-4-6, no tools — structural reasoning) + `frame-factual` (gpt-5.4, tools on — staleness/already-shipped verification) running in parallel.
+- Cross-family routing (sonnet structural + gpt-5.4 factual) via new config key `frame_factual_model`. Validated as BETTER on 4/5 historical proposals than same-family.
+- n=5 paired validation across historical proposals (autobuild, explore-intake, learning-velocity, streamline-rules, litellm-fallback): ~30 novel MATERIAL findings beyond the original 3-persona panel; one verdict flipped REVISE → REJECT.
+- Orthogonal fixes shipped alongside: `_validate_challenge` scoped to `## Challenges` section (no more false-positive Concessions warnings); `_build_frontmatter` expands nested dicts as YAML keys (no more Python repr); fallback flip moved before persona expansion (`/review`-found bug).
+- Cross-model `/review` PASSED. 1 MATERIAL fixed inline (fallback ordering), 6 advisories tracked.
+- Lessons L43 (tool-bias on frame critique + dual-mode + cross-family) and L44 (n=1 is not data; quality-first methodology) added. Decision D28 recorded.
+- 965 tests pass (was 957). Added `TestFramePersona` (6 tests) + 2 new validator scope tests.
 
 ## Current Blockers
-- None — plan is on disk, ready to implement next session.
+- None blocking next-session work.
 
 ## Next Action
-Execute `tasks/frame-lens-plan.md` step-by-step: changes 1-3 atomically (config + persona + prompt), run gbrain validation, then ship docs/tests/skill if it passes.
+Run paired output-quality audit (n=5, paired comparisons, quality first per L44) across other personas (architect, security, pm) and other multi-model systems (judge round, refine rotation, `/review` lenses, `/polish` rounds, `/explore` directions, `/pressure-test` models). Determine where the verification-vs-reasoning tool-posture axis from L43 generalizes.
 
 ## Recent Commits
-- e0b4f6b Session wrap 2026-04-16: BuildOS improvements bundles 1+2 + Opus 4.7 sanitizer
-- fde8fa3 Apply review fixes to bundle-2: POSIX portability + framing
-- b1a5ca4 tests: tier-install drift detection for /setup (#4)
+- `b9b3a79` — Frame lens plan: record shipped_commit bfdf4ff
+- `bfdf4ff` — Frame lens: 4th /challenge persona with dual-mode cross-family expansion
+- `72e145e` — Session wrap 2026-04-16: Frame lens plan recovered + on disk
+
+## Followup tracked (post-ship, not blocking)
+- Sonnet structural latency outlier (324s on litellm-fallback in cross-family run) — separate investigation.
+- Lessons at 34/30 — triage needed (candidates: L41 hook-symlink now resolved; L43 could promote to .claude/rules/).
+- Application of paired audit to other personas — primary goal of next session.

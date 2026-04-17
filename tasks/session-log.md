@@ -3484,6 +3484,6 @@ monkeypatch form for each of the 4 symbols).
 - Application of paired audit to other personas (architect/pm tools-on vs off) — open research question per L43.
 - `docs/current-state.md` update — post-ship hygiene.
 
-**Next Session:** Optionally investigate Sonnet latency outlier; otherwise frame lens is live and `/challenge` will fire it on every invocation.
+**Next Session:** Apply paired output-quality audit (n=5 per L44 method) across other personas (architect, security, pm) and other multi-model systems (judge, refine rotation, `/review`, `/polish`, `/explore`, `/pressure-test`). Goal: figure out where the L43 verification-vs-reasoning tool-posture axis generalizes. Also triage lessons to ≤30 (currently 34/30).
 
-**Commits:** to follow.
+**Commits:** `bfdf4ff` (frame lens implementation + validation + tests + docs), `b9b3a79` (plan shipped_commit recorded), wrap commit below.

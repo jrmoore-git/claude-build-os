@@ -1,36 +1,47 @@
-# Handoff — 2026-04-16 (Frame lens plan on disk, ready to build)
+# Handoff — 2026-04-17 (Frame lens shipped + n=5 validation method established)
 
 ## Session Focus
-Recovered the Frame lens design that was being worked on in a prior session (1678d9f8) but never committed. Pulled validation artifacts from the Jarvis project on macmini, confirmed the failure mode from real debate output, and wrote the implementation plan.
+Implemented the Frame lens per recovered plan, refined via empirical n=5 paired validation, ran cross-model `/review`, and shipped. Established a methodology (L44) for grounding LLM tuning decisions in quality-first paired comparisons rather than n=1 speculation.
 
 ## Decided
-- Frame lens implemented as a 4th persona slot (not a separate phase). Same parallel-execution machinery as architect/security/pm. Output uses existing `## Challenges` format with `ALTERNATIVE` and `ASSUMPTION` type tags.
-- Model: `claude-sonnet-4-6`. Frame critique is focused reasoning, not wide synthesis. Opus 4.6 is the fallback if Sonnet produces weak critiques during validation.
-- Validation gate: replay gbrain proposal through the new lens. Must surface ≥1 of (Candidate E either/or framing, missing hybrid/compositional storage, Question 1 pre-bakes SQLite). Plus false-positive check on `tasks/buildos-improvements-proposal.md`.
-- No separate `/challenge` cycle on this plan — the case for building came from a real failure (gbrain debate), and the previous session's conversation already debated and approved the 4-part fix.
+- **D28** — Frame lens ships as 4th `/challenge` persona with dual-mode expansion under `--enable-tools` (frame-structural: claude-sonnet-4-6, no tools; frame-factual: gpt-5.4, tools on). Cross-family routing reduces correlation between halves.
+- Refined approach beyond original plan: dual-mode + cross-family added based on n=5 paired validation evidence.
+- Validator scope fix shipped alongside (orthogonal): `_validate_challenge` scoped to `## Challenges` section.
+- Frontmatter dict serialization fix shipped alongside (orthogonal): `_build_frontmatter` expands nested dicts as YAML keys.
 
 ## Implemented
-- `tasks/frame-lens-plan.md` — full implementation plan with valid frontmatter (scope, surfaces_affected, verification_commands, rollback, review_tier, verification_evidence, allowed_paths). Lists 7 file changes + validation procedure + rollback path.
-- Pulled from macmini to `/tmp/gbrain-validation/`: `gbrain-adoption-proposal.md`, `gbrain-adoption-judgment.md`, `gbrain-adoption-refined.md`, `hybrid-knowledge-arch-design.md`. These are the validation inputs.
+- `scripts/debate.py`: frame + frame-factual prompts; persona expansion; per-challenger `use_tools`; output header with persona names; validator scope fix; fallback flip moved before persona expansion (review-found bug).
+- `scripts/debate_common.py`: `frame_factual_model` config schema + nested-dict frontmatter serialization.
+- `config/debate-models.json`: frame + frame_factual_model keys.
+- `.claude/skills/challenge/SKILL.md`: frame in default persona list (Step 1, Step 6, Step 7).
+- `.claude/rules/review-protocol.md`: Frame lens paragraph in Stage 1.
+- `tasks/lessons.md`: L43, L44.
+- `tasks/decisions.md`: D28.
+- `tasks/frame-lens-plan.md`: implementation_status: shipped, shipped_commit: bfdf4ff, refinement section.
+- `tasks/frame-lens-validation.md`: full n=5 paired evidence (3 rounds).
+- `tasks/frame-lens-review.md`: cross-model review artifact (PASSED).
+- `tests/test_debate_pure.py`: validator scope tests + `TestFramePersona` class (6 tests).
+- 965 tests pass (was 957).
 
 ## NOT Finished
-- No code changes yet. The plan is the deliverable for this session.
-- Frame lens implementation (changes 1-7 from the plan) — execute next session.
-- Validation runs (gbrain replay + buildos-improvements false-positive) — execute after changes 1-3 land.
-- `/review` on the implementation diff — required before commit (skill + rule are protected paths).
+- Sonnet structural latency outlier (324s on litellm-fallback in cross-family run) — separate investigation; NOT blocking ship.
+- Application of paired audit to other personas — primary goal of next session.
+- Lessons triage (34/30 over target — see Doc Hygiene Warnings).
+- `docs/current-state.md` was updated this wrap; otherwise post-ship doc hygiene was not needed.
 
 ## Next Session Should
-1. Read `tasks/frame-lens-plan.md` first.
-2. Execute changes 1-3 atomically (`debate_common.py` + `debate.py` + `config/debate-models.json`). The persona only works if all three land together.
-3. Run gbrain validation: `python3.11 scripts/debate.py challenge --proposal /tmp/gbrain-validation/gbrain-adoption-proposal.md --personas frame --enable-tools --output /tmp/frame-lens-gbrain-replay.md`
-4. If validation passes: ship Step 6 skill update + lesson L41 + rule + tests, run `/review`, commit.
-5. If validation fails: iterate on the prompt in `FRAME_PERSONA_PROMPT` (debate.py), re-run, then proceed.
+1. Apply the n=5 paired-output-quality audit method (per L44) across all other personas: architect (Opus 4.7), security (GPT-5.4), pm (Gemini 3.1 Pro). For each: tools-on vs tools-off on the same 5 historical proposals. Determine where the verification-vs-reasoning tool-posture axis from L43 generalizes.
+2. Same audit on other multi-model dispatch systems: judge round (verdict), refine rotation (3-round refinement), `/review` lenses (PM/Security/Architecture), `/polish` rounds (6-round cross-model refinement), `/explore` directions (3+ divergent), `/pressure-test` models (counter-thesis, premortem). For each: which model family fits which task, which need tools, where cross-family vs same-family matters.
+3. Triage `tasks/lessons.md` to ≤30 active entries — candidates: L41 (hook-symlink — now resolved, archive); L43 (frame-lens dual-mode — promote to `.claude/rules/` after the broader audit).
+4. Optionally: investigate the Sonnet structural latency outlier (324s on litellm-fallback). Probably a one-off, but track if pattern.
 
 ## Key Files Changed
-- `tasks/frame-lens-plan.md` (new)
-- `docs/current-state.md` (overwritten)
-- `tasks/handoff.md` (this file)
-- `tasks/session-log.md` (appended)
+- scripts/debate.py, scripts/debate_common.py, config/debate-models.json
+- .claude/skills/challenge/SKILL.md, .claude/rules/review-protocol.md
+- tasks/lessons.md, tasks/decisions.md, tasks/session-log.md, tasks/frame-lens-plan.md
+- tasks/frame-lens-validation.md, tasks/frame-lens-review.md, tasks/frame-lens-review-debate.md (new)
+- tests/test_debate_pure.py
+- stores/debate-log.jsonl
 
 ## Doc Hygiene Warnings
-None. The "source-driven proposals inherit the source's frame" lesson is queued as L41 inside the plan and ships when the Frame lens ships (per the plan's Change 6).
+- ⚠ Lessons at 34/30 active — triage needed before adding more. Promotion candidates: L41 (resolved), L43 (could promote to rules/ after broader audit lands).
