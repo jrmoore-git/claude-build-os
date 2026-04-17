@@ -17,7 +17,7 @@
 - Every commit must update relevant tracking docs.
 - Before trusting a new hook or gate, verify it can actually fail.
 
-**Essential eight invariants (6 of 8 apply to BuildOS):** idempotency · ~~approval gating~~ · audit completeness · degraded mode visible · ~~state machine validation~~ · rollback path exists · version pinning enforced · ~~exactly-once scheduling~~. Struck-through invariants require a downstream outbox (not present in BuildOS).
+**Five invariants apply to BuildOS:** idempotency · audit completeness · degraded mode visible · rollback path exists · version pinning enforced. (Approval gating, state-machine validation, and exactly-once scheduling apply to downstream projects with an outbox — not to BuildOS itself. Downstream CLAUDE.md files should add them when relevant.)
 
 ## Operating rules
 
