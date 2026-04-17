@@ -16,13 +16,15 @@ Agent Teams + subagents is the default orchestration model (D103). Do not use a 
 
 ## Decomposition Gate (Hook-Enforced, Advisory)
 
-`hooks/hook-decompose-gate.py` nudges toward worktree fan-out when a session starts editing multiple distinct files. The gate is **advisory, not blocking** — it returns `permissionDecision: "allow"` with `additionalContext` carrying a prompt hint, not a user-visible deny. The agent reads the nudge and decides.
+`hooks/hook-decompose-gate.py` nudges toward worktree fan-out when a plan declares independent components. The gate is **advisory, not blocking** — it returns `permissionDecision: "allow"` with `additionalContext` carrying a prompt hint, not a user-visible deny. The agent reads the nudge and decides.
 
-**Trigger:** fires once per session on the 2nd distinct-file Write|Edit in the main session (worktree agents are never nudged). A second firing occurs only if a `plan_submitted: true` flag exists but the main session keeps writing — that contradicts the declared intent and is worth surfacing once.
+**Trigger:** a `tasks/*-plan.md` modified within the last 24h declares a `components:` list with ≥2 entries, and the current Write|Edit is in the main session (worktree agents are never nudged). Fires once per session. A secondary trigger still fires when a legacy `plan_submitted: true` flag exists but the main session keeps writing.
 
 **Threshold:** ≥2 independent components. Historical data showed the "exactly 2 truly independent" case is rare but real; with advisory posture, the cost of a false positive is a single prompt-hint the agent reads and ignores. The cost of a false negative — sequentializing genuinely parallel work — is a long session that should have been two short ones.
 
-**What the nudge says:** "Decomposition nudge: this session has now edited a second distinct file. If the work breaks into 2+ independent components, consider dispatching worktree agents. If components share state, proceed and note the reason in the current plan artifact."
+**What the nudge says:** "Decomposition nudge: plan at `tasks/<topic>-plan.md` declares N components (A, B, C, +X more). If they're independent, consider dispatching worktree agents. If they share state, proceed — the plan's Execution Strategy section should explain why sequential."
+
+**Emitting the field:** `/plan` emits `components:` in frontmatter when Step 3b identifies ≥2 independent deliverables. Name each by what ships, not by file. Omit the field for 1-component plans. Block list form (`components:\n  - a\n  - b`) and inline form (`components: [a, b]`) both work.
 
 **Maximize fan-out, not minimize it.** The default failure mode is under-parallelization (grouping by "theme" into one large agent instead of 2-3 focused ones). Ask: "how many independent components exist?" Trivial multi-file edits (rename, import change) that share no logical coupling can stay in one agent; edits requiring different reasoning should split.
 
