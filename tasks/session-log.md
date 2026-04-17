@@ -3196,3 +3196,28 @@ ended without running `/wrap-session`. Review and enrich in the next session.
 **Not Finished:** Settings.json change requires a fresh session to take effect. Pre-existing uncommitted code from prior session left in place: `scripts/debate.py` (modified, -192L), `scripts/debate_explore.py` (untracked), `stores/debate-log.jsonl` (audit appends) — that's the cmd_explore extraction (split 6/N) the prior session was working on when Bash deadlocked. Next session verifies the 3 pre-existing test-pollution failures aren't extraction regressions and commits.
 
 **Next Session:** Start fresh, sanity-check that absolute-path hooks load (deliberate `cd /tmp` and confirm Bash still works after), then triage the uncommitted debate.py split 6/N.
+
+---
+
+## 2026-04-16 — debate.py split 6/N + course-correction to package style
+
+**Decided:**
+- D25: debate.py refactor moves to package style (shared `scripts/debate_common.py`), not sibling-leaf with lazy `import debate`. Original F1 audit was right; in-flight execution had drifted. Migration is incremental.
+- L39: Monolith extractions surface latent module-identity splits when test files manipulate `sys.modules`. Refines L36 with the boundary condition. Prior session's "pre-existing test pollution" diagnosis was wrong — extraction caused the failure.
+
+**Implemented:**
+- c993edf — test fix: removed `del sys.modules` in 3 of 4 debate test files (missed test_debate_commands.py:22-23, caught later by /challenge).
+- 6bbde96 — debate.py split 6/N: extracted cmd_explore. Added L39.
+- /challenge ran cross-model on the package-style proposal (3 challengers + claude-sonnet-4-6 judge). 19 raw → 11 unique findings, 5 accepted material (all spec-level), 0 blockers. Recommendation: PROCEED-WITH-FIXES.
+- 74843c9 — Plan + 4 challenge artifacts on disk.
+- e2dd116 — Implement debate_common.py (simplest version: 4 helpers + 2 constants). debate.py 4090 → 3991 lines.
+- 0467c78 — QA artifact: go-with-warnings (5 documented plan-compliance deviations, all justified). 932/932 tests pass.
+- `.env` restored at framework root from `~/buildos/products/debates/.env` (lost in monorepo restructure).
+
+**Recalibration moment:** When asked "has it been worthwhile so far," I gave a candid mixed assessment. User then asked "you were the one who said we needed to do it?" That direct accountability prompt drove a real recalibration of the original F1 audit recommendation ("half a day, zero risk" was off 3-5x and empirically wrong). Without the user pressure, I would have continued the sibling-leaf pattern.
+
+**Not Finished:** Cost tracking atomic migration (F4) is the next single-purpose commit. Other helper migrations (prompt loader, _load_config, _log_debate_event, frontmatter) follow incrementally. Remaining 6 cmd_* extractions (~20 min each once _common is complete). Lessons at 30/30 — triage needed.
+
+**Next Session:** Read tasks/debate-common-plan.md "Out of scope" section. Pick cost tracking. Enumerate call sites with `grep -rn 'debate\.(_estimate_cost|_track_cost|get_session_costs|_cost_delta_since|_track_tool_loop_cost)' scripts/ tests/`. Move 7 symbols + dict + lock + rate tables atomically in one commit. Update `_call_litellm` to call `debate_common._track_cost`.
+
+**Commits:** c993edf, 6bbde96, 74843c9, e2dd116, 0467c78. Five total.
