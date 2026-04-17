@@ -19,6 +19,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "scripts"))
 
 from llm_client import (
     LLMError,
+    MODEL_DEPRECATED_PARAMS,
     _categorize_error,
     _get_base_url,
     _is_connection_refused,
@@ -26,6 +27,7 @@ from llm_client import (
     _load_anthropic_key,
     _load_api_key,
     _reset_fallback_state,
+    _sanitize_llm_kwargs,
     is_fallback_active,
 )
 
@@ -211,6 +213,92 @@ def test_fallback_state_default():
     assert is_fallback_active() is False
 
 
+# ---------------------------------------------------------------------------
+# Sanitizer contract tests — foundational fix for Opus 4.7 temperature deprecation
+# ---------------------------------------------------------------------------
+
+def test_sanitize_opus_47_drops_temperature():
+    """Opus 4.7 drops temperature param."""
+    clean = _sanitize_llm_kwargs("claude-opus-4-7", {"temperature": 0.5, "max_tokens": 100})
+    assert "temperature" not in clean
+    assert clean.get("max_tokens") == 100
+
+
+def test_sanitize_opus_47_with_provider_prefix():
+    """`anthropic/claude-opus-4-7` (provider-prefixed) also drops temperature."""
+    clean = _sanitize_llm_kwargs("anthropic/claude-opus-4-7", {"temperature": 0.7})
+    assert "temperature" not in clean
+
+
+def test_sanitize_opus_47_with_version_suffix():
+    """`claude-opus-4-7-1m` and `claude-opus-4-7-latest` variants also drop temperature."""
+    for variant in ("claude-opus-4-7-1m", "claude-opus-4-7-latest"):
+        clean = _sanitize_llm_kwargs(variant, {"temperature": 0.3})
+        assert "temperature" not in clean, f"variant {variant} should drop temperature"
+
+
+def test_sanitize_opus_46_keeps_temperature():
+    """Opus 4.6 keeps temperature — only 4.7 deprecated it."""
+    clean = _sanitize_llm_kwargs("claude-opus-4-6", {"temperature": 0.5})
+    assert clean.get("temperature") == 0.5
+
+
+def test_sanitize_non_opus_models_unchanged():
+    """Non-Opus models pass all params through unchanged."""
+    for model in ("gpt-5.4", "gemini-3.1-pro", "claude-sonnet-4-6", "claude-haiku-4-5"):
+        input_kwargs = {"temperature": 0.7, "max_tokens": 1000, "model": model}
+        clean = _sanitize_llm_kwargs(model, input_kwargs)
+        assert clean == input_kwargs, f"{model} should pass all params unchanged"
+
+
+def test_sanitize_does_not_mutate_input():
+    """Sanitizer returns a new dict; original is untouched."""
+    original = {"temperature": 0.5, "max_tokens": 100}
+    before = dict(original)
+    _sanitize_llm_kwargs("claude-opus-4-7", original)
+    assert original == before, "input dict was mutated"
+
+
+def test_sanitize_empty_input():
+    """Empty kwargs returns empty dict (no crash)."""
+    assert _sanitize_llm_kwargs("claude-opus-4-7", {}) == {}
+    assert _sanitize_llm_kwargs("gpt-5.4", {}) == {}
+
+
+def test_sanitize_missing_deprecated_param_is_noop():
+    """If kwargs doesn't contain the deprecated param, no-op."""
+    clean = _sanitize_llm_kwargs("claude-opus-4-7", {"max_tokens": 100})
+    assert clean == {"max_tokens": 100}
+
+
+def test_sanitize_table_entries_are_frozensets():
+    """MODEL_DEPRECATED_PARAMS values must be frozensets — mutation would be a bug."""
+    for model, params in MODEL_DEPRECATED_PARAMS.items():
+        assert isinstance(params, frozenset), (
+            f"MODEL_DEPRECATED_PARAMS[{model!r}] is {type(params).__name__}, expected frozenset"
+        )
+
+
+def test_all_llm_paths_route_through_sanitizer():
+    """Contract: every chat.completions.create and Messages API call site in
+    llm_client.py must route its kwargs through _sanitize_llm_kwargs before
+    dispatching. Prevents the recurrence of 'one code path missed the fix'.
+    """
+    import re
+    src = (Path(__file__).resolve().parent.parent / "scripts" / "llm_client.py").read_text()
+    # Find function definitions that do API dispatch (grep for chat.completions.create
+    # or urllib.request.urlopen that follow temperature assignment).
+    dispatch_fns = ["_legacy_call", "_anthropic_call", "_sdk_call", "_sdk_tool_call"]
+    for fn in dispatch_fns:
+        # Extract function body
+        match = re.search(rf"def {fn}\([^)]*\):[\s\S]+?(?=\n(?:def |# ---|$))", src)
+        assert match, f"could not locate function {fn}"
+        body = match.group(0)
+        assert "_sanitize_llm_kwargs" in body, (
+            f"{fn} does not call _sanitize_llm_kwargs — param deprecations will not be filtered"
+        )
+
+
 TESTS = [
     test_llm_error_has_category,
     test_categorize_error_timeout,
@@ -232,6 +320,16 @@ TESTS = [
     test_connection_refused_not_retryable,
     test_load_anthropic_key_from_env,
     test_fallback_state_default,
+    test_sanitize_opus_47_drops_temperature,
+    test_sanitize_opus_47_with_provider_prefix,
+    test_sanitize_opus_47_with_version_suffix,
+    test_sanitize_opus_46_keeps_temperature,
+    test_sanitize_non_opus_models_unchanged,
+    test_sanitize_does_not_mutate_input,
+    test_sanitize_empty_input,
+    test_sanitize_missing_deprecated_param_is_noop,
+    test_sanitize_table_entries_are_frozensets,
+    test_all_llm_paths_route_through_sanitizer,
 ]
 
 

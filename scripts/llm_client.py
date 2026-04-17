@@ -29,6 +29,60 @@ from pathlib import Path
 
 
 # ---------------------------------------------------------------------------
+# Model capability table — single source of truth for param deprecations
+# ---------------------------------------------------------------------------
+#
+# Every LLM call site in this module MUST route its kwargs through
+# _sanitize_llm_kwargs() before dispatching to the provider. This is the
+# foundational fix for the Opus 4.7 "temperature is deprecated" failure
+# (2026-04-16) — prior ad-hoc checks in _sdk_call and _legacy_call left two
+# other paths (_anthropic_call, _sdk_tool_call) still sending the param.
+#
+# When a provider deprecates a param on a model, add an entry here rather
+# than scattering conditionals through call sites. Match is substring-based
+# so provider prefixes (`anthropic/claude-opus-4-7`) and version suffixes
+# (`claude-opus-4-7-1m`, `-latest`) are covered by a single entry.
+
+MODEL_DEPRECATED_PARAMS: dict[str, frozenset[str]] = {
+    # Opus 4.7 rejects explicit temperature with HTTP 400. Proxy drop_params
+    # does not strip it for this model (litellm image 59a2736ac848, 2026-04-08).
+    "claude-opus-4-7": frozenset({"temperature"}),
+}
+
+# One-time warning dedup so sanitization logs once per (model, param) per process.
+_SANITIZE_WARNED: set[tuple[str, str]] = set()
+
+
+def _sanitize_llm_kwargs(model: str, kwargs: dict) -> dict:
+    """Return a copy of kwargs with deprecated params stripped for this model.
+
+    Substring-match against MODEL_DEPRECATED_PARAMS keys so variants like
+    'anthropic/claude-opus-4-7' and 'claude-opus-4-7-1m' are covered by one
+    table entry. Emits a single stderr warning per (model, dropped param)
+    per process for visibility; subsequent drops are silent.
+
+    Input kwargs is not mutated. Returns a new dict.
+    """
+    deprecated: set[str] = set()
+    for model_pat, bad_params in MODEL_DEPRECATED_PARAMS.items():
+        if model_pat in model:
+            deprecated |= bad_params
+    if not deprecated:
+        return dict(kwargs)
+    clean = {k: v for k, v in kwargs.items() if k not in deprecated}
+    for param in sorted(set(kwargs.keys()) & deprecated):
+        key = (model, param)
+        if key not in _SANITIZE_WARNED:
+            _SANITIZE_WARNED.add(key)
+            print(
+                f"[llm_client] model={model!r} drops deprecated param "
+                f"{param!r} (MODEL_DEPRECATED_PARAMS)",
+                file=sys.stderr,
+            )
+    return clean
+
+
+# ---------------------------------------------------------------------------
 # Structured error
 # ---------------------------------------------------------------------------
 
@@ -321,12 +375,11 @@ def _legacy_call(system, user, *, model, temperature, max_tokens, timeout,
             {"role": "system", "content": system},
             {"role": "user", "content": user},
         ],
+        "temperature": temperature,
     }
-    # See _sdk_call: Opus 4.7 rejects explicit temperature.
-    if not model.startswith("claude-opus-4-7"):
-        payload["temperature"] = temperature
     if max_tokens is not None:
         payload["max_tokens"] = max_tokens
+    payload = _sanitize_llm_kwargs(model, payload)
 
     req = urllib.request.Request(
         url,
@@ -356,13 +409,13 @@ def _anthropic_call(system, user, *, model, temperature, max_tokens, timeout,
     Used when LiteLLM proxy is unavailable and ANTHROPIC_API_KEY is set.
     Mirrors _legacy_call pattern but targets Anthropic's Messages API format.
     """
-    payload = {
+    payload = _sanitize_llm_kwargs(model, {
         "model": model,
         "system": system,
         "messages": [{"role": "user", "content": user}],
         "temperature": temperature,
         "max_tokens": max_tokens if max_tokens is not None else 4096,
-    }
+    })
 
     req = urllib.request.Request(
         _ANTHROPIC_API_URL,
@@ -448,14 +501,11 @@ def _sdk_call(system, user, *, model, temperature, max_tokens, timeout,
             {"role": "user", "content": user},
         ],
         "timeout": timeout,
+        "temperature": temperature,
     }
-    # Opus 4.7 rejects any explicit temperature with HTTP 400 ("temperature is
-    # deprecated for this model"). drop_params on the proxy doesn't catch it
-    # for this model yet, so omit the param here.
-    if not model.startswith("claude-opus-4-7"):
-        kwargs["temperature"] = temperature
     if max_tokens is not None:
         kwargs["max_tokens"] = max_tokens
+    kwargs = _sanitize_llm_kwargs(model, kwargs)
 
     response = client.chat.completions.create(**kwargs)
 
@@ -815,6 +865,7 @@ def _sdk_tool_call(client, messages, tools, model, temperature, max_tokens, time
     if tools:
         kwargs["tools"] = tools
         kwargs["tool_choice"] = tool_choice if tool_choice is not None else "auto"
+    kwargs = _sanitize_llm_kwargs(model, kwargs)
     response = client.chat.completions.create(**kwargs)
     choice = response.choices[0]
     msg_dict = {"content": choice.message.content, "role": "assistant"}
