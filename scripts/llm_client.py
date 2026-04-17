@@ -321,8 +321,10 @@ def _legacy_call(system, user, *, model, temperature, max_tokens, timeout,
             {"role": "system", "content": system},
             {"role": "user", "content": user},
         ],
-        "temperature": temperature,
     }
+    # See _sdk_call: Opus 4.7 rejects explicit temperature.
+    if not model.startswith("claude-opus-4-7"):
+        payload["temperature"] = temperature
     if max_tokens is not None:
         payload["max_tokens"] = max_tokens
 
@@ -445,9 +447,13 @@ def _sdk_call(system, user, *, model, temperature, max_tokens, timeout,
             {"role": "system", "content": system},
             {"role": "user", "content": user},
         ],
-        "temperature": temperature,
         "timeout": timeout,
     }
+    # Opus 4.7 rejects any explicit temperature with HTTP 400 ("temperature is
+    # deprecated for this model"). drop_params on the proxy doesn't catch it
+    # for this model yet, so omit the param here.
+    if not model.startswith("claude-opus-4-7"):
+        kwargs["temperature"] = temperature
     if max_tokens is not None:
         kwargs["max_tokens"] = max_tokens
 
