@@ -3448,3 +3448,42 @@ monkeypatch form for each of the 4 symbols).
 **Next Session:** Read frame-lens-plan.md → atomic changes 1-3 → run gbrain validation → ship if pass.
 
 **Commits:** wrap commit below.
+
+---
+
+## 2026-04-17 — Frame lens shipped: dual-mode cross-family + paired n=5 validation
+
+**Focus:** Implement the Frame lens per recovered plan, refine via empirical validation, ship with cross-model review.
+
+**Decided:**
+- **D28** — Frame lens ships as 4th `/challenge` persona with dual-mode expansion under `--enable-tools` (frame-structural: claude-sonnet-4-6, no tools; frame-factual: gpt-5.4, tools on). Cross-family routing reduces correlation between halves; routes via new config key `frame_factual_model`.
+- Refined approach beyond original plan: dual-mode + cross-family added based on n=5 paired validation evidence, not n=1 speculation. L44 captures the methodology lesson.
+- Validator scope fix shipped alongside (orthogonal): `_validate_challenge` now scopes type-tag check to `## Challenges` section only.
+- Frontmatter dict serialization fix shipped alongside (orthogonal): `_build_frontmatter` expands nested dicts as YAML keys, not Python repr.
+
+**Implemented:**
+- `scripts/debate.py`: frame + frame-factual prompt blocks; persona expansion logic; per-challenger `use_tools` override; output header with persona names; validator scope fix; fallback flip moved before persona expansion (review-found bug).
+- `scripts/debate_common.py`: `frame_factual_model` config schema + default; nested-dict frontmatter serialization.
+- `config/debate-models.json`: `"frame": "claude-sonnet-4-6"` + `"frame_factual_model": "gpt-5.4"`; version bump.
+- `.claude/skills/challenge/SKILL.md`: Step 6 + Step 7 + Step 1 example updated to include `frame` in default persona list.
+- `.claude/rules/review-protocol.md`: Stage 1 paragraph documenting Frame lens behavior and rationale.
+- `tasks/lessons.md`: L43 (tool-bias on frame critique) + L44 (n=1 is not data; quality first, speed/cost second).
+- `tasks/frame-lens-plan.md`: implementation_status: shipped, refinement section added.
+- `tasks/frame-lens-validation.md`: full n=5 paired evidence (3 rounds: tools-on/off, dual-frame vs 3-persona, cross-family vs same-family).
+- `tasks/frame-lens-review.md`: cross-model review artifact (PASSED).
+- `tests/test_debate_pure.py`: validator scope tests (2) + `TestFramePersona` class (6 tests). 965 tests pass.
+
+**Validation evidence:**
+- Round 1 (n=4 tools-on vs tools-off): tools-off catches structural reasoning gaps tools-on misses; tools-on catches factual contradictions tools-off can't. Both mode-exclusive on every proposal → adopt dual-mode.
+- Round 2 (n=5 dual-frame vs historical 3-persona): ~30 novel MATERIAL findings beyond historical panel, zero regressions, one verdict flipped REVISE → REJECT (litellm-fallback already shipped).
+- Round 3 (n=5 cross-family vs same-family): cross-family BETTER on 4/5, TIED on 1/5, zero regressions.
+- `/review` cross-model on diff: PASSED. 1 MATERIAL fixed (fallback-flip ordering bug), 6 advisories tracked.
+
+**Not Finished:**
+- Sonnet structural latency outlier (324s on litellm-fallback in cross-family run) — separate investigation.
+- Application of paired audit to other personas (architect/pm tools-on vs off) — open research question per L43.
+- `docs/current-state.md` update — post-ship hygiene.
+
+**Next Session:** Optionally investigate Sonnet latency outlier; otherwise frame lens is live and `/challenge` will fire it on every invocation.
+
+**Commits:** to follow.

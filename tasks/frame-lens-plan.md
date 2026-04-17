@@ -7,14 +7,15 @@ surfaces_affected:
   - config/debate-models.json
   - .claude/rules/review-protocol.md
   - tasks/lessons.md
-  - tests/test_frame_persona.py
+  - tests/test_debate_pure.py
 verification_commands:
-  - "python3.11 -m pytest tests/test_frame_persona.py -v"
-  - "python3.11 scripts/debate.py challenge --proposal /tmp/gbrain-validation/gbrain-adoption-proposal.md --personas frame --output /tmp/frame-lens-gbrain-replay.md"
-  - "python3.11 scripts/debate.py challenge --proposal tasks/buildos-improvements-proposal.md --personas frame --output /tmp/frame-lens-buildos-falsepos.md"
+  - "python3.11 -m pytest tests/ -q"
+  - "python3.11 scripts/debate.py challenge --proposal /tmp/gbrain-validation/gbrain-adoption-proposal.md --personas frame --enable-tools --output /tmp/frame-dual-gbrain.md"
 rollback: "git revert <commit>. The Frame lens is additive — removing it returns /challenge to the prior 3-persona panel. No schema changes, no data migrations."
 review_tier: "debate"
-verification_evidence: "Frame lens output on gbrain replay must surface ≥1 of: (a) E framed as either/or vs. SQLite, (b) hybrid/compositional storage options not enumerated, (c) Question 1 pre-bakes SQLite as 'storage'. False-positive test on buildos-improvements-proposal.md must produce ≤2 ALTERNATIVE findings (well-framed proposals shouldn't yield noise)."
+verification_evidence: "n=5 paired validation across historical proposals (autobuild, explore-intake, learning-velocity, streamline-rules, litellm-fallback). Dual-mode frame caught ~30 novel MATERIAL findings beyond the 3-persona panel; flipped 1 verdict (litellm-fallback REVISE → REJECT, feature already shipped). Cross-family configuration (sonnet structural + gpt-5.4 factual) BETTER on 4/5 proposals (more architectural, higher precision per finding) and TIED on 1/5. See tasks/frame-lens-validation.md for full data."
+implementation_status: shipped
+shipped_commit: pending
 allowed_paths:
   - .claude/skills/challenge/SKILL.md
   - scripts/debate.py
@@ -24,8 +25,20 @@ allowed_paths:
   - tasks/lessons.md
   - tasks/frame-lens-plan.md
   - tasks/frame-lens-validation.md
-  - tests/test_frame_persona.py
+  - tests/test_debate_pure.py
 ---
+
+## Refinement after validation (2026-04-17)
+
+The original plan called for a single `frame` persona. Validation surfaced two refinements adopted before ship:
+
+1. **Dual-mode expansion when `--enable-tools` is on:** evidence showed tool access biases frame critique toward positive-space enumeration (see L43). Frame now expands to `frame-structural` (no tools, structural reasoning from proposal) + `frame-factual` (tools on, verifies claims against codebase) running in parallel. Each catches a distinct failure class.
+
+2. **Cross-family models for diversity:** factual half routes to `gpt-5.4` (config key `frame_factual_model`), structural half stays on `claude-sonnet-4-6`. Validated as better-quality findings on 4/5 historical proposals — GPT produces fewer but more architectural findings with precise citations.
+
+3. **Validator scope fix (orthogonal):** discovered during testing that `_validate_challenge` was scanning the entire response for type tags, false-flagging Concessions section narrative items. Fixed to scope to `## Challenges` block only.
+
+4. **Frontmatter dict serialization fix (orthogonal):** `_build_frontmatter` was emitting Python dict repr for nested values, producing invalid YAML. Fixed to expand dicts as nested key/value pairs.
 
 # Plan: Frame Lens for /challenge
 

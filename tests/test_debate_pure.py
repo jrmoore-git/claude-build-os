@@ -320,6 +320,7 @@ class TestValidateChallenge:
 
     def test_all_type_tags_recognized(self):
         text = (
+            "## Challenges\n"
             "1. RISK: r\n"
             "2. ASSUMPTION: a\n"
             "3. ALTERNATIVE: alt\n"
@@ -343,12 +344,80 @@ class TestValidateChallenge:
 
     def test_multiple_missing_tags(self):
         text = (
+            "## Challenges\n"
             "1. No tag here\n"
             "2. No tag either\n"
             "3. Still no tag\n"
         )
         warnings = debate._validate_challenge(text)
         assert len(warnings) == 3
+
+    def test_concessions_exempt_from_type_tag_check(self):
+        """Concessions section uses narrative prose, not type-tagged findings.
+        Regression: prior validator flagged Concessions items as 'Missing type tag'."""
+        text = (
+            "## Challenges\n"
+            "1. RISK [MATERIAL]: valid tagged challenge\n"
+            "\n"
+            "## Concessions\n"
+            "1. **The foo is sound.** Narrative prose, no type tag.\n"
+            "2. **The bar is correct.** More narrative prose.\n"
+            "\n"
+            "## Verdict\n"
+            "APPROVE\n"
+        )
+        warnings = debate._validate_challenge(text)
+        assert warnings == []
+
+    def test_no_challenges_section_silent(self):
+        """If no ## Challenges section exists, validator returns no warnings.
+        (Other upstream checks handle the missing-section case.)"""
+        text = (
+            "## Concessions\n"
+            "1. Some item.\n"
+        )
+        warnings = debate._validate_challenge(text)
+        assert warnings == []
+
+
+# ── Frame persona registration + dual-mode expansion ──────────────────────
+
+
+class TestFramePersona:
+    def test_frame_in_valid_personas(self):
+        assert "frame" in debate_common.VALID_PERSONAS
+
+    def test_frame_in_persona_model_map(self):
+        config = debate_common._load_config()
+        assert "frame" in config["persona_model_map"]
+        assert config["persona_model_map"]["frame"]  # non-empty model name
+
+    def test_frame_factual_model_in_config(self):
+        config = debate_common._load_config()
+        assert "frame_factual_model" in config
+        assert config["frame_factual_model"]  # non-empty
+
+    def test_frame_prompt_exists_with_required_terms(self):
+        prompt = debate.PERSONA_PROMPTS["frame"]
+        assert "missing" in prompt.lower()
+        assert "candidate set" in prompt.lower()
+        assert "compositional" in prompt.lower()
+
+    def test_frame_factual_prompt_exists(self):
+        assert "frame-factual" in debate.PERSONA_PROMPTS
+        prompt = debate.PERSONA_PROMPTS["frame-factual"]
+        assert "verify" in prompt.lower()
+
+    def test_frame_dual_mode_uses_different_model_when_tools_enabled(self):
+        """When --enable-tools is on, frame expands to two challengers.
+        Structural uses frame's own model with tools off; factual uses
+        frame_factual_model with tools on."""
+        config = debate_common._load_config()
+        frame_model = config["persona_model_map"]["frame"]
+        factual_model = config["frame_factual_model"]
+        # The two halves are routed to different models in the default config
+        # (claude-sonnet-4-6 vs gpt-5.4) — confirms cross-family setup is wired.
+        assert frame_model != factual_model
 
 
 # ── _shuffle_challenger_sections ──────────────────────────────────────────

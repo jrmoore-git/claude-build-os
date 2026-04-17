@@ -254,12 +254,13 @@ _DEFAULT_PERSONA_MODEL_MAP = {
     "staff": "gemini-3.1-pro",
     "security": "gpt-5.4",  # restored — read_file_snippet tool + P2 verifier compensate for low tool adoption
     "pm": "gemini-3.1-pro",
+    "frame": "claude-sonnet-4-6",  # frame critique is focused reasoning, not wide synthesis
 }
 
 _DEFAULT_JUDGE = "gpt-5.4"
 _DEFAULT_REFINE_ROTATION = ["gemini-3.1-pro", "gpt-5.4", "claude-opus-4-7"]
 
-VALID_PERSONAS = {"architect", "staff", "security", "pm"}
+VALID_PERSONAS = {"architect", "staff", "security", "pm", "frame"}
 
 
 def _load_config(config_path=None):
@@ -281,6 +282,9 @@ def _load_config(config_path=None):
         "refine_rotation": list(_DEFAULT_REFINE_ROTATION),
         "single_review_default": "gpt-5.4",
         "verifier_default": "claude-sonnet-4-6",
+        # Frame-factual runs on a different family than frame-structural (which
+        # uses the frame persona model) to reduce correlation in dual-mode.
+        "frame_factual_model": "gpt-5.4",
         "version": "unknown",
     }
 
@@ -313,6 +317,7 @@ def _load_config(config_path=None):
         "single_review_default": config.get("single_review_default",
                                             defaults["single_review_default"]),
         "verifier_default": config.get("verifier_default", defaults["verifier_default"]),
+        "frame_factual_model": config.get("frame_factual_model", defaults["frame_factual_model"]),
         "version": config.get("version", defaults["version"]),
     }
 
@@ -447,7 +452,12 @@ def _build_frontmatter(debate_id, mapping, extras=None):
         lines.append(f"  {label}: {model}")
     if extras:
         for key, value in extras.items():
-            lines.append(f"{key}: {value}")
+            if isinstance(value, dict):
+                lines.append(f"{key}:")
+                for k, v in value.items():
+                    lines.append(f"  {k}: {v}")
+            else:
+                lines.append(f"{key}: {value}")
     lines.append("---")
     return "\n".join(lines)
 

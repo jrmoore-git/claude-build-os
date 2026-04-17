@@ -17,7 +17,7 @@ Question the premise, scope, and complexity of proposed work before committing t
 # Step 1: Challenge (same as standard /challenge Step 7)
 python3.11 scripts/debate.py --security-posture $POSTURE challenge \
   --proposal tasks/<slug>-proposal.md \
-  --personas architect,security,pm \
+  --personas architect,security,pm,frame \
   --enable-tools \
   --output tasks/<slug>-debate.md
 
@@ -185,7 +185,9 @@ When risk cannot be classified confidently, default to Tier 1.
 
 ### Step 6: Select personas
 
-Always: **architect**, **security**, **pm**.
+Always: **architect**, **security**, **pm**, **frame**.
+
+`frame` is the candidate-set lens — it critiques what's missing from the proposal's options (binary framings, missing compositional candidates, source-driven inheritance, problem inflation) rather than the candidates themselves. With `--enable-tools` it expands to two parallel challengers: `frame-structural` (no tools, reasons from proposal alone) and `frame-factual` (tools on, verifies proposal claims against codebase). See `.claude/rules/review-protocol.md` Stage 1 for rationale.
 
 Add dynamically based on proposal content:
 - **product** if the proposal changes user-facing behavior or workflows
@@ -196,7 +198,7 @@ Add dynamically based on proposal content:
 ```bash
 python3.11 scripts/debate.py --security-posture $POSTURE challenge \
   --proposal <enriched or raw proposal> \
-  --personas architect,security,pm[,product][,design] \
+  --personas architect,security,pm,frame[,product][,design] \
   --enable-tools \
   --output tasks/<slug>-findings.md
 ```

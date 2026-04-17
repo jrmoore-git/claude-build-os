@@ -617,6 +617,115 @@ Output format:
 
 ## Verdict
 [APPROVE / REVISE / REJECT] with one-sentence rationale""" + EVIDENCE_TAG_INSTRUCTION + SYMMETRIC_RISK_INSTRUCTION + IMPLEMENTATION_COST_INSTRUCTION,
+
+    "frame": """\
+You are an adversarial frame reviewer. You do NOT critique the candidates in the proposal.
+Instead, critique whether the candidate set itself is the right set.
+
+You have NO tools — reason only from the proposal text. This is deliberate: frame critique
+is negative-space reasoning (what's missing from the candidate set?), and tool access
+biases models toward enumerating what exists in the codebase instead of imagining absent
+candidates.
+
+Focus on:
+- What option is missing from the candidate set? Especially hybrid, compositional, or
+  partial-adoption variants that combine elements of the proposed candidates.
+- What unstated assumption is the candidate set built on? (e.g., "the storage medium
+  must be one technology" — when split-storage is viable.)
+- What different question should this proposal have asked? Is the framing forcing a
+  binary choice when the real space is multi-dimensional?
+- Was any candidate framed as either/or against the status quo when a partial or
+  compositional adoption would be cheaper and capture most of the value?
+- Is the proposal inflating the problem's severity to justify larger scope? Low-frequency
+  inconvenience framed as system failure is a frequent framing error.
+- Is a Phase 2 / routing / abstraction layer being pre-built before evidence of multiple
+  callers or differing needs?
+- Did the proposer fetch external context (a library, a codebase, a paper) and inherit
+  its frame instead of evaluating from the problem? "Source-driven proposals" enumerate
+  what the source contains, not what solves the problem.
+
+If the proposal's frame is sound — candidates are MECE, no obvious composition is
+missing, no unstated assumption is doing load-bearing work — say so. APPROVE is valid.
+Do NOT manufacture missing options just to produce findings.
+
+Most frame findings use ALTERNATIVE (approach not considered) or ASSUMPTION (unstated
+premise). Use the same type tags and materiality labels as other reviewers.
+
+Each challenge MUST start with a type tag:
+- RISK: [something that could go wrong]
+- ASSUMPTION: [unstated premise that isn't verified]
+- ALTERNATIVE: [approach not considered]
+- OVER-ENGINEERED: [complexity that isn't justified]
+- UNDER-ENGINEERED: [missing protection or consideration]
+
+Each challenge MUST be labeled:
+- MATERIAL: Changes the recommendation, top risks, key assumptions, or next steps
+- ADVISORY: Valid observation but doesn't change the decision
+
+Output format:
+## Challenges
+1. [TYPE] [MATERIAL/ADVISORY]: [explanation]
+[... as many as genuinely warranted, or none if the proposal is sound]
+
+## Concessions
+[What the proposal gets right — max 3 items]
+
+## Verdict
+[APPROVE / REVISE / REJECT] with one-sentence rationale""" + EVIDENCE_TAG_INSTRUCTION + SYMMETRIC_RISK_INSTRUCTION + IMPLEMENTATION_COST_INSTRUCTION,
+
+    "frame-factual": """\
+You are an adversarial frame reviewer with tool access. Your job is to check the
+proposal's claims about the codebase against reality.
+
+Use the available tools aggressively to verify:
+- Does the proposal describe current state accurately? Grep for claimed files, check for
+  referenced commits, confirm cited line numbers.
+- Are claimed behaviors actually implemented? If the proposal says "the system currently
+  does X," verify X is the current behavior.
+- Are proposed items already shipped? Commit history is a frequent source of staleness
+  ("recommend building feature Y" when Y already exists).
+- Are cited config values correct? Mismatched config vs claims is a frame defect.
+- Does the proposal's stated motivation hold up against the actual state? (e.g., "offload
+  Claude-only rounds" when the rotation contains zero Claude models.)
+
+Do NOT re-enumerate what exists in the codebase as "findings." The job is still to find
+what the candidate set is missing or what the proposal got wrong — now armed with
+verification. If you cannot find a factual contradiction, say so and APPROVE.
+
+When verifying claims, weight code, config, and commit history highest. Prior debate
+outputs, session wraps, post-mortems, and other retrospective notes (e.g., in docs/
+or tasks/) are secondary — cite them only as staleness evidence ("this proposal
+re-litigates work documented as done"), not as your own derivation. If your finding
+is essentially "the repo's own retrospective already said this," the finding is
+weaker than one derived from code state.
+
+MATERIAL findings focus on:
+- ASSUMPTION: proposal states something about the codebase that tool-check falsifies
+- OVER-ENGINEERED: proposal recommends new infrastructure that existing infrastructure
+  already covers
+- ALTERNATIVE: a candidate using existing surface that the proposal overlooked
+
+Each challenge MUST start with a type tag:
+- RISK: [something that could go wrong]
+- ASSUMPTION: [unstated or verified-wrong premise]
+- ALTERNATIVE: [approach not considered, especially using existing infrastructure]
+- OVER-ENGINEERED: [complexity that isn't justified, including duplication of existing tools]
+- UNDER-ENGINEERED: [missing protection or consideration]
+
+Each challenge MUST be labeled:
+- MATERIAL: Changes the recommendation, top risks, key assumptions, or next steps
+- ADVISORY: Valid observation but doesn't change the decision
+
+Output format:
+## Challenges
+1. [TYPE] [MATERIAL/ADVISORY]: [explanation — cite the tool result that supports it]
+[... as many as genuinely warranted, or none if the proposal's factual claims hold up]
+
+## Concessions
+[What the proposal gets right — max 3 items]
+
+## Verdict
+[APPROVE / REVISE / REJECT] with one-sentence rationale""" + EVIDENCE_TAG_INSTRUCTION + SYMMETRIC_RISK_INSTRUCTION + IMPLEMENTATION_COST_INSTRUCTION,
 }
 
 
@@ -760,11 +869,26 @@ def _parse_frontmatter(text):
 
 
 def _validate_challenge(text):
-    """Check that challenge items have type tags. Returns warnings list."""
+    """Check that challenge items have type tags. Returns warnings list.
+
+    Only validates content inside the ## Challenges section. Concessions,
+    Verdict, and preamble text are exempt — those sections don't require
+    type tags per persona prompt contracts.
+    """
     warnings = []
-    # Match numbered items AND bold-formatted challenge points
-    numbered = re.findall(r"^\d+\.\s+(.+)", text, re.MULTILINE)
-    bold_items = re.findall(r"^\*\*(.+?)\*\*", text, re.MULTILINE)
+    # Extract ## Challenges section content only. Stops at next H2 heading or EOF.
+    challenges_match = re.search(
+        r"^##\s+Challenges\s*$(.*?)(?=^##\s+|\Z)",
+        text,
+        re.MULTILINE | re.DOTALL,
+    )
+    if not challenges_match:
+        # No Challenges section — nothing to validate (upstream may warn separately)
+        return warnings
+    challenges_body = challenges_match.group(1)
+
+    numbered = re.findall(r"^\d+\.\s+(.+)", challenges_body, re.MULTILINE)
+    bold_items = re.findall(r"^\*\*(.+?)\*\*", challenges_body, re.MULTILINE)
     all_items = numbered + bold_items
 
     found_tags = set()
@@ -802,6 +926,15 @@ def cmd_challenge(args):
     if api_key is None:
         return 1
 
+    # Disable tool use in fallback mode (OpenAI SDK can't call Anthropic tool API).
+    # Must run before persona expansion — frame's dual-mode behavior gates on
+    # args.enable_tools, and would otherwise create a tools-on frame-factual
+    # challenger that fails downstream in fallback.
+    if getattr(args, "enable_tools", False) and _is_fallback:
+        print("WARNING: --enable-tools disabled in fallback mode "
+              "(requires LiteLLM proxy)", file=sys.stderr)
+        args.enable_tools = False
+
     proposal_raw = args.proposal.read()
     proposal = debate_common._redact_author(proposal_raw)
     if not proposal.strip():
@@ -831,7 +964,12 @@ def cmd_challenge(args):
     # Resolve --personas to (model, prompt) pairs; --models uses generic prompt
     config = debate_common._load_config()
     pmap = config["persona_model_map"]
-    challengers = []  # list of (model, system_prompt)
+    challengers = []  # list of dicts: {model, prompt, use_tools, persona_name}
+
+    def _apply_posture(prompt):
+        posture = getattr(args, 'security_posture', 3)
+        posture_mod = SECURITY_POSTURE_CHALLENGER_MODIFIER.get(posture, "")
+        return prompt + posture_mod if posture_mod else prompt
 
     if args.personas:
         seen = set()
@@ -844,14 +982,39 @@ def cmd_challenge(args):
             model = pmap[p]
             persona_models[p] = model
             key = (model, p)
-            if key not in seen:
+            if key in seen:
+                continue
+            seen.add(key)
+            # Frame persona expands to dual-mode when session has tools enabled:
+            # one structural (no tools, reason from proposal) + one factual (tools on,
+            # verify claims against codebase). Evidence: both modes catch distinct
+            # failure classes on the same proposal. See tasks/lessons.md L43.
+            # Factual half uses a different model family (default: gpt-5.4) to reduce
+            # correlation with the structural half. Override via config key
+            # `frame_factual_model`; falls back to frame's own model if unset.
+            if p == "frame" and getattr(args, "enable_tools", False) and not custom_prompt:
+                factual_model = config.get("frame_factual_model", model)
+                challengers.append({
+                    "model": model,
+                    "prompt": _apply_posture(PERSONA_PROMPTS["frame"]),
+                    "use_tools": False,
+                    "persona_name": "frame-structural",
+                })
+                # _run_challenger applies MODEL_PROMPT_OVERRIDES per-model when tools=True
+                challengers.append({
+                    "model": factual_model,
+                    "prompt": _apply_posture(PERSONA_PROMPTS["frame-factual"]),
+                    "use_tools": True,
+                    "persona_name": "frame-factual",
+                })
+            else:
                 prompt = custom_prompt or PERSONA_PROMPTS.get(p, ADVERSARIAL_SYSTEM_PROMPT)
-                posture = getattr(args, 'security_posture', 3)
-                posture_mod = SECURITY_POSTURE_CHALLENGER_MODIFIER.get(posture, "")
-                if posture_mod:
-                    prompt = prompt + posture_mod
-                challengers.append((model, prompt))
-                seen.add(key)
+                challengers.append({
+                    "model": model,
+                    "prompt": _apply_posture(prompt),
+                    "use_tools": getattr(args, "enable_tools", False),
+                    "persona_name": p,
+                })
         # Duplicate-model warning
         model_to_personas = {}
         for persona, model in persona_models.items():
@@ -862,15 +1025,16 @@ def cmd_challenge(args):
                       f"{model} — consider diversifying",
                       file=sys.stderr)
     elif args.models:
-        prompt = custom_prompt or ADVERSARIAL_SYSTEM_PROMPT
-        posture = getattr(args, 'security_posture', 3)
-        posture_mod = SECURITY_POSTURE_CHALLENGER_MODIFIER.get(posture, "")
-        if posture_mod:
-            prompt = prompt + posture_mod
+        prompt = _apply_posture(custom_prompt or ADVERSARIAL_SYSTEM_PROMPT)
         for m in args.models.split(","):
             m = m.strip()
             if m:
-                challengers.append((m, prompt))
+                challengers.append({
+                    "model": m,
+                    "prompt": prompt,
+                    "use_tools": getattr(args, "enable_tools", False),
+                    "persona_name": "",
+                })
     else:
         print("ERROR: specify --models or --personas", file=sys.stderr)
         return 1
@@ -884,30 +1048,32 @@ def cmd_challenge(args):
     if debate_id.endswith("-challenge"):
         debate_id = debate_id[:-10]
 
-    # Disable tool use in fallback mode (OpenAI SDK can't call Anthropic tool API)
-    if getattr(args, "enable_tools", False) and _is_fallback:
-        print("WARNING: --enable-tools disabled in fallback mode "
-              "(requires LiteLLM proxy)", file=sys.stderr)
-        args.enable_tools = False
-
     mapping = {}
     all_warnings = []
     all_tool_calls = {}
+    personas_by_label = {}  # label → persona name (for output header)
 
     # Build label→model mapping upfront (needed for output ordering)
-    for i, (model, _) in enumerate(challengers):
-        mapping[debate_common.CHALLENGER_LABELS[i]] = model
+    for i, ch in enumerate(challengers):
+        label = debate_common.CHALLENGER_LABELS[i]
+        mapping[label] = ch["model"]
+        personas_by_label[label] = ch.get("persona_name", "")
 
-    def _run_challenger(i, model, sys_prompt):
+    def _run_challenger(i, ch):
         """Run a single challenger. Returns (label, response, warnings, tool_log)."""
         label = debate_common.CHALLENGER_LABELS[i]
+        model = ch["model"]
+        sys_prompt = ch["prompt"]
+        # Per-challenger tool override. Default: session's --enable-tools.
+        # Frame-structural forces False even when session has tools on.
+        use_tools = ch.get("use_tools", args.enable_tools)
         print(f"Calling {label}...", file=sys.stderr)
         t0 = time.time()
         # Challenger calls use per-model challenger temperature (intentional
         # asymmetry vs judge mode — see LLM_CALL_DEFAULTS comment block).
         challenger_temp = _challenger_temperature(model)
         try:
-            if args.enable_tools:
+            if use_tools:
                 import debate_tools
                 from llm_client import llm_tool_loop
                 model_suffix = MODEL_PROMPT_OVERRIDES.get(model, "")
@@ -987,8 +1153,8 @@ def cmd_challenge(args):
     results = {}
     with concurrent.futures.ThreadPoolExecutor(max_workers=len(challengers)) as pool:
         futures = {
-            pool.submit(_run_challenger, i, model, sys_prompt): debate_common.CHALLENGER_LABELS[i]
-            for i, (model, sys_prompt) in enumerate(challengers)
+            pool.submit(_run_challenger, i, ch): debate_common.CHALLENGER_LABELS[i]
+            for i, ch in enumerate(challengers)
         }
         try:
             for fut in concurrent.futures.as_completed(futures, timeout=PARALLEL_MODEL_DEADLINE):
@@ -1012,11 +1178,24 @@ def cmd_challenge(args):
         return 2
 
     # Build output
-    fm_extras = {"execution_mode": "fallback_single_model"} if _is_fallback else None
-    frontmatter = debate_common._build_frontmatter(debate_id, mapping, extras=fm_extras)
+    fm_extras = {}
+    if _is_fallback:
+        fm_extras["execution_mode"] = "fallback_single_model"
+    # Emit persona labels when any challenger carries a non-default persona name
+    # (e.g., frame expansion into frame-structural + frame-factual).
+    non_empty_personas = {k: v for k, v in personas_by_label.items() if v}
+    if non_empty_personas:
+        fm_extras["personas"] = non_empty_personas
+    frontmatter = debate_common._build_frontmatter(
+        debate_id, mapping, extras=(fm_extras or None))
     sections = [frontmatter, f"# {debate_id} — Challenger Reviews", ""]
     for label in sorted(results.keys()):
-        sections.append(f"## Challenger {label} — Challenges")
+        persona = personas_by_label.get(label, "")
+        header = f"## Challenger {label}"
+        if persona:
+            header += f" ({persona})"
+        header += " — Challenges"
+        sections.append(header)
         sections.append(results[label])
         sections.append("\n---\n")
 

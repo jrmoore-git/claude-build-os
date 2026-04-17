@@ -18,7 +18,9 @@ Quality assurance maps to lifecycle stages. The user chooses which stages to run
 
 ### Stage 1: `/challenge` -- Should we build this?
 
-Cross-model gate before `/plan`. Three models independently evaluate whether proposed work is necessary and appropriately scoped.
+Cross-model gate before `/plan`. Multi-persona panel (architect, security, pm, frame) independently evaluates whether proposed work is necessary and appropriately scoped.
+
+**Frame lens:** Debate output quality is bounded by proposal frame quality. Three personas critiquing the candidates inside a proposal cannot escape a flawed candidate set — they optimize within it. The Frame lens is the structural fix: a 4th persona whose only job is to critique what the candidate set is missing (binary framings, missing compositional candidates, source-driven proposals inheriting their source's frame, problem inflation). With `--enable-tools`, frame expands into two parallel halves: `frame-structural` (no tools, reasons from proposal alone — catches what should exist) and `frame-factual` (tools on, verifies proposal claims against codebase — catches "already shipped" / staleness). Evidence: across n=5 historical proposals, the dual-mode frame caught ~30 novel MATERIAL findings beyond the original 3-persona panel and flipped one verdict from REVISE to REJECT (proposal targeted a feature already shipped). See `tasks/lessons.md` L43.
 
 **When to run:** New features, abstractions, scope expansion, new dependencies.
 **Skip conditions:** Defined authoritatively in CLAUDE.md. Do not maintain a separate list here.
