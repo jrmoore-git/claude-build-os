@@ -205,7 +205,7 @@ def suppress_debate_log(monkeypatch, tmp_path):
     """Redirect debate log to temp dir to avoid polluting real stores."""
     log_path = str(tmp_path / "debate-log.jsonl")
     monkeypatch.setattr(
-        debate, "_log_debate_event",
+        debate_common, "_log_debate_event",
         lambda event, log_path=None, cost_snapshot=None: None,
     )
 

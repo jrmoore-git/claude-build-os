@@ -12,11 +12,10 @@ from datetime import datetime
 
 def cmd_outcome_update(args):
     """Record an outcome for a debate recommendation (append-only)."""
-    import debate  # lazy: debate.py owns _log_debate_event, PROJECT_TZ
     import debate_common
 
     _cost_snapshot = debate_common.get_session_costs()
-    now = datetime.now(debate.PROJECT_TZ)
+    now = datetime.now(debate_common.PROJECT_TZ)
     outcome = {
         "recommendation_index": args.recommendation,
         "implementation_status": args.implementation_status,
@@ -26,7 +25,7 @@ def cmd_outcome_update(args):
         "notes": args.notes or "",
         "updated_at": now.strftime("%Y-%m-%dT%H:%M:%S%z")[:25],
     }
-    debate._log_debate_event({
+    debate_common._log_debate_event({
         "phase": "outcome",
         "debate_id": args.debate_id,
         "outcome": outcome,

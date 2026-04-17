@@ -75,7 +75,7 @@ def cmd_compare(args):
         debate_id = debate_id[:-8]
 
     # Build output
-    now = datetime.now(debate.PROJECT_TZ)
+    now = datetime.now(debate_common.PROJECT_TZ)
     output_text = (
         "---\n"
         f"debate_id: {debate_id}\n"
@@ -100,7 +100,7 @@ def cmd_compare(args):
     }
     print(json.dumps(result))
 
-    debate._log_debate_event({
+    debate_common._log_debate_event({
         "phase": "compare",
         "debate_id": debate_id,
         "judge": judge_model,

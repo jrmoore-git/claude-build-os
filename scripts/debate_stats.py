@@ -13,9 +13,9 @@ import sys
 
 def cmd_stats(args):
     """Aggregate stats from debate-log.jsonl."""
-    import debate  # lazy: pulls DEFAULT_LOG_PATH
+    import debate_common
 
-    log_path = debate.DEFAULT_LOG_PATH
+    log_path = debate_common.DEFAULT_LOG_PATH
     if not os.path.isfile(log_path):
         print("No debate log found.", file=sys.stderr)
         return 1

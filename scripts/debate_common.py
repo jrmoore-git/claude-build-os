@@ -7,7 +7,8 @@ Extraction commits migrate helper groups out of debate.py incrementally.
 Current scope:
   - Credential + environment loading (e2dd116, simplest version)
   - Cost-tracking subsystem (12a865b, F4 atomic migration)
-  - Config loader + supporting constants (this commit)
+  - Config loader + supporting constants (50a7fbd)
+  - Debate event log writer + project timezone (this commit)
 LLM call wrappers, prompt loading, frontmatter helpers stay in debate.py
 for now and migrate in followup commits.
 
@@ -21,6 +22,8 @@ import os
 import subprocess
 import sys
 import threading
+from datetime import datetime
+from zoneinfo import ZoneInfo
 
 
 try:
@@ -309,3 +312,27 @@ def _load_config(config_path=None):
         "verifier_default": config.get("verifier_default", defaults["verifier_default"]),
         "version": config.get("version", defaults["version"]),
     }
+
+
+# ── Debate event log writer (migrated from debate.py) ───────────────────────
+PROJECT_TZ = ZoneInfo("America/Los_Angeles")
+DEFAULT_LOG_PATH = "stores/debate-log.jsonl"
+
+
+def _log_debate_event(event, log_path=None, cost_snapshot=None):
+    """Append a debate event to the JSONL log file.
+
+    If cost_snapshot is provided, logs the delta since that snapshot (per-event
+    cost). Otherwise logs the full cumulative session total. Per-event deltas
+    are preferred — they prevent double-counting in stats aggregation.
+    """
+    path = log_path or DEFAULT_LOG_PATH
+    os.makedirs(os.path.dirname(path), exist_ok=True)
+    now = datetime.now(PROJECT_TZ)
+    event["timestamp"] = now.strftime("%Y-%m-%dT%H:%M:%S%z")[:25]
+    if cost_snapshot is not None:
+        event["costs"] = _cost_delta_since(cost_snapshot)
+    else:
+        event["costs"] = get_session_costs()
+    with open(path, "a") as f:
+        f.write(json.dumps(event) + "\n")

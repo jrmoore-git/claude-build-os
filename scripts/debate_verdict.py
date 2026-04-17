@@ -100,7 +100,7 @@ def cmd_verdict(args):
         result["warnings"] = all_warnings
     print(json.dumps(result))
 
-    debate._log_debate_event({
+    debate_common._log_debate_event({
         "phase": "verdict",
         "debate_id": debate_id,
         "mapping": mapping,

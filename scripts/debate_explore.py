@@ -158,7 +158,7 @@ def cmd_explore(args):
         synthesis = ""
 
     # Build output
-    now = datetime.now(debate.PROJECT_TZ)
+    now = datetime.now(debate_common.PROJECT_TZ)
     ver_str = f"prompt_versions: explore={explore_ver}, diverge={diverge_ver}, synthesis={synth_ver}"
     output_lines = [
         "---",
@@ -190,7 +190,7 @@ def cmd_explore(args):
 
     print(json.dumps({"status": "ok", "output": args.output, "directions": len(directions)}))
 
-    debate._log_debate_event({
+    debate_common._log_debate_event({
         "phase": "explore",
         "models": explore_models,
         "directions": len(directions),

@@ -67,9 +67,8 @@ from llm_client import llm_call, llm_call_raw, LLMError
 
 import debate_common
 
-# Project timezone for all timestamps in debate artifacts and logs.
+# Project timezone lives in debate_common (debate_common.PROJECT_TZ).
 # See platform.md: stdlib zoneinfo, IANA name "America/Los_Angeles".
-PROJECT_TZ = ZoneInfo("America/Los_Angeles")
 
 # ── Project root & .env loading ──────────────────────────────────────────────
 
@@ -826,7 +825,7 @@ def _auto_generate_mapping(meta, body, verbose=False):
 
 def _build_frontmatter(debate_id, mapping, extras=None):
     """Build YAML frontmatter string with debate metadata."""
-    now = datetime.now(PROJECT_TZ)
+    now = datetime.now(debate_common.PROJECT_TZ)
     lines = [
         "---",
         f"debate_id: {debate_id}",
@@ -919,27 +918,9 @@ def _validate_challenge(text):
 
 
 # ── Debate tracker ───────────────────────────────────────────────────────────
-
-DEFAULT_LOG_PATH = "stores/debate-log.jsonl"
-
-
-def _log_debate_event(event, log_path=None, cost_snapshot=None):
-    """Append a debate event to the JSONL log file.
-
-    If cost_snapshot is provided, logs the delta since that snapshot (per-event
-    cost). Otherwise logs the full cumulative session total. Per-event deltas
-    are preferred — they prevent double-counting in stats aggregation.
-    """
-    path = log_path or DEFAULT_LOG_PATH
-    os.makedirs(os.path.dirname(path), exist_ok=True)
-    now = datetime.now(PROJECT_TZ)
-    event["timestamp"] = now.strftime("%Y-%m-%dT%H:%M:%S%z")[:25]
-    if cost_snapshot is not None:
-        event["costs"] = debate_common._cost_delta_since(cost_snapshot)
-    else:
-        event["costs"] = debate_common.get_session_costs()
-    with open(path, "a") as f:
-        f.write(json.dumps(event) + "\n")
+# Log writer + DEFAULT_LOG_PATH live in debate_common:
+#   debate_common._log_debate_event(event, log_path=None, cost_snapshot=None)
+#   debate_common.DEFAULT_LOG_PATH
 
 
 # ── Subcommands ──────────────────────────────────────────────────────────────
@@ -1206,7 +1187,7 @@ def cmd_challenge(args):
             }
             for label in mapping
         }
-    _log_debate_event(log_event, cost_snapshot=_cost_snapshot)
+    debate_common._log_debate_event(log_event, cost_snapshot=_cost_snapshot)
     return 0
 
 
@@ -1721,7 +1702,7 @@ def cmd_judge(args):
         log_event["consolidation"] = consolidation_stats
         log_event["consolidation_source"] = consolidation_stats.get("source", "unknown")
         log_event["ma_fallback"] = consolidation_stats.get("ma_fallback", False)
-    _log_debate_event(log_event, cost_snapshot=_cost_snapshot)
+    debate_common._log_debate_event(log_event, cost_snapshot=_cost_snapshot)
     return 0
 
 
@@ -2887,7 +2868,7 @@ def cmd_refine(args):
             })
 
     # Build output
-    now = datetime.now(PROJECT_TZ)
+    now = datetime.now(debate_common.PROJECT_TZ)
     sections = [
         "---",
         f"debate_id: {debate_id}",
@@ -2947,7 +2928,7 @@ def cmd_refine(args):
         if total_tool_calls == 0:
             print("WARNING: refiners made 0 tool calls despite tools being enabled",
                   file=sys.stderr)
-    _log_debate_event(refine_log, cost_snapshot=_cost_snapshot)
+    debate_common._log_debate_event(refine_log, cost_snapshot=_cost_snapshot)
     return 0
 
 
@@ -3062,7 +3043,7 @@ def cmd_review(args):
 
         print(f"## Reviewer\n\n{response}")
 
-        _log_debate_event({
+        debate_common._log_debate_event({
             "phase": "review",
             "persona": label if _persona_framing else None,
             "model": model,
@@ -3264,7 +3245,7 @@ def cmd_review(args):
             }
             for p in personas
         }
-    _log_debate_event(log_entry, cost_snapshot=_cost_snapshot)
+    debate_common._log_debate_event(log_entry, cost_snapshot=_cost_snapshot)
 
     # JSON status to stderr (stdout is the reviews)
     result = {
@@ -3369,7 +3350,7 @@ def cmd_pressure_test(args):
             print("ERROR: model returned empty response", file=sys.stderr)
             return 1
 
-        now = datetime.now(PROJECT_TZ)
+        now = datetime.now(debate_common.PROJECT_TZ)
         output_lines = [
             "---",
             f"mode: {phase}",
@@ -3386,7 +3367,7 @@ def cmd_pressure_test(args):
         with open(args.output, "w") as f:
             f.write(output_text)
 
-        _log_debate_event({
+        debate_common._log_debate_event({
             "phase": phase,
             "model": model,
             "input_file": args.proposal.name if hasattr(args.proposal, 'name') else "stdin",
@@ -3492,7 +3473,7 @@ def cmd_pressure_test(args):
         synth_response = None
 
     # Build output
-    now = datetime.now(PROJECT_TZ)
+    now = datetime.now(debate_common.PROJECT_TZ)
     models_list = [m for _, m, _, _, _ in successful]
     output_lines = [
         "---",
@@ -3529,7 +3510,7 @@ def cmd_pressure_test(args):
 
     print(json.dumps({"status": "ok", "output": args.output, "models": len(successful), "failed": len(failed)}))
 
-    _log_debate_event({
+    debate_common._log_debate_event({
         "phase": phase,
         "multi_model": True,
         "models": models_list,
