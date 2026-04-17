@@ -1,18 +1,20 @@
-# Current State — 2026-04-16 (Opus 4.7 temperature workaround)
+# Current State — 2026-04-16 (bundle-1 + bundle-2 + sanitizer fix; security blocker carried over)
 
 ## What Changed This Session
-- Restarted `litellm-proxy` Docker container on macmini (image `ghcr.io/berriai/litellm@sha256:59a2736ac848`, started 2026-04-08) to load the `claude-opus-4-7` model entry that was already in `/Users/macmini/openclaw/config/litellm-config.yaml` but not yet hot — `claude-opus-4-7` now appears in `/v1/models`.
-- Discovered Opus 4.7 returns HTTP 400 ("temperature is deprecated for this model") on any explicit `temperature` param, and the proxy's `drop_params: true` does NOT strip it for this model on the current image.
-- Patched `scripts/llm_client.py:_sdk_call` and `_legacy_call` to omit `temperature` when `model.startswith("claude-opus-4-7")`. `_anthropic_call` left unpatched (fallback model is hardcoded to sonnet — opus-4-7 is unreachable on that path today). Verified across temps 0.0/0.7/0.8/1.0 plus sonnet-4-6, gemini-3.1-pro, gpt-5.4 still receiving the param. 20/20 `tests/test_llm_client.py` pass.
-- Captured L40 (Opus 4.7 + drop_params gap) in `tasks/lessons.md` with smoke-test guidance for future model bumps.
+- **Bundle-1 shipped (4 commits):** structural review gate hook (`hooks/hook-post-build-review.py` — PostToolUse edit counter + re-fires `/review` reminder every 5 edits past threshold) + intent-router flag-read; hook-class tagging for all 23 hooks (advisory/enforcement-low/enforcement-high) + `docs/reference/hook-pruning-rubric.md` + 30-session-AND-28-day maturity gate in `scripts/session_telemetry_query.py`; `/review` dismissed-findings convention in `.claude/rules/review-protocol.md`. Closed L25.
+- **Foundational fix for Opus 4.7 `temperature` deprecation (750fe9b):** replaced scattered per-site checks with `MODEL_DEPRECATED_PARAMS` table + `_sanitize_llm_kwargs()` in `scripts/llm_client.py`. All 4 dispatch paths route through it. Contract test `test_all_llm_paths_route_through_sanitizer` prevents recurrence. `/review` with Opus 4.7 challengers works again.
+- **Bundle-2 shipped (4 commits):** Essential Eight line in CLAUDE.md replaced with 5 applicable invariants (no strike-throughs); anti-slop promoted from prose rule to `hooks/pre-commit-banned-terms.sh` with evidence-based list (10 words + 2 phrases, per `tasks/llm-slop-vocabulary-research.md` Perplexity research, POSIX-portable via `[[:space:]]+`); `tests/test_setup_tier_install.py` drift detector.
+- **Installed `.git/hooks/pre-commit` symlink** after bundle-2 QA discovered the anti-slop hook wasn't actually firing on commits (captured as L41).
+- Updated `tasks/lessons.md` (L25 + L40 promoted, added L41 + L42) and `tasks/decisions.md` (D26, D27).
+- 10 commits total, 957 tests passing (was 923 pre-session), 34 new tests added.
 
 ## Current Blockers
-- **SECURITY: rotate `ANTHROPIC_API_KEY` and `LITELLM_MASTER_KEY`** — both leaked into the assistant transcript via a `cat ~/.zprofile` ssh command earlier in the session. If transcripts are logged/synced anywhere shared, treat as exposed.
+- **SECURITY (CARRYOVER, NOT RESOLVED THIS SESSION): rotate `ANTHROPIC_API_KEY` and `LITELLM_MASTER_KEY`** — both leaked into the assistant transcript via a `cat ~/.zprofile` ssh command in an earlier parallel session today. If transcripts are logged/synced anywhere shared, treat as exposed. This session did not touch the rotation work.
 
 ## Next Action
-Rotate the two leaked keys (Anthropic console + macmini `~/.zprofile` + macmini `~/openclaw/config/litellm.env`), then restart `litellm-proxy` container so it picks up the new `LITELLM_MASTER_KEY`. After that, any pending session can run `/start`.
+**First:** rotate the two leaked keys (Anthropic console + macmini `~/.zprofile` + macmini `~/openclaw/config/litellm.env`), then restart `litellm-proxy` container so it picks up the new `LITELLM_MASTER_KEY`. **Then:** normal work can resume — next session should start with `/start`. If the framework is ever cloned to a new machine, `ln -sf ../../hooks/pre-commit-banned-terms.sh .git/hooks/pre-commit` must be run once (L41 captures this gap).
 
 ## Recent Commits
-- `92d2e3e` llm_client: omit temperature param for Opus 4.7
-- `321323a` Session wrap 2026-04-16 (overnight 3): Opus 4.6 → 4.7 bump
-- `d2a0da2` Bump Opus 4.6 → 4.7 across production references
+fde8fa3 Apply review fixes to bundle-2: POSIX portability + framing
+b1a5ca4 tests: tier-install drift detection for /setup (#4)
+34cdf42 Promote anti-slop from advisory rule to pre-commit hook (#6)

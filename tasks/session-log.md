@@ -3403,3 +3403,26 @@ monkeypatch form for each of the 4 symbols).
 **Next Session:** Rotate the two leaked keys (Anthropic console + macmini `~/.zprofile` + macmini `~/openclaw/config/litellm.env`), then restart the proxy container so it picks up the new master key.
 
 **Commits:** `92d2e3e` (patch), wrap commit below.
+
+---
+
+## 2026-04-16 — BuildOS improvements bundles 1+2 + Opus 4.7 sanitizer
+
+**Decided:**
+- D26 — BuildOS improvements shipped as 2 bundles (bundle-1 load-bearing, bundle-2 hygiene). Parent `/challenge` cleared proceed-with-fixes; 5 accepted fixes landed inline. #7 held as speculative.
+- D27 — LLM param deprecations centralize via `MODEL_DEPRECATED_PARAMS` + `_sanitize_llm_kwargs()` routed through all 4 dispatch paths. Contract test prevents recurrence.
+- Anti-slop tightened not deleted (user pushed back on delete; correct move = promote to hook).
+
+**Implemented:**
+- Bundle-1 (4 commits): `hooks/hook-post-build-review.py` + intent-router flag-read, 23 hook class tags + `docs/reference/hook-pruning-rubric.md` + session_telemetry_query maturity gate, `/review` dismissed-findings convention.
+- Foundational fix (`750fe9b`): `MODEL_DEPRECATED_PARAMS` sanitizer pattern + 10 unit tests + contract test. Opus 4.7 tool-enabled path no longer 400s.
+- Bundle-2 (4 commits): Essential Eight rewrite in CLAUDE.md, anti-slop hook promotion (10 words + 2 phrases, POSIX-portable), tier-install drift test. POSIX `[[:space:]]+` portability fix applied inline per unanimous challenger finding.
+- Installed `.git/hooks/pre-commit` symlink (bundle-2 QA caught it was never wired).
+- Governance: L25 + L40 promoted, L41 + L42 added, D26 + D27 recorded.
+- 957 tests passing (was 923), 34 new tests.
+
+**Not Finished:** Security rotation (leaked `ANTHROPIC_API_KEY` + `LITELLM_MASTER_KEY` carryover) still not resolved. #7 held. L41 (fresh-clone install step) could be wired into setup.sh in a future bundle.
+
+**Next Session:** Rotate leaked keys + restart proxy FIRST. Then normal work.
+
+**Commits:** `4ba6912`, `62e317b`, `6a3fb0b`, `e60e35b` (bundle-1), `750fe9b` (foundational), `8a0130c`, `34cdf42`, `b1a5ca4`, `fde8fa3` (bundle-2), wrap commit below.
