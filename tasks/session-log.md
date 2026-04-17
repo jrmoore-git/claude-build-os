@@ -3316,3 +3316,23 @@ monkeypatch form for each of the 4 symbols).
 **Next Session:** Execute `tasks/session-telemetry-plan.md` Steps 0-8. Per-step verification is self-contained.
 
 **Commits:** one wrap commit (this session's docs + telemetry artifacts).
+
+---
+
+## 2026-04-16 (overnight) — Scott note review + /challenge on 5-item improvement list
+
+**Decided:**
+- Scott's gap table is stale — Gaps 1, 3, 4, 6 have moved since it was drafted (orchestrator-contract.md + tier-aware hooks + scope containment).
+- Autobuild is the only item that materially improves BuildOS. Initial 5-item list conflated "improves BuildOS" with "sounds responsive to Scott."
+- Session-telemetry flagged PAUSE via /challenge — "separates hypotheses for a pilot" assumes N≥2 users; N=1 makes it speculative.
+- Autobuild deferred to another session by user.
+
+**Implemented:**
+- No code changes. Conversation + analysis only.
+- Wrap docs updated (current-state.md, handoff.md, this log).
+
+**Not Finished:** Parallel session has uncommitted session-telemetry implementation (hook-session-telemetry.py + scripts/telemetry.* + 4 hook edits) from outside this conversation. Conflicts with this session's /challenge PAUSE — user decision required before commit. Scott note revision deferred. Autobuild plan still shelved.
+
+**Next Session:** Resolve the uncommitted session-telemetry code first (commit, discard, or reconcile). Then either revise the Scott note with the updated gap table or execute `tasks/autobuild-plan.md`.
+
+**Commits:** one wrap commit (docs only).
