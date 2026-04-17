@@ -14,10 +14,10 @@ import sys
 
 def cmd_verdict(args):
     """Round 4: send resolution back to original challengers for final verdict."""
-    import debate  # lazy: pulls credentials, config, dispatch helpers, prompt, logger
+    import debate  # lazy: pulls config, dispatch helpers, prompt, logger
     import debate_common
 
-    _cost_snapshot = debate.get_session_costs()
+    _cost_snapshot = debate_common.get_session_costs()
     api_key, litellm_url, _is_fallback = debate_common._load_credentials()
     if api_key is None:
         return 1

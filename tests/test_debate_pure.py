@@ -12,6 +12,7 @@ SCRIPTS_DIR = Path(__file__).resolve().parent.parent / "scripts"
 sys.path.insert(0, str(SCRIPTS_DIR))
 
 import debate
+import debate_common
 
 
 # ── _estimate_cost ────────────────────────────────────────────────────────
@@ -20,72 +21,72 @@ import debate
 class TestEstimateCost:
     def test_claude_opus_prefix_match(self):
         usage = {"prompt_tokens": 1000, "completion_tokens": 500}
-        cost = debate._estimate_cost("claude-opus-4-6", usage)
+        cost = debate_common._estimate_cost("claude-opus-4-6", usage)
         assert cost == pytest.approx(0.0525)
 
     def test_claude_sonnet_prefix_match(self):
         usage = {"prompt_tokens": 1000, "completion_tokens": 1000}
-        cost = debate._estimate_cost("claude-sonnet-4-6", usage)
+        cost = debate_common._estimate_cost("claude-sonnet-4-6", usage)
         assert cost == pytest.approx(0.018)
 
     def test_claude_haiku_prefix_match(self):
         usage = {"prompt_tokens": 10000, "completion_tokens": 1000}
-        cost = debate._estimate_cost("claude-haiku-4-some-version", usage)
+        cost = debate_common._estimate_cost("claude-haiku-4-some-version", usage)
         # 10000 * 0.80 / 1M + 1000 * 4.0 / 1M = 0.008 + 0.004 = 0.012
         assert cost == pytest.approx(0.012)
 
     def test_gpt_54(self):
         usage = {"prompt_tokens": 10000, "completion_tokens": 2000}
-        cost = debate._estimate_cost("gpt-5.4", usage)
+        cost = debate_common._estimate_cost("gpt-5.4", usage)
         assert cost == pytest.approx(0.045)
 
     def test_gpt_41(self):
         usage = {"prompt_tokens": 1000000, "completion_tokens": 0}
-        cost = debate._estimate_cost("gpt-4.1", usage)
+        cost = debate_common._estimate_cost("gpt-4.1", usage)
         assert cost == pytest.approx(2.0)
 
     def test_gemini_31_pro(self):
         usage = {"prompt_tokens": 0, "completion_tokens": 1000000}
-        cost = debate._estimate_cost("gemini-3.1-pro", usage)
+        cost = debate_common._estimate_cost("gemini-3.1-pro", usage)
         assert cost == pytest.approx(10.0)
 
     def test_gemini_25_flash(self):
         usage = {"prompt_tokens": 1000, "completion_tokens": 1000}
-        cost = debate._estimate_cost("gemini-2.5-flash", usage)
+        cost = debate_common._estimate_cost("gemini-2.5-flash", usage)
         # 1000 * 0.15 / 1M + 1000 * 0.60 / 1M = 0.00015 + 0.0006 = 0.00075
         assert cost == pytest.approx(0.00075)
 
     def test_empty_usage_dict(self):
-        assert debate._estimate_cost("claude-opus-4-6", {}) == 0.0
+        assert debate_common._estimate_cost("claude-opus-4-6", {}) == 0.0
 
     def test_none_usage(self):
-        assert debate._estimate_cost("claude-opus-4-6", None) == 0.0
+        assert debate_common._estimate_cost("claude-opus-4-6", None) == 0.0
 
     def test_unknown_model(self):
         usage = {"prompt_tokens": 1000, "completion_tokens": 500}
-        assert debate._estimate_cost("totally-unknown-model", usage) == 0.0
+        assert debate_common._estimate_cost("totally-unknown-model", usage) == 0.0
 
     def test_zero_tokens(self):
         usage = {"prompt_tokens": 0, "completion_tokens": 0}
-        assert debate._estimate_cost("claude-opus-4-6", usage) == 0.0
+        assert debate_common._estimate_cost("claude-opus-4-6", usage) == 0.0
 
     def test_missing_keys_in_usage(self):
-        assert debate._estimate_cost("claude-opus-4-6", {"irrelevant": 42}) == 0.0
+        assert debate_common._estimate_cost("claude-opus-4-6", {"irrelevant": 42}) == 0.0
 
     def test_none_token_values_treated_as_zero(self):
         usage = {"prompt_tokens": None, "completion_tokens": None}
-        assert debate._estimate_cost("claude-opus-4-6", usage) == 0.0
+        assert debate_common._estimate_cost("claude-opus-4-6", usage) == 0.0
 
     def test_prefix_match_picks_first(self):
         # "claude-opus-4" is the pricing key; "claude-opus-4-6" matches it
         usage = {"prompt_tokens": 1000, "completion_tokens": 0}
-        cost = debate._estimate_cost("claude-opus-4-6", usage)
+        cost = debate_common._estimate_cost("claude-opus-4-6", usage)
         expected = 1000 * 15.0 / 1_000_000
         assert cost == pytest.approx(expected)
 
     def test_result_is_rounded(self):
         usage = {"prompt_tokens": 1, "completion_tokens": 1}
-        cost = debate._estimate_cost("claude-opus-4-6", usage)
+        cost = debate_common._estimate_cost("claude-opus-4-6", usage)
         # 1 * 15 / 1M + 1 * 75 / 1M = 0.000090
         assert cost == round(cost, 6)
 

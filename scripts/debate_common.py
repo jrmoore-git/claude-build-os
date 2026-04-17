@@ -3,11 +3,12 @@
 debate_common.py — shared helpers for the debate.py engine and its sibling
 subcommand modules.
 
-This is the first extraction commit toward making debate.py a thin entry
-point. Scope of THIS commit (per tasks/debate-common-plan.md): credential
-+ environment loading + cost-independent dispatch helpers. Cost tracking,
-LLM call wrappers, prompt loading, and frontmatter helpers stay in
-debate.py for now and migrate in followup commits.
+Extraction commits migrate helper groups out of debate.py incrementally.
+Current scope:
+  - Credential + environment loading (e2dd116, simplest version)
+  - Cost-tracking subsystem (this commit, F4 atomic migration)
+LLM call wrappers, prompt loading, frontmatter helpers stay in debate.py
+for now and migrate in followup commits.
 
 Import style policy (per challenge F3): consumers MUST use
 `import debate_common` and reference symbols as `debate_common.foo()`.
@@ -17,6 +18,7 @@ binding at import time and breaks monkeypatching.
 import os
 import subprocess
 import sys
+import threading
 
 
 try:
@@ -124,3 +126,114 @@ def _get_fallback_model(primary, config):
         if c and c != primary:
             return c
     return None
+
+
+# ── Cost tracking (F4 atomic migration from debate.py) ──────────────────────
+# Per-model token pricing (USD per 1M tokens). Updated 2026-04.
+# Keys are prefix-matched against the model string.
+_TOKEN_PRICING = {
+    "claude-opus-4": {"input": 15.0, "output": 75.0},
+    "claude-sonnet-4": {"input": 3.0, "output": 15.0},
+    "claude-haiku-4": {"input": 0.80, "output": 4.0},
+    "gpt-5.4": {"input": 2.50, "output": 10.0},
+    "gpt-4.1": {"input": 2.0, "output": 8.0},
+    "gemini-3.1-pro": {"input": 1.25, "output": 10.0},
+    "gemini-2.5-pro": {"input": 1.25, "output": 10.0},
+    "gemini-2.5-flash": {"input": 0.15, "output": 0.60},
+}
+
+
+def _estimate_cost(model, usage):
+    """Estimate USD cost from model name and usage dict.
+
+    Returns 0.0 if pricing is unknown or usage is empty.
+    """
+    if not usage:
+        return 0.0
+    pricing = None
+    for prefix, rates in _TOKEN_PRICING.items():
+        if model.startswith(prefix):
+            pricing = rates
+            break
+    if not pricing:
+        return 0.0
+    prompt_tokens = usage.get("prompt_tokens", 0) or 0
+    completion_tokens = usage.get("completion_tokens", 0) or 0
+    cost = (prompt_tokens * pricing["input"] + completion_tokens * pricing["output"]) / 1_000_000
+    return round(cost, 6)
+
+
+# Session-level cost accumulator. Reset per process invocation.
+# Protected by _session_costs_lock because cmd_challenge (and any external
+# code using ThreadPoolExecutor) calls _track_cost from multiple threads.
+#
+# Atomicity invariant: this dict + its lock + _track_cost + get_session_costs
+# must all live in the SAME module. Re-exporting via `from debate_common import
+# _session_costs` is BANNED — reassignment (_session_costs = {}) in a re-export
+# would silently create a shadow dict, reintroducing the split-accumulator bug.
+_session_costs = {"total_usd": 0.0, "calls": 0, "by_model": {}}
+_session_costs_lock = threading.Lock()
+
+
+def _track_cost(model, usage, cost_usd):
+    """Accumulate a single call's cost into the session totals."""
+    with _session_costs_lock:
+        _session_costs["total_usd"] += cost_usd
+        _session_costs["calls"] += 1
+        entry = _session_costs["by_model"].setdefault(model, {
+            "cost_usd": 0.0, "calls": 0, "prompt_tokens": 0, "completion_tokens": 0,
+        })
+        entry["cost_usd"] += cost_usd
+        entry["calls"] += 1
+        entry["prompt_tokens"] += (usage.get("prompt_tokens", 0) or 0)
+        entry["completion_tokens"] += (usage.get("completion_tokens", 0) or 0)
+
+
+def get_session_costs():
+    """Return a copy of the session cost accumulator."""
+    with _session_costs_lock:
+        return {
+            "total_usd": round(_session_costs["total_usd"], 6),
+            "calls": _session_costs["calls"],
+            "by_model": {
+                m: {k: round(v, 6) if isinstance(v, float) else v for k, v in d.items()}
+                for m, d in _session_costs["by_model"].items()
+            },
+        }
+
+
+def _cost_delta_since(snapshot):
+    """Return the cost difference between current session state and a snapshot.
+
+    Used to log per-event costs instead of cumulative snapshots.
+    """
+    current = get_session_costs()
+    delta_total = current["total_usd"] - snapshot.get("total_usd", 0)
+    delta_calls = current["calls"] - snapshot.get("calls", 0)
+    delta_models = {}
+    for model, info in current["by_model"].items():
+        prev = snapshot.get("by_model", {}).get(model, {})
+        d_cost = info["cost_usd"] - prev.get("cost_usd", 0)
+        d_calls = info["calls"] - prev.get("calls", 0)
+        d_prompt = info["prompt_tokens"] - prev.get("prompt_tokens", 0)
+        d_completion = info["completion_tokens"] - prev.get("completion_tokens", 0)
+        if d_calls > 0:
+            delta_models[model] = {
+                "cost_usd": round(d_cost, 6),
+                "calls": d_calls,
+                "prompt_tokens": d_prompt,
+                "completion_tokens": d_completion,
+            }
+    return {
+        "total_usd": round(delta_total, 6),
+        "calls": delta_calls,
+        "by_model": delta_models,
+    }
+
+
+def _track_tool_loop_cost(model, tool_result):
+    """Extract usage from an llm_tool_loop result and track cost."""
+    usage = tool_result.get("usage", {})
+    cost_usd = _estimate_cost(model, usage)
+    _track_cost(model, usage, cost_usd)
+    return cost_usd

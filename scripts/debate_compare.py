@@ -15,10 +15,10 @@ from datetime import datetime
 
 def cmd_compare(args):
     """Compare two review methods on the same original document."""
-    import debate  # lazy: pulls credentials, config, dispatch helpers, prompt, logger
+    import debate  # lazy: pulls config, dispatch helpers, prompt, logger
     import debate_common
 
-    _cost_snapshot = debate.get_session_costs()
+    _cost_snapshot = debate_common.get_session_costs()
     api_key, litellm_url, _is_fallback = debate_common._load_credentials()
     if api_key is None:
         return 1

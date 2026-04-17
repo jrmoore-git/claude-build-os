@@ -12,9 +12,10 @@ from datetime import datetime
 
 def cmd_outcome_update(args):
     """Record an outcome for a debate recommendation (append-only)."""
-    import debate  # lazy: debate.py owns _log_debate_event, get_session_costs, PROJECT_TZ
+    import debate  # lazy: debate.py owns _log_debate_event, PROJECT_TZ
+    import debate_common
 
-    _cost_snapshot = debate.get_session_costs()
+    _cost_snapshot = debate_common.get_session_costs()
     now = datetime.now(debate.PROJECT_TZ)
     outcome = {
         "recommendation_index": args.recommendation,

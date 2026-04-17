@@ -24,6 +24,7 @@ SCRIPTS_DIR = Path(__file__).resolve().parent.parent / "scripts"
 sys.path.insert(0, str(SCRIPTS_DIR))
 
 import debate
+import debate_common
 
 
 # ── _is_timeout_error ──────────────────────────────────────────────────────
@@ -77,35 +78,35 @@ class TestChallengerTemperature:
 class TestEstimateCost:
     def test_claude_opus_cost(self):
         usage = {"prompt_tokens": 1000, "completion_tokens": 500}
-        cost = debate._estimate_cost("claude-opus-4-6", usage)
+        cost = debate_common._estimate_cost("claude-opus-4-6", usage)
         # 1000 * 15.0 / 1M + 500 * 75.0 / 1M = 0.015 + 0.0375 = 0.0525
         assert cost == 0.0525
 
     def test_gpt_cost(self):
         usage = {"prompt_tokens": 10000, "completion_tokens": 2000}
-        cost = debate._estimate_cost("gpt-5.4", usage)
+        cost = debate_common._estimate_cost("gpt-5.4", usage)
         # 10000 * 2.5 / 1M + 2000 * 10.0 / 1M = 0.025 + 0.02 = 0.045
         assert cost == 0.045
 
     def test_empty_usage_returns_zero(self):
-        assert debate._estimate_cost("claude-opus-4-6", {}) == 0.0
-        assert debate._estimate_cost("claude-opus-4-6", None) == 0.0
+        assert debate_common._estimate_cost("claude-opus-4-6", {}) == 0.0
+        assert debate_common._estimate_cost("claude-opus-4-6", None) == 0.0
 
     def test_unknown_model_returns_zero(self):
         usage = {"prompt_tokens": 1000, "completion_tokens": 500}
-        assert debate._estimate_cost("unknown-model-xyz", usage) == 0.0
+        assert debate_common._estimate_cost("unknown-model-xyz", usage) == 0.0
 
     def test_zero_tokens(self):
         usage = {"prompt_tokens": 0, "completion_tokens": 0}
-        assert debate._estimate_cost("claude-opus-4-6", usage) == 0.0
+        assert debate_common._estimate_cost("claude-opus-4-6", usage) == 0.0
 
     def test_missing_token_keys(self):
         usage = {"some_other_key": 42}
-        assert debate._estimate_cost("claude-opus-4-6", usage) == 0.0
+        assert debate_common._estimate_cost("claude-opus-4-6", usage) == 0.0
 
     def test_none_token_values(self):
         usage = {"prompt_tokens": None, "completion_tokens": None}
-        assert debate._estimate_cost("claude-opus-4-6", usage) == 0.0
+        assert debate_common._estimate_cost("claude-opus-4-6", usage) == 0.0
 
 
 # ── _build_frontmatter ────────────────────────────────────────────────────

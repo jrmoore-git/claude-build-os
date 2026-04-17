@@ -777,101 +777,15 @@ Output format:
 
 # ── LiteLLM client ──────────────────────────────────────────────────────────
 
-# Per-model token pricing (USD per 1M tokens). Updated 2026-04.
-# Keys are prefix-matched against the model string.
-_TOKEN_PRICING = {
-    "claude-opus-4": {"input": 15.0, "output": 75.0},
-    "claude-sonnet-4": {"input": 3.0, "output": 15.0},
-    "claude-haiku-4": {"input": 0.80, "output": 4.0},
-    "gpt-5.4": {"input": 2.50, "output": 10.0},
-    "gpt-4.1": {"input": 2.0, "output": 8.0},
-    "gemini-3.1-pro": {"input": 1.25, "output": 10.0},
-    "gemini-2.5-pro": {"input": 1.25, "output": 10.0},
-    "gemini-2.5-flash": {"input": 0.15, "output": 0.60},
-}
-
-
-def _estimate_cost(model, usage):
-    """Estimate USD cost from model name and usage dict.
-
-    Returns 0.0 if pricing is unknown or usage is empty.
-    """
-    if not usage:
-        return 0.0
-    pricing = None
-    for prefix, rates in _TOKEN_PRICING.items():
-        if model.startswith(prefix):
-            pricing = rates
-            break
-    if not pricing:
-        return 0.0
-    prompt_tokens = usage.get("prompt_tokens", 0) or 0
-    completion_tokens = usage.get("completion_tokens", 0) or 0
-    cost = (prompt_tokens * pricing["input"] + completion_tokens * pricing["output"]) / 1_000_000
-    return round(cost, 6)
-
-
-# Session-level cost accumulator. Reset per process invocation.
-# Protected by _session_costs_lock because cmd_challenge (and any external
-# code using ThreadPoolExecutor) calls _track_cost from multiple threads.
-_session_costs = {"total_usd": 0.0, "calls": 0, "by_model": {}}
-_session_costs_lock = threading.Lock()
-
-
-def _track_cost(model, usage, cost_usd):
-    """Accumulate a single call's cost into the session totals."""
-    with _session_costs_lock:
-        _session_costs["total_usd"] += cost_usd
-        _session_costs["calls"] += 1
-        entry = _session_costs["by_model"].setdefault(model, {
-            "cost_usd": 0.0, "calls": 0, "prompt_tokens": 0, "completion_tokens": 0,
-        })
-        entry["cost_usd"] += cost_usd
-        entry["calls"] += 1
-        entry["prompt_tokens"] += (usage.get("prompt_tokens", 0) or 0)
-        entry["completion_tokens"] += (usage.get("completion_tokens", 0) or 0)
-
-
-def get_session_costs():
-    """Return a copy of the session cost accumulator."""
-    with _session_costs_lock:
-        return {
-            "total_usd": round(_session_costs["total_usd"], 6),
-            "calls": _session_costs["calls"],
-            "by_model": {
-                m: {k: round(v, 6) if isinstance(v, float) else v for k, v in d.items()}
-                for m, d in _session_costs["by_model"].items()
-            },
-        }
-
-
-def _cost_delta_since(snapshot):
-    """Return the cost difference between current session state and a snapshot.
-
-    Used to log per-event costs instead of cumulative snapshots.
-    """
-    current = get_session_costs()
-    delta_total = current["total_usd"] - snapshot.get("total_usd", 0)
-    delta_calls = current["calls"] - snapshot.get("calls", 0)
-    delta_models = {}
-    for model, info in current["by_model"].items():
-        prev = snapshot.get("by_model", {}).get(model, {})
-        d_cost = info["cost_usd"] - prev.get("cost_usd", 0)
-        d_calls = info["calls"] - prev.get("calls", 0)
-        d_prompt = info["prompt_tokens"] - prev.get("prompt_tokens", 0)
-        d_completion = info["completion_tokens"] - prev.get("completion_tokens", 0)
-        if d_calls > 0:
-            delta_models[model] = {
-                "cost_usd": round(d_cost, 6),
-                "calls": d_calls,
-                "prompt_tokens": d_prompt,
-                "completion_tokens": d_completion,
-            }
-    return {
-        "total_usd": round(delta_total, 6),
-        "calls": delta_calls,
-        "by_model": delta_models,
-    }
+# Cost tracking lives in debate_common (F4 atomic migration). Use:
+#   debate_common._estimate_cost(model, usage)
+#   debate_common._track_cost(model, usage, cost_usd)
+#   debate_common.get_session_costs()
+#   debate_common._cost_delta_since(snapshot)
+#   debate_common._track_tool_loop_cost(model, tool_result)
+#   debate_common._TOKEN_PRICING           (pricing table)
+#   debate_common._session_costs           (module-level accumulator)
+#   debate_common._session_costs_lock      (threading.Lock protecting the dict)
 
 
 def _call_litellm(model, system_prompt, user_content, litellm_url, api_key,
@@ -897,17 +811,9 @@ def _call_litellm(model, system_prompt, user_content, litellm_url, api_key,
                        timeout=timeout, base_url=litellm_url, api_key=api_key)
     model_used = raw.get("model", model)
     usage = raw.get("usage", {})
-    cost_usd = _estimate_cost(model_used, usage)
-    _track_cost(model_used, usage, cost_usd)
+    cost_usd = debate_common._estimate_cost(model_used, usage)
+    debate_common._track_cost(model_used, usage, cost_usd)
     return raw["content"]
-
-
-def _track_tool_loop_cost(model, tool_result):
-    """Extract usage from an llm_tool_loop result and track cost."""
-    usage = tool_result.get("usage", {})
-    cost_usd = _estimate_cost(model, usage)
-    _track_cost(model, usage, cost_usd)
-    return cost_usd
 
 
 def _challenger_temperature(model):
@@ -1092,9 +998,9 @@ def _log_debate_event(event, log_path=None, cost_snapshot=None):
     now = datetime.now(PROJECT_TZ)
     event["timestamp"] = now.strftime("%Y-%m-%dT%H:%M:%S%z")[:25]
     if cost_snapshot is not None:
-        event["costs"] = _cost_delta_since(cost_snapshot)
+        event["costs"] = debate_common._cost_delta_since(cost_snapshot)
     else:
-        event["costs"] = get_session_costs()
+        event["costs"] = debate_common.get_session_costs()
     with open(path, "a") as f:
         f.write(json.dumps(event) + "\n")
 
@@ -1104,7 +1010,7 @@ def _log_debate_event(event, log_path=None, cost_snapshot=None):
 
 def cmd_challenge(args):
     """Round 2: send proposal to challenger models, write anonymized output."""
-    _cost_snapshot = get_session_costs()
+    _cost_snapshot = debate_common.get_session_costs()
     api_key, litellm_url, _is_fallback = debate_common._load_credentials()
     if api_key is None:
         return 1
@@ -1265,7 +1171,7 @@ def cmd_challenge(args):
                             {"turn": turn, "tool": name}
                         ),
                     )
-                _track_tool_loop_cost(active_model, tool_result)
+                debate_common._track_tool_loop_cost(active_model, tool_result)
                 response = tool_result["content"]
                 if tool_result["turns"] > 20:
                     print(f"  {label}: hit max turns, used partial tool evidence ({len(tool_log)} calls)",
@@ -1529,7 +1435,7 @@ def _consolidate_challenges(challenge_body, litellm_url, api_key, model=None):
 
 def cmd_judge(args):
     """Independent judge: evaluate challenges without author self-resolution."""
-    _cost_snapshot = get_session_costs()
+    _cost_snapshot = debate_common.get_session_costs()
     api_key, litellm_url, _is_fallback = debate_common._load_credentials()
     if api_key is None:
         return 1
@@ -1633,8 +1539,8 @@ def cmd_judge(args):
                             "prompt_tokens": ma_usage.get("input_tokens", 0),
                             "completion_tokens": ma_usage.get("output_tokens", 0),
                         }
-                        _track_cost(ma_model, ma_usage_compat,
-                                    _estimate_cost(ma_model, ma_usage_compat))
+                        debate_common._track_cost(ma_model, ma_usage_compat,
+                                    debate_common._estimate_cost(ma_model, ma_usage_compat))
                         return body, stats
                     except (_ma_exc, ValueError, RuntimeError, ImportError) as e:
                         ma_fallback = True
@@ -1701,8 +1607,8 @@ def cmd_judge(args):
                         "prompt_tokens": ma_usage.get("input_tokens", 0),
                         "completion_tokens": ma_usage.get("output_tokens", 0),
                     }
-                    _track_cost(ma_model, ma_usage_compat,
-                                _estimate_cost(ma_model, ma_usage_compat))
+                    debate_common._track_cost(ma_model, ma_usage_compat,
+                                debate_common._estimate_cost(ma_model, ma_usage_compat))
                 except (_ma_exc, ValueError, RuntimeError, ImportError) as e:
                     ma_fallback = True
                     print(f"WARNING: MA consolidation failed ({type(e).__name__}) — "
@@ -2725,7 +2631,7 @@ def _parse_refine_response(text):
 
 def cmd_refine(args):
     """Iterative cross-model refinement: each model improves the document in turn."""
-    _cost_snapshot = get_session_costs()
+    _cost_snapshot = debate_common.get_session_costs()
     api_key, litellm_url, _is_fallback = debate_common._load_credentials()
     if api_key is None:
         return 1
@@ -2907,7 +2813,7 @@ def cmd_refine(args):
                         {"turn": turn, "tool": name}
                     ),
                 )
-                _track_tool_loop_cost(model, tool_result)
+                debate_common._track_tool_loop_cost(model, tool_result)
                 response = tool_result["content"]
                 all_refine_tool_calls[f"round_{round_num}"] = tool_log
                 used_model = model  # no fallback in tool-loop path
@@ -3167,7 +3073,7 @@ def cmd_review(args):
         print("NOTE: 'review-panel' is now 'review' — this alias will be "
               "removed in a future version.", file=sys.stderr)
 
-    _cost_snapshot = get_session_costs()
+    _cost_snapshot = debate_common.get_session_costs()
     api_key, litellm_url, _is_fallback = debate_common._load_credentials()
     if api_key is None:
         return 1
@@ -3329,7 +3235,7 @@ def cmd_review(args):
                             {"turn": turn, "tool": name}
                         ),
                     )
-                _track_tool_loop_cost(active_model, tool_result)
+                debate_common._track_tool_loop_cost(active_model, tool_result)
                 response = tool_result["content"]
                 if tool_result["turns"] > 20:
                     print(f"  {persona}: hit max turns, used partial tool evidence ({len(tool_log)} calls)",
@@ -3460,7 +3366,7 @@ def cmd_pressure_test(args):
     Multi-model runs models in parallel, then synthesizes disagreements.
     """
     frame = getattr(args, 'frame', 'challenge')
-    _cost_snapshot = get_session_costs()
+    _cost_snapshot = debate_common.get_session_costs()
     api_key, litellm_url, _is_fallback = debate_common._load_credentials()
     if api_key is None:
         return 1
