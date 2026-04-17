@@ -1,33 +1,40 @@
-# Handoff — 2026-04-16 (overnight session)
+# Handoff — 2026-04-16 (overnight session 2)
 
 ## Session Focus
-Reviewed Scott's BuildOS collaborative note, mapped its gap table against what's shipped since it was drafted, and ran `/challenge` on a 5-item list of proposed improvements. Net: only autobuild materially improves BuildOS — the other four were either doc polish, already-in-flight, or speculative.
+Executed the session-telemetry plan end-to-end (Steps 0-8). Shipped a diagnostic telemetry layer that separates Tier 1 signal (context-file reads at session start) from Tier 2 signal (hook fires mid-execution). Committed as `fee8ee0`.
 
 ## Decided
-- Scott's gap table is a week stale — Gaps 1, 3, 4, 6 have all moved forward on disk (orchestrator-contract.md + dadd5f6 tier-aware hooks + scope containment). The note should be revised before sending.
-- Autobuild is the only one-item shortlist that actually improves BuildOS. Everything else in my initial 5-item list was conflating "improves BuildOS" with "sounds responsive to Scott."
-- Session-telemetry flagged PAUSE via /challenge — the justification ("separates hypotheses for a pilot") assumes N≥2 users; current state is N=1 and self-observation suffices.
-- Autobuild deferred to another session (user call).
+- Executed the plan despite the parallel Scott-note-review session's PAUSE recommendation. Rationale: the plan was ship-ready per prior handoff (`aa70d24`), the /challenge PAUSE was issued on a downstream evaluation without full plan context, and user explicitly requested execution. The PAUSE reasoning ("YAGNI for N=1") can be revisited once real telemetry data shows whether the separation is actionable.
+- Shell hooks use `scripts/telemetry.sh` (jq-based, ~8ms) after the latency gate fired on python3.11 cold-start (36ms). Python hooks import telemetry directly (no fork). Decision built into the plan.
+- `stores/session-telemetry.jsonl` is gitignored via existing `*.jsonl` glob; created on first write by any session.
 
 ## Implemented
-- No code changes this session — conversation and analysis only.
-- Wrap docs updated.
+- `scripts/telemetry.py` — single `log_event` function, silent-on-error, auto-creates `stores/`.
+- `hooks/hook-session-telemetry.py` — observer hook routing SessionStart / PostToolUse:Read / SessionEnd. SessionEnd branch tails JSONL to skip if /wrap already wrote an outcome.
+- `scripts/session_telemetry_query.py` — 3 subcommands (hook-fires, context-reads, outcome-correlate), 3-way session bucketing, malformed-line tolerance, mandatory candidates footer.
+- `scripts/telemetry.sh` — jq-based shell emitter for hooks where python cold-start exceeded the 15ms p95 gate.
+- `.claude/settings.json` — SessionStart + SessionEnd handlers added, telemetry appended as final entry in existing PostToolUse:Read chain (no parallel chain).
+- `.claude/skills/wrap/SKILL.md` — Step 9 added to emit authoritative session_outcome (outcome_source=wrap).
+- 6 decision-gating hooks instrumented with hook_fire emits at each decision path (plan-gate, review-gate, pre-edit-gate, decompose-gate, bash-fix-forward, memory-size-gate).
+- End-to-end smoke test (3 synthetic sessions) validated all 4 event types emit and all 3 query subcommands produce sensible output.
 
 ## NOT Finished
-- Parallel session has uncommitted session-telemetry implementation (hook-session-telemetry.py, scripts/telemetry.*, 4 hook edits dated 21:08–21:22). NOT from this conversation. Tension with this session's PAUSE verdict — user decision required.
-- Scott note has not been revised to reflect the updated gap table.
-- Autobuild plan is shelved but ready (`tasks/autobuild-plan.md`, PROCEED-WITH-FIXES).
+- No real data yet — SessionStart/SessionEnd hooks take effect only on the NEXT fresh Claude Code session. Current session's telemetry is partial (hooks registered mid-session).
+- Parallel Scott-note-review session left 3 untracked `tasks/buildos-improvements-*.md` files and a 1-line `stores/debate-log.jsonl` diff. Not this session's work; owner of `1c2b7fb` should commit.
 
 ## Next Session Should
-1. Resolve the uncommitted session-telemetry code: commit as parallel-session work, discard, or reconcile with the /challenge PAUSE.
-2. If revising the Scott note: rewrite the gap table — Gaps 1 and 6 upgrade via orchestrator-contract.md, Gap 2 is CLOSED-by-contract (not by runtime), Gaps 3 and 4 stay CLOSED but keep the "unvalidated" caveat honest.
-3. If building instead: execute `tasks/autobuild-plan.md` per the PROCEED-WITH-FIXES gate.
+1. Start fresh — SessionStart hook fires, real telemetry accrual begins. Read handoff.md normally (a single context_read event will appear in the JSONL).
+2. After ~1 week of real sessions, run `python3.11 scripts/session_telemetry_query.py hook-fires --window 7d` and `outcome-correlate tasks/handoff.md` to begin answering the Tier 1 vs Tier 2 question.
+3. If the parallel-session owner returns: they should commit `buildos-improvements-*.md` + `debate-log.jsonl` under their workstream.
 
 ## Key Files Changed
-- `docs/current-state.md` (overwritten)
-- `tasks/handoff.md` (overwritten)
-- `tasks/session-log.md` (appended)
+- `scripts/telemetry.py` (new)
+- `scripts/telemetry.sh` (new)
+- `scripts/session_telemetry_query.py` (new)
+- `hooks/hook-session-telemetry.py` (new)
+- `hooks/hook-plan-gate.sh`, `hooks/hook-review-gate.sh`, `hooks/hook-pre-edit-gate.sh` (shell hooks, emit via telemetry.sh)
+- `hooks/hook-decompose-gate.py`, `hooks/hook-bash-fix-forward.py`, `hooks/hook-memory-size-gate.py` (python hooks, import telemetry)
+- `.claude/settings.json`, `.claude/skills/wrap/SKILL.md`
 
 ## Doc Hygiene Warnings
-- Uncommitted code from parallel session (see NOT Finished #1) is not being included in this wrap commit. Scope discipline: this session did not author those changes.
-- No lessons or decisions warranted promotion — the framing insight ("autobuild improves BuildOS for in-session user, does NOT close Scott's external-runner Gap 2") could become a decisions.md entry, but only after autobuild actually ships.
+- None. Plan carried all decisions; no new lessons or decisions.md entries warranted.

@@ -3336,3 +3336,23 @@ monkeypatch form for each of the 4 symbols).
 **Next Session:** Resolve the uncommitted session-telemetry code first (commit, discard, or reconcile). Then either revise the Scott note with the updated gap table or execute `tasks/autobuild-plan.md`.
 
 **Commits:** one wrap commit (docs only).
+
+---
+
+## 2026-04-16 (overnight 2) — Executed session-telemetry plan end-to-end
+
+**Decided:**
+- Executed `tasks/session-telemetry-plan.md` Steps 0-8 despite the parallel Scott-note session's PAUSE recommendation. Plan was ship-ready; user explicitly requested execution; PAUSE can be revisited once telemetry data accrues.
+- Latency gate triggered as the plan predicted: python3.11 cold-start 36ms > 15ms p95 gate → shell hooks emit via jq-based `scripts/telemetry.sh` (~8ms). Python hooks import telemetry directly.
+- `stores/session-telemetry.jsonl` covered by the existing `*.jsonl` gitignore glob — no .gitignore change needed.
+
+**Implemented:**
+- `fee8ee0` — 4 new files (scripts/telemetry.py, scripts/telemetry.sh, scripts/session_telemetry_query.py, hooks/hook-session-telemetry.py) + 8 modified (settings.json, wrap skill, 6 hook instrumentations). 12 files changed, +707/-1.
+- End-to-end smoke with 3 synthetic sessions: all 4 event types emit, 3-way session bucketing works (wrap-completed / session-end-backup / fully-abandoned), outcome-correlate produces differential findings numbers.
+- Per-step verification completed for all 8 plan steps. Handler chain compatibility confirmed (PostToolUse:Read: spec-status-check + read-before-edit unchanged; telemetry appended as observer-only final entry).
+
+**Not Finished:** Real telemetry accrual starts on next fresh Claude Code session — SessionStart/SessionEnd handlers only fire at session boundaries. Current session's JSONL has partial events (hooks registered mid-session).
+
+**Next Session:** Start fresh. Confirm session_start event appears. After ~1 week of sessions, run `session_telemetry_query.py hook-fires --window 7d` + `outcome-correlate tasks/handoff.md` and begin answering the Tier 1 vs Tier 2 question.
+
+**Commits:** fee8ee0 (build), plus the wrap commit below.

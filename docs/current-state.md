@@ -1,18 +1,20 @@
-# Current State — 2026-04-16 (overnight session)
+# Current State — 2026-04-16 (overnight session 2)
 
 ## What Changed This Session
-- Reviewed Scott's BuildOS collaborative note (Doc 1 Appendix C gap table + Doc 2 curator role). Surfaced 4 structural concerns with the draft: CLOSED-but-untested tension, pilot-hypothesis conflation, one-way curator ask, missing timeline on open gaps.
-- Cross-referenced the draft against what's shipped since it was written: `dadd5f6` (tier-aware hooks + scope containment) and `docs/orchestrator-contract.md` materially upgrade Gaps 1, 3, 4, and 6. Four of six rows in the gap table should change.
-- Ran `/challenge` on a list of 5 proposed BuildOS improvements distilled from the note. Result: SPLIT — only autobuild materially improves BuildOS. Per-tier one-liner and PRD↔contract link are doc polish; session-telemetry flagged PAUSE (YAGNI for N=1 user); curator tooling correctly skipped.
-- Autobuild deferred to another session — plan + refined proposal already on disk (`tasks/autobuild-plan.md`, `tasks/autobuild-refined.md`, PROCEED-WITH-FIXES gate cleared).
+- Executed `tasks/session-telemetry-plan.md` Steps 0-8. Shipped in commit `fee8ee0`: new `scripts/telemetry.py` emit helper, new observer hook `hooks/hook-session-telemetry.py` routing SessionStart/PostToolUse:Read/SessionEnd, new analysis script `scripts/session_telemetry_query.py` with 3 subcommands, jq-based shell emitter `scripts/telemetry.sh`.
+- 6 decision-gating hooks instrumented with `hook_fire` emits (plan-gate, review-gate, pre-edit-gate, decompose-gate, bash-fix-forward, memory-size-gate). /wrap now emits authoritative `session_outcome` (Step 9); SessionEnd hook emits minimal backup if /wrap doesn't fire.
+- Latency gate fired as predicted: python3.11 cold-start measured 36ms vs 15ms p95 gate → shell hooks use `scripts/telemetry.sh` (jq, ~8ms). Python hooks import telemetry directly (no fork).
+- End-to-end smoke test with 3 synthetic sessions validated: all 4 event types emitted, context-reads bucketed across wrap-completed + session-end-backup + fully-abandoned, outcome-correlate showed differential findings between read/skipped buckets.
 
 ## Current Blockers
-- Parallel session has uncommitted session-telemetry implementation (hook-session-telemetry.py, scripts/telemetry.*, 4 hook edits) — not from this conversation. This session's `/challenge` issued PAUSE on the same work. User decision required: commit the parallel work, discard it, or revise PAUSE stance.
+- None. Telemetry shipped and committed.
+- Note: parallel Scott-note-review session (`1c2b7fb`) left 3 untracked `tasks/buildos-improvements-*.md` files + a 1-line `stores/debate-log.jsonl` diff. Not this session's work; left for owner of that workstream.
+- Note: that parallel session issued PAUSE on session-telemetry via /challenge on a 5-item improvement list, citing YAGNI for N=1 user. This session overrode per explicit user instruction to execute the existing plan. Revisit the PAUSE reasoning against actual telemetry data once Tier 1/Tier 2 signal accrues.
 
 ## Next Action
-Resolve the uncommitted session-telemetry code (parallel-session work vs. this session's PAUSE recommendation). Then either ship autobuild per its existing plan, or return to Scott's note with a revised gap table reflecting what's shipped since.
+Start a fresh Claude Code session — SessionStart hook will fire and begin populating real telemetry. After ~1 week of data, run `python3.11 scripts/session_telemetry_query.py hook-fires --window 7d` and `outcome-correlate tasks/handoff.md` to begin answering the Tier 1 vs Tier 2 question the plan motivated.
 
 ## Recent Commits
+fee8ee0 Session telemetry: separate Tier 1 (context reads) from Tier 2 (hook fires)
+1c2b7fb Session wrap 2026-04-16 (overnight): Scott note review + /challenge on 5-item list
 aa70d24 Session wrap 2026-04-16 (late evening): session-telemetry plan + cross-model review + premortem
-af4feab Session wrap 2026-04-16 (late evening): frontmatter helpers migration
-481154a Migrate frontmatter helpers + posture floor + challenger shuffle to debate_common.py
