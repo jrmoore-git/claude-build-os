@@ -15,7 +15,7 @@ rollback: "git revert <commit>. The Frame lens is additive — removing it retur
 review_tier: "debate"
 verification_evidence: "n=5 paired validation across historical proposals (autobuild, explore-intake, learning-velocity, streamline-rules, litellm-fallback). Dual-mode frame caught ~30 novel MATERIAL findings beyond the 3-persona panel; flipped 1 verdict (litellm-fallback REVISE → REJECT, feature already shipped). Cross-family configuration (sonnet structural + gpt-5.4 factual) BETTER on 4/5 proposals (more architectural, higher precision per finding) and TIED on 1/5. See tasks/frame-lens-validation.md for full data."
 implementation_status: shipped
-shipped_commit: pending
+shipped_commit: bfdf4ff
 allowed_paths:
   - .claude/skills/challenge/SKILL.md
   - scripts/debate.py
