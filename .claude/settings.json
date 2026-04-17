@@ -121,6 +121,11 @@
             "type": "command",
             "command": "python3 \"$CLAUDE_PROJECT_DIR/hooks/hook-skill-lint.py\"",
             "timeout": 10
+          },
+          {
+            "type": "command",
+            "command": "python3 \"$CLAUDE_PROJECT_DIR/hooks/hook-post-build-review.py\"",
+            "timeout": 2
           }
         ]
       },
