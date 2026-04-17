@@ -226,7 +226,7 @@ Write the evidence file + strongest hypothesis to a temp investigation summary, 
 
 ```bash
 /opt/homebrew/bin/python3.11 scripts/debate.py review \
-  --models claude-opus-4-6,gemini-3.1-pro,gpt-5.4 \
+  --models claude-opus-4-7,gemini-3.1-pro,gpt-5.4 \
   --prompt "You are reviewing a root-cause investigation. The investigator has gathered evidence and formed hypotheses. For each hypothesis presented: (1) Rate confidence 1-5 based on the evidence cited. (2) Identify any evidence that was missed or misinterpreted. (3) Suggest one additional test that would increase confidence. (4) State whether the root cause diagnosis is CONFIRMED, LIKELY, POSSIBLE, or UNSUPPORTED. Be terse. Disagree with each other if the evidence warrants it." \
   --input tasks/<TOPIC>-evidence.md
 ```

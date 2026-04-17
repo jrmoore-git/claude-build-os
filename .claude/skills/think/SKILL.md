@@ -700,7 +700,7 @@ Use `$WRAPPED_DOC` as the `--input` argument below. Clean up after review comple
 
 ```bash
 /opt/homebrew/bin/python3.11 scripts/debate.py review \
-  --models claude-opus-4-6,gemini-3.1-pro,gpt-5.4 \
+  --models claude-opus-4-7,gemini-3.1-pro,gpt-5.4 \
   --enable-tools \
   --allowed-tools check_code_presence,read_config_value \
   --prompt "Read this design document and review on 5 dimensions: Completeness, Consistency, Clarity, Scope (YAGNI?), Feasibility. For each dimension: PASS or list specific issues with fixes. Return a quality score (1-10). You have access to read-only verifier tools (check_code_presence, read_config_value) to fact-check claims about the current system. The document begins with project context so you can evaluate against the actual project state." \

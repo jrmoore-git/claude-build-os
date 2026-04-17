@@ -458,7 +458,7 @@ TYPE_TAGS = {"RISK", "ASSUMPTION", "ALTERNATIVE", "OVER-ENGINEERED", "UNDER-ENGI
 
 # Model-specific prompt overrides based on empirical tool adoption data
 MODEL_PROMPT_OVERRIDES = {
-    "claude-opus-4-6": "",  # 81-100% tool adoption — no extra nudge needed
+    "claude-opus-4-7": "",  # 81-100% tool adoption — no extra nudge needed
     "gemini-3.1-pro": (
         "\n\nIMPORTANT: You have verification tools available. Before making "
         "assertions about code structure or file contents, call the relevant "
@@ -1254,7 +1254,7 @@ def cmd_judge(args):
     # team switches their primary coding assistant. Per challenge synthesis
     # 2026-04-09, do NOT route through config — false configurability would
     # mask the deployment fact behind config indirection.
-    author_models = {"claude-opus-4-6", "litellm/claude-opus-4-6"}
+    author_models = {"claude-opus-4-7", "litellm/claude-opus-4-7"}
     judge_independence = "standard"
     if _is_fallback:
         judge_independence = "degraded_single_model"
@@ -3488,7 +3488,7 @@ def main():
     rf.add_argument("--rounds", type=int, default=None,
                      help="Number of refinement rounds (default: 6 for proposal, 2 for critique)")
     rf.add_argument("--models", default=None,
-                     help="Comma-separated model rotation (default: gemini-3.1-pro,gpt-5.4,claude-opus-4-6)")
+                     help="Comma-separated model rotation (default: gemini-3.1-pro,gpt-5.4,claude-opus-4-7)")
     rf.add_argument("--judgment", type=argparse.FileType("r"), default=None,
                      help="Path to judgment file — seeds first round with accepted challenges")
     rf.add_argument("--output", required=True,
@@ -3511,7 +3511,7 @@ def main():
     rv_model_group.add_argument("--model", default=None,
                     help="Single explicit LiteLLM model name (no persona framing).")
     rv_model_group.add_argument("--models", default=None,
-                    help="Comma-separated LiteLLM model names (e.g., claude-opus-4-6,gemini-3.1-pro). "
+                    help="Comma-separated LiteLLM model names (e.g., claude-opus-4-7,gemini-3.1-pro). "
                          "Runs in parallel, no persona framing.")
     rv_prompt_group = rv.add_mutually_exclusive_group(required=True)
     rv_prompt_group.add_argument("--prompt", default=None,
@@ -3597,7 +3597,7 @@ def main():
                     help="Model for single-model pressure-test (default: from config)")
     pt.add_argument("--models", default=None,
                     help="Comma-separated models for multi-model pressure-test "
-                         "(e.g., 'claude-opus-4-6,gemini-3.1-pro,gpt-5.4'). "
+                         "(e.g., 'claude-opus-4-7,gemini-3.1-pro,gpt-5.4'). "
                          "Mutually exclusive with --model.")
     pt.add_argument("--synthesis-model", default=None, dest="synthesis_model",
                     help="Model for multi-model synthesis step "

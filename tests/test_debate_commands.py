@@ -50,7 +50,7 @@ SAMPLE_CHALLENGE = """\
 debate_id: test-proposal
 created: 2026-04-16T10:00:00-0700
 mapping:
-  A: claude-opus-4-6
+  A: claude-opus-4-7
   B: gpt-5.4
   C: gemini-3.1-pro
 ---
@@ -157,14 +157,14 @@ def fake_config(monkeypatch):
     """Ensure config loads without needing real config file."""
     config = {
         "persona_model_map": {
-            "architect": "claude-opus-4-6",
+            "architect": "claude-opus-4-7",
             "security": "gpt-5.4",
             "staff": "gemini-3.1-pro",
             "pm": "gpt-5.4",
         },
         "judge_default": "gpt-5.4",
         "single_review_default": "gpt-5.4",
-        "refine_rotation": ["claude-opus-4-6", "gpt-5.4", "gemini-3.1-pro"],
+        "refine_rotation": ["claude-opus-4-7", "gpt-5.4", "gemini-3.1-pro"],
         "fallback_map": {},
     }
     monkeypatch.setattr(debate_common, "_load_config", lambda config_path=None: config)
@@ -222,7 +222,7 @@ class TestCmdChallenge:
     ):
         args = Namespace(
             proposal=proposal_file,
-            models="claude-opus-4-6,gpt-5.4",
+            models="claude-opus-4-7,gpt-5.4",
             personas=None,
             output=tmp_output,
             system_prompt=None,
@@ -332,7 +332,7 @@ class TestCmdChallenge:
     ):
         args = Namespace(
             proposal=proposal_file,
-            models="claude-opus-4-6,gpt-5.4",
+            models="claude-opus-4-7,gpt-5.4",
             personas=None,
             output=tmp_output,
             system_prompt=None,
@@ -743,7 +743,7 @@ class TestCmdPressureTest:
             proposal=proposal_file,
             frame="challenge",
             model="gpt-5.4",
-            models="claude-opus-4-6,gemini-3.1-pro",
+            models="claude-opus-4-7,gemini-3.1-pro",
             synthesis_model=None,
             context=None,
             output=tmp_output,
@@ -796,7 +796,7 @@ class TestCmdPressureTest:
             proposal=proposal,
             frame="challenge",
             model=None,
-            models="claude-opus-4-6,gpt-5.4",
+            models="claude-opus-4-7,gpt-5.4",
             synthesis_model=None,
             context=None,
             output=tmp_output,

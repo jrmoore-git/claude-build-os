@@ -240,7 +240,7 @@ class TestSerialDebateReview:
 
     def test_review_with_models_not_matched(self):
         """--models flag should NOT trigger D13."""
-        cmd = "python3.11 scripts/debate.py review --models claude-opus-4-6 --prompt 'Review' --input tasks/foo.md"
+        cmd = "python3.11 scripts/debate.py review --models claude-opus-4-7 --prompt 'Review' --input tasks/foo.md"
         assert check_command(cmd) is None
         assert check_command(cmd) is None
 

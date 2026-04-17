@@ -104,7 +104,7 @@ def _get_model_family(model_name):
     """Extract model family from a model name string.
 
     Returns a lowercase family identifier for cross-family independence checks.
-    Examples: 'claude-opus-4-6' -> 'claude', 'gpt-5.4' -> 'gpt',
+    Examples: 'claude-opus-4-7' -> 'claude', 'gpt-5.4' -> 'gpt',
               'gemini-3.1-pro' -> 'gemini'
     """
     name = model_name.lower()
@@ -257,7 +257,7 @@ _DEFAULT_PERSONA_MODEL_MAP = {
 }
 
 _DEFAULT_JUDGE = "gpt-5.4"
-_DEFAULT_REFINE_ROTATION = ["gemini-3.1-pro", "gpt-5.4", "claude-opus-4-6"]
+_DEFAULT_REFINE_ROTATION = ["gemini-3.1-pro", "gpt-5.4", "claude-opus-4-7"]
 
 VALID_PERSONAS = {"architect", "staff", "security", "pm"}
 

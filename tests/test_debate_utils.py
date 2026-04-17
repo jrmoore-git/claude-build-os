@@ -61,7 +61,7 @@ class TestChallengerTemperature:
 
     def test_claude_gets_default(self):
         default = debate.LLM_CALL_DEFAULTS["challenger_temperature_default"]
-        assert debate._challenger_temperature("claude-opus-4-6") == default
+        assert debate._challenger_temperature("claude-opus-4-7") == default
 
     def test_gpt_gets_default(self):
         default = debate.LLM_CALL_DEFAULTS["challenger_temperature_default"]
@@ -78,7 +78,7 @@ class TestChallengerTemperature:
 class TestEstimateCost:
     def test_claude_opus_cost(self):
         usage = {"prompt_tokens": 1000, "completion_tokens": 500}
-        cost = debate_common._estimate_cost("claude-opus-4-6", usage)
+        cost = debate_common._estimate_cost("claude-opus-4-7", usage)
         # 1000 * 15.0 / 1M + 500 * 75.0 / 1M = 0.015 + 0.0375 = 0.0525
         assert cost == 0.0525
 
@@ -89,8 +89,8 @@ class TestEstimateCost:
         assert cost == 0.045
 
     def test_empty_usage_returns_zero(self):
-        assert debate_common._estimate_cost("claude-opus-4-6", {}) == 0.0
-        assert debate_common._estimate_cost("claude-opus-4-6", None) == 0.0
+        assert debate_common._estimate_cost("claude-opus-4-7", {}) == 0.0
+        assert debate_common._estimate_cost("claude-opus-4-7", None) == 0.0
 
     def test_unknown_model_returns_zero(self):
         usage = {"prompt_tokens": 1000, "completion_tokens": 500}
@@ -98,15 +98,15 @@ class TestEstimateCost:
 
     def test_zero_tokens(self):
         usage = {"prompt_tokens": 0, "completion_tokens": 0}
-        assert debate_common._estimate_cost("claude-opus-4-6", usage) == 0.0
+        assert debate_common._estimate_cost("claude-opus-4-7", usage) == 0.0
 
     def test_missing_token_keys(self):
         usage = {"some_other_key": 42}
-        assert debate_common._estimate_cost("claude-opus-4-6", usage) == 0.0
+        assert debate_common._estimate_cost("claude-opus-4-7", usage) == 0.0
 
     def test_none_token_values(self):
         usage = {"prompt_tokens": None, "completion_tokens": None}
-        assert debate_common._estimate_cost("claude-opus-4-6", usage) == 0.0
+        assert debate_common._estimate_cost("claude-opus-4-7", usage) == 0.0
 
 
 # ── _build_frontmatter ────────────────────────────────────────────────────
@@ -122,10 +122,10 @@ class TestBuildFrontmatter:
 
         result = debate_common._build_frontmatter(
             "test-123",
-            {"A": "claude-opus-4-6", "B": "gpt-5.4"},
+            {"A": "claude-opus-4-7", "B": "gpt-5.4"},
         )
         assert "debate_id: test-123" in result
-        assert "A: claude-opus-4-6" in result
+        assert "A: claude-opus-4-7" in result
         assert "B: gpt-5.4" in result
         assert result.startswith("---")
         assert result.endswith("---")

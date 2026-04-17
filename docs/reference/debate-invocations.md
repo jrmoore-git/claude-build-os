@@ -46,7 +46,7 @@ python3.11 scripts/debate.py refine \
 ```
 
 - `--rounds N` overrides round count (default: 6).
-- `--models` overrides rotation (default: gemini-3.1-pro,gpt-5.4,claude-opus-4-6).
+- `--models` overrides rotation (default: gemini-3.1-pro,gpt-5.4,claude-opus-4-7).
 - `--early-stop` stops when a round changes < 5% characters.
 - `--judgment` is optional — seeds first round with accepted challenges.
 
@@ -103,7 +103,7 @@ python3.11 scripts/debate.py review \
 **Multiple models** (parallel panel, no persona framing):
 ```bash
 python3.11 scripts/debate.py review \
-  --models claude-opus-4-6,gemini-3.1-pro,gpt-5.4 \
+  --models claude-opus-4-7,gemini-3.1-pro,gpt-5.4 \
   --prompt-file /tmp/eval-prompt.md \
   --input tasks/<topic>-doc.md
 ```
@@ -139,7 +139,7 @@ python3.11 scripts/debate.py pressure-test \
 ```bash
 python3.11 scripts/debate.py pressure-test \
   --proposal tasks/<topic>.md \
-  --models "claude-opus-4-6,gemini-3.1-pro,gpt-5.4" \
+  --models "claude-opus-4-7,gemini-3.1-pro,gpt-5.4" \
   --output tasks/<topic>-pressure-test.md
 ```
 

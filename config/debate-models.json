@@ -1,15 +1,15 @@
 {
   "persona_model_map": {
-    "architect": "claude-opus-4-6",
+    "architect": "claude-opus-4-7",
     "staff": "gemini-3.1-pro",
     "security": "gpt-5.4",
     "pm": "gemini-3.1-pro"
   },
   "judge_default": "gpt-5.4",
   "compare_default": "gemini-3.1-pro",
-  "refine_rotation": ["gemini-3.1-pro", "gpt-5.4", "claude-opus-4-6"],
+  "refine_rotation": ["gemini-3.1-pro", "gpt-5.4", "claude-opus-4-7"],
   "single_review_default": "gpt-5.4",
   "verifier_default": "claude-sonnet-4-6",
-  "version": "2026-04-09",
-  "notes": "GPT restored to security with tool-encouraging prompt (was anti-tool 'focus on reasoning'). read_file_snippet tool unlocked GPT tool use (9 calls in first debate). P2 verifier as safety net. 3 model families for diversity. Re-benchmark when GPT-6, Gemini 4, or Claude 5 ships. compare_default added 2026-04-09 (debate-py-bandaid-cleanup) — compare is intentionally lighter than judge."
+  "version": "2026-04-16",
+  "notes": "GPT restored to security with tool-encouraging prompt (was anti-tool 'focus on reasoning'). read_file_snippet tool unlocked GPT tool use (9 calls in first debate). P2 verifier as safety net. 3 model families for diversity. Re-benchmark when GPT-6, Gemini 4, or Claude 5 ships. compare_default added 2026-04-09 (debate-py-bandaid-cleanup) — compare is intentionally lighter than judge. 2026-04-16: bumped Opus 4.6 → 4.7."
 }
