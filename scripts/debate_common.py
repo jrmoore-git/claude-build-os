@@ -8,9 +8,10 @@ Current scope:
   - Credential + environment loading (e2dd116, simplest version)
   - Cost-tracking subsystem (12a865b, F4 atomic migration)
   - Config loader + supporting constants (50a7fbd)
-  - Debate event log writer + project timezone (this commit)
-LLM call wrappers, prompt loading, frontmatter helpers stay in debate.py
-for now and migrate in followup commits.
+  - Debate event log writer + project timezone (170a3e6)
+  - Frontmatter helpers + posture floor + challenger shuffle (this commit)
+LLM call wrappers, prompt loading, and remaining cmd_* extractions stay in
+debate.py for now and migrate in followup commits.
 
 Import style policy (per challenge F3): consumers MUST use
 `import debate_common` and reference symbols as `debate_common.foo()`.
@@ -19,6 +20,8 @@ binding at import time and breaks monkeypatching.
 """
 import json
 import os
+import re
+import string
 import subprocess
 import sys
 import threading
@@ -336,3 +339,133 @@ def _log_debate_event(event, log_path=None, cost_snapshot=None):
         event["costs"] = get_session_costs()
     with open(path, "a") as f:
         f.write(json.dumps(event) + "\n")
+
+
+# ── Security posture floors ───────────────────────────────────────────────────
+# Topics involving credentials, auth, or destructive ops get posture >= 3
+# regardless of user setting. Pattern-matched on proposal/input content.
+SECURITY_FLOOR_PATTERNS = [
+    r'\bcredential', r'\bapi[_\s-]?key', r'\bsecret[_\s-]?key',
+    r'\bOAuth\b', r'\btoken\b', r'\bpassword', r'\bauth\b',
+    r'\.env\b', r'\bprivate[_\s-]?key',
+    r'\begress\b', r'\bexfiltrat',
+    r'\brm\s+-rf\b', r'\bDROP\s+TABLE\b', r'\bDELETE\s+FROM\b',
+    r'\bdestructive\b', r'\birreversible\b',
+]
+SECURITY_FLOOR_MIN = 3
+
+_SECURITY_FLOOR_RE = re.compile(
+    '|'.join(SECURITY_FLOOR_PATTERNS), re.IGNORECASE
+)
+
+
+def _apply_posture_floor(posture, content, label="proposal"):
+    """Clamp posture to SECURITY_FLOOR_MIN if content matches security patterns.
+
+    Returns (effective_posture, was_clamped).
+    """
+    if posture >= SECURITY_FLOOR_MIN:
+        return posture, False
+    match = _SECURITY_FLOOR_RE.search(content)
+    if match:
+        print(f"WARNING: posture floor applied ({posture}→{SECURITY_FLOOR_MIN}) — "
+              f"{label} contains security-sensitive content "
+              f"(matched: '{match.group()}')",
+              file=sys.stderr)
+        return SECURITY_FLOOR_MIN, True
+    return posture, False
+
+
+CHALLENGER_LABELS = list(string.ascii_uppercase)  # A, B, C, ...
+
+
+def _shuffle_challenger_sections(challenge_body, mapping):
+    """Shuffle challenger sections to eliminate position bias for the judge.
+
+    Splits on '## Challenger X' headers, randomizes order, relabels to
+    sequential letters. Returns (shuffled_body, shuffled_mapping).
+    The original mapping is preserved in the output file; shuffling only
+    affects what the judge sees.
+    """
+    import random
+
+    # Split into sections by ## Challenger header
+    sections = []
+    current_label = None
+    current_lines = []
+
+    for line in challenge_body.splitlines(keepends=True):
+        header_match = re.match(r"^## Challenger ([A-Z])", line)
+        if header_match:
+            if current_label is not None:
+                sections.append((current_label, "".join(current_lines)))
+            current_label = header_match.group(1)
+            current_lines = [line]
+        else:
+            current_lines.append(line)
+
+    if current_label is not None:
+        sections.append((current_label, "".join(current_lines)))
+
+    if len(sections) < 2:
+        return challenge_body, mapping
+
+    # Shuffle
+    random.shuffle(sections)
+
+    # Relabel to sequential A, B, C...
+    relabel_map = {}
+    shuffled_parts = []
+    shuffled_mapping = {}
+
+    for i, (old_label, text) in enumerate(sections):
+        new_label = CHALLENGER_LABELS[i]
+        relabel_map[old_label] = new_label
+        # Replace label references in section text
+        relabeled = text.replace(f"Challenger {old_label}", f"Challenger {new_label}")
+        shuffled_parts.append(relabeled)
+        # Map new label to original model
+        if old_label in mapping:
+            shuffled_mapping[new_label] = mapping[old_label]
+
+    return "".join(shuffled_parts), shuffled_mapping
+
+
+# ── Frontmatter ──────────────────────────────────────────────────────────────
+
+
+def _build_frontmatter(debate_id, mapping, extras=None):
+    """Build YAML frontmatter string with debate metadata."""
+    now = datetime.now(PROJECT_TZ)
+    lines = [
+        "---",
+        f"debate_id: {debate_id}",
+        f"created: {now.strftime('%Y-%m-%dT%H:%M:%S%z')[:25]}",
+        "mapping:",
+    ]
+    for label, model in mapping.items():
+        lines.append(f"  {label}: {model}")
+    if extras:
+        for key, value in extras.items():
+            lines.append(f"{key}: {value}")
+    lines.append("---")
+    return "\n".join(lines)
+
+
+def _redact_author(proposal_text):
+    """Redact author metadata from proposal before sending to challengers/judge.
+
+    Replaces 'author: <anything>' with 'author: anonymous' in YAML frontmatter
+    to prevent model-identity bias. The original file on disk is not modified.
+    """
+    if not proposal_text.startswith("---"):
+        return proposal_text
+    fm_end = proposal_text.find("---", 3)
+    if fm_end < 0:
+        return proposal_text
+    frontmatter = proposal_text[3:fm_end]
+    body = proposal_text[fm_end:]
+    redacted_fm = re.sub(
+        r"^author\s*:.*$", "author: anonymous", frontmatter, flags=re.MULTILINE
+    )
+    return "---" + redacted_fm + body

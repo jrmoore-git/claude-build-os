@@ -79,7 +79,7 @@ def cmd_verdict(args):
 
     # Build output — reuse same frontmatter format
     fm_extras = {"execution_mode": "fallback_single_model"} if _is_fallback else None
-    frontmatter = debate._build_frontmatter(debate_id, mapping, extras=fm_extras)
+    frontmatter = debate_common._build_frontmatter(debate_id, mapping, extras=fm_extras)
     sections = [frontmatter, f"# {debate_id} — Final Verdicts", ""]
     for label in sorted(results.keys()):
         sections.append(f"## Challenger {label} — Verdict")

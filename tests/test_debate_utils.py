@@ -120,7 +120,7 @@ class TestBuildFrontmatter:
         mock_dt.now.return_value = fake_now
         mock_dt.side_effect = lambda *a, **kw: datetime(*a, **kw)
 
-        result = debate._build_frontmatter(
+        result = debate_common._build_frontmatter(
             "test-123",
             {"A": "claude-opus-4-6", "B": "gpt-5.4"},
         )
@@ -136,7 +136,7 @@ class TestBuildFrontmatter:
         mock_dt.now.return_value = datetime(2026, 4, 14, 10, 0, 0)
         mock_dt.side_effect = lambda *a, **kw: datetime(*a, **kw)
 
-        result = debate._build_frontmatter(
+        result = debate_common._build_frontmatter(
             "test-456",
             {"A": "model-a"},
             extras={"phase": "challenge", "posture": "3"},
@@ -151,31 +151,31 @@ class TestBuildFrontmatter:
 class TestRedactAuthor:
     def test_redacts_author_in_frontmatter(self):
         text = "---\nauthor: John Smith\ntitle: Test\n---\nBody here"
-        result = debate._redact_author(text)
+        result = debate_common._redact_author(text)
         assert "author: anonymous" in result
         assert "John Smith" not in result
         assert "Body here" in result
 
     def test_preserves_body(self):
         text = "---\nauthor: Alice\n---\nThe body\nauthor: Bob in body"
-        result = debate._redact_author(text)
+        result = debate_common._redact_author(text)
         assert "author: anonymous" in result
         # Body "author:" should NOT be redacted (only frontmatter)
         assert "author: Bob in body" in result
 
     def test_no_frontmatter(self):
         text = "Just plain text\nauthor: Someone"
-        result = debate._redact_author(text)
+        result = debate_common._redact_author(text)
         assert result == text
 
     def test_no_author_field(self):
         text = "---\ntitle: Test\n---\nBody"
-        result = debate._redact_author(text)
+        result = debate_common._redact_author(text)
         assert result == text
 
     def test_unclosed_frontmatter(self):
         text = "---\nauthor: X\nno closing"
-        result = debate._redact_author(text)
+        result = debate_common._redact_author(text)
         assert result == text
 
 
@@ -283,7 +283,7 @@ class TestShuffleChallenger:
         mapping = {"A": "model-a", "B": "model-b", "C": "model-c"}
         # Run many times to verify it produces valid output
         for _ in range(5):
-            shuffled, new_mapping = debate._shuffle_challenger_sections(body, mapping)
+            shuffled, new_mapping = debate_common._shuffle_challenger_sections(body, mapping)
             assert "## Challenger A" in shuffled
             assert "## Challenger B" in shuffled
             assert "## Challenger C" in shuffled
@@ -292,14 +292,14 @@ class TestShuffleChallenger:
     def test_single_section_unchanged(self):
         body = "## Challenger A\nOnly one\n"
         mapping = {"A": "model-a"}
-        result, new_mapping = debate._shuffle_challenger_sections(body, mapping)
+        result, new_mapping = debate_common._shuffle_challenger_sections(body, mapping)
         assert result == body
         assert new_mapping == mapping
 
     def test_no_sections_unchanged(self):
         body = "No challenger headers here\n"
         mapping = {}
-        result, new_mapping = debate._shuffle_challenger_sections(body, mapping)
+        result, new_mapping = debate_common._shuffle_challenger_sections(body, mapping)
         assert result == body
 
 

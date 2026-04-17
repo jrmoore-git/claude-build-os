@@ -153,7 +153,7 @@ class TestBuildFrontmatter:
         mock_dt.now.return_value = datetime(2026, 1, 15, 8, 30, 0)
         mock_dt.side_effect = lambda *a, **kw: datetime(*a, **kw)
 
-        result = debate._build_frontmatter("d-001", {"A": "model-a", "B": "model-b"})
+        result = debate_common._build_frontmatter("d-001", {"A": "model-a", "B": "model-b"})
         assert result.startswith("---")
         assert result.endswith("---")
         assert "debate_id: d-001" in result
@@ -167,7 +167,7 @@ class TestBuildFrontmatter:
         mock_dt.now.return_value = datetime(2026, 1, 1, 0, 0, 0)
         mock_dt.side_effect = lambda *a, **kw: datetime(*a, **kw)
 
-        result = debate._build_frontmatter(
+        result = debate_common._build_frontmatter(
             "d-002", {"A": "m"}, extras={"phase": "judge", "posture": "5"}
         )
         assert "phase: judge" in result
@@ -179,14 +179,14 @@ class TestBuildFrontmatter:
         mock_dt.now.return_value = datetime(2026, 1, 1, 0, 0, 0)
         mock_dt.side_effect = lambda *a, **kw: datetime(*a, **kw)
 
-        result = debate._build_frontmatter("d-003", {"A": "m"})
+        result = debate_common._build_frontmatter("d-003", {"A": "m"})
         lines = result.strip().split("\n")
         assert lines[0] == "---"
         assert lines[-1] == "---"
 
     def test_created_timestamp_format(self):
         import re
-        result = debate._build_frontmatter("d-ts", {"A": "m"})
+        result = debate_common._build_frontmatter("d-ts", {"A": "m"})
         # Verify ISO 8601 format with timezone offset
         assert re.search(r"created: \d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}-\d{4}", result), \
             f"Timestamp format wrong in: {result}"
@@ -198,7 +198,7 @@ class TestBuildFrontmatter:
         mock_dt.now.return_value = datetime(2026, 1, 1, 0, 0, 0, tzinfo=ZoneInfo("America/Los_Angeles"))
         mock_dt.side_effect = lambda *a, **kw: datetime(*a, **kw)
 
-        result = debate._build_frontmatter("d-empty", {})
+        result = debate_common._build_frontmatter("d-empty", {})
         assert "mapping:" in result
         assert "debate_id: d-empty" in result
 
@@ -209,43 +209,43 @@ class TestBuildFrontmatter:
 class TestRedactAuthor:
     def test_redacts_in_frontmatter(self):
         text = "---\nauthor: John Smith\ntitle: Test\n---\nBody"
-        result = debate._redact_author(text)
+        result = debate_common._redact_author(text)
         assert "author: anonymous" in result
         assert "John Smith" not in result
 
     def test_preserves_body_content(self):
         text = "---\nauthor: Alice\n---\nBody with author: Bob"
-        result = debate._redact_author(text)
+        result = debate_common._redact_author(text)
         assert "author: Bob" in result
         assert "author: anonymous" in result
 
     def test_no_frontmatter_unchanged(self):
         text = "Just text\nauthor: Someone"
-        assert debate._redact_author(text) == text
+        assert debate_common._redact_author(text) == text
 
     def test_no_author_field_unchanged(self):
         text = "---\ntitle: Test\n---\nBody"
-        assert debate._redact_author(text) == text
+        assert debate_common._redact_author(text) == text
 
     def test_unclosed_frontmatter_unchanged(self):
         text = "---\nauthor: X\nno closing delimiter"
-        assert debate._redact_author(text) == text
+        assert debate_common._redact_author(text) == text
 
     def test_author_with_extra_spaces(self):
         text = "---\nauthor:   Spacey Name  \n---\nBody"
-        result = debate._redact_author(text)
+        result = debate_common._redact_author(text)
         assert "author: anonymous" in result
         assert "Spacey Name" not in result
 
     def test_author_with_email(self):
         text = "---\nauthor: user@example.com\n---\nBody"
-        result = debate._redact_author(text)
+        result = debate_common._redact_author(text)
         assert "author: anonymous" in result
         assert "user@example.com" not in result
 
     def test_multiple_frontmatter_fields_preserved(self):
         text = "---\ntitle: Proposal\nauthor: Bob\ndate: 2026-04-15\n---\nBody"
-        result = debate._redact_author(text)
+        result = debate_common._redact_author(text)
         assert "title: Proposal" in result
         assert "date: 2026-04-15" in result
         assert "author: anonymous" in result
@@ -363,7 +363,7 @@ class TestShuffleChallengerSections:
         )
         mapping = {"A": "model-a", "B": "model-b", "C": "model-c"}
         random.seed(42)
-        shuffled, new_map = debate._shuffle_challenger_sections(body, mapping)
+        shuffled, new_map = debate_common._shuffle_challenger_sections(body, mapping)
         assert "## Challenger A" in shuffled
         assert "## Challenger B" in shuffled
         assert "## Challenger C" in shuffled
@@ -376,7 +376,7 @@ class TestShuffleChallengerSections:
         )
         mapping = {"A": "model-a", "B": "model-b"}
         random.seed(99)
-        shuffled, new_map = debate._shuffle_challenger_sections(body, mapping)
+        shuffled, new_map = debate_common._shuffle_challenger_sections(body, mapping)
         # All new labels should be A or B
         assert set(new_map.keys()) == {"A", "B"}
         # All original models should be preserved
@@ -390,20 +390,20 @@ class TestShuffleChallengerSections:
         )
         mapping = {"A": "claude", "B": "gpt", "C": "gemini"}
         random.seed(7)
-        _, new_map = debate._shuffle_challenger_sections(body, mapping)
+        _, new_map = debate_common._shuffle_challenger_sections(body, mapping)
         assert set(new_map.values()) == {"claude", "gpt", "gemini"}
 
     def test_single_section_unchanged(self):
         body = "## Challenger A\nOnly one\n"
         mapping = {"A": "model-a"}
-        result, new_map = debate._shuffle_challenger_sections(body, mapping)
+        result, new_map = debate_common._shuffle_challenger_sections(body, mapping)
         assert result == body
         assert new_map == mapping
 
     def test_no_sections_unchanged(self):
         body = "No challenger headers\n"
         mapping = {}
-        result, new_map = debate._shuffle_challenger_sections(body, mapping)
+        result, new_map = debate_common._shuffle_challenger_sections(body, mapping)
         assert result == body
 
     def test_deterministic_with_seed(self):
@@ -414,9 +414,9 @@ class TestShuffleChallengerSections:
         )
         mapping = {"A": "m-a", "B": "m-b", "C": "m-c"}
         random.seed(123)
-        r1, m1 = debate._shuffle_challenger_sections(body, mapping)
+        r1, m1 = debate_common._shuffle_challenger_sections(body, mapping)
         random.seed(123)
-        r2, m2 = debate._shuffle_challenger_sections(body, mapping)
+        r2, m2 = debate_common._shuffle_challenger_sections(body, mapping)
         assert r1 == r2
         assert m1 == m2
 

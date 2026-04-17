@@ -52,7 +52,6 @@ import concurrent.futures
 import json
 import os
 import re
-import string
 import subprocess
 import sys
 import threading
@@ -455,96 +454,6 @@ with evidence grade A or B should be ACCEPTED.""",
 }
 
 
-# ── Security posture floors ───────────────────────────────────────────────────
-# Topics involving credentials, auth, or destructive ops get posture >= 3
-# regardless of user setting. Pattern-matched on proposal/input content.
-SECURITY_FLOOR_PATTERNS = [
-    r'\bcredential', r'\bapi[_\s-]?key', r'\bsecret[_\s-]?key',
-    r'\bOAuth\b', r'\btoken\b', r'\bpassword', r'\bauth\b',
-    r'\.env\b', r'\bprivate[_\s-]?key',
-    r'\begress\b', r'\bexfiltrat',
-    r'\brm\s+-rf\b', r'\bDROP\s+TABLE\b', r'\bDELETE\s+FROM\b',
-    r'\bdestructive\b', r'\birreversible\b',
-]
-SECURITY_FLOOR_MIN = 3
-
-import re as _re
-_SECURITY_FLOOR_RE = _re.compile(
-    '|'.join(SECURITY_FLOOR_PATTERNS), _re.IGNORECASE
-)
-
-
-def _apply_posture_floor(posture, content, label="proposal"):
-    """Clamp posture to SECURITY_FLOOR_MIN if content matches security patterns.
-
-    Returns (effective_posture, was_clamped).
-    """
-    if posture >= SECURITY_FLOOR_MIN:
-        return posture, False
-    match = _SECURITY_FLOOR_RE.search(content)
-    if match:
-        print(f"WARNING: posture floor applied ({posture}→{SECURITY_FLOOR_MIN}) — "
-              f"{label} contains security-sensitive content "
-              f"(matched: '{match.group()}')",
-              file=sys.stderr)
-        return SECURITY_FLOOR_MIN, True
-    return posture, False
-
-
-CHALLENGER_LABELS = list(string.ascii_uppercase)  # A, B, C, ...
-
-
-def _shuffle_challenger_sections(challenge_body, mapping):
-    """Shuffle challenger sections to eliminate position bias for the judge.
-
-    Splits on '## Challenger X' headers, randomizes order, relabels to
-    sequential letters. Returns (shuffled_body, shuffled_mapping).
-    The original mapping is preserved in the output file; shuffling only
-    affects what the judge sees.
-    """
-    import random
-
-    # Split into sections by ## Challenger header
-    sections = []
-    current_label = None
-    current_lines = []
-
-    for line in challenge_body.splitlines(keepends=True):
-        header_match = re.match(r"^## Challenger ([A-Z])", line)
-        if header_match:
-            if current_label is not None:
-                sections.append((current_label, "".join(current_lines)))
-            current_label = header_match.group(1)
-            current_lines = [line]
-        else:
-            current_lines.append(line)
-
-    if current_label is not None:
-        sections.append((current_label, "".join(current_lines)))
-
-    if len(sections) < 2:
-        return challenge_body, mapping
-
-    # Shuffle
-    random.shuffle(sections)
-
-    # Relabel to sequential A, B, C...
-    relabel_map = {}
-    shuffled_parts = []
-    shuffled_mapping = {}
-
-    for i, (old_label, text) in enumerate(sections):
-        new_label = CHALLENGER_LABELS[i]
-        relabel_map[old_label] = new_label
-        # Replace label references in section text
-        relabeled = text.replace(f"Challenger {old_label}", f"Challenger {new_label}")
-        shuffled_parts.append(relabeled)
-        # Map new label to original model
-        if old_label in mapping:
-            shuffled_mapping[new_label] = mapping[old_label]
-
-    return "".join(shuffled_parts), shuffled_mapping
-
 TYPE_TAGS = {"RISK", "ASSUMPTION", "ALTERNATIVE", "OVER-ENGINEERED", "UNDER-ENGINEERED"}
 
 # Model-specific prompt overrides based on empirical tool adoption data
@@ -820,46 +729,6 @@ def _auto_generate_mapping(meta, body, verbose=False):
                   "challenger identity.", file=sys.stderr)
 
 
-# ── Frontmatter ──────────────────────────────────────────────────────────────
-
-
-def _build_frontmatter(debate_id, mapping, extras=None):
-    """Build YAML frontmatter string with debate metadata."""
-    now = datetime.now(debate_common.PROJECT_TZ)
-    lines = [
-        "---",
-        f"debate_id: {debate_id}",
-        f"created: {now.strftime('%Y-%m-%dT%H:%M:%S%z')[:25]}",
-        "mapping:",
-    ]
-    for label, model in mapping.items():
-        lines.append(f"  {label}: {model}")
-    if extras:
-        for key, value in extras.items():
-            lines.append(f"{key}: {value}")
-    lines.append("---")
-    return "\n".join(lines)
-
-
-def _redact_author(proposal_text):
-    """Redact author metadata from proposal before sending to challengers/judge.
-
-    Replaces 'author: <anything>' with 'author: anonymous' in YAML frontmatter
-    to prevent model-identity bias. The original file on disk is not modified.
-    """
-    if not proposal_text.startswith("---"):
-        return proposal_text
-    fm_end = proposal_text.find("---", 3)
-    if fm_end < 0:
-        return proposal_text
-    frontmatter = proposal_text[3:fm_end]
-    body = proposal_text[fm_end:]
-    redacted_fm = re.sub(
-        r"^author\s*:.*$", "author: anonymous", frontmatter, flags=re.MULTILINE
-    )
-    return "---" + redacted_fm + body
-
-
 def _parse_frontmatter(text):
     """Parse YAML frontmatter from a debate file. Returns (metadata_dict, body)."""
     match = re.match(r"^---\n(.*?)\n---\n?(.*)", text, re.DOTALL)
@@ -934,7 +803,7 @@ def cmd_challenge(args):
         return 1
 
     proposal_raw = args.proposal.read()
-    proposal = _redact_author(proposal_raw)
+    proposal = debate_common._redact_author(proposal_raw)
     if not proposal.strip():
         print("ERROR: proposal file is empty", file=sys.stderr)
         return 1
@@ -953,7 +822,7 @@ def cmd_challenge(args):
 
     # Apply posture floor before anything uses the posture value
     posture = getattr(args, 'security_posture', 3)
-    posture, _floored = _apply_posture_floor(posture, proposal, "proposal")
+    posture, _floored = debate_common._apply_posture_floor(posture, proposal, "proposal")
     args.security_posture = posture
 
     # Resolve custom prompt first — it determines whether proposal validation applies
@@ -1027,11 +896,11 @@ def cmd_challenge(args):
 
     # Build label→model mapping upfront (needed for output ordering)
     for i, (model, _) in enumerate(challengers):
-        mapping[CHALLENGER_LABELS[i]] = model
+        mapping[debate_common.CHALLENGER_LABELS[i]] = model
 
     def _run_challenger(i, model, sys_prompt):
         """Run a single challenger. Returns (label, response, warnings, tool_log)."""
-        label = CHALLENGER_LABELS[i]
+        label = debate_common.CHALLENGER_LABELS[i]
         print(f"Calling {label}...", file=sys.stderr)
         t0 = time.time()
         # Challenger calls use per-model challenger temperature (intentional
@@ -1118,7 +987,7 @@ def cmd_challenge(args):
     results = {}
     with concurrent.futures.ThreadPoolExecutor(max_workers=len(challengers)) as pool:
         futures = {
-            pool.submit(_run_challenger, i, model, sys_prompt): CHALLENGER_LABELS[i]
+            pool.submit(_run_challenger, i, model, sys_prompt): debate_common.CHALLENGER_LABELS[i]
             for i, (model, sys_prompt) in enumerate(challengers)
         }
         try:
@@ -1144,7 +1013,7 @@ def cmd_challenge(args):
 
     # Build output
     fm_extras = {"execution_mode": "fallback_single_model"} if _is_fallback else None
-    frontmatter = _build_frontmatter(debate_id, mapping, extras=fm_extras)
+    frontmatter = debate_common._build_frontmatter(debate_id, mapping, extras=fm_extras)
     sections = [frontmatter, f"# {debate_id} — Challenger Reviews", ""]
     for label in sorted(results.keys()):
         sections.append(f"## Challenger {label} — Challenges")
@@ -1358,14 +1227,14 @@ def cmd_judge(args):
     if api_key is None:
         return 1
 
-    proposal = _redact_author(args.proposal.read())
+    proposal = debate_common._redact_author(args.proposal.read())
     if not proposal.strip():
         print("ERROR: proposal file is empty", file=sys.stderr)
         return 1
 
     # Apply posture floor based on proposal content
     posture = getattr(args, 'security_posture', 3)
-    posture, _floored = _apply_posture_floor(posture, proposal, "proposal")
+    posture, _floored = debate_common._apply_posture_floor(posture, proposal, "proposal")
     args.security_posture = posture
 
     challenge_text = args.challenge.read()
@@ -1565,7 +1434,7 @@ def cmd_judge(args):
         judge_input_body = consolidated_body
     else:
         # Single challenger or consolidation skipped — shuffle as before
-        shuffled_body, shuffled_mapping = _shuffle_challenger_sections(
+        shuffled_body, shuffled_mapping = debate_common._shuffle_challenger_sections(
             challenge_body, meta.get("mapping", {})
         )
         judge_input_body = shuffled_body
@@ -1582,7 +1451,7 @@ def cmd_judge(args):
 
     # Include author rebuttal brief if provided (preserves rebuttal signal)
     if args.rebuttal:
-        rebuttal_text = _redact_author(args.rebuttal.read())
+        rebuttal_text = debate_common._redact_author(args.rebuttal.read())
         if rebuttal_text.strip():
             user_content += (
                 "\n---\n\n"
@@ -1635,7 +1504,7 @@ def cmd_judge(args):
     if _is_fallback:
         fm_extras["execution_mode"] = "fallback_single_model"
         fm_extras["independence"] = judge_independence
-    frontmatter = _build_frontmatter(debate_id, mapping, extras=fm_extras or None)
+    frontmatter = debate_common._build_frontmatter(debate_id, mapping, extras=fm_extras or None)
     consolidation_note = ""
     if consolidation_stats:
         cs = consolidation_stats
@@ -3019,7 +2888,7 @@ def cmd_review(args):
 
     # Apply posture floor based on input content
     posture = getattr(args, 'security_posture', 3)
-    posture, _floored = _apply_posture_floor(posture, input_text, "input")
+    posture, _floored = debate_common._apply_posture_floor(posture, input_text, "input")
     args.security_posture = posture
 
     enable_tools = getattr(args, 'enable_tools', False)
@@ -3208,7 +3077,7 @@ def cmd_review(args):
         # Position randomization (Zheng et al.) — shuffle before labeling
         random.shuffle(successful)
         for i, (persona, model, response, _) in enumerate(successful):
-            label = CHALLENGER_LABELS[i]
+            label = debate_common.CHALLENGER_LABELS[i]
             print(f"## Reviewer {label}\n\n{response}\n\n---\n")
 
     failed = [r for r in reviews if not r[3]]
@@ -3222,7 +3091,7 @@ def cmd_review(args):
         mapping["Reviewer"] = successful[0][1]
     else:
         for i, (persona, model, _, _) in enumerate(successful):
-            mapping[CHALLENGER_LABELS[i]] = model
+            mapping[debate_common.CHALLENGER_LABELS[i]] = model
 
     log_entry = {
         "phase": "review-panel" if len(reviewers) > 1 else "review",
@@ -3449,7 +3318,7 @@ def cmd_pressure_test(args):
     mapping = {}
     analysis_sections = []
     for i, (_idx, m, resp, _ok, _elapsed) in enumerate(successful):
-        lbl = CHALLENGER_LABELS[i]
+        lbl = debate_common.CHALLENGER_LABELS[i]
         mapping[lbl] = m
         analysis_sections.append(f"## Analyst {lbl}\n\n{resp}")
 

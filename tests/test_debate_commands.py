@@ -362,7 +362,7 @@ class TestCmdChallenge:
         )
         debate.cmd_challenge(args)
         # Posture should have been raised from 1
-        assert args.security_posture >= debate.SECURITY_FLOOR_MIN
+        assert args.security_posture >= debate_common.SECURITY_FLOOR_MIN
 
 
 # ── cmd_judge ────────────────────────────────────────────────────────────────
