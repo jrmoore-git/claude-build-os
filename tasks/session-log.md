@@ -3221,3 +3221,28 @@ ended without running `/wrap-session`. Review and enrich in the next session.
 **Next Session:** Read tasks/debate-common-plan.md "Out of scope" section. Pick cost tracking. Enumerate call sites with `grep -rn 'debate\.(_estimate_cost|_track_cost|get_session_costs|_cost_delta_since|_track_tool_loop_cost)' scripts/ tests/`. Move 7 symbols + dict + lock + rate tables atomically in one commit. Update `_call_litellm` to call `debate_common._track_cost`.
 
 **Commits:** c993edf, 6bbde96, 74843c9, e2dd116, 0467c78. Five total.
+
+---
+
+## 2026-04-16 (evening) — 3 incremental debate.py migrations + lessons triage [healthcheck]
+
+**Decided:**
+- Pipeline shortcut: when D25 + parent challenge already gate the architecture and the unit is a verbatim move, skip /challenge and run plan → build → /review --qa. Used on 50a7fbd and 170a3e6 with no regression.
+- Git committer identity updated to `Justin Moore <justin.rinfret.moore@gmail.com>` (was hostname-derived).
+- No new architectural decisions — D25 still authoritative for the package-style refactor.
+
+**Implemented:**
+- `12a865b` — F4 atomic cost-tracking migration: 8 symbols + `_TOKEN_PRICING` table moved atomically. Full `/plan → /challenge → build → /review --qa` pipeline. Both accepted challenge findings (import style F1, re-export prohibition F3) resolved inline via plan text + pre-flight grep verification. 3 challenger APPROVE + claude-sonnet-4-6 judge.
+- `cc7271d` — F4 QA artifact (go).
+- `ba8ab6e` — `[healthcheck]` lesson triage: L27 → workflow.md cite, L34 → hook-context-inject.py, L38 → settings.json (Promoted); L29 (subsumed by D21), L35 (resolved by 9e69929) (Archived). Active count 14 → 9.
+- `50a7fbd` — `_load_config` migration + 4 supporting constants + dead `PERSONA_MODEL_MAP` alias deletion. 9 internal + 4 sibling + 3 test files retargeted.
+- `170a3e6` — `_log_debate_event` + `PROJECT_TZ` + `DEFAULT_LOG_PATH` migration. 11 internal + 5 sibling + 1 test fixture retargeted. Dropped vestigial `import debate` from debate_outcome.py.
+- Net debate.py shrinkage this session: 3991 → 3815 lines (−176 LOC). debate_common.py: 127 → 338 (+211 LOC).
+
+**Pattern caught (2 instances, not yet logged as a lesson):** Scout grep patterns systematically miss certain access forms. Commit 50a7fbd missed `monkeypatch.setattr(debate, "_load_config", ...)` form. Commit 170a3e6 missed `debate.DEFAULT_LOG_PATH` because `\bdebate\.DEFAULT_LOG\b` doesn't match a substring prefix when followed by `_`. Both caught by post-build verification grep (correct guard) and fixed in one Edit each. Promote to L40 if a third instance occurs.
+
+**Not Finished:** Frontmatter helpers migration (next single-purpose commit). Then: prompt loader split (shared fragments to debate_common, subcommand-specific prompts travel with their cmd_*). Then: 6 remaining cmd_* extractions. Lessons triage done — queue at 9/30 (healthy). 3 commits this session (12a865b, cc7271d, ba8ab6e) committed under hostname-derived identity; amend on next session if desired.
+
+**Next Session:** Pick the frontmatter helpers migration. Pre-flight grep with whole-identifier patterns AND monkeypatch.setattr form (apply this session's lessons). Run plan → build → /review --qa.
+
+**Commits:** 12a865b, cc7271d, ba8ab6e, 50a7fbd, 170a3e6. Five total.

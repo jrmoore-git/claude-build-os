@@ -1,23 +1,26 @@
-# Current State — 2026-04-16
+# Current State — 2026-04-16 (evening session)
 
 ## What Changed This Session
-- Fixed incomplete L39 cleanup — the test_debate_commands.py:22-23 `del sys.modules` glob was missed in the morning's c993edf fix. Removed today as Step 0 of the larger refactor.
-- Shipped debate.py split 6/N (cmd_explore extraction). Surfaced L39 (module-identity split between test patches and extracted code's lazy `import debate`).
-- Course-corrected the debate.py refactor architecture: from sibling-leaf pattern to package-style with shared `scripts/debate_common.py`. Documented as D25.
-- Ran cross-model `/challenge` on the new architecture (3 challengers + claude-sonnet-4-6 judge). Recommendation: PROCEED-WITH-FIXES, 5 material findings accepted, 0 blockers. All fixes are specification-level (zero new code).
-- Implemented "simplest version" of debate_common.py: 4 helpers (`_load_credentials`, `_load_dotenv`, `_get_model_family`, `_get_fallback_model`) + 2 constants (`DEFAULT_LITELLM_URL`, `PROJECT_ROOT`). debate.py shrank 4,090 → 3,991 lines.
-- `/review --qa` produced go-with-warnings (5 documented plan-compliance deviations, all justified).
-- Restored `.env` for the framework (copied from `~/buildos/products/debates/.env`) — was lost in the recent buildos/ monorepo restructure.
+- Shipped **F4 atomic cost-tracking migration** (12a865b): 8 cost symbols + `_TOKEN_PRICING` table moved from debate.py → debate_common.py atomically, with `/plan → /challenge → build → /review --qa` pipeline. Both accepted challenge findings (import style, re-export prohibition) resolved pre-commit via plan text + pre-flight grep verification.
+- QA artifact for F4 (cc7271d): GO verdict, all 5 dimensions pass.
+- **Lessons triage** (ba8ab6e, `[healthcheck]` marker): 5 fully-addressed lessons moved out of active table (L27 → workflow.md cite, L34 → hook-context-inject.py, L38 → settings.json, L29 → archived/D21, L35 → archived/9e69929). Active count dropped 14 → 9; total L## rows preserved at 30.
+- Shipped **`_load_config` migration** (50a7fbd): `_load_config` + 4 supporting constants + dead `PERSONA_MODEL_MAP` alias deleted. 9 internal + 4 sibling + 3 test files retargeted. Skipped /challenge per D25 (parent challenge gates the migration architecture).
+- Shipped **`_log_debate_event` migration** (170a3e6): `_log_debate_event` + `PROJECT_TZ` + `DEFAULT_LOG_PATH` moved. 11 internal + 5 sibling + 1 test fixture retargeted. Dropped vestigial `import debate` from debate_outcome.py.
+- Set local git config: `user.name=Justin Moore`, `user.email=justin.rinfret.moore@gmail.com` (was hostname-derived before).
+
+## Net debate.py shrinkage this session
+- 3991 → 3815 lines (−176 LOC across 3 migration commits)
+- debate_common.py: 127 → 338 (+211 LOC)
 
 ## Current Blockers
-- None identified
+- None identified.
 
 ## Next Action
-Cost tracking atomic migration (per challenge F4): move `_session_costs`, `_session_costs_lock`, `_estimate_cost`, `_track_cost`, `get_session_costs`, `_cost_delta_since`, `_track_tool_loop_cost`, and the cost rate tables into `debate_common.py` in one commit, with explicit verification that no `debate._track_cost` / `debate.get_session_costs` / `debate._cost_delta_since` call sites remain. Update test_debate_pure.py, test_debate_utils.py (heavy `_estimate_cost` usage) + 4 sibling modules. Start fresh session.
+Continue the package-style migration: next single-purpose commit is the **frontmatter helpers** unit (`_build_frontmatter`, `_redact_author`, `_apply_posture_floor`, `_shuffle_challenger_sections`). After that: prompt loader migration is split between shared instruction fragments (move) and subcommand-specific prompts (travel with their cmd_*). Then begin the 6 remaining cmd_* extractions (cmd_pressure_test, cmd_review, cmd_challenge, cmd_refine, cmd_premortem, cmd_judge).
 
 ## Recent Commits
-0467c78 QA artifact: debate-common (commit e2dd116) — go-with-warnings
-e2dd116 Implement debate_common.py: 4 helpers + 2 constants (simplest version)
-74843c9 Plan: debate_common.py extraction (challenge passed PROCEED-WITH-FIXES)
-6bbde96 debate.py split (6/N): extract cmd_explore to scripts/debate_explore.py
-c993edf test fix: remove sys.modules manipulation in 3 debate test files
+170a3e6 Migrate _log_debate_event + PROJECT_TZ + DEFAULT_LOG_PATH to debate_common.py
+50a7fbd Migrate _load_config + supporting constants to debate_common.py
+ba8ab6e [healthcheck] Triage 5 fully-addressed lessons (active 14 → 9)
+cc7271d QA artifact: debate-cost-tracking (commit 12a865b) — go
+12a865b F4 atomic cost-tracking migration: debate.py → debate_common.py
