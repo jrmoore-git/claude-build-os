@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+# hook-class: advisory
 """Dual-purpose hook enforcing read-before-edit on protected paths.
 
 Phase 1 (PostToolUse Read): Records which files have been Read this session.

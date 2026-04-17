@@ -1,4 +1,5 @@
 #!/usr/bin/env python3.11
+# hook-class: advisory
 """PostToolUse hook (Bash): track recurring errors for proactive /investigate routing.
 
 Watches Bash tool calls for failure patterns. When the same error class

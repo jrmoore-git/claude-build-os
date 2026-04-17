@@ -1,26 +1,34 @@
 #!/usr/bin/env python3.11
 """Query stores/session-telemetry.jsonl for hook fires, context reads, outcome correlations.
 
-Three subcommands:
-  hook-fires --window Nd          per-hook block/warn/allow counts
+Four subcommands:
+  hook-fires --window Nd          per-hook block/warn/allow counts (grouped by class)
   context-reads --window Nd       per-watchlist-file read rate across sessions
   outcome-correlate <file_path>   bucket sessions by read-vs-skipped of file,
                                   compare avg review_findings_count (wrap sessions only)
+  prune-candidates                apply two-class rubric; gated on >=30 sessions
 
 Reads JSONL, tolerates malformed lines, emits plain-text tables.
 Every output ends with the mandatory candidates footer.
+
+Hook classes come from `# hook-class:` comments in hooks/hook-*.{py,sh}.
+Classifications: enforcement-high, enforcement-low, advisory, unknown.
+See docs/reference/hook-pruning-rubric.md for rules.
 """
 
 from __future__ import annotations
 
 import argparse
 import json
+import re
 import sys
 import time
 from collections import defaultdict
 from pathlib import Path
 
-STORE = Path(__file__).resolve().parent.parent / "stores" / "session-telemetry.jsonl"
+REPO_ROOT = Path(__file__).resolve().parent.parent
+STORE = REPO_ROOT / "stores" / "session-telemetry.jsonl"
+HOOKS_DIR = REPO_ROOT / "hooks"
 
 FOOTER = (
     "\n---\n"
@@ -28,6 +36,13 @@ FOOTER = (
     "Read-of-file != file-actually-used-in-reasoning; outcome-correlate "
     "bucketing depends on /wrap completeness. Validate patterns before acting."
 )
+
+CLASS_ORDER = ["enforcement-high", "enforcement-low", "advisory", "unknown"]
+
+SESSION_COUNT_GATE = 30
+
+PRUNE_FIRE_THRESHOLD = 5
+PRUNE_BLOCK_RATE_THRESHOLD = 0.10
 
 
 def parse_window(window: str) -> float:
@@ -69,6 +84,55 @@ def read_events(cutoff: float = 0.0):
     return events, malformed
 
 
+def _load_hook_classes() -> dict[str, str]:
+    """Scan hooks/hook-*.{py,sh} for `# hook-class: X` comments.
+
+    Returns a map of hook_name -> class. The hook_name matches what hooks emit
+    in telemetry events (e.g., 'plan-gate' for hook-plan-gate.sh).
+
+    Unknown/untagged hooks do not appear in the returned map — callers look up
+    with .get(name, 'unknown').
+    """
+    classes: dict[str, str] = {}
+    if not HOOKS_DIR.is_dir():
+        return classes
+    pattern = re.compile(r"^#\s*hook-class:\s*(\S+)")
+    for path in sorted(HOOKS_DIR.glob("*")):
+        if not path.is_file():
+            continue
+        if path.suffix not in (".py", ".sh"):
+            continue
+        name = path.stem
+        if name.startswith("hook-"):
+            name = name[len("hook-"):]
+        try:
+            with open(path) as f:
+                # only scan the first ~10 lines — tags live near the top
+                for _ in range(10):
+                    line = f.readline()
+                    if not line:
+                        break
+                    m = pattern.match(line)
+                    if m:
+                        classes[name] = m.group(1).strip()
+                        break
+        except Exception:
+            continue
+    return classes
+
+
+def _session_count(events) -> int:
+    """Count unique session_ids that have at least one session_start event."""
+    sids = set()
+    for ev in events:
+        if ev.get("event_type") != "session_start":
+            continue
+        sid = ev.get("session_id")
+        if sid:
+            sids.add(sid)
+    return len(sids)
+
+
 def bucket_sessions(events):
     """Classify each session_id into wrap-completed / session-end-backup / fully-abandoned.
 
@@ -103,6 +167,7 @@ def bucket_sessions(events):
 def cmd_hook_fires(args):
     cutoff = parse_window(args.window)
     events, malformed = read_events(cutoff)
+    classes = _load_hook_classes()
     counts = defaultdict(lambda: {"allow": 0, "block": 0, "warn": 0})
     for ev in events:
         if ev.get("event_type") != "hook_fire":
@@ -113,15 +178,25 @@ def cmd_hook_fires(args):
             counts[hook][decision] += 1
 
     print(f"hook_fires (window={args.window})")
-    print(f"{'hook':<24} {'allow':>8} {'block':>8} {'warn':>8} {'total':>8}")
-    print("-" * 60)
+    print(f"{'hook':<24} {'class':<18} {'allow':>8} {'block':>8} {'warn':>8} {'total':>8}")
+    print("-" * 80)
     if not counts:
         print("(no fires)")
     else:
-        for hook in sorted(counts):
-            c = counts[hook]
-            total = c["allow"] + c["block"] + c["warn"]
-            print(f"{hook:<24} {c['allow']:>8} {c['block']:>8} {c['warn']:>8} {total:>8}")
+        # Group by class in the declared order.
+        by_class: dict[str, list[str]] = defaultdict(list)
+        for hook in counts:
+            klass = classes.get(hook, "unknown")
+            by_class[klass].append(hook)
+        for klass in CLASS_ORDER:
+            hooks = sorted(by_class.get(klass, []))
+            for hook in hooks:
+                c = counts[hook]
+                total = c["allow"] + c["block"] + c["warn"]
+                print(
+                    f"{hook:<24} {klass:<18} {c['allow']:>8} "
+                    f"{c['block']:>8} {c['warn']:>8} {total:>8}"
+                )
     if malformed:
         print(f"\n({malformed} malformed lines skipped)", file=sys.stderr)
     print(FOOTER)
@@ -209,6 +284,72 @@ def cmd_outcome_correlate(args):
     print(FOOTER)
 
 
+def cmd_prune_candidates(args):
+    events, malformed = read_events(cutoff=0.0)
+    classes = _load_hook_classes()
+    session_count = _session_count(events)
+
+    if session_count < SESSION_COUNT_GATE:
+        print(
+            f"Insufficient data: {session_count} sessions observed, "
+            f"{SESSION_COUNT_GATE} minimum. Re-run after more sessions accrue."
+        )
+        if malformed:
+            print(f"\n({malformed} malformed lines skipped)", file=sys.stderr)
+        print(FOOTER)
+        return
+
+    counts = defaultdict(lambda: {"allow": 0, "block": 0, "warn": 0})
+    for ev in events:
+        if ev.get("event_type") != "hook_fire":
+            continue
+        hook = ev.get("hook_name", "?")
+        decision = ev.get("decision", "?")
+        if decision in counts[hook]:
+            counts[hook][decision] += 1
+
+    # Consider every tagged hook plus any hook that emitted a fire.
+    hook_names = set(classes.keys()) | set(counts.keys())
+
+    print(f"prune_candidates (sessions={session_count})")
+    print(f"{'hook':<24} {'class':<18} {'verdict'}")
+    print("-" * 80)
+
+    by_class: dict[str, list[str]] = defaultdict(list)
+    for hook in hook_names:
+        klass = classes.get(hook, "unknown")
+        by_class[klass].append(hook)
+
+    for klass in CLASS_ORDER:
+        for hook in sorted(by_class.get(klass, [])):
+            c = counts.get(hook, {"allow": 0, "block": 0, "warn": 0})
+            total = c["allow"] + c["block"] + c["warn"]
+            blocks = c["block"]
+            block_rate = (blocks / total) if total else 0.0
+
+            if klass == "enforcement-high":
+                verdict = "exempt — enforcement-high"
+            elif klass == "enforcement-low":
+                if total < PRUNE_FIRE_THRESHOLD and block_rate < PRUNE_BLOCK_RATE_THRESHOLD:
+                    verdict = (
+                        f"CANDIDATE — fires={total} (<{PRUNE_FIRE_THRESHOLD}), "
+                        f"block_rate={block_rate*100:.1f}% (<10%)"
+                    )
+                else:
+                    verdict = (
+                        f"keep — fires={total}, block_rate={block_rate*100:.1f}%"
+                    )
+            elif klass == "advisory":
+                verdict = "qualitative review required — no volume signal"
+            else:
+                verdict = "untagged — classify before pruning"
+            print(f"{hook:<24} {klass:<18} {verdict}")
+
+    if malformed:
+        print(f"\n({malformed} malformed lines skipped)", file=sys.stderr)
+    print(FOOTER)
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     sub = parser.add_subparsers(dest="cmd", required=True)
@@ -224,6 +365,9 @@ def main():
     p3 = sub.add_parser("outcome-correlate")
     p3.add_argument("file_path", help="watchlist file path, e.g. tasks/handoff.md")
     p3.set_defaults(func=cmd_outcome_correlate)
+
+    p4 = sub.add_parser("prune-candidates")
+    p4.set_defaults(func=cmd_prune_candidates)
 
     args = parser.parse_args()
     args.func(args)

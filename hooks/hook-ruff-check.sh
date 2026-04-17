@@ -1,4 +1,5 @@
 #!/bin/bash
+# hook-class: enforcement-low
 # PostToolUse hook: ruff C901 (complexity) + E501 (line length) on edited Python files.
 # Non-blocking — exits 0 always. Violations are printed to stdout so Claude sees them.
 

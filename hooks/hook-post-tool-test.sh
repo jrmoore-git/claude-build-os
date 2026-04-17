@@ -1,4 +1,5 @@
 #!/bin/bash
+# hook-class: enforcement-low
 # PostToolUse hook: Run pytest for the corresponding test when a scripts/*_tool.py is written/edited
 
 INPUT=$(cat)

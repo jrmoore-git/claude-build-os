@@ -1,4 +1,5 @@
 #!/bin/bash
+# hook-class: enforcement-high
 # PreToolUse hook: Block/warn if high-risk files staged without valid debate artifacts.
 #
 # Accepts:

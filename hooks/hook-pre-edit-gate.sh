@@ -1,4 +1,5 @@
 #!/bin/bash
+# hook-class: enforcement-high
 # PreToolUse hook: Block Edit/Write on protected paths without a recent plan or proposal artifact.
 #
 # Fires on: Write|Edit (BEFORE code is written)

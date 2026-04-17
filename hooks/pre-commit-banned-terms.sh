@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+# hook-class: enforcement-low
 # pre-commit-banned-terms.sh — Block commits containing project-specific terms
 # Install: ln -sf ../../hooks/pre-commit-banned-terms.sh .git/hooks/pre-commit
 #

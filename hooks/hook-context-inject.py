@@ -1,4 +1,5 @@
 #!/usr/bin/env python3.11
+# hook-class: advisory
 """PreToolUse hook: inject relevant context before Write/Edit.
 
 Gathers test file names, local import signatures, and recent git history

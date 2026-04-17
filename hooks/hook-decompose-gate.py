@@ -1,4 +1,5 @@
 #!/usr/bin/env python3.11
+# hook-class: advisory
 """
 hook-decompose-gate.py — PreToolUse hook that nudges toward worktree
 fan-out when a plan artifact declares ≥2 independent components.

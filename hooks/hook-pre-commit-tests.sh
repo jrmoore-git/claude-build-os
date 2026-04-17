@@ -1,4 +1,5 @@
 #!/bin/bash
+# hook-class: enforcement-low
 # PreToolUse hook: Block git commit if pytest fails
 
 INPUT=$(cat)

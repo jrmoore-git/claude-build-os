@@ -1,4 +1,5 @@
 #!/bin/bash
+# hook-class: enforcement-high
 # PreToolUse hook: Classify task tier BEFORE first file edit.
 # Fires on: Write|Edit
 #

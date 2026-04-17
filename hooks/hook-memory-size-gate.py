@@ -1,4 +1,5 @@
 #!/usr/bin/env python3.11
+# hook-class: enforcement-high
 """
 hook-memory-size-gate.py — PreToolUse hook that blocks MEMORY.md writes
 when the file is already at or above the line limit.

@@ -1,4 +1,5 @@
 #!/usr/bin/env python3.11
+# hook-class: advisory
 """Session telemetry observer hook.
 
 Routes three hook events:

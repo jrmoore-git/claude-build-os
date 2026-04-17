@@ -1,4 +1,5 @@
 #!/bin/bash
+# hook-class: enforcement-low
 # PostToolUse hook: Syntax-check Python files after write/edit
 # Reads tool input JSON from stdin, runs py_compile on .py files
 

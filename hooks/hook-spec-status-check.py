@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+# hook-class: enforcement-low
 """PostToolUse hook: warn when reading spec docs with untagged recommendations.
 
 Fires on Read of tasks/*-refined.md and tasks/*-proposal.md.

@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+# hook-class: enforcement-low
 """PostToolUse hook: lint SKILL.md files after Write/Edit.
 
 Runs scripts/lint_skills.py on the target file if it matches .claude/skills/*/SKILL.md.

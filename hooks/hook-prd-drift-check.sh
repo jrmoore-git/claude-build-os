@@ -1,4 +1,5 @@
 #!/bin/bash
+# hook-class: enforcement-low
 # PreToolUse hook: Block when ≥5 decisions are unsynced to PRD.
 # Also warns when decisions.md staged without PRD, and blocks new PRD without symlink update.
 #

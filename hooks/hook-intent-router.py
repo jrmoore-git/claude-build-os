@@ -1,4 +1,5 @@
 #!/usr/bin/env python3.11
+# hook-class: advisory
 """UserPromptSubmit hook: classify user intent and inject routing suggestions.
 
 Reads the user's message, matches against intent patterns, and outputs
@@ -549,6 +550,26 @@ def main():
         if not already_suggested(skill_key):
             suggestions.append(message)
             record_suggestion(skill_key)
+
+    # Post-build review gate (non-suppressible — re-fires until cleared).
+    # Reads the state file written by hook-post-build-review.py. If the
+    # flag is set, inject the reminder every time — bypass already_suggested().
+    review_flag_file = f"/tmp/claude-review-{SESSION_ID}.json"
+    if os.path.exists(review_flag_file):
+        try:
+            with open(review_flag_file) as f:
+                review_state = json.load(f)
+            if isinstance(review_state, dict) and review_state.get("flag") == "needs_review":
+                edit_count = review_state.get("edit_count", 0)
+                plan_topic = review_state.get("plan_topic", "unknown")
+                suggestions.append(
+                    f"PROACTIVE ROUTING: You've made {edit_count} edits in plan "
+                    f"'{plan_topic}' without running /review. Run /review before commit. "
+                    "(This reminder re-fires every 5 edits until a review artifact "
+                    "exists — it doesn't go away silently.)"
+                )
+        except (json.JSONDecodeError, OSError):
+            pass
 
     # Match user intent (reactive routing)
     for pattern, skill, message in INTENT_PATTERNS:

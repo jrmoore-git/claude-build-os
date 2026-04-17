@@ -1,4 +1,5 @@
 #!/bin/bash
+# hook-class: enforcement-high
 # PreToolUse hook: Block commits to protected paths without a valid plan artifact.
 #
 # Protected paths defined in config/protected-paths.json.

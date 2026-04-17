@@ -1,4 +1,5 @@
 #!/usr/bin/env python3.11
+# hook-class: enforcement-high
 """
 hook-agent-isolation.py — PreToolUse hook that enforces worktree isolation
 on write-capable Agent dispatches when a parallel plan is active.

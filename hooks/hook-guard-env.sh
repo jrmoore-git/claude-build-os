@@ -1,4 +1,5 @@
 #!/bin/bash
+# hook-class: enforcement-high
 # PreToolUse hook: Block .env writes and credential management commands
 # Fires on: Write|Edit (file_path check + SKILL.md content check)
 #            Bash (command check)
