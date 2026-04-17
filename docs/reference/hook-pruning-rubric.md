@@ -2,7 +2,7 @@
 
 Rules for deciding which hooks can be safely pruned based on session telemetry.
 
-## Why two classes
+## Why a tiered rubric
 
 The naive metric — "prune hooks with low `fire_rate × block_rate`" — breaks for
 advisory and injection hooks. These hooks are designed to never block
@@ -14,8 +14,10 @@ may mean the guard is working (no one tried to do the bad thing) rather than
 that the guard is useless. Pruning them on low fire rate would remove
 load-bearing safety nets.
 
-The rubric below splits hooks into three classes and applies different pruning
-criteria to each.
+The rubric splits hooks into **two tiers** — advisory vs enforcement — and
+then sub-divides enforcement by severity to protect load-bearing guards from
+volume-based pruning. Three labels total: `advisory`, `enforcement-low`,
+`enforcement-high`.
 
 ## The three classes
 
@@ -68,17 +70,21 @@ Decision: never prune based on telemetry volume. Removal requires an
 architectural review that confirms the guarded behavior is impossible through
 other means.
 
-## Session-count gate
+## Maturity gate
 
-Do not attempt pruning until ≥30 sessions have been observed in telemetry.
+Do not attempt pruning until **both** conditions hold:
 
-A session is counted if it has a `session_start` event in `stores/session-telemetry.jsonl`.
-Fewer than 30 sessions is insufficient statistical signal for volume-based
-decisions.
+1. **≥30 sessions** observed (each session = a distinct `session_start` event in
+   `stores/session-telemetry.jsonl`).
+2. **First session is ≥28 days old** (`FIRST_SESSION_AGE_DAYS` in the query
+   script, matching the "4 calendar weeks" minimum accepted by the challenge).
 
-`scripts/session_telemetry_query.py prune-candidates` enforces this gate — it
-prints an "insufficient data" message and exits early when the session count
-is below the threshold.
+Whichever comes later wins. A burst of 30 sessions in a single day does not
+unlock pruning — that pattern indicates the framework is being exercised, not
+that the telemetry has stabilized.
+
+`scripts/session_telemetry_query.py prune-candidates` enforces both gates and
+prints an "insufficient data" message naming whichever gate failed.
 
 ## Classification source of truth
 

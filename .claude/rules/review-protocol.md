@@ -83,7 +83,7 @@ At 60% context: STOP and run review if not done. At 75%: run review NOW.
 
 ## Negative Examples from Dismissed Findings
 
-When a `/review` finding is dismissed (confirmed false positive), append it here under the relevant lens. Future `/review` runs read this section and treat these as patterns to not re-flag.
+When a `/review` finding is dismissed (confirmed false positive), append it here under the relevant lens. When `/review` is wired to read this section (future bundle), accumulated examples will be passed to lens prompts as patterns not to re-flag. Until then, this file is a manual ledger of dismissed findings — the content accrues now so the wiring has data to use later.
 
 ### PM lens negative examples
 <!-- append dismissed PM-lens findings as markdown list items -->

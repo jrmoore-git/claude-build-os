@@ -40,6 +40,7 @@ FOOTER = (
 CLASS_ORDER = ["enforcement-high", "enforcement-low", "advisory", "unknown"]
 
 SESSION_COUNT_GATE = 30
+FIRST_SESSION_AGE_DAYS = 28
 
 PRUNE_FIRE_THRESHOLD = 5
 PRUNE_BLOCK_RATE_THRESHOLD = 0.10
@@ -131,6 +132,18 @@ def _session_count(events) -> int:
         if sid:
             sids.add(sid)
     return len(sids)
+
+
+def _first_session_ts(events) -> float:
+    """Earliest session_start ts across all events. 0.0 if none."""
+    earliest = 0.0
+    for ev in events:
+        if ev.get("event_type") != "session_start":
+            continue
+        ts = float(ev.get("ts") or 0)
+        if ts and (earliest == 0.0 or ts < earliest):
+            earliest = ts
+    return earliest
 
 
 def bucket_sessions(events):
@@ -288,11 +301,15 @@ def cmd_prune_candidates(args):
     events, malformed = read_events(cutoff=0.0)
     classes = _load_hook_classes()
     session_count = _session_count(events)
+    first_ts = _first_session_ts(events)
+    age_days = (time.time() - first_ts) / 86400 if first_ts else 0.0
 
-    if session_count < SESSION_COUNT_GATE:
+    if session_count < SESSION_COUNT_GATE or age_days < FIRST_SESSION_AGE_DAYS:
         print(
-            f"Insufficient data: {session_count} sessions observed, "
-            f"{SESSION_COUNT_GATE} minimum. Re-run after more sessions accrue."
+            f"Insufficient data: {session_count} sessions observed "
+            f"(need {SESSION_COUNT_GATE}), first session was "
+            f"{age_days:.1f} days ago (need {FIRST_SESSION_AGE_DAYS}). "
+            f"Both gates must pass — whichever is later."
         )
         if malformed:
             print(f"\n({malformed} malformed lines skipped)", file=sys.stderr)
