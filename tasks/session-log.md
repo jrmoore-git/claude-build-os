@@ -3631,3 +3631,31 @@ monkeypatch form for each of the 4 symbols).
 **Next Session:** Audit judge-stage findings next. Same methodology: classify each finding as load-bearing vs completeness, rebuild benchmark with new classification, decide whether to tighten judge directive. Then review-lens.
 
 **Commits:** (to be added by commit step)
+
+
+---
+
+## 2026-04-18 — Frame-reach reframe: judge + refine directives shipped, methodology lesson
+
+**Focus:** User reframe redirected multi-session Frame-reach work back to original intent ("find similar patterns to Frame across the pipeline, fix them, then run ROI"). Shipped judge-stage and refine-stage frame directives. Captured benchmark-methodology lesson when user caught that refine iterations lacked baseline comparison.
+
+**Decided:**
+- D30: Judge-stage Frame directive + novelty gate shipped; SPIKE → INVESTIGATE rename
+- D31: Refine-stage Frame Check v5 shipped with mutually-exclusive channel rule (fixed → Review Notes, unfixed → Frame Check, never both)
+- L46: Frame-critique directives must include explicit novelty gate
+- L47: LLM prompt iteration without baseline benchmark produces treadmill — qualitative "looks cleaner" is pattern-matching, not evidence
+- Judge audit: 10/14 findings are genuine frame defects. Keep current calibration; tightening risks over-correction
+- Each pipeline stage needs tailored frame directive — judge + refine share pattern (generate findings), review-lens needs enforcement pattern (linkage model)
+
+**Implemented:**
+- `scripts/debate.py` — JUDGE_SYSTEM_PROMPT FRAME CRITIQUE + novelty gate + SPIKE→INVESTIGATE rename (throughout prompt, output format, regex parser, JSON log fields)
+- `scripts/debate.py` — REFINE_FIRST + REFINE_SUBSEQUENT gained FRAME CHECK with 5 active-check categories, 3-filter gate, sequential-decision flow, HARD RULE on mutually-exclusive channels
+- `tasks/judge-frame-directive-validation/` — 15 artifacts (n=8 original + variance + neg-control + novelty-gate re-validation)
+- `tasks/refine-frame-directive-validation/` — 23 artifacts across 5 iterations (v1 → v5)
+- `tasks/decisions.md` — D30 + D31; `tasks/lessons.md` — L46 + L47
+
+**Not Finished:** Review-lens linkage model (different shape from judge/refine — enforcement not generation); premortem / explore / think-discover frame directives; `debate-efficacy-study-*` pile triage (4-session carryover).
+
+**Next Session:** Design review-lens linkage — consume upstream Frame Check from refined spec rather than generate new. Build benchmark BEFORE iterating per L47. Then triage `debate-efficacy-study-*` pile.
+
+**Commits:** `96f3f25` (judge-stage + rename), `67679db` (refine-stage v5), and this wrap commit.

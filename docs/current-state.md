@@ -1,25 +1,28 @@
-# Current State — 2026-04-18 (morning: judge-stage Frame directive + novelty gate)
+# Current State — 2026-04-18
 
 ## What Changed This Session
-- **Judge-stage Frame directive shipped** as a prompt-only addition to `JUDGE_SYSTEM_PROMPT`. Five frame-defect categories (already-shipped, inflated-problem, false-binary, inherited-frame, unstated-assumption). Novelty test requires the model to state the required fix and verify no existing challenger finding covers it — reframes tagged "covered by Challenge [N]" instead of counted as MATERIAL. D30.
-- **SPIKE verdict renamed INVESTIGATE** throughout the judge prompt, output format, parser regex, and log field names. Breaking change to the `judge` JSON output schema (`spiked`→`investigating`, `blocking_spikes`→`blocking_investigations`, `needs_test`→`needs_investigation`) — no external consumer reads these fields.
-- **L46 added:** Frame-critique directives must include an explicit novelty gate or the model reframes existing findings and inflates MATERIAL counts without adding signal. Negative-control behavior is the test, not MATERIAL count.
-- **Validation evidence:** 15 artifacts in `tasks/judge-frame-directive-validation/` — n=11 original runs + n=3 variance + n=1 negative control + n=3 novelty-gate re-validation + 1 rename check.
+- **Judge-stage Frame directive shipped** (commit `96f3f25`) — FRAME CRITIQUE section in `JUDGE_SYSTEM_PROMPT` with 5 defect categories + novelty gate. Validated against n=11 (8 original + 3 variance) + n=1 negative control + n=3 novelty-gate re-validation. 0 fabrications across all runs.
+- **SPIKE verdict renamed INVESTIGATE** — plain English, aligns with `/investigate` skill. Breaking change to judge CLI JSON fields (`spiked`→`investigating`, etc.) — no external consumer reads them.
+- **Refine-stage Frame Check directive v5 shipped** (commit `67679db`) — same 5 categories as judge but adapted for refine's document-polishing role. Three filters (load-bearing + out-of-scope-for-refine + not-already-covered). HARD RULE: fixed concerns → Review Notes; unfixed → Frame Check. Never both. Took 5 iterations to calibrate.
+- **Benchmark methodology lesson captured (L47)** — user caught that I'd iterated refine v1→v5 without comparing against a baseline. Building the benchmark revealed v2 was 0/6 detection (silent failure), v3/v4 had channel violations. Qualitative "looks cleaner" is pattern-matching, not evidence.
+- **Judge-stage audit applied load-bearing + refine-scope classification** to 14 judge findings. 10/14 genuine frame defects, 1 correctly ADVISORY, 1 reframe, 2 borderline. Accepted current calibration — tightening risks over-correction.
 
 ## Current Blockers
-- None active. Directive is validated and ready. Next tier 1 fix (refine-stage) uses the same pattern.
+None. Judge + refine stages shipped and validated. Next stages scoped but deferred.
 
 ## Next Action
-Audit judge-stage findings with the same load-bearing + refine-scope classification that refine v5 uses. The refine audit revealed v1 findings included completeness-level concerns mislabeled as frame defects. Judge may have the same issue hidden — its output looks similar to Frame Check items but we haven't classified whether judge findings are actually load-bearing or completeness-level. Rebuild benchmark for judge with new classification. Then review-lens with linkage model (read upstream Frame Check rather than generate new). Then ROI study (`debate-efficacy-study-*` pile) against fixed pipeline.
+Review-lens with **linkage model** — `.claude/skills/review/SKILL.md` should consume upstream Frame Check from refined spec rather than generate new frame findings. Distinct from judge/refine patterns. Design needed, not just a prompt edit — the spec parser must surface Frame Check concerns to the review lens prompt.
+
+Then triage the `tasks/debate-efficacy-study-*` pile (4-session carryover, ~33 files) — likely the ROI measurement we want to run against the fixed pipeline.
 
 ## Recent Commits
-- (this commit): judge-stage Frame directive + novelty gate + SPIKE→INVESTIGATE rename
-- `84a0c9a` Session wrap 2026-04-17 (night): judge-stage Frame-reach audit DECLINE + reusable primitive
-- `c81acfb` Judge-stage Frame-reach audit: Phase 0x + Phase 0a — DECLINE
+- `67679db` Refine-stage Frame Check directive (v5) with mutually-exclusive channels
+- `96f3f25` Judge-stage Frame directive + novelty gate; SPIKE→INVESTIGATE rename
+- `99b55a8` Add rule banning wall-clock time estimates
 
 ## Followup tracked (not blocking)
-- **Refine-stage Frame directive + novelty gate** — next tier 1 fix.
-- **Review-lens Frame directive** — tier 2 fix.
-- **`debate-efficacy-study-*` pile still uncommitted** — ~33 files, 4-session carryover. Plausibly the ROI measurement we'll want to run against the fixed pipeline. Triage when prompt work is complete.
-- `tasks/multi-model-skills-roi-audit-*` off-scope design docs remain on disk.
+- **Review-lens linkage model** — not a copy-paste of the judge/refine pattern. Review's role is enforcement, not generation.
+- **Premortem, explore-synthesis, think-discover frame checks** — each needs a tailored shape, not one-size-fits-all (user insight from this session).
+- **`debate-efficacy-study-*` pile** — 4-session carryover. Triage once pipeline fixes are in place.
+- **Judge audit: 2 borderline findings** noted but not acted on. Revisit if downstream noise proves problematic.
 - `.claude/scheduled_tasks.lock` — runtime artifact, ignore.
