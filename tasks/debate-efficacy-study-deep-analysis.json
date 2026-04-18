@@ -1,0 +1,381 @@
+{
+  "per_topic": [
+    {
+      "topic": "autobuild",
+      "raw_valid": {
+        "C": 16,
+        "D": 9
+      },
+      "adjusted_valid_with_cross_dupes": {
+        "C": 17,
+        "D": 13
+      },
+      "dup_cross_count": {
+        "C": 1,
+        "D": 5
+      },
+      "dup_within_count": {
+        "C": 4,
+        "D": 2
+      },
+      "dup_unresolved_count": {
+        "C": 0,
+        "D": 0
+      },
+      "tag_distribution_all": {
+        "C": {
+          "MATERIAL": 15,
+          "ADVISORY": 12,
+          "ASSUMPTION": 2,
+          "RISK": 2,
+          "ALTERNATIVE": 1,
+          "OVER_ENGINEERED": 0,
+          "UNDER_ENGINEERED": 2
+        },
+        "D": {
+          "MATERIAL": 17,
+          "ADVISORY": 10,
+          "ASSUMPTION": 4,
+          "RISK": 4,
+          "ALTERNATIVE": 1,
+          "OVER_ENGINEERED": 1,
+          "UNDER_ENGINEERED": 4
+        }
+      },
+      "tag_distribution_valid_only": {
+        "C": {
+          "MATERIAL": 10,
+          "ADVISORY": 6,
+          "ASSUMPTION": 2,
+          "RISK": 1,
+          "ALTERNATIVE": 0,
+          "OVER_ENGINEERED": 0,
+          "UNDER_ENGINEERED": 2
+        },
+        "D": {
+          "MATERIAL": 7,
+          "ADVISORY": 2,
+          "ASSUMPTION": 0,
+          "RISK": 0,
+          "ALTERNATIVE": 1,
+          "OVER_ENGINEERED": 1,
+          "UNDER_ENGINEERED": 3
+        }
+      }
+    },
+    {
+      "topic": "explore-intake",
+      "raw_valid": {
+        "C": 23,
+        "D": 11
+      },
+      "adjusted_valid_with_cross_dupes": {
+        "C": 23,
+        "D": 11
+      },
+      "dup_cross_count": {
+        "C": 0,
+        "D": 0
+      },
+      "dup_within_count": {
+        "C": 0,
+        "D": 0
+      },
+      "dup_unresolved_count": {
+        "C": 13,
+        "D": 16
+      },
+      "tag_distribution_all": {
+        "C": {
+          "MATERIAL": 18,
+          "ADVISORY": 18,
+          "ASSUMPTION": 1,
+          "RISK": 2,
+          "ALTERNATIVE": 1,
+          "OVER_ENGINEERED": 1,
+          "UNDER_ENGINEERED": 1
+        },
+        "D": {
+          "MATERIAL": 17,
+          "ADVISORY": 10,
+          "ASSUMPTION": 6,
+          "RISK": 4,
+          "ALTERNATIVE": 2,
+          "OVER_ENGINEERED": 2,
+          "UNDER_ENGINEERED": 5
+        }
+      },
+      "tag_distribution_valid_only": {
+        "C": {
+          "MATERIAL": 8,
+          "ADVISORY": 15,
+          "ASSUMPTION": 0,
+          "RISK": 1,
+          "ALTERNATIVE": 1,
+          "OVER_ENGINEERED": 0,
+          "UNDER_ENGINEERED": 1
+        },
+        "D": {
+          "MATERIAL": 4,
+          "ADVISORY": 7,
+          "ASSUMPTION": 2,
+          "RISK": 2,
+          "ALTERNATIVE": 1,
+          "OVER_ENGINEERED": 0,
+          "UNDER_ENGINEERED": 1
+        }
+      }
+    },
+    {
+      "topic": "learning-velocity",
+      "raw_valid": {
+        "C": 12,
+        "D": 11
+      },
+      "adjusted_valid_with_cross_dupes": {
+        "C": 25,
+        "D": 16
+      },
+      "dup_cross_count": {
+        "C": 13,
+        "D": 5
+      },
+      "dup_within_count": {
+        "C": 4,
+        "D": 5
+      },
+      "dup_unresolved_count": {
+        "C": 0,
+        "D": 1
+      },
+      "tag_distribution_all": {
+        "C": {
+          "MATERIAL": 15,
+          "ADVISORY": 14,
+          "ASSUMPTION": 3,
+          "RISK": 1,
+          "ALTERNATIVE": 2,
+          "OVER_ENGINEERED": 4,
+          "UNDER_ENGINEERED": 1
+        },
+        "D": {
+          "MATERIAL": 12,
+          "ADVISORY": 10,
+          "ASSUMPTION": 4,
+          "RISK": 2,
+          "ALTERNATIVE": 5,
+          "OVER_ENGINEERED": 2,
+          "UNDER_ENGINEERED": 3
+        }
+      },
+      "tag_distribution_valid_only": {
+        "C": {
+          "MATERIAL": 4,
+          "ADVISORY": 8,
+          "ASSUMPTION": 2,
+          "RISK": 1,
+          "ALTERNATIVE": 2,
+          "OVER_ENGINEERED": 0,
+          "UNDER_ENGINEERED": 1
+        },
+        "D": {
+          "MATERIAL": 6,
+          "ADVISORY": 5,
+          "ASSUMPTION": 3,
+          "RISK": 0,
+          "ALTERNATIVE": 3,
+          "OVER_ENGINEERED": 1,
+          "UNDER_ENGINEERED": 2
+        }
+      }
+    },
+    {
+      "topic": "streamline-rules",
+      "raw_valid": {
+        "C": 17,
+        "D": 7
+      },
+      "adjusted_valid_with_cross_dupes": {
+        "C": 18,
+        "D": 7
+      },
+      "dup_cross_count": {
+        "C": 2,
+        "D": 3
+      },
+      "dup_within_count": {
+        "C": 8,
+        "D": 1
+      },
+      "dup_unresolved_count": {
+        "C": 0,
+        "D": 0
+      },
+      "tag_distribution_all": {
+        "C": {
+          "MATERIAL": 25,
+          "ADVISORY": 16,
+          "ASSUMPTION": 0,
+          "RISK": 0,
+          "ALTERNATIVE": 0,
+          "OVER_ENGINEERED": 0,
+          "UNDER_ENGINEERED": 0
+        },
+        "D": {
+          "MATERIAL": 12,
+          "ADVISORY": 11,
+          "ASSUMPTION": 5,
+          "RISK": 2,
+          "ALTERNATIVE": 2,
+          "OVER_ENGINEERED": 0,
+          "UNDER_ENGINEERED": 2
+        }
+      },
+      "tag_distribution_valid_only": {
+        "C": {
+          "MATERIAL": 12,
+          "ADVISORY": 5,
+          "ASSUMPTION": 0,
+          "RISK": 0,
+          "ALTERNATIVE": 0,
+          "OVER_ENGINEERED": 0,
+          "UNDER_ENGINEERED": 0
+        },
+        "D": {
+          "MATERIAL": 6,
+          "ADVISORY": 1,
+          "ASSUMPTION": 2,
+          "RISK": 1,
+          "ALTERNATIVE": 0,
+          "OVER_ENGINEERED": 0,
+          "UNDER_ENGINEERED": 0
+        }
+      }
+    },
+    {
+      "topic": "litellm-fallback",
+      "raw_valid": {
+        "C": 13,
+        "D": 8
+      },
+      "adjusted_valid_with_cross_dupes": {
+        "C": 13,
+        "D": 8
+      },
+      "dup_cross_count": {
+        "C": 0,
+        "D": 0
+      },
+      "dup_within_count": {
+        "C": 0,
+        "D": 0
+      },
+      "dup_unresolved_count": {
+        "C": 13,
+        "D": 9
+      },
+      "tag_distribution_all": {
+        "C": {
+          "MATERIAL": 13,
+          "ADVISORY": 16,
+          "ASSUMPTION": 1,
+          "RISK": 2,
+          "ALTERNATIVE": 1,
+          "OVER_ENGINEERED": 0,
+          "UNDER_ENGINEERED": 2
+        },
+        "D": {
+          "MATERIAL": 11,
+          "ADVISORY": 8,
+          "ASSUMPTION": 5,
+          "RISK": 1,
+          "ALTERNATIVE": 0,
+          "OVER_ENGINEERED": 0,
+          "UNDER_ENGINEERED": 2
+        }
+      },
+      "tag_distribution_valid_only": {
+        "C": {
+          "MATERIAL": 3,
+          "ADVISORY": 10,
+          "ASSUMPTION": 0,
+          "RISK": 0,
+          "ALTERNATIVE": 1,
+          "OVER_ENGINEERED": 0,
+          "UNDER_ENGINEERED": 2
+        },
+        "D": {
+          "MATERIAL": 4,
+          "ADVISORY": 4,
+          "ASSUMPTION": 1,
+          "RISK": 0,
+          "ALTERNATIVE": 0,
+          "OVER_ENGINEERED": 0,
+          "UNDER_ENGINEERED": 1
+        }
+      }
+    }
+  ],
+  "totals": {
+    "raw_valid": {
+      "C": 81,
+      "D": 46
+    },
+    "adjusted_valid_with_cross_dupes": {
+      "C": 96,
+      "D": 55
+    },
+    "dup_cross_count": {
+      "C": 16,
+      "D": 13
+    },
+    "dup_within_count": {
+      "C": 16,
+      "D": 8
+    },
+    "dup_unresolved_count": {
+      "C": 26,
+      "D": 26
+    },
+    "tag_distribution_all": {
+      "C": {
+        "MATERIAL": 86,
+        "ADVISORY": 76,
+        "ASSUMPTION": 7,
+        "RISK": 7,
+        "ALTERNATIVE": 5,
+        "OVER_ENGINEERED": 5,
+        "UNDER_ENGINEERED": 6
+      },
+      "D": {
+        "MATERIAL": 69,
+        "ADVISORY": 49,
+        "ASSUMPTION": 24,
+        "RISK": 13,
+        "ALTERNATIVE": 10,
+        "OVER_ENGINEERED": 5,
+        "UNDER_ENGINEERED": 16
+      }
+    },
+    "tag_distribution_valid_only": {
+      "C": {
+        "MATERIAL": 37,
+        "ADVISORY": 44,
+        "ASSUMPTION": 4,
+        "RISK": 3,
+        "ALTERNATIVE": 4,
+        "OVER_ENGINEERED": 0,
+        "UNDER_ENGINEERED": 6
+      },
+      "D": {
+        "MATERIAL": 27,
+        "ADVISORY": 19,
+        "ASSUMPTION": 8,
+        "RISK": 3,
+        "ALTERNATIVE": 5,
+        "OVER_ENGINEERED": 2,
+        "UNDER_ENGINEERED": 7
+      }
+    }
+  }
+}

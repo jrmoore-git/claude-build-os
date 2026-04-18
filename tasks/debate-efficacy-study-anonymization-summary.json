@@ -1,0 +1,32 @@
+[
+  {
+    "topic": "autobuild",
+    "arm_c_count": 27,
+    "arm_d_count": 27,
+    "pooled_count": 54
+  },
+  {
+    "topic": "explore-intake",
+    "arm_c_count": 36,
+    "arm_d_count": 27,
+    "pooled_count": 63
+  },
+  {
+    "topic": "learning-velocity",
+    "arm_c_count": 29,
+    "arm_d_count": 22,
+    "pooled_count": 51
+  },
+  {
+    "topic": "streamline-rules",
+    "arm_c_count": 41,
+    "arm_d_count": 23,
+    "pooled_count": 64
+  },
+  {
+    "topic": "litellm-fallback",
+    "arm_c_count": 29,
+    "arm_d_count": 19,
+    "pooled_count": 48
+  }
+]

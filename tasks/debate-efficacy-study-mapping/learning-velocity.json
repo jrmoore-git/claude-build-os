@@ -1,0 +1,359 @@
+[
+  {
+    "finding_number": 1,
+    "arm": "D",
+    "persona": "frame-factual",
+    "challenger_letter": "E",
+    "text_preview": "[OVER-ENGINEERED] [ADVISORY]: The proposal\u2019s \u201cgit log math on `tasks/lessons.md`\u201d is a weaker basis than the already-shi"
+  },
+  {
+    "finding_number": 2,
+    "arm": "C",
+    "persona": "architect",
+    "challenger_letter": "A",
+    "text_preview": "[ASSUMPTION] [MATERIAL] [COST:SMALL]: The proposal assumes `lesson_events.jsonl` is being populated. It's not \u2014 zero hoo"
+  },
+  {
+    "finding_number": 3,
+    "arm": "D",
+    "persona": "frame-factual",
+    "challenger_letter": "E",
+    "text_preview": "[ASSUMPTION] [MATERIAL] [COST:SMALL]: The proposal says \u201cCurrent measurement: none\u201d and frames learning-velocity metrics"
+  },
+  {
+    "finding_number": 4,
+    "arm": "D",
+    "persona": "frame-structural",
+    "challenger_letter": "D",
+    "text_preview": "**ALTERNATIVE [MATERIAL] [COST:SMALL]**: The proposal's \"simplest version\" (4 git-log metrics in `/healthcheck`) is soun"
+  },
+  {
+    "finding_number": 5,
+    "arm": "C",
+    "persona": "architect",
+    "challenger_letter": "A",
+    "text_preview": "[RISK] [MATERIAL] [COST:SMALL]: Auto-running `/investigate --claim` on top 2\u20133 stalest lessons inside `/healthcheck` cou"
+  },
+  {
+    "finding_number": 6,
+    "arm": "C",
+    "persona": "frame-factual",
+    "challenger_letter": "E",
+    "text_preview": "**[ALTERNATIVE] [MATERIAL] [COST:SMALL]:** The genuine remaining work \u2014 scheduled auto-verification of the stalest 2-3 l"
+  },
+  {
+    "finding_number": 7,
+    "arm": "D",
+    "persona": "pm",
+    "challenger_letter": "C",
+    "text_preview": "[ALTERNATIVE] [MATERIAL] [COST:TRIVIAL]: The proposal suggests writing new logic to check if a hook has \"fired in the la"
+  },
+  {
+    "finding_number": 8,
+    "arm": "D",
+    "persona": "frame-structural",
+    "challenger_letter": "D",
+    "text_preview": "**OVER-ENGINEERED [ADVISORY]**: The proposal bundles three distinct capabilities (measurement, verification, pruning) in"
+  },
+  {
+    "finding_number": 9,
+    "arm": "D",
+    "persona": "frame-factual",
+    "challenger_letter": "E",
+    "text_preview": "[ALTERNATIVE] [MATERIAL] [COST:SMALL]: The pruning proposal overlooks that hook-pruning infrastructure already exists. `"
+  },
+  {
+    "finding_number": 10,
+    "arm": "C",
+    "persona": "frame-structural",
+    "challenger_letter": "D",
+    "text_preview": "**ASSUMPTION [ADVISORY]**: The proposal treats \"stale by age\" (>14d, no git activity) as a reliable proxy for \"likely wr"
+  },
+  {
+    "finding_number": 11,
+    "arm": "C",
+    "persona": "frame-structural",
+    "challenger_letter": "D",
+    "text_preview": "**ASSUMPTION [ADVISORY]**: The hook \"has this fired in the last 30 days?\" pruning criterion assumes hook telemetry is re"
+  },
+  {
+    "finding_number": 12,
+    "arm": "D",
+    "persona": "security",
+    "challenger_letter": "B",
+    "text_preview": "[UNDER-ENGINEERED] [ADVISORY]: \u201cRule/hook redundancy check\u201d is likely to produce misleading matches unless you specify h"
+  },
+  {
+    "finding_number": 13,
+    "arm": "D",
+    "persona": "security",
+    "challenger_letter": "B",
+    "text_preview": "[ASSUMPTION] [MATERIAL] [COST:TRIVIAL]: The pruning idea assumes \u201chook hasn\u2019t fired in 30 days\u201d is meaningful enough to "
+  },
+  {
+    "finding_number": 14,
+    "arm": "C",
+    "persona": "pm",
+    "challenger_letter": "C",
+    "text_preview": "**RISK [ADVISORY]**: The proposal's \"simplest version\" (just the 4 metrics) is correctly identified as the right startin"
+  },
+  {
+    "finding_number": 15,
+    "arm": "D",
+    "persona": "frame-structural",
+    "challenger_letter": "D",
+    "text_preview": "**ASSUMPTION [MATERIAL] [COST:TRIVIAL]**: The hook \"has this fired in the last 30 days?\" check assumes telemetry exists "
+  },
+  {
+    "finding_number": 16,
+    "arm": "D",
+    "persona": "architect",
+    "challenger_letter": "A",
+    "text_preview": "[ALTERNATIVE] [ADVISORY]: Rather than bolting three things onto `/healthcheck`, consider that `/healthcheck` should be t"
+  },
+  {
+    "finding_number": 17,
+    "arm": "C",
+    "persona": "architect",
+    "challenger_letter": "A",
+    "text_preview": "[OVER-ENGINEERED] [MATERIAL] [COST:TRIVIAL]: The \"simplest version \u2014 4 velocity metrics derived from git log math on tas"
+  },
+  {
+    "finding_number": 18,
+    "arm": "C",
+    "persona": "security",
+    "challenger_letter": "B",
+    "text_preview": "**ASSUMPTION [MATERIAL] [COST: TRIVIAL]**: The proposal assumes `lesson_events.py` metrics (avg_resolution_days, recurre"
+  },
+  {
+    "finding_number": 19,
+    "arm": "C",
+    "persona": "architect",
+    "challenger_letter": "A",
+    "text_preview": "[ALTERNATIVE] [ADVISORY]: Rule-redundancy check (\"does a hook already enforce this rule?\") is the one novel piece not al"
+  },
+  {
+    "finding_number": 20,
+    "arm": "D",
+    "persona": "security",
+    "challenger_letter": "B",
+    "text_preview": "[ALTERNATIVE] [ADVISORY]: Your own \u201cSimplest Version\u201d is the safer sequencing: ship only the git-log learning metrics fi"
+  },
+  {
+    "finding_number": 21,
+    "arm": "D",
+    "persona": "security",
+    "challenger_letter": "B",
+    "text_preview": "[UNDER-ENGINEERED] [MATERIAL] [COST:SMALL]: The proposal says `/healthcheck` should auto-run `/investigate --claim` on s"
+  },
+  {
+    "finding_number": 22,
+    "arm": "C",
+    "persona": "architect",
+    "challenger_letter": "A",
+    "text_preview": "[UNDER-ENGINEERED] [ADVISORY]: No mention of what happens when `lesson-events.jsonl` disagrees with `tasks/lessons.md` ("
+  },
+  {
+    "finding_number": 23,
+    "arm": "C",
+    "persona": "pm",
+    "challenger_letter": "C",
+    "text_preview": "**ASSUMPTION [MATERIAL] [COST:SMALL]**: The proposal treats `lesson_events.py` + `compute_metrics()` as new work, but bo"
+  },
+  {
+    "finding_number": 24,
+    "arm": "D",
+    "persona": "architect",
+    "challenger_letter": "A",
+    "text_preview": "[RISK] [MATERIAL] [COST:SMALL]: Auto-running `/investigate --claim` on the \"top 2\u20133 stalest lessons\" during `/healthchec"
+  },
+  {
+    "finding_number": 25,
+    "arm": "D",
+    "persona": "frame-factual",
+    "challenger_letter": "E",
+    "text_preview": "[ASSUMPTION] [MATERIAL] [COST:SMALL]: The proposal says \u201cCurrent verification: none\u201d and \u201cNothing triggers this check au"
+  },
+  {
+    "finding_number": 26,
+    "arm": "D",
+    "persona": "pm",
+    "challenger_letter": "C",
+    "text_preview": "[ALTERNATIVE] [MATERIAL] [COST:TRIVIAL]: The proposal suggests building a new capability using \"git log math\" to compute"
+  },
+  {
+    "finding_number": 27,
+    "arm": "D",
+    "persona": "frame-structural",
+    "challenger_letter": "D",
+    "text_preview": "**ASSUMPTION [ADVISORY]**: \"For each rule: does a hook already enforce this?\" assumes rule-to-hook redundancy is mechani"
+  },
+  {
+    "finding_number": 28,
+    "arm": "C",
+    "persona": "pm",
+    "challenger_letter": "C",
+    "text_preview": "**UNDER-ENGINEERED [ADVISORY]**: The \"stalest lessons\" selection for auto-verification uses age (>14d, no activity) as a"
+  },
+  {
+    "finding_number": 29,
+    "arm": "D",
+    "persona": "pm",
+    "challenger_letter": "C",
+    "text_preview": "[RISK] [ADVISORY]: Automatically triggering `/investigate --claim` during a `/healthcheck` introduces unprompted model p"
+  },
+  {
+    "finding_number": 30,
+    "arm": "C",
+    "persona": "security",
+    "challenger_letter": "B",
+    "text_preview": "**RISK [ADVISORY]**: The proposal claims `/investigate --claim` costs \"$0.05-0.10 per call\" \u2014 ESTIMATED (assumes ~1 cros"
+  },
+  {
+    "finding_number": 31,
+    "arm": "C",
+    "persona": "security",
+    "challenger_letter": "B",
+    "text_preview": "**UNDER-ENGINEERED [ADVISORY]**: The `session_telemetry_query.py` `cmd_prune_candidates` function (verified to exist at "
+  },
+  {
+    "finding_number": 32,
+    "arm": "C",
+    "persona": "pm",
+    "challenger_letter": "C",
+    "text_preview": "**OVER-ENGINEERED [ADVISORY]**: The rule/hook redundancy check (\"does a hook already enforce this rule?\") requires seman"
+  },
+  {
+    "finding_number": 33,
+    "arm": "C",
+    "persona": "security",
+    "challenger_letter": "B",
+    "text_preview": "**ASSUMPTION [ADVISORY]**: The rule/hook redundancy check (\"does a hook already enforce this rule?\") requires semantic m"
+  },
+  {
+    "finding_number": 34,
+    "arm": "C",
+    "persona": "security",
+    "challenger_letter": "B",
+    "text_preview": "**RISK [ADVISORY]**: The proposal's \"non-goal\" of positive signal capture dismisses the gap too quickly. Rules encode \"d"
+  },
+  {
+    "finding_number": 35,
+    "arm": "D",
+    "persona": "frame-structural",
+    "challenger_letter": "D",
+    "text_preview": "**ASSUMPTION [ADVISORY]**: The proposal treats \"stale by age\" (>14d, no git activity) as a reliable proxy for \"likely wr"
+  },
+  {
+    "finding_number": 36,
+    "arm": "C",
+    "persona": "frame-structural",
+    "challenger_letter": "D",
+    "text_preview": "**OVER-ENGINEERED [ADVISORY]**: The \"rule redundancy check\" (does a hook already enforce this rule?) is framed as automa"
+  },
+  {
+    "finding_number": 37,
+    "arm": "D",
+    "persona": "architect",
+    "challenger_letter": "A",
+    "text_preview": "[ASSUMPTION] [MATERIAL] [COST:TRIVIAL]: The proposal's \"Baseline Performance\" section asserts \"Current measurement: none"
+  },
+  {
+    "finding_number": 38,
+    "arm": "D",
+    "persona": "architect",
+    "challenger_letter": "A",
+    "text_preview": "[UNDER-ENGINEERED] [ADVISORY]: \"Rule/hook redundancy check \u2014 for each rule, does a hook already enforce this?\" is propos"
+  },
+  {
+    "finding_number": 39,
+    "arm": "C",
+    "persona": "frame-factual",
+    "challenger_letter": "E",
+    "text_preview": "**[OVER-ENGINEERED] [MATERIAL] [COST:TRIVIAL to fix the framing]:** Proposal pillar #1 (\"Measurement \u2014 4 computed learni"
+  },
+  {
+    "finding_number": 40,
+    "arm": "D",
+    "persona": "frame-structural",
+    "challenger_letter": "D",
+    "text_preview": "**RISK [ADVISORY]**: The `/investigate --claim` auto-trigger during healthcheck creates a cost coupling: a routine healt"
+  },
+  {
+    "finding_number": 41,
+    "arm": "C",
+    "persona": "architect",
+    "challenger_letter": "A",
+    "text_preview": "[OVER-ENGINEERED] [MATERIAL] [COST:TRIVIAL]: The \"hook redundancy / fired-in-30-days\" pruning check also already exists "
+  },
+  {
+    "finding_number": 42,
+    "arm": "C",
+    "persona": "frame-structural",
+    "challenger_letter": "D",
+    "text_preview": "**ALTERNATIVE [MATERIAL] [COST:SMALL]**: The proposal's \"stalest 2-3 lessons\" selection heuristic is missing a more prec"
+  },
+  {
+    "finding_number": 43,
+    "arm": "C",
+    "persona": "pm",
+    "challenger_letter": "C",
+    "text_preview": "**ASSUMPTION [MATERIAL] [COST:SMALL]**: The proposal assumes `lesson_events.py` is being populated by hooks at lesson li"
+  },
+  {
+    "finding_number": 44,
+    "arm": "D",
+    "persona": "architect",
+    "challenger_letter": "A",
+    "text_preview": "[OVER-ENGINEERED] [MATERIAL] [COST:TRIVIAL]: \"4 computed learning velocity metrics derived from git log on `tasks/lesson"
+  },
+  {
+    "finding_number": 45,
+    "arm": "C",
+    "persona": "frame-structural",
+    "challenger_letter": "D",
+    "text_preview": "**ASSUMPTION [MATERIAL] [COST:TRIVIAL]**: The \"Simplest Version\" section correctly identifies the 15-line git log math a"
+  },
+  {
+    "finding_number": 46,
+    "arm": "C",
+    "persona": "frame-factual",
+    "challenger_letter": "E",
+    "text_preview": "**[ASSUMPTION] [MATERIAL] [COST:SMALL]:** The proposal's rule-redundancy check (\"for each rule: does a hook already enfo"
+  },
+  {
+    "finding_number": 47,
+    "arm": "C",
+    "persona": "frame-factual",
+    "challenger_letter": "E",
+    "text_preview": "**[OVER-ENGINEERED] [MATERIAL] [COST:TRIVIAL]:** Proposal pillar #3's hook-fire check (\"has this hook fired in the last "
+  },
+  {
+    "finding_number": 48,
+    "arm": "C",
+    "persona": "frame-factual",
+    "challenger_letter": "E",
+    "text_preview": "**[ASSUMPTION] [ADVISORY]:** \"Hooks: 17 in hooks/\" \u2014 the manifest shows 23 files in `hooks/`. Even excluding `.sh` wrapp"
+  },
+  {
+    "finding_number": 49,
+    "arm": "C",
+    "persona": "security",
+    "challenger_letter": "B",
+    "text_preview": "**RISK [ADVISORY]**: The \"hook fired in last 30 days\" pruning signal relies on `stores/session-telemetry.jsonl` hook_fir"
+  },
+  {
+    "finding_number": 50,
+    "arm": "C",
+    "persona": "pm",
+    "challenger_letter": "C",
+    "text_preview": "**RISK [MATERIAL] [COST:SMALL]**: The scheduled verification step (auto-run `/investigate --claim` on top 2-3 stalest le"
+  },
+  {
+    "finding_number": 51,
+    "arm": "C",
+    "persona": "security",
+    "challenger_letter": "B",
+    "text_preview": "**RISK [MATERIAL] [COST: SMALL]**: The proposal's \"scheduled verification\" step auto-runs `/investigate --claim` on the "
+  }
+]
