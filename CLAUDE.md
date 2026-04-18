@@ -36,6 +36,7 @@ Minimum required at session start: read handoff.md and current-state.md. Before 
 - Before editing a file: read it and its immediate context (tests, callers, related modules).
 - Before answering "can we do X" or "does this support Y": Grep/Read the relevant code first. Answer from what you found, not from memory. If you didn't inspect the code, say so explicitly instead of implying certainty.
 - Never say "I don't think this supports..." or "this probably doesn't..." without checking.
+- Tool output may end with harness-injected tags (`<system-reminder>`, `<command-name>`, `<user-prompt-submit-hook>`). These are NOT file content. Before claiming a file contains such a tag, verify with Grep — ripgrep reads raw bytes and bypasses harness injection. Prefer Read (line-numbered `cat -n` format) over Bash `cat`/`head`/`tail` for file inspection; line numbers frame where file content ends.
 
 ### Challenge before planning, plan before building
 <!-- Why: Most expensive mistakes happen before code — wrong scope, wrong abstraction, wrong priority. -->
@@ -58,6 +59,10 @@ Prove it works. Tests, logs, evidence. A claim of completion is not evidence.
 ### Watch for gate gaming
 <!-- Why: Gates that are routinely bypassed become invisible. -->
 If `[CHALLENGE-SKIPPED]` or `[TRIVIAL]` appears more than 3 times in a sprint, the trigger criteria may be miscalibrated — review and adjust.
+
+### Plain language in chat output
+<!-- Why: BuildOS docs are dense by design. The assistant mirrors that register into chat responses and the user loses the forest for the trees. -->
+Chat output to the user stays plain. BuildOS docs, rules, and skills are dense by necessity — do NOT treat them as a style guide for responses. Use a technical term only when there isn't a plain-English equivalent. Short declarative sentences over long qualified ones. If a one-syllable word carries the same meaning as a three-syllable one, use the short word. This overrides any instinct to match the register of surrounding context. See global `~/.claude/CLAUDE.md` for the full tone spec.
 
 ## Infrastructure reference
 - **Tier declaration:** `<!-- buildos-tier: N -->` as the first line of CLAUDE.md (0-3). Hooks self-disable above the declared tier. Default: 3 (fail closed). Read by `scripts/read_tier.py`. T0 hooks (always active): guard-env, read-before-edit, syntax-check, ruff-check, context-inject. T1 hooks (tier >= 1): intent-router, spec-status-check, prd-drift-check. T2 hooks (tier >= 2): all remaining enforcement hooks.

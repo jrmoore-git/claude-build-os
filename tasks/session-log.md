@@ -3691,3 +3691,24 @@ monkeypatch form for each of the 4 symbols).
 **Next Session:** Triage `tasks/debate-efficacy-study-*` pile. Likely the ROI measurement we want to run against the now-fixed pipeline (judge + refine Frame directives + review linkage documented).
 
 **Commits:** this wrap commit.
+
+---
+
+## 2026-04-18 (evening) — Root-level fixes: harness-tag attribution + plain-language chat output
+
+**Focus:** Two behavioral patterns surfaced mid-conversation: (1) mis-attributing harness-injected `<system-reminder>` tags to file content, (2) mirroring the dense BuildOS doc register into chat responses. User asked for root-level fixes, not session-local corrections.
+
+**Decided:**
+- Both fixes land as always-loaded rules in project `CLAUDE.md`, paired with cross-session feedback memories. No hooks — harness injection runs after hook stdout and can't be rewritten; jargon detection has too high a false-positive rate to automate.
+- Plain-language rule explicitly overrides register-matching to surrounding docs (BuildOS docs are dense by design; chat is not).
+
+**Implemented:**
+- `CLAUDE.md` — added "harness-tag attribution" bullet under "Inspect before acting"; added new operating rule "Plain language in chat output."
+- `tasks/lessons.md` — L48 (harness-tag attribution).
+- `~/.claude/projects/.../memory/feedback_harness_tag_attribution.md` + `feedback_plain_language.md` + `MEMORY.md` index updates.
+
+**Not Finished:** New `CLAUDE.md` rules won't bind mid-session — effective next `/start`.
+
+**Next Session:** Same queue as afternoon entry (triage `debate-efficacy-study-*`). Verify both new rules fire on first natural opportunity.
+
+**Commits:** this commit.
