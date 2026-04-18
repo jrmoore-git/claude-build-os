@@ -84,6 +84,12 @@ When presenting multiple approaches, alternatives, or options for the user to ch
 **Anti-pattern:** Putting all option details only inside the AskUserQuestion tool call.
 **Correct pattern:** Write numbered options as text → then AskUserQuestion for the selection.
 
+## No Wall-Clock Time Estimates
+
+Never quote minutes, hours, or days for how long work will take. The model has no calibration data for wall time on this machine — tool latency, context loads, hook retries, model speed, and review depth all vary, and elapsed time is never observed back. Time estimates are consistently wrong and erode trust.
+
+Allowed substitutes: number of files touched, tool-call count, review rounds, decision points, t-shirt size (S/M/L), or scope phrases ("single edit", "multi-file change", "multi-session effort"). If asked "how long?" — refuse the time framing and answer in effort terms.
+
 ## Three-Strikes Escalation
 
 If the same behavior has been corrected three times at the same level, escalate immediately. Promotion ladder: lesson → rule → hook → architecture. Do not keep rewriting advisory text for a behavior that needs structural enforcement.
