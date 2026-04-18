@@ -3712,3 +3712,47 @@ monkeypatch form for each of the 4 symbols).
 **Next Session:** Same queue as afternoon entry (triage `debate-efficacy-study-*`). Verify both new rules fire on first natural opportunity.
 
 **Commits:** this commit.
+
+
+---
+
+## 2026-04-18 (evening) — Debate-efficacy-study closed; arm-comparison redesigned via /challenge --deep; efficiency gate identified
+
+**Focus:** User asked whether all multi-model tools had incorporated recent lessons. Review of the ecosystem revealed the prior `debate-efficacy-study` (2026-04-17, n=5) pile was still uncommitted and its published verdict (DROP-CROSS-MODEL) was extracted from a count metric GPT-5.4 critique had already flagged as atomization-biased. User pushed through a proper redesign: test arm B'-fair (single-model Claude, same-session consolidation) vs arm D-production (as-deployed), not the prior study's proxies. Then expanded scope to all 4 multi-model skills. Then triple-verified costs — pricing honest, but grep showed zero prompt caching, suggesting ~60-70% input-token waste on every call.
+
+**Decided:**
+- **D33:** Prior debate-efficacy-study superseded; verdict discarded; methodology scaffolding preserved. New design (`tasks/debate-arm-comparison-design-refined.md`) replaces it.
+- **D34:** Prompt caching must ship before the arm-comparison study runs. Zero quality risk (Anthropic byte-exact cache); ~60-70% savings expected. Other efficiency ideas (model reassignments, tool-call caps) deferred pending validation.
+
+**Implemented:**
+- `tasks/debate-arm-comparison-design.md` (new experimental design).
+- `/challenge --deep` pipeline run: `-challenge.md` (5 personas, $5.94 total), `-judgment.md` (6 material + 1 frame-added accepted, 6 advisory dismissed), `-refined.md` (6 rounds gemini/gpt/claude, 511 lines).
+- Judge confirmed 3 decision-changing flaws in original `/challenge` implementation: `--config` CLI flag doesn't exist (grep-confirmed — arm B'-fair invocation as I wrote it was unrunnable); `--enable-tools` silently reintroduces cross-family frame-factual via dual-expansion; one-sentence canonical reformat would destroy dimension #2 (nuance) signal.
+- Refined design addresses all 7 accepted findings + adds Phase 0.5 Evidence Traceability Matrix + symmetric variance (not just arm D) + high-fidelity normalization + 100% human audit on high-stakes outcome labels + pre-registered sanity-check consequence rule.
+- `tasks/debate-arm-comparison-scope-expansion.md` — addendum for new session: 4-skill expansion (`/challenge` + `/refine` + `/review` + `/pressure-test`), 10 retrospective proposals with outcome-class + type diversity, sanity-check pair (`sim-generalization` + `buildos-improvements`).
+- `tasks/debate-efficacy-study-results.md` — frontmatter + header rewritten: verdict → SUPERSEDED, closure reason named, pointer to replacement design.
+- `tasks/decisions.md` — D33 + D34 added.
+- `~/.claude/projects/-Users-justinmoore-buildos-framework/memory/feedback_measure_review_value_add.md` — new memory: "Review value-add = counterfactual delta."
+- `MEMORY.md` index updated.
+- All 33 debate-efficacy-study files now ready for commit (4-session carryover closed).
+
+**Verified:**
+- Pricing table (`scripts/debate_common.py:140-148`) matches published 2026-04 rates: Opus $15/$75, Sonnet $3/$15, Haiku $0.80/$4, GPT-5.4 $2.50/$10, Gemini 3.1 Pro $1.25/$10.
+- Per-record arithmetic matches (e.g., `learning-velocity` $6.83 record: claude-sonnet 631K input × $3/M + 10K output × $15/M = $2.046 vs logged $2.0454; claude-opus 272K × $15/M + 9K × $75/M = $4.789 vs logged $4.7888).
+- Zero prompt caching in `debate.py` / `debate_common.py` / `llm_client.py` (grep for `cache_control`, `prompt_caching`, `anthropic-beta`, etc. returned zero matches).
+- Current `/challenge` mean $1.88/call, median $0.36/call, across 157 historical runs. 30-day debate spend $380. Annualized ~$4,500.
+
+**NOT Finished:**
+- Commit itself (happens after this wrap entry).
+- New-session sequence: verify prompt caching quality-neutrality → ship caching → measure savings → ONLY THEN run study.
+- 4-skill expansion needs per-skill arm definitions finalized in new session before execution.
+- `managed-agents-dispatch` outcome to verify (one of the 10 proposals has UNKNOWN ship status).
+
+**Next session:**
+1. Read `docs/current-state.md` + `tasks/handoff.md` + `tasks/debate-arm-comparison-scope-expansion.md`.
+2. Phase 0: verify prompt caching preserves quality (Anthropic docs + maybe a quick test). Ship it.
+3. Phase 0b: verify managed-agents-dispatch outcome; confirm or swap proposal #9 in the set.
+4. Phase 0c: per-skill arm-B'-fair configs (probably needs `--config` CLI flag implementation as Phase 2 of refined design).
+5. Phase 1+: outcome extraction, arm execution, adjudication per refined design.
+
+**Commits:** this wrap commit.
