@@ -184,17 +184,33 @@ _session_costs_lock = threading.Lock()
 
 
 def _track_cost(model, usage, cost_usd):
-    """Accumulate a single call's cost into the session totals."""
+    """Accumulate a single call's cost into the session totals.
+
+    Cache token fields (cache_read_input_tokens, cache_creation_input_tokens)
+    are accumulated alongside prompt/completion tokens when present. Callers
+    that do not pass them (non-Anthropic models, pre-cache code paths) record
+    0, which is the Anthropic convention when no cache activity occurred.
+    """
     with _session_costs_lock:
         _session_costs["total_usd"] += cost_usd
         _session_costs["calls"] += 1
         entry = _session_costs["by_model"].setdefault(model, {
-            "cost_usd": 0.0, "calls": 0, "prompt_tokens": 0, "completion_tokens": 0,
+            "cost_usd": 0.0, "calls": 0,
+            "prompt_tokens": 0, "completion_tokens": 0,
+            "cache_read_input_tokens": 0, "cache_creation_input_tokens": 0,
         })
         entry["cost_usd"] += cost_usd
         entry["calls"] += 1
         entry["prompt_tokens"] += (usage.get("prompt_tokens", 0) or 0)
         entry["completion_tokens"] += (usage.get("completion_tokens", 0) or 0)
+        entry["cache_read_input_tokens"] = (
+            entry.get("cache_read_input_tokens", 0)
+            + (usage.get("cache_read_input_tokens", 0) or 0)
+        )
+        entry["cache_creation_input_tokens"] = (
+            entry.get("cache_creation_input_tokens", 0)
+            + (usage.get("cache_creation_input_tokens", 0) or 0)
+        )
 
 
 def get_session_costs():
@@ -225,12 +241,18 @@ def _cost_delta_since(snapshot):
         d_calls = info["calls"] - prev.get("calls", 0)
         d_prompt = info["prompt_tokens"] - prev.get("prompt_tokens", 0)
         d_completion = info["completion_tokens"] - prev.get("completion_tokens", 0)
+        d_cache_read = (info.get("cache_read_input_tokens", 0)
+                        - prev.get("cache_read_input_tokens", 0))
+        d_cache_creation = (info.get("cache_creation_input_tokens", 0)
+                            - prev.get("cache_creation_input_tokens", 0))
         if d_calls > 0:
             delta_models[model] = {
                 "cost_usd": round(d_cost, 6),
                 "calls": d_calls,
                 "prompt_tokens": d_prompt,
                 "completion_tokens": d_completion,
+                "cache_read_input_tokens": d_cache_read,
+                "cache_creation_input_tokens": d_cache_creation,
             }
     return {
         "total_usd": round(delta_total, 6),

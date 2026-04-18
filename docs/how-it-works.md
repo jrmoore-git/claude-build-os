@@ -48,7 +48,11 @@ python3.11 scripts/debate.py judge \
 
 Default judge model: gpt-5.4 (chosen because a different model family avoids self-preference bias when the author is Claude). The judge warns if it matches the author model. An optional `--rebuttal` flag passes author context without giving the author decision authority. `--system-prompt` (file path) overrides the default judge prompt.
 
-Produces: `tasks/<topic>-judgment.md` with accepted/dismissed/escalated counts. Findings marked ESCALATE require human review. Prints JSON to stdout with `accepted`, `dismissed`, `escalated` counts and `needs_human` flag.
+**FRAME CRITIQUE (judge stage):** After evaluating challenger findings, the judge runs a second pass against the proposal itself to surface frame-level defects that no challenger raised — binary framings, missing compositional candidates, source-driven inheritance, problem inflation, and unstated assumptions. A **novelty gate** requires the judge to (1) state the concrete fix the frame finding implies, (2) scan existing challenger findings for any recommending the same fix, and (3) suppress the new finding as "covered" if the fix overlaps. Output separates "additive" from "covered" findings with explicit `covered by Challenge [N]` mapping when redundant. Validated n=11 + negative control + 3 novelty-gate re-runs, 0 fabrications. See `tasks/lessons.md` L46.
+
+**Overall verdict:** The judge emits an overall decision on the proposal itself — `APPROVE`, `REVISE`, `REJECT`, or `INVESTIGATE` (the latter means "insufficient evidence; run a time-boxed investigation before deciding"). `INVESTIGATE` was previously named `SPIKE`; the JSON CLI fields (`investigating`, etc.) reflect the rename.
+
+Produces: `tasks/<topic>-judgment.md` with accepted/dismissed/escalated counts. Findings marked ESCALATE require human review. Prints JSON to stdout with `accepted`, `dismissed`, `escalated`, `investigating` counts and `needs_human` flag.
 
 **refine** — Iterative cross-model document improvement. Each round, a different model reviews and rewrites the document. Works as both the final phase of the `/challenge --deep` pipeline (seeded with accepted challenges) and as a standalone tool via the `/polish` skill (for collaborative improvement without adversarial framing).
 
@@ -76,7 +80,9 @@ The `--judgment` flag is optional. When provided (as in the `/challenge --deep` 
 
 **Per-model timeout with fallback:** Models with known tail latency (e.g., Gemini 3.1 Pro Preview — 29s TTFT, p99=542s) get shorter timeouts via `MODEL_TIMEOUTS`. On timeout, the refine loop automatically falls back to the next model in the rotation instead of blocking the serial pipeline. Fallback attempts are logged to stderr.
 
-Produces: `tasks/<topic>-refined.md` with per-round review notes and the final refined document.
+**FRAME CHECK (refine stage):** Each refine round includes a FRAME CHECK pass that surfaces frame-level concerns the round introduces or carries forward. Three filters gate findings: (1) load-bearing — the concern must affect downstream decisions; (2) out-of-scope for refine — concerns refine cannot address belong in review; (3) not-already-covered — concerns already handled in the document's Review Notes section are suppressed. A **mutually-exclusive channel rule** prevents double-reporting: fixed concerns appear in Review Notes with explicit frame-lens language; unfixed concerns appear in Frame Check. Never both. Calibrated across v1→v5 iterations with a 5-proposal benchmark; v2 had 0/6 detection (silent failure) before the benchmark caught it. See `tasks/lessons.md` L47.
+
+Produces: `tasks/<topic>-refined.md` with per-round review notes, Frame Check section, and the final refined document.
 
 **compare** — Score two review methods against the same original document on five dimensions (accuracy, completeness, constructiveness, efficiency, artifact quality). Useful for evaluating whether the full pipeline outperforms simpler review approaches.
 
