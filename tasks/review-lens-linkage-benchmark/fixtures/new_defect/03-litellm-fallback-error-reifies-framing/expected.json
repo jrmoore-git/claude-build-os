@@ -1,9 +1,0 @@
-{
-  "mode": "new_defect",
-  "source_spec": "tasks/refine-frame-directive-validation/litellm-fallback-v5.md",
-  "concern_keywords": ["reifies", "framing", "required for", "required", "degraded", "user-hostile", "not properly configured", "tone", "phrasing", "error message", "load-bearing", "shipped premise"],
-  "concern_phrase": "LiteLLM is required for",
-  "fail_file": "fail-diff.patch",
-  "pass_file": "pass-diff.patch",
-  "notes": "Fail diff's error message says 'LiteLLM is required for Build OS review' and 'Your environment is not properly configured' — reifies a framing (LiteLLM is mandatory) that the spec explicitly contradicts (fallback is the whole point). Also describes fallback path as 'degraded-quality' in stderr warning, embedding the shipped premise that single-model = lower quality. Pass diff's error is neutral: 'LiteLLM unreachable and no direct-provider API key set' with clear remediation. PM lens must notice the user-hostile/reifying tone without a Frame Check pointer."
-}

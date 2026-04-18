@@ -1,9 +1,0 @@
-{
-  "mode": "drift",
-  "source_spec": "tasks/refine-frame-directive-validation/learning-velocity-v3.md",
-  "concern_keywords": ["load-bearing-assumption", "load-bearing assumption", "unstated assumption", "assumes lessons", "assumes tasks/lessons.md", "history is structured", "history format", "consistently encoded", "fabricating", "silently fail"],
-  "concern_phrase": "not consistently encoded",
-  "fail_file": "fail-diff.patch",
-  "pass_file": "pass-diff.patch",
-  "notes": "Fail diff hardcodes regex assuming tasks/lessons.md history is structured (creation/edit/resolved/promoted transitions all parseable) and fabricates metric values when they aren't. Pass diff implements the spec's own fallback: detect coverage, emit only computable metrics, surface unavailable ones explicitly."
-}

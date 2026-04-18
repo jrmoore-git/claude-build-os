@@ -1,9 +1,0 @@
-{
-  "mode": "new_defect",
-  "source_spec": "tasks/refine-frame-directive-validation/learning-velocity-v5.md",
-  "concern_keywords": ["hardcoded", "magic number", "configurable", "parameterize", "operational definition", "shipped premise", "load-bearing", "staleness threshold", "should be tunable", "arbitrary threshold"],
-  "concern_phrase": "operational definition of staleness",
-  "fail_file": "fail-diff.patch",
-  "pass_file": "pass-diff.patch",
-  "notes": "Fail diff hardcodes STALENESS_THRESHOLD_DAYS = 14 with a comment that treats 14 days as THE operational definition of staleness — shipped-premise framing. Spec mentions staleness as one of four metrics without prescribing a threshold. Pass diff makes it project-tunable via CLI flag + config file, explicitly noting the spec proposes but doesn't fix the value. PM lens must notice the hardcoded-as-definitional framing without a Frame Check entry pointing at it."
-}

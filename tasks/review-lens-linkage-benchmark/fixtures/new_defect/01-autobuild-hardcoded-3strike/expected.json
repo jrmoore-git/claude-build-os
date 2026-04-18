@@ -1,9 +1,0 @@
-{
-  "mode": "new_defect",
-  "source_spec": "tasks/refine-frame-directive-validation/autobuild-v5.md",
-  "concern_keywords": ["hardcoded", "magic number", "invariant", "not a runtime invariant", "heuristic", "parameterize", "configurable", "shipped premise", "load-bearing", "should be configurable", "cannot change", "universal"],
-  "concern_phrase": "threshold is universal",
-  "fail_file": "fail-diff.patch",
-  "pass_file": "pass-diff.patch",
-  "notes": "Fail diff introduces two hardcoded constants (CONSECUTIVE_FAILURE_LIMIT = 3, CONTEXT_HARD_LIMIT = 120000) presented as 'invariants' of the runtime — shipped-premise framing that treats a spec default as universal truth. Spec itself describes 3-strike as a chosen threshold, not an invariant, and never prescribes a context token limit. Pass diff frames them as heuristics with a config file and explanatory comments. NEW_DEFECT: the fail-diff violates no explicit spec clause — it adds details the spec didn't specify. PM lens must notice the shipped-premise framing unprompted."
-}

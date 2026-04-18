@@ -1,9 +1,0 @@
-{
-  "mode": "drift",
-  "source_spec": "tasks/refine-frame-directive-validation/autobuild-v3.md",
-  "concern_keywords": ["inherited-frame", "inherited frame", "external source", "CloudZero", "gstack"],
-  "concern_phrase": "relies on external sources",
-  "fail_file": "fail-diff.patch",
-  "pass_file": "pass-diff.patch",
-  "notes": "Fail diff introduces CloudZero-taxonomy telemetry fields and hardcodes gstack autoship-parity — locks the implementation to the external framings the Frame Check flagged as inherited. Pass diff implements the same autobuild feature without referencing either external source."
-}

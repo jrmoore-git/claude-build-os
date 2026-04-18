@@ -32,6 +32,77 @@ __pycache__/
 # Data stores
 stores/*.db
 *.jsonl
-!stores/debate-log.jsonl
 cc.sh
 .gstack/
+
+# ═══════════════════════════════════════════════════════════════════════════
+# Personal session artifacts — stay local, not shared with framework users
+# ═══════════════════════════════════════════════════════════════════════════
+
+# User journal (per-session narrative — each framework user keeps their own)
+docs/current-state.md
+tasks/handoff.md
+tasks/session-log.md
+tasks/session-log-*.md
+
+# Personal project decisions (architectural decisions go in tasks/decisions.md)
+tasks/decisions-personal.md
+
+# Per-topic in-flight work artifacts
+tasks/*-proposal.md
+tasks/*-challenge.md
+tasks/*-judgment.md
+tasks/*-refined.md
+tasks/*-plan.md
+tasks/*-findings.md
+tasks/*-design.md
+tasks/*-review.md
+tasks/*-explore.md
+tasks/*-think.md
+tasks/*-debate.md
+tasks/*-polish.md
+tasks/*-brief.md
+tasks/*-variance.md
+tasks/*-metrics.json
+tasks/*-audit.md
+tasks/*-audit-*.md
+tasks/*-benchmark.md
+tasks/*-benchmark-*.md
+tasks/*-results.md
+tasks/*-resolution.md
+tasks/*-verdict.md
+tasks/*-adjudication.md
+tasks/*-adjudication-*
+tasks/*-anonymized
+tasks/*-anonymized-*
+tasks/*-anonymization-*
+tasks/*-arm-*
+tasks/*-coverage
+tasks/*-coverage-*
+tasks/*-mapping
+tasks/*-mapping-*
+tasks/*-ground-truth*.md
+tasks/*-deep-analysis*
+tasks/*-methodology-note*
+tasks/*-decision-drivers*
+tasks/*-critique.md
+tasks/*-critique-*.md
+tasks/*-gpt-*
+tasks/*-judge-prompt*
+tasks/*-coverage-judge-prompt*
+tasks/*-scope-expansion*
+tasks/*-intake*
+tasks/*-runs/
+tasks/_archive/
+
+# Topic subdirectories under tasks/ (study outputs, benchmarks, fixtures)
+tasks/*/
+
+# Keep curated framework governance
+!tasks/README.md
+!tasks/decisions.md
+!tasks/lessons.md
+!tasks/lessons-archived.md
+!tasks/handoff.md.template
+!tasks/session-log.md.template
+!docs/current-state.md.template
