@@ -10,7 +10,7 @@
 - None active. Directive is validated and ready. Next tier 1 fix (refine-stage) uses the same pattern.
 
 ## Next Action
-Apply the judge-stage pattern to refine-stage — `REFINE_FIRST_ROUND_PROMPT` and `REFINE_SUBSEQUENT_ROUND_PROMPT` in `scripts/debate.py`. Frame directive + novelty gate. Validate against existing refined outputs. Then review-lens in `.claude/skills/review/SKILL.md`. Then run the ROI study (`tasks/debate-efficacy-study-*` pile, 4-session carryover) against the fixed pipeline.
+Audit judge-stage findings with the same load-bearing + refine-scope classification that refine v5 uses. The refine audit revealed v1 findings included completeness-level concerns mislabeled as frame defects. Judge may have the same issue hidden — its output looks similar to Frame Check items but we haven't classified whether judge findings are actually load-bearing or completeness-level. Rebuild benchmark for judge with new classification. Then review-lens with linkage model (read upstream Frame Check rather than generate new). Then ROI study (`debate-efficacy-study-*` pile) against fixed pipeline.
 
 ## Recent Commits
 - (this commit): judge-stage Frame directive + novelty gate + SPIKE→INVESTIGATE rename

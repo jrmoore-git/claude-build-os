@@ -3598,3 +3598,36 @@ monkeypatch form for each of the 4 symbols).
 **Next Session:** Apply judge-stage pattern to REFINE prompts (~50-80 line prompt edit + validation runs against existing refine outputs). Then review-lens. Then run the ROI study on the fixed pipeline. DO NOT re-visit the redundancy-reframe issue — novelty gate closes it; per L46 the test is negative-control behavior, not MATERIAL count.
 
 **Commits:** (to be added by commit step)
+
+
+---
+
+## 2026-04-18 (late morning) — Refine-stage Frame Check v5 shipped + benchmark methodology lesson
+
+**Focus:** Applied judge-stage frame pattern to REFINE prompts. Iterated 5 times (v1→v5) on the directive. User caught methodology gap — I hadn't benchmarked iterations against a baseline. Built the benchmark, verified v5 is Pareto-dominant, committed.
+
+**Decided:**
+- D31: Refine-stage Frame Check directive shipped with mutually-exclusive channel rule — fixed concerns go to Review Notes with frame-lens language, unfixed stay in Frame Check. Frame Check is a status list, not a change log.
+- L47: Iterating an LLM prompt without a baseline benchmark produces a prompt-engineering treadmill. Qualitative "looks cleaner" is pattern-matching, not evidence. Benchmark must precede iteration, not follow it.
+
+**Implemented:**
+- `scripts/debate.py` — REFINE_FIRST_ROUND_PROMPT and REFINE_SUBSEQUENT_ROUND_PROMPT gained FRAME CHECK section with 5 categories as active checks, 3-filter gate (load-bearing + out-of-scope-for-refine + not-already-covered), SEQUENTIAL DECISION flow, HARD RULE enforcing mutually-exclusive channels between Review Notes (fixed concerns) and Frame Check (unfixed concerns).
+- `tasks/refine-frame-directive-validation/` — 23 artifacts across 5 iterations (v1, v2/tightened, v3, v4, v5). Paper trail of the calibration process.
+- `tasks/decisions.md` — D31 added.
+- `tasks/lessons.md` — L47 added.
+
+**Benchmark results (n=5 proposals, 10 rounds per iteration):**
+- v1: partial detection, 1 FP on negative control, fix-after-flag violations
+- v2 (tightened): 0/6 detection on known frame defects (silent failure — too strict)
+- v3: 5/6 detection but 2 channel violations (flag-after-fix)
+- v4: similar to v3
+- v5: 6/6 detection via inline Review Notes, 0 FP, 0 channel violations
+
+**Not Finished:**
+- Judge-stage audit: apply the same load-bearing + refine-scope classification retroactively to the 11+ judge-stage Frame Check findings. Refine audit revealed many "frame findings" were really completeness gaps; judge may have the same issue hidden.
+- Review-lens with linkage model (read upstream Frame Check rather than generate new ones).
+- `debate-efficacy-study-*` pile triage (still 4-session carryover, ~33 files).
+
+**Next Session:** Audit judge-stage findings next. Same methodology: classify each finding as load-bearing vs completeness, rebuild benchmark with new classification, decide whether to tighten judge directive. Then review-lens.
+
+**Commits:** (to be added by commit step)

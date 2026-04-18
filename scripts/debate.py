@@ -2357,9 +2357,100 @@ REFINE_FIRST_ROUND_PROMPT = """\
 You are a collaborative document reviewer and improver. Your job is to make \
 this document better — not to find fault, but to produce a stronger version.
 
-Review the document for:
+FRAME CHECK — run FIRST, before any prose polish:
+
+A document inherits its author's frame. Polishing a broken frame makes it \
+more eloquent but not more correct. Before improving the prose, check the \
+document's frame for these defects:
+
+1. Already shipped. Does the document describe a "current gap" or "system \
+failure" that may have been addressed since authorship? Stale documents \
+polished into eloquent stale documents are worse than rough current ones.
+2. Inflated problem. Does the problem statement describe a rare or \
+low-frequency issue as a systemic failure? Inflated problems justify larger \
+scope than the evidence supports.
+3. False binary. Does the document present an A-vs-B choice when a \
+compositional option (hybrid, partial, A-as-component-of-B) is viable? The \
+canonical case: "store as markdown-in-git OR SQLite" — when the answer is \
+SQLite with a markdown-shaped TEXT column.
+4. Inherited frame. Does the document adopt an external source's framing (a \
+library's terminology, a paper's categories, a codebase it cites) instead of \
+reasoning from the problem? Source-driven documents enumerate what the \
+source contains, not what solves the problem.
+5. Unstated load-bearing assumption. What does the document treat as given \
+that isn't actually given? If a recommendation rests on an unverified \
+assumption, the assumption is a missing consideration.
+
+FRAME CHECK — run the five checks below as deliberate tests, one by one. \
+Do not default to "sound" without testing each:
+
+1. ALREADY-SHIPPED. Does the document reference recent artifacts, commits, \
+refined versions, or phrases like "already", "shipped", "in progress" that \
+suggest the work may be partially or wholly complete? You have no tools; \
+use textual signals only.
+
+2. INFLATED PROBLEM. Does the problem statement use superlative framing \
+("biggest", "critical", "severe", "most painful") or scope-justifying \
+language without supporting data? Ask: "If the problem turned out to be \
+rare or low-severity, does the proposal's scope still make sense?" If no, \
+the scope depends on an inflated framing.
+
+3. FALSE BINARY. Is the approach presented as A-vs-B when a compositional \
+option (hybrid, partial, A-inside-B, A-as-component-of-B) is viable? Does \
+the document consider three or more distinct candidates, or does it \
+collapse to two?
+
+4. INHERITED FRAME. Is the document's PROBLEM DECOMPOSITION, CANDIDATE SET, \
+or TERMINOLOGY taken from an external source (library, paper, codebase) \
+rather than derived from the problem itself? Citing external sources as \
+supporting evidence is NOT inheritance — "X also hasn't solved this" or \
+"see prior art Y" is rhetorical validation, not frame inheritance. The \
+test: remove the source citations entirely. Does the document's STRUCTURE \
+change (problem framing, option set, section organization), or is the \
+structure problem-native and stable without the citations?
+
+5. UNSTATED LOAD-BEARING ASSUMPTION. List the top 2-3 things the document \
+treats as given without justification. For each, ask: "If this is false, \
+does the recommendation still stand?" Only assumptions whose falseness \
+would invalidate the proposal count.
+
+SEQUENTIAL DECISION for any check that fires:
+
+Step 1 — Will you address this concern IN YOUR REVISED DOCUMENT (by \
+clarifying, narrowing scope, adding a missing item, or rewording)?
+   YES → fix it inline. Document the change in REVIEW NOTES (above Frame \
+Check), like: "Narrowed parallelism claim to sequential execution because \
+the proposal didn't establish native parallel orchestration was available." \
+Do NOT list the concern in Frame Check — it's no longer present.
+   NO → proceed to Step 2.
+
+Step 2 — Apply the two remaining filters:
+- LOAD-BEARING: falseness invalidates the recommendation. If not, do not flag.
+- NOT-ALREADY-COVERED: document doesn't already acknowledge the concern. If \
+already covered, do not flag.
+
+If both remaining filters pass AND you did not fix it → flag as Frame Check \
+concern. These are exclusively concerns you deliberately left unfixed \
+because fixing them would require restructuring/re-framing beyond refine's \
+role.
+
+HARD RULE — Frame Check is a status list, not a change log:
+- Frame Check lists ONLY concerns STILL PRESENT in the Revised Document.
+- Frame-lens reasoning you APPLIED (things you changed) goes in Review Notes.
+- If the text of a Frame Check item contains "fixed inline", "applied", \
+"narrowed", or any other past-tense-fix language, it does not belong in \
+Frame Check — move it to Review Notes.
+- A concern is in EXACTLY ONE of: Review Notes (if you fixed it) or Frame \
+Check (if you didn't). Never both.
+
+A sound document has no frame defects. A document with frame defects has \
+1-3. Don't force "sound" when a check fires and you chose not to fix. Don't \
+manufacture defects. Don't double-book concerns.
+
+PROSE REVIEW — after Frame Check, review the document for:
 1. Clarity: Are claims precise and unambiguous?
-2. Completeness: Are there gaps in reasoning or missing considerations?
+2. Completeness: Are there gaps in reasoning or missing considerations? \
+(Fix inline — completeness gaps are NOT Frame Check material.)
 3. Correctness: Are facts and logic sound?
 4. Structure: Is the document well-organized and easy to follow?
 
@@ -2376,9 +2467,26 @@ Produce your output in EXACTLY this format:
 ## Review Notes
 [Your observations — what's strong, what needs improvement, and why]
 
+### Frame Check
+[A status list of concerns STILL PRESENT in the Revised Document. \
+Concerns you addressed inline belong in Review Notes above, not here. \
+Output one of:
+
+ (a) Concerns still present (unfixed; pass all filters):
+     - [Category]: [what's still wrong in the document] — [why refine could \
+not fix it]
+ (b) Frame considerations already covered by the document itself:
+     - [Category]: covered at [section name]
+ (c) "Frame check: document's frame is sound." — no concerns remaining.
+
+Do NOT list fixed concerns here. Never use past-tense-fix language ("fixed \
+inline", "applied", "narrowed") in Frame Check — that belongs in Review \
+Notes.]
+
 ## Revised Document
 [The COMPLETE revised document — not a diff, not a summary. \
-Include every section, improved where needed, unchanged where already good.]
+Include every section, improved where needed, unchanged where already good. \
+Do NOT fold Frame Check concerns into the document body; they live in Review Notes.]
 
 The following evidence-tagging rule applies only to NEW quantitative or \
 factual claims you introduce. Do not re-tag claims already in the document.""" + EVIDENCE_TAG_INSTRUCTION
@@ -2388,7 +2496,76 @@ You are a collaborative document reviewer and improver. A previous reviewer \
 has already revised this document. Your job is to review their revision and \
 produce an even better version.
 
-Review the current revision for:
+FRAME CHECK — run FIRST, before any prose polish:
+
+A document inherits its author's frame. Previous refine rounds polish prose \
+within that frame; they rarely catch frame defects. Before improving this \
+revision, check its frame for these defects:
+
+1. Already shipped. Does the document describe a "current gap" or "system \
+failure" that may have been addressed since authorship?
+2. Inflated problem. Does the problem statement describe a rare or \
+low-frequency issue as a systemic failure?
+3. False binary. Does the document present an A-vs-B choice when a \
+compositional option (hybrid, partial, A-as-component-of-B) is viable?
+4. Inherited frame. Does the document adopt an external source's framing \
+instead of reasoning from the problem?
+5. Unstated load-bearing assumption. What does the document treat as given \
+that isn't actually given?
+
+FRAME CHECK — run the five checks below as deliberate tests:
+
+1. ALREADY-SHIPPED. Does the document reference recent artifacts, commits, \
+refined versions, or phrases suggesting the work may be partially or wholly \
+complete? You have no tools; use textual signals.
+
+2. INFLATED PROBLEM. Does the problem statement use superlative framing or \
+scope-justifying language without supporting data? Ask: "If the problem \
+turned out to be rare or low-severity, does the proposal's scope still make \
+sense?"
+
+3. FALSE BINARY. Is the approach presented as A-vs-B when a compositional \
+option is viable? Does the document consider three or more distinct \
+candidates, or collapse to two?
+
+4. INHERITED FRAME. Is the document's PROBLEM DECOMPOSITION, CANDIDATE SET, \
+or TERMINOLOGY taken from an external source rather than derived from the \
+problem? Citing external sources as supporting evidence is NOT inheritance. \
+Remove the source citations mentally — does the document's structure change?
+
+5. UNSTATED LOAD-BEARING ASSUMPTION. List the top 2-3 things the document \
+treats as given. Ask: "If false, does the recommendation still stand?"
+
+SEQUENTIAL DECISION for any check that fires:
+
+Step 1 — Will you address this concern IN YOUR REVISED DOCUMENT?
+   YES → fix it inline. Document the change in REVIEW NOTES. Do NOT list \
+in Frame Check.
+   NO → proceed.
+
+Step 2 — Apply remaining filters:
+- LOAD-BEARING: falseness invalidates the recommendation.
+- NOT-ALREADY-COVERED: check in order — (a) document itself acknowledges? \
+If yes, covered. (b) Previous refine round flagged in their Frame Check? \
+If yes, preserve their flag verbatim; do not restate. (c) Otherwise, \
+potentially additive.
+
+Both filters pass AND you did not fix it → flag as Frame Check concern.
+
+HARD RULE — Frame Check is a status list, not a change log:
+- Frame Check lists ONLY concerns STILL PRESENT in the Revised Document.
+- Frame-lens reasoning you APPLIED goes in Review Notes.
+- Never use past-tense-fix language ("fixed inline", "narrowed", "applied") \
+in Frame Check — move to Review Notes.
+- A concern lives in EXACTLY ONE section: Review Notes (fixed) or Frame \
+Check (unfixed). Never both.
+
+A document with no frame defects is sound. A document with frame defects has \
+1-3. Report honestly. If the previous round flagged a frame concern and the \
+current revision now addresses it, note: "Frame check: previous round's \
+concern addressed in revision."
+
+PROSE REVIEW — after Frame Check, review the current revision for:
 1. Did the previous reviewer introduce any errors or regressions?
 2. Are there remaining clarity, completeness, or correctness issues?
 3. Can the structure or flow be improved further?
@@ -2407,9 +2584,23 @@ Produce your output in EXACTLY this format:
 ## Review Notes
 [Your observations on the current revision — improvements made, remaining issues]
 
+### Frame Check
+[A status list of concerns STILL PRESENT in the Revised Document. Fixed \
+concerns belong in Review Notes above, not here. Output one of:
+
+ (a) Concerns still present (unfixed; pass all filters):
+     - [Category]: [what's still wrong] — [why refine could not fix it]
+ (b) Frame considerations already covered (in document or prior round):
+     - [Category]: covered at [location]
+ (d) "Frame check: previous round's concern addressed in revision."
+ (c) "Frame check: document's frame is sound."
+
+Never use past-tense-fix language in Frame Check. Report actual status.]
+
 ## Revised Document
 [The COMPLETE revised document — not a diff, not a summary. \
-Include every section, improved where needed, unchanged where already good.]
+Include every section, improved where needed, unchanged where already good. \
+Do NOT fold Frame Check concerns into the document body; they live in Review Notes.]
 
 The following evidence-tagging rule applies only to NEW quantitative or \
 factual claims you introduce. Do not re-tag claims already in the document.""" + EVIDENCE_TAG_INSTRUCTION
