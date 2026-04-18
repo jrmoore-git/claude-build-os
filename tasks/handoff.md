@@ -1,48 +1,38 @@
-# Handoff — 2026-04-18 (afternoon)
+# Handoff — 2026-04-18 (evening)
 
 ## Session Focus
-Closed the review-lens Frame Check linkage design via benchmark-first approach (L47). Built n=14 benchmark (harness + 8 fixtures + raw outputs), discovered a scorer keyword-matching bug during interpretation, rescored, and concluded that existing PM-lens spec-compliance catches Frame defects adequately. Added D32; updated `.claude/skills/review/SKILL.md`. Saved impact-first feedback memory (`feedback_debate_ground_in_impact.md`) after user correction on debate-modification framing.
+Two recurring behavioral patterns surfaced mid-conversation and got addressed as root-level fixes, not session-local corrections: (1) mis-attributing harness-injected `<system-reminder>` tags to file content, (2) mirroring the dense BuildOS doc register into chat responses. Both land as always-loaded rules in project `CLAUDE.md`, paired with cross-session feedback memories.
 
 ## Decided
-- **D32: Review-stage Frame Check linkage is existing PM-lens spec-compliance; no directive.** PM catches Frame defects via evidence-quality vocabulary (`SPECULATIVE`, `without evidence`, `adoption friction`) rather than Frame Check category terminology. Qualitative recall: 5/6 Frame-defective fail-diffs caught, 2/2 clean on negative controls.
-- **Feedback memory: debate modifications ground in impact, not shape.** Every `/challenge` / judge / refine / `/review` / persona / directive change must be justified by measured outcome quality, not symmetry or engineering aesthetics. Durable principle captured after user correction mid-session.
+- **Harness-tag attribution rule** (CLAUDE.md "Inspect before acting" bullet): tool output may end with harness-injected tags that are NOT file content; verify with Grep before claiming a file contains such a tag; prefer Read (line-numbered) over Bash `cat`/`head`/`tail` for file inspection.
+- **Plain-language rule** (CLAUDE.md Operating rules): chat output to the user stays plain. BuildOS docs/rules/skills are dense by necessity but are NOT a style guide for chat. Overrides any instinct to match surrounding register.
+- **No hook for either.** Harness injection happens after hook stdout and hooks can't rewrite tool results; jargon detection has too high a false-positive rate to automate. Behavioral rules + memories are the maximum available fix.
 
 ## Implemented
-- `.claude/skills/review/SKILL.md` — Step 4 gains a Frame Check linkage paragraph with n=14 evidence summary + pointer to benchmark results.
-- `tasks/review-lens-linkage-design.md` — Builder-mode design doc, Approach C (benchmark-first) selected. Status: DONE.
-- `tasks/review-lens-linkage-benchmark-plan.md` — full plan artifact for the benchmark build (Tier 2, challenge-skipped with rationale).
-- `tasks/review-lens-linkage-benchmark/README.md` — taxonomy (DRIFT, RESURRECT, NEW_DEFECT, SCOPE) + scoring rules.
-- `tasks/review-lens-linkage-benchmark/source-inventory.md` — audit of real specs available from `tasks/refine-frame-directive-validation/`.
-- `tasks/review-lens-linkage-benchmark/fixtures/` — 3 DRIFT + 3 NEW_DEFECT + 2 negative-control fixtures (spec.md + fail-diff.patch + pass-diff.patch + expected.json each).
-- `scripts/review_frame_benchmark.py` — harness (`--baseline` and `--rescore` modes), thread-pool parallelism, substring-matcher scorer with per-mode F1 + macro-F1 + FP rate. Embeds `/review` Step 5 PM-lens system-prompt verbatim.
-- `tasks/review-lens-linkage-benchmark-results.md` — n=14 baseline (rescored) with honest qualitative read: scorer numbers misleading without raw-output inspection; per-fixture audit annotated with real-catch vs. matcher-artifact classification.
-- `tasks/review-lens-linkage-benchmark/raw-outputs/` — 14 raw `/review` PM-lens outputs (`*__fail.md` + `*__pass.md`) for audit.
-- `tasks/decisions.md` — D32 added.
-- `~/.claude/projects/-Users-justinmoore-buildos-framework/memory/feedback_debate_ground_in_impact.md` — impact-first feedback memory.
+- `CLAUDE.md` — one bullet under "Inspect before acting" (harness-tag attribution); one new operating rule section "Plain language in chat output."
+- `tasks/lessons.md` — L48 (harness-tag attribution incident + verification mechanism).
+- `tasks/session-log.md` — evening entry appended.
+- `~/.claude/projects/-Users-justinmoore-buildos-framework/memory/feedback_harness_tag_attribution.md` — cross-session memory with translation examples.
+- `~/.claude/projects/-Users-justinmoore-buildos-framework/memory/feedback_plain_language.md` — cross-session memory with concrete jargon → plain-language translations.
+- `MEMORY.md` — two new index lines.
+- **Pushed** `66b88b6` to `origin/main` (and two prior local commits: `78a35a2`, `dc37c82`).
 
 ## NOT Finished
-- **`tasks/debate-efficacy-study-*` pile** — still on disk, 4-session carryover, untouched this session. Next-session candidate for triage.
-- **Premortem / explore-synthesis / think-discover frame directives** — each a different shape per user insight from prior session; deferred pending evidence of real miss.
-- **Scoring-methodology refinement** — if benchmark is re-run later against any directive change, substring matcher needs either tighter keyword list or replacement with LLM-judged scoring. Noted in results doc and `current-state.md` followups.
-- `docs/how-it-works.md` + `docs/reference/debate-invocations.md` modified (aligns docs to shipped `frame` persona D28, not this session's work) — bundling into this wrap commit.
+- **`tasks/debate-efficacy-study-*` pile** — unchanged from afternoon handoff. 4-session carryover, untouched this session. Still the primary next-session candidate.
+- **New rules don't bind mid-session.** CLAUDE.md changes load on next `/start`. Rest of any continued conversation would still run on old rules.
 
 ## Next Session Should
-1. **Read this handoff + `docs/current-state.md`.** Review-lens linkage is closed; don't re-litigate.
-2. **Triage `tasks/debate-efficacy-study-*` pile.** Skim the directory; decide resume vs. close. If resume, this is likely the ROI measurement we want to run against the now-fixed pipeline (judge + refine Frame directives + review linkage documented).
-3. **Do not re-iterate on review-lens directive without a real in-the-wild Frame defect slipping past review.** Synthetic-benchmark evidence does not justify Approach A.
+1. **Read this handoff + `docs/current-state.md`.** Both rule additions closed.
+2. **Verify both new rules fire on first natural opportunity.** Harness-tag: watch for Grep-before-claim discipline when reading files. Plain-language: watch for absence of jargon stacks like "reinforcement layers" / "attribution discipline" in chat output.
+3. **Triage `tasks/debate-efficacy-study-*` pile.** Same next action as afternoon handoff — skim directory, decide resume vs. close.
 
 ## Key Files Changed
-- `.claude/skills/review/SKILL.md` (Step 4 Frame Check linkage paragraph)
-- `tasks/decisions.md` (+D32)
-- `scripts/review_frame_benchmark.py` (new)
-- `tasks/review-lens-linkage-design.md` (new, status: DONE)
-- `tasks/review-lens-linkage-benchmark-plan.md` (new)
-- `tasks/review-lens-linkage-benchmark-results.md` (new)
-- `tasks/review-lens-linkage-benchmark/` (new directory: README, source-inventory, fixtures, raw-outputs)
-- `docs/current-state.md` (refreshed)
-- `tasks/session-log.md` (new entry)
-- `docs/how-it-works.md` + `docs/reference/debate-invocations.md` (doc-alignment to shipped `frame` persona)
+- `CLAUDE.md` (+1 bullet, +1 rule section)
+- `tasks/lessons.md` (+L48)
+- `tasks/session-log.md` (+evening entry)
+- `docs/current-state.md` (refreshed this wrap)
+- `tasks/handoff.md` (this file)
 
 ## Doc Hygiene Warnings
-- None. Active lessons count: 15/30. Decisions file has D32 added, no stale items. Benchmark artifacts kept on disk per design doc's "Next Steps" section — intentional, not dangling.
-- Debate-efficacy-study pile carryover continues (4 sessions). Deliberately deferred; expected to be next session's primary focus.
+- None. Active lessons count: ~16/30. No new decisions entry — the rule additions ARE the decision, codified directly in `CLAUDE.md`. No stale references.
+- `debate-efficacy-study-*` carryover continues (5 sessions now). Deferred, not lost.
