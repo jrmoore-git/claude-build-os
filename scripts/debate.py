@@ -261,6 +261,56 @@ You will receive BOTH the proposal (with its evidence, operational data, and \
 rationale) AND the challenger findings. Both sides have legitimate arguments. \
 Neither gets the benefit of the doubt.
 
+FRAME CRITIQUE — run FIRST, before evaluating any challenger finding:
+
+Challengers critique within the proposal's frame. They can miss issues that live \
+outside the frame. Before the challenge-by-challenge evaluation below, ask what the \
+challenger set collectively failed to identify. Thoroughness-within-frame is the \
+exact failure mode this step catches.
+
+Check specifically:
+1. Already shipped. Is the proposal advocating work that already exists? Proposals \
+often describe a "current gap" that was closed since the proposal was written. \
+You lack verification tools — if the proposal's claims about current state seem \
+generic, unsupported, or at odds with recent commits cited in the proposal itself, \
+flag this as an INVESTIGATE (suggested check: grep for the proposed feature; inspect commit history).
+2. Inflated problem. Is "Current System Failures" describing a rare inconvenience \
+reframed as systemic failure? A low-frequency problem inflated to justify larger \
+scope is a frame defect, not a scope-sizing debate.
+3. False binary. Does the candidate set present A-vs-B when a compositional option \
+(hybrid, partial adoption, A-as-component-of-B) is viable? The canonical example: \
+"store knowledge as markdown-in-git OR SQLite" — when the answer is SQLite with a \
+markdown-shaped TEXT column.
+4. Inherited frame. Does the proposal adopt an external source's framing (a \
+library's terminology, a paper's categories, a codebase it cites) instead of \
+reasoning from the problem? Source-driven proposals enumerate what the source \
+contains, not what solves the problem.
+5. Unstated load-bearing assumption. What does the proposal treat as given that \
+isn't actually given? If no challenger questioned an assumption that the \
+recommendation rests on, it is a missing finding.
+
+NOVELTY TEST — apply to every candidate frame finding before recording it:
+
+1. State the concrete FIX the frame finding would require (what specifically \
+would the author need to change — scope, candidate set, problem framing, \
+credential model, etc.).
+2. Scan the existing challenger findings. Does any challenger already recommend \
+the same fix, or a fix that would fully resolve this concern when applied?
+   - YES, covered: do NOT record as JUDGE-FRAME. In the Frame Critique section \
+note: "Frame consideration [category]: already covered by Challenge [N] — [one-line \
+why this is the same fix]." This is informational only; it does not affect counts.
+   - NO, additive: record as JUDGE-FRAME with Challenger = "JUDGE-FRAME" and \
+evaluate like any MATERIAL challenge below.
+
+A JUDGE-FRAME finding MUST imply a required change that no challenger's fix \
+would produce. A structural reframe of a concrete concern the challengers already \
+caught is not additive — the fix is the same, the framing is just different. \
+Reframes belong under "already covered," not as new MATERIAL findings.
+
+If every frame consideration is covered or absent, say so explicitly: \
+"Frame critique: no additive findings — challenger set is frame-complete." \
+Do NOT manufacture frame findings; a complete challenge set is the expected case.
+
 BALANCED EVALUATION — evaluate BOTH sides:
 1. For each challenger finding: Is the concern valid? Is it supported by \
 evidence, or is it generic skepticism that could apply to any proposal?
@@ -295,9 +345,9 @@ For each MATERIAL challenge, decide:
 - ESCALATE: The challenge involves a value judgment, policy decision, or trade-off that \
 requires human input — not just missing data. Examples: "should we prioritize speed over \
 correctness?", "is this security risk acceptable for our use case?", "does this align \
-with product direction?" Do NOT use ESCALATE for low confidence alone — use SPIKE if \
+with product direction?" Do NOT use ESCALATE for low confidence alone — use INVESTIGATE if \
 data would resolve it, or commit to ACCEPT/DISMISS with your stated confidence.
-- SPIKE: The challenge depends on empirical data not yet available — recommend a test
+- INVESTIGATE: The challenge depends on empirical data not yet available — recommend a specific check
 
 For ADVISORY challenges: note them but do not judge. They are informational.
 
@@ -335,7 +385,7 @@ EVIDENCE QUALITY GRADES: Assign a grade to each material challenge finding:
 ENFORCEMENT RULES:
 - High-risk domains (security, production reliability, material spend): Findings \
 require grade A or B to be ACCEPTED. Grade C findings in high-risk domains must \
-be DISMISSED or SPIKED for verification.
+be DISMISSED or marked INVESTIGATE for verification.
 - Lower-risk domains (editorial, planning, process): Grade C findings may be \
 ACCEPTED if clearly labeled.
 - Grade D findings must not drive any material verdict.
@@ -350,12 +400,12 @@ After all challenge evaluations, include:
 - Grade C: [count]
 - Grade D: [count]
 
-SPIKE OPTION: If a critical challenge depends on empirical data not yet available, \
-you may issue SPIKE instead of ACCEPT/DISMISS:
+INVESTIGATE OPTION: If a critical challenge depends on empirical data not yet available, \
+you may issue INVESTIGATE instead of ACCEPT/DISMISS:
 - Specify: what to measure, sample size, success criteria
-- Mark BLOCKING: YES if the test result could flip the overall recommendation
+- Mark BLOCKING: YES if the result could flip the overall recommendation
 - Mark BLOCKING: NO if it affects only implementation details
-A SPIKE is blocking if the answer to "Could the test result flip the overall \
+An INVESTIGATE is blocking if the answer to "Could the result flip the overall \
 recommendation?" is yes.
 
 CONVERGENCE: If multiple challengers raise the same or highly similar concern \
@@ -370,29 +420,48 @@ assessment is more substantive. This is useful signal about where reasonable \
 reviewers disagree.
 
 Output format:
+## Frame Critique
+[Structure the section in three blocks, omitting any block that has no entries:
+
+ (1) Additive frame findings (pass the novelty test — record these as JUDGE-FRAME):
+     For each, a brief entry:
+     - Category: [already-shipped / inflated-problem / false-binary / inherited-frame / unstated-assumption]
+     - Finding: [one-line description]
+     - Required fix no challenger recommends: [1 sentence — what makes this additive]
+     - Why this changes the verdict: [1-2 sentences]
+     - Severity: [MATERIAL/ADVISORY]
+     (Each additive MATERIAL finding must ALSO appear in the Judgment section with \
+     Challenger = "JUDGE-FRAME".)
+
+ (2) Frame considerations already covered (did NOT pass novelty test — informational only):
+     For each, one line: "[Category]: covered by Challenge [N] — [one-line why the fix is the same]."
+
+ (3) If no frame considerations apply: "Frame critique: no additive findings — challenger set is frame-complete."]
+
 ## Judgment
 
 ### Challenge [N]: [one-line summary]
-- Challenger: [A/B]
+- Challenger: [A/B/JUDGE-FRAME]
 - Materiality: [MATERIAL/ADVISORY]
-- Decision: [ACCEPT/DISMISS/ESCALATE/SPIKE]
+- Decision: [ACCEPT/DISMISS/ESCALATE/INVESTIGATE]
 - Confidence: [0.0-1.0]
 - Rationale: [2-3 sentences]
 - Required change: [if ACCEPT — what specifically must change]
-- Spike recommendation: [if SPIKE — what to measure, sample size, success criteria, BLOCKING: YES/NO]
+- Investigation: [if INVESTIGATE — what to measure, sample size, success criteria, BLOCKING: YES/NO]
 
 [repeat for each challenge]
 
-## Spike Recommendations
-[List any SPIKE items with their test specifications, or "None"]
+## Investigations
+[List any INVESTIGATE items with their specifications, or "None"]
 
 ## Summary
 - Accepted: [count]
 - Dismissed: [count]
 - Escalated: [count]
-- Spiked: [count]
+- Investigate: [count]
+- Frame-added: [count of JUDGE-FRAME findings, or 0]
 - Overall: [APPROVE proposal as-is / REVISE with accepted changes / ESCALATE to human / \
-SPIKE (test first) if any blocking spikes]"""
+INVESTIGATE (gather data first) if any blocking investigations]"""
 
 # ── Security posture scale ────────────────────────────────────────────────────
 # Controls how much weight security findings get relative to PM/speed concerns.
@@ -1682,8 +1751,8 @@ def cmd_judge(args):
     escalated = len(re.findall(r"Decision:\s*ESCALATE", response, re.IGNORECASE))
     accepted = len(re.findall(r"Decision:\s*ACCEPT", response, re.IGNORECASE))
     dismissed = len(re.findall(r"Decision:\s*DISMISS", response, re.IGNORECASE))
-    spiked = len(re.findall(r"Decision:\s*SPIKE", response, re.IGNORECASE))
-    blocking_spikes = len(re.findall(r"BLOCKING:\s*YES", response, re.IGNORECASE))
+    investigating = len(re.findall(r"Decision:\s*INVESTIGATE", response, re.IGNORECASE))
+    blocking_investigations = len(re.findall(r"BLOCKING:\s*YES", response, re.IGNORECASE))
 
     # Extract per-challenge confidence scores for calibration logging
     confidences = [
@@ -1725,10 +1794,10 @@ def cmd_judge(args):
         "accepted": accepted,
         "dismissed": dismissed,
         "escalated": escalated,
-        "spiked": spiked,
-        "blocking_spikes": blocking_spikes,
+        "investigating": investigating,
+        "blocking_investigations": blocking_investigations,
         "needs_human": escalated > 0,
-        "needs_test": blocking_spikes > 0,
+        "needs_investigation": blocking_investigations > 0,
     }
     if consolidation_stats:
         result["consolidation"] = consolidation_stats
@@ -1748,10 +1817,10 @@ def cmd_judge(args):
         "accepted": accepted,
         "dismissed": dismissed,
         "escalated": escalated,
-        "spiked": spiked,
-        "blocking_spikes": blocking_spikes,
+        "investigating": investigating,
+        "blocking_investigations": blocking_investigations,
         "needs_human": escalated > 0,
-        "needs_test": blocking_spikes > 0,
+        "needs_investigation": blocking_investigations > 0,
         "confidences": confidences,
         "mean_confidence": round(sum(confidences) / len(confidences), 3) if confidences else None,
         "evidence_grades": {"A": grade_a, "B": grade_b, "C": grade_c, "D": grade_d},

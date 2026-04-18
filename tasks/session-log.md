@@ -3565,3 +3565,36 @@ monkeypatch form for each of the 4 symbols).
 **Next Session:** Decide: (A) redesign judge-stage corpus, (B) move to refine-stage audit, (C) shelve Frame-reach, (D) triage autopilot pile. DO NOT re-litigate DECLINE — revival = new experiment with new pre-committed criteria.
 
 **Commits:** `c81acfb` (audit work: orchestrator + artifacts + L43) and this wrap commit.
+
+
+---
+
+## 2026-04-18 (morning) — Judge-stage Frame directive + novelty gate + SPIKE→INVESTIGATE rename
+
+**Focus:** User reframe: "find similar patterns to Frame across the pipeline, fix them, then run ROI study." Prior 3 sessions had drifted into audit-methodology work instead. Structural analysis of `scripts/debate.py` prompts identified JUDGE as Tier 1 Frame-defect stage (produces final verdict, iterates only over given findings, cannot add missing ones). Shipped frame directive + novelty gate as prompt-only edit. Also renamed judge's SPIKE verdict to INVESTIGATE per user clarity request.
+
+**Decided:**
+- D30: Judge-stage Frame directive with novelty gate shipped; SPIKE → INVESTIGATE rename. Frame categories: already-shipped, inflated-problem, false-binary, inherited-frame, unstated-assumption. Novelty gate requires the model to state the required fix and verify no existing challenger finding implies the same fix — reframes go to "covered by Challenge [N]", not MATERIAL.
+- L46: Frame-critique directives MUST include explicit novelty gate — else the model reframes existing findings as "frame" findings, inflating MATERIAL counts without adding signal. Negative-control is the test: simple clean proposal + 3-persona challenge → frame should mostly find "covered" entries, not fabricated MATERIAL findings.
+- No separate JUDGE-FRAME persona (deferred per prior judge-stage Frame-reach audit DECLINE). Prompt-only directive is cheaper and sufficient for structural frame critique without tools.
+
+**Implemented:**
+- `scripts/debate.py` — `JUDGE_SYSTEM_PROMPT` gained FRAME CRITIQUE section (5 categories with examples, NOVELTY TEST, 3-block output format: additive / covered / absent). SPIKE renamed INVESTIGATE throughout: prompt text, output format, parser regex (`r"Decision:\s*SPIKE"` → `r"Decision:\s*INVESTIGATE"`), JSON log fields (`spiked`→`investigating`, `blocking_spikes`→`blocking_investigations`, `needs_test`→`needs_investigation`). Historical outputs and "T0 (spike)" pipeline-tier terminology in docs left alone (different meaning).
+- `tasks/judge-frame-directive-validation/` — 15 artifacts: 8 original Round 2 + non-Round-2 runs (baseline comparison where available), 3 variance runs on litellm-fallback, 1 negative-control run, 1 rename-check run, 3 novelty-gate re-validation runs, + 1 generated challenge file for negative control.
+- `tasks/decisions.md` — D30 added.
+- `tasks/lessons.md` — L46 added.
+
+**Validation evidence:**
+- n=11 original runs: 100% fire rate on proposals with any frame defect, 0 fabricated findings, verdict escalations on 2/5 Round 2 proposals (autobuild REVISE→INVESTIGATE-BLOCKING, litellm-fallback REVISE→INVESTIGATE-BLOCKING). Ground truth for litellm-fallback was REJECT (already shipped — Frame-factual-at-challenge catch). Judge has no tools, so it caught "inflated problem" (different frame class) instead, still blocking.
+- n=3 variance on litellm-fallback: 3/3 MATERIAL, 3/3 unstated-assumption category, finding content varied. Verdict varies (INVESTIGATE vs REVISE) depending on which specific assumption fired as blocker-grade.
+- n=1 negative control (verbose-flag proposal): first pass flagged "unstated-assumption trusted-env" MATERIAL — real finding but reframe of security persona's concrete risk. Second pass (post-novelty-gate) flagged a genuinely additive finding (stderr sink choice unjustified vs challenger's redaction fix).
+- n=3 novelty-gate re-validation: `## Frame Critique` output now has explicit "additive" + "covered" + "absent" structure. Each category evaluated per-run with coverage status. Reframes tagged "covered by Challenge [N]" instead of counted as MATERIAL.
+
+**Not Finished:**
+- Tier 1 fix #2: refine-stage frame directive + novelty gate in `REFINE_FIRST_ROUND_PROMPT` and `REFINE_SUBSEQUENT_ROUND_PROMPT`. Same pattern.
+- Tier 2 fix: review-lens frame directive in `.claude/skills/review/SKILL.md`.
+- Then: revisit `tasks/debate-efficacy-study-*` pile (4-session autopilot carryover, ~33 files) — this was plausibly the ROI measurement we'll want to run against the fixed pipeline.
+
+**Next Session:** Apply judge-stage pattern to REFINE prompts (~50-80 line prompt edit + validation runs against existing refine outputs). Then review-lens. Then run the ROI study on the fixed pipeline. DO NOT re-visit the redundancy-reframe issue — novelty gate closes it; per L46 the test is negative-control behavior, not MATERIAL count.
+
+**Commits:** (to be added by commit step)

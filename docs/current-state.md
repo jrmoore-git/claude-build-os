@@ -1,23 +1,25 @@
-# Current State — 2026-04-17 (night: judge-stage Frame-reach audit — DECLINE)
+# Current State — 2026-04-18 (morning: judge-stage Frame directive + novelty gate)
 
 ## What Changed This Session
-- **Judge-stage Frame-reach audit ran end-to-end (Phase 0x + Phase 0a only) and DECLINED at pre-committed threshold.** Pipeline: `/think discover` → `/challenge` (5 personas + independent judge) → `/plan` → execution. Gate fired at 1/5 missed-disqualifier (threshold 0-1 → DECLINE).
-- **Single "missed disqualifier" is corpus-measurement misalignment, not judge defect.** Round 2's ground truth for litellm-fallback = REJECT, dependent on Frame's factual already-shipped finding; baseline `cmd_judge` receives 3-persona input only (no Frame), so it correctly produced REVISE given its input. Other 4 proposals (ground truth REVISE) can't produce missed-disqualifier errors under any judge behavior on this corpus.
-- **Reusable primitive shipped: `scripts/judge_frame_orchestrator.py`** (~290 LOC). Dual-mode Frame post-judge critique harness: gemini-structural + gpt-factual, family-overlap enforcement, credential-pattern pre-check, pre-committed aggregation rule. Ready for future corpus-redesigned audits.
-- **L43 extended** with judge-stage corpus-alignment lesson. No new L# or D# — extension only.
+- **Judge-stage Frame directive shipped** as a prompt-only addition to `JUDGE_SYSTEM_PROMPT`. Five frame-defect categories (already-shipped, inflated-problem, false-binary, inherited-frame, unstated-assumption). Novelty test requires the model to state the required fix and verify no existing challenger finding covers it — reframes tagged "covered by Challenge [N]" instead of counted as MATERIAL. D30.
+- **SPIKE verdict renamed INVESTIGATE** throughout the judge prompt, output format, parser regex, and log field names. Breaking change to the `judge` JSON output schema (`spiked`→`investigating`, `blocking_spikes`→`blocking_investigations`, `needs_test`→`needs_investigation`) — no external consumer reads these fields.
+- **L46 added:** Frame-critique directives must include an explicit novelty gate or the model reframes existing findings and inflates MATERIAL counts without adding signal. Negative-control behavior is the test, not MATERIAL count.
+- **Validation evidence:** 15 artifacts in `tasks/judge-frame-directive-validation/` — n=11 original runs + n=3 variance + n=1 negative control + n=3 novelty-gate re-validation + 1 rename check.
 
 ## Current Blockers
-- **Corpus-design question unresolved for judge-stage Frame-reach.** Any future audit needs ground truth derivable from 3-persona findings alone (no Frame-dependence), OR measurement design that feeds Frame-augmented findings to judge. Options deferred to future session.
+- None active. Directive is validated and ready. Next tier 1 fix (refine-stage) uses the same pattern.
 
 ## Next Action
-Fresh session — decide direction. Options: (a) redesign judge-stage audit corpus (labeled `debate-log.jsonl` sample, or synthetic disqualifier proposals), (b) drop judge-stage reach and move to refine/premortem reach audits, (c) shelve Frame-reach entirely and take up a different direction. Or address the autopilot `debate-efficacy-study-*` pile (now 4-session carryover, 30+ uncommitted files).
+Apply the judge-stage pattern to refine-stage — `REFINE_FIRST_ROUND_PROMPT` and `REFINE_SUBSEQUENT_ROUND_PROMPT` in `scripts/debate.py`. Frame directive + novelty gate. Validate against existing refined outputs. Then review-lens in `.claude/skills/review/SKILL.md`. Then run the ROI study (`tasks/debate-efficacy-study-*` pile, 4-session carryover) against the fixed pipeline.
 
 ## Recent Commits
+- (this commit): judge-stage Frame directive + novelty gate + SPIKE→INVESTIGATE rename
+- `84a0c9a` Session wrap 2026-04-17 (night): judge-stage Frame-reach audit DECLINE + reusable primitive
 - `c81acfb` Judge-stage Frame-reach audit: Phase 0x + Phase 0a — DECLINE
-- `4d74536` Dual-mode generalization audit + Frame-reach intake audit
-- `5e93bec` Add global tone rule to counter Opus 4.7 register mirroring
 
 ## Followup tracked (not blocking)
-- **Autopilot `debate-efficacy-study-*` pile still uncommitted** — 4-session carryover now. 30+ files + 4 support scripts + 1 config. Decide absorb / commit-as-is / delete.
+- **Refine-stage Frame directive + novelty gate** — next tier 1 fix.
+- **Review-lens Frame directive** — tier 2 fix.
+- **`debate-efficacy-study-*` pile still uncommitted** — ~33 files, 4-session carryover. Plausibly the ROI measurement we'll want to run against the fixed pipeline. Triage when prompt work is complete.
 - `tasks/multi-model-skills-roi-audit-*` off-scope design docs remain on disk.
 - `.claude/scheduled_tasks.lock` — runtime artifact, ignore.
