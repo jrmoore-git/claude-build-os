@@ -1,45 +1,49 @@
-# Handoff — 2026-04-17 (late session: two audits landed, no ship)
+# Handoff — 2026-04-17 (night: judge-stage Frame-reach audit, DECLINE + reusable primitive)
 
 ## Session Focus
-Ran the dual-mode-generalization audit to completion (per prior handoff), then pivoted scope to the higher-leverage Frame-reach question after user reframe. Both audits landed with clean verdicts. No code shipped beyond the `intake-check` primitive.
+Executed option (C) from prior handoff decision tree — judge-stage Frame-reach audit. Full pipeline: `/think discover` → `/challenge` (cross-model panel + independent judge) → `/plan` (Phase 0x + Phase 0a scope only, per challenge artifact's anti-premature-machinery fix) → execution. Gate fired at the pre-committed threshold. Reusable orchestrator harness shipped.
 
 ## Decided
-- **Dual-mode pattern does NOT generalize uniformly across personas.** Architect passes 5/5, security fails at 4/5, pm fails at 2/5. Pre-committed 5/5 threshold held per L45. See `tasks/dual-mode-generalization-results.md`.
-- **Frame-reach via intake-stage dual-mode fails the safety precondition.** Severity-level drift between intake and challenge stages makes MATERIAL-count reject/proceed signals unreliable; factual verification raises findings on any code-citing proposal (invalidating the "0 MATERIAL = clean" negative-control design). See `tasks/frame-reach-intake-audit-results.md`.
-- **Architect dual-mode NOT shipped despite clean 5/5 pass.** User scope pivot from persona-level dual-mode to Frame-reach deprioritized the per-persona optimization. Architect ship remains a clean option for a future session if we want the isolated win; it's orthogonal to Frame-reach work.
-- **Scope pivot itself is worth encoding as a decision.** D-entry added — "Improve the frame" is pipeline-stage work, not persona-duplication.
+- **Judge-stage Frame-reach on Round 2 corpus DECLINED.** 1/5 missed-disqualifier observations; threshold 0-1 → DECLINE. Per L45, no re-fitting.
+- **Corpus-ground-truth alignment is the real gate.** The single "error" is corpus-measurement misalignment, not judge defect. Recorded as L43 extension.
+- **No new L# or D# created this session.** Work was execution + learning-capture, not new architectural decisions.
+- **Plan-v2 NOT drafted.** Per plan's own gate rule, proceeding to plan-v2 requires confirmation of premise. Premise wasn't confirmed on this corpus — next step is corpus redesign, not plan-v2.
 
 ## Implemented
-- `scripts/debate.py` — new `cmd_intake_check` subcommand + argparse + main dispatch (~25 LOC). Thin wrapper: forces `--personas frame` + `--enable-tools`, delegates to `cmd_challenge`. Composable primitive — NOT wired into `/challenge` as a gate.
-- `tasks/dual-mode-generalization-*` — brief, plan, 30 run outputs across 3 personas, 3 per-persona analysis files, results.md with ADOPT/DECLINE verdicts, L43 extension.
-- `tasks/frame-reach-intake-audit-*` — brief, plan, prompt spec, 6 intake run outputs, results.md with threshold-gate DECLINE verdict, L43 extension.
-- `tasks/negative-control-verbose-flag-proposal.md` — synthetic minimal proposal used as negative control.
-- `tasks/lessons.md` — L43 extended with per-persona generalization evidence + intake-reach DECLINE evidence.
-- `tasks/decisions.md` — new D-entry (scope pivot from persona-dual-mode to Frame-reach).
+- `scripts/judge_frame_orchestrator.py` (new, ~290 LOC) — standalone dual-mode Frame post-judge critique. Family-overlap enforcement + credential-pattern pre-check + pre-committed aggregation rule. Reuses `llm_client.llm_call` + `llm_client.llm_tool_loop` + `debate_tools` + `debate_common`. No modification to `scripts/debate.py`.
+- `tasks/judge-stage-frame-reach-audit-design.md` — `/think discover` design doc (Builder mode, 4 forcing questions + pm-persona cross-check + premise set).
+- `tasks/judge-stage-frame-reach-audit-proposal.md` — formal proposal with Problem/Approach/Current System Failures/Operational Context sections.
+- `tasks/judge-stage-frame-reach-audit-findings.md` — 5-challenger panel output (architect opus / security gpt / pm gemini / frame-structural sonnet / frame-factual gpt).
+- `tasks/judge-stage-frame-reach-audit-judgment.md` — haiku-4-5 judge adjudication; 10 MATERIAL accepted, 3 escalated, 3 dismissed.
+- `tasks/judge-stage-frame-reach-audit-challenge.md` — synthesized gate artifact, PROCEED-WITH-FIXES with 11 inline fixes baked in.
+- `tasks/judge-stage-frame-reach-audit-plan.md` — Tier-2 plan, scope locked to Phase 0x + Phase 0a, LOCKED pre-commits in frontmatter.
+- `tasks/judge-stage-frame-reach-audit-results.md` — verdict table, gate outcome, learnings.
+- `tasks/judge-stage-frame-reach-audit-runs/` — 1 Phase 0x smoke + 5 Phase 0a baseline outputs.
+- `tasks/lessons.md` — L43 extended with judge-stage corpus-misalignment evidence.
+- `stores/debate-log.jsonl` — entries from challenge + judge + 5 baseline reruns.
 
 ## NOT Finished
-- **Architect dual-mode ship.** Passed 5/5 threshold; shelved pending Frame-reach strategy. Decision: revive or leave alone, next session.
-- **Judge/refine/premortem reach audits.** Deferred pending understanding of severity drift + factual-FP asymmetry learned from intake audit.
-- **Autopilot `debate-efficacy-study-*` pile.** ~30 files still uncommitted across 3 sessions. Triage deferred again.
-- **`tasks/multi-model-skills-roi-audit-*`** — off-scope design docs from earlier session, still on disk.
+- **Corpus redesign for any future judge-stage audit.** Round 2 corpus cannot discriminate on missed-disqualifier. Future options: labeled `debate-log.jsonl` sample (organic), synthetic REJECT-trigger proposals, or Frame-augmented findings fed to judge.
+- **Refine-stage / premortem-stage Frame-reach audits** — deferred since before this session; still deferred.
+- **Autopilot `debate-efficacy-study-*` pile** — 30+ files, now 4-session carryover. Triage deferred again.
+- `tasks/multi-model-skills-roi-audit-*` — still on disk from earlier session.
 
 ## Next Session Should
-1. **Decide next direction** — read this handoff + `tasks/dual-mode-generalization-results.md` + `tasks/frame-reach-intake-audit-results.md`. Three real options:
-   - (A) Revive architect dual-mode ship — clean 5/5 pass, orthogonal to Frame-reach, ~60-90 min work + /review. Low risk, bounded scope.
-   - (B) Design intake-integration-v2 with a different reject/proceed signal (not MATERIAL count) that accounts for severity drift + factual-FP. Open-ended design work.
-   - (C) Audit judge-stage frame-reach — different failure-mode structure from intake. Fresh design, learn from intake's FP issue.
-   - (D) Triage the autopilot `debate-efficacy-study-*` pile — absorb/commit/delete. Session-hygiene task.
-2. **DO NOT re-litigate the DECLINE verdicts.** Per L45 and the plan's explicit threshold-lock language, the 5/5-bidirectional and the three intake gates are final for this audit. Any revival must be a NEW experiment with NEW pre-committed criteria + re-validation.
-3. **DO NOT assume the `intake-check` primitive is production-ready.** It exists as a composable CLI command; wiring it into any skill as an automatic gate requires solving the severity-drift + factual-FP issues Gate 3 exposed.
+1. **Read this handoff + `tasks/judge-stage-frame-reach-audit-results.md` "Learnings" + "Next Action" sections.** The DECLINE verdict is clean; the question is whether to push Frame-reach further or shelve it.
+2. **Decide direction:**
+   - (A) Redesign judge-stage audit corpus — labeled `debate-log.jsonl` sample that produces ground truth derivable from 3-persona findings alone. Moderate effort (~2-3 hrs labeling + plan-v2 + run).
+   - (B) Move to refine-stage Frame-reach audit — different pipeline stage, different failure-mode structure. Fresh design needed.
+   - (C) Shelve Frame-reach entirely. Move to unrelated work.
+   - (D) Triage the autopilot `debate-efficacy-study-*` pile — session hygiene, 4-session carryover.
+3. **DO NOT re-litigate the DECLINE verdict per L45.** Any revival of judge-stage Frame-reach is a NEW experiment with NEW pre-committed criteria + NEW corpus.
+4. **Reusable primitive is on disk.** `scripts/judge_frame_orchestrator.py` works and has been smoke-tested — any future corpus can reuse it without rebuilding.
 
 ## Key Files Changed
-- `scripts/debate.py` — +25 LOC (intake-check)
-- `tasks/lessons.md` — L43 extended twice
-- `tasks/decisions.md` — new D-entry (this session's scope pivot)
-- `stores/debate-log.jsonl` — ~34 new entries from audit runs
-- `tasks/dual-mode-generalization-*` — 30 run outputs + 3 analyses + results + brief + plan
-- `tasks/frame-reach-intake-audit-*` — 6 run outputs + results + brief + plan + prompt
-- `tasks/negative-control-verbose-flag-proposal.md` — new synthetic control
+- `scripts/judge_frame_orchestrator.py` (new, +290 LOC)
+- `tasks/judge-stage-frame-reach-audit-*.md` (8 new files)
+- `tasks/judge-stage-frame-reach-audit-runs/*.md` (6 new files)
+- `tasks/lessons.md` (L43 extension)
+- `stores/debate-log.jsonl` (append from runs)
 
 ## Doc Hygiene Warnings
-- None new this session. Autopilot `debate-efficacy-study-*` pile carryover from prior sessions noted in current-state.md — still not this session's work, still not committed.
+- None this session. Autopilot `debate-efficacy-study-*` pile carryover continues (4 sessions now); noted in current-state.md, not blocking current research.

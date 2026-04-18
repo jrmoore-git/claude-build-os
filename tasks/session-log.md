@@ -3540,3 +3540,28 @@ monkeypatch form for each of the 4 symbols).
 **Next Session:** Read handoff "Next Session Should" section. Four real options: (A) revive architect dual-mode ship, (B) intake-integration-v2 with different signal than MATERIAL count, (C) judge-stage frame-reach audit, (D) triage autopilot pile. Do NOT re-litigate the DECLINE verdicts — revival = new experiment with new pre-committed criteria.
 
 **Commits:** this wrap commit covers both audits + `intake-check` primitive + L43 extensions + D-entry.
+
+
+---
+
+## 2026-04-17 (night) — Judge-stage Frame-reach audit: DECLINE + reusable primitive
+
+**Focus:** Executed option (C) from prior handoff. Full pipeline /think discover → /challenge → /plan → execute. Phase 0x + Phase 0a only (per challenge artifact's anti-premature-machinery fix). Gate fired cleanly at pre-committed threshold.
+
+**Decided:**
+- Judge-stage Frame-reach on Round 2 corpus DECLINED (1/5 missed-disqualifier; threshold 0-1 → DECLINE). Per L45, no re-fitting.
+- Single "error" is corpus-measurement misalignment, not judge defect. Round 2 ground truth for litellm-fallback = REJECT, depends on Frame's already-shipped finding — but baseline cmd_judge receives 3-persona input (no Frame). Baseline produced REVISE correctly given its input. Other 4 proposals (ground truth REVISE) can't produce missed-disqualifier errors under any judge behavior.
+- No new L# or D# — L43 extended only. This session was execution + learning-capture.
+- Plan-v2 NOT drafted. Any future judge-stage audit needs corpus redesign first.
+
+**Implemented:**
+- `scripts/judge_frame_orchestrator.py` (new, ~290 LOC) — reusable dual-mode Frame post-judge critique harness. Family-overlap enforcement + credential-pattern pre-check + pre-committed aggregation rule. No modification to scripts/debate.py. Smoke-tested successfully.
+- `tasks/judge-stage-frame-reach-audit-*.md` — design (from /think discover), proposal, challenge (5-persona + haiku judge, 10 MATERIAL accepted → PROCEED-WITH-FIXES), findings, judgment, plan (Tier 2, LOCKED pre-commits), results.
+- `tasks/judge-stage-frame-reach-audit-runs/` — Phase 0x smoke (autobuild) + 5 Phase 0a baseline reruns.
+- `tasks/lessons.md` — L43 extension with judge-stage corpus-misalignment evidence.
+
+**Not Finished:** Corpus redesign for any future judge-stage audit. Refine/premortem Frame-reach audits still deferred. Autopilot `debate-efficacy-study-*` pile — 4-session carryover (~30 files).
+
+**Next Session:** Decide: (A) redesign judge-stage corpus, (B) move to refine-stage audit, (C) shelve Frame-reach, (D) triage autopilot pile. DO NOT re-litigate DECLINE — revival = new experiment with new pre-committed criteria.
+
+**Commits:** `c81acfb` (audit work: orchestrator + artifacts + L43) and this wrap commit.
