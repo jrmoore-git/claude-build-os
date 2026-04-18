@@ -1,0 +1,68 @@
+diff --git a/scripts/llm_client.py b/scripts/llm_client.py
+index 1234567..fedcba0 100644
+--- a/scripts/llm_client.py
++++ b/scripts/llm_client.py
+@@ -12,6 +12,7 @@
+ import json
+ import os
+ import urllib.request
++import urllib.error
+ from typing import Any
+
+ LITELLM_BASE = "http://localhost:4000"
+@@ -45,6 +46,55 @@ def _litellm_request(payload: dict) -> dict:
+     return json.loads(resp.read())
+
+
++class LiteLLMUnavailableError(RuntimeError):
++    """LiteLLM proxy unreachable. No direct-provider credentials in env."""
++
++
++def _anthropic_direct_request(payload: dict) -> dict:
++    # Translate OpenAI-format payload to Anthropic Messages format.
++    system_prompt = ""
++    messages = []
++    for m in payload.get("messages", []):
++        if m.get("role") == "system":
++            system_prompt = m.get("content", "")
++        else:
++            messages.append(m)
++    body = {
++        "model": "claude-3-5-sonnet-latest",
++        "max_tokens": payload.get("max_tokens", 4096),
++        "system": system_prompt,
++        "messages": messages,
++    }
++    req = urllib.request.Request(
++        "https://api.anthropic.com/v1/messages",
++        data=json.dumps(body).encode(),
++        headers={
++            "x-api-key": os.environ["ANTHROPIC_API_KEY"],
++            "anthropic-version": "2023-06-01",
++            "content-type": "application/json",
++        },
++    )
++    resp = urllib.request.urlopen(req, timeout=60)
++    return json.loads(resp.read())
++
++
++def llm_request(payload: dict) -> dict:
++    try:
++        return _litellm_request(payload)
++    except (urllib.error.URLError, ConnectionError):
++        # LiteLLM unavailable. Try direct-provider fallback if credentials are
++        # present; otherwise surface a clear, actionable error. Not every user
++        # runs with ANTHROPIC_API_KEY in env (Claude Code OAuth is common), so
++        # a missing key is a supported outcome, not a crash.
++        if os.environ.get("ANTHROPIC_API_KEY"):
++            return _anthropic_direct_request(payload)
++        raise LiteLLMUnavailableError(
++            "LiteLLM unavailable and ANTHROPIC_API_KEY not set. "
++            "Start LiteLLM (see docs/infrastructure.md) or export an "
++            "API key for a supported direct-provider fallback."
++        )
++
++
+ # Model routing constants below — unchanged.
+ OPUS = "claude-opus-4-7"
+ SONNET = "claude-sonnet-4-6"

@@ -158,6 +158,8 @@ test -f tasks/<topic>-refined.md && echo "found" || echo "none"
 
 If found, read it. This enables **spec compliance mode** — the PM lens validates implementation against the refined spec. The PM lens checks both positive compliance (does the diff implement what the spec requires?) and negative compliance (does the diff avoid what the spec forbids?). Negative compliance catches cases where implementation accidentally includes something the spec explicitly excluded — e.g., a regex pattern containing a term the spec said "EXCEPTION: do NOT include."
 
+**Frame Check linkage.** When the refined spec contains a `### Frame Check` subsection (produced by the D31 refine directive), no special handling is required. PM-lens spec compliance already catches Frame defects that leak into implementation — it quotes suspicious phrases from the diff and tags them `SPECULATIVE` or `without evidence` using its own evidence-quality vocabulary. Measured at n=14 synthetic fixtures (4 concern categories across DRIFT and NEW_DEFECT modes, 2 negative controls): 5 of 6 Frame-defective diffs caught; zero false positives on frame-sound diffs. See `tasks/review-lens-linkage-benchmark-results.md` for methodology and raw outputs. Re-open the question if a real-world Frame defect slips past review.
+
 ### Step 4.5: Enrich context
 
 Pull relevant governance context (prior decisions, lessons learned) so reviewers know what was already decided.

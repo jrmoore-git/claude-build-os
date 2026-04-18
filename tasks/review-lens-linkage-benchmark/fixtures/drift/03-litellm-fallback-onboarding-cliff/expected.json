@@ -1,0 +1,9 @@
+{
+  "mode": "drift",
+  "source_spec": "tasks/refine-frame-directive-validation/litellm-fallback-v3.md",
+  "concern_keywords": ["load-bearing-assumption", "load-bearing assumption", "Anthropic direct access", "OAuth-only", "non-Anthropic", "single biggest onboarding", "inflated-problem", "inflated problem", "onboarding cliff", "product-scope"],
+  "concern_phrase": "Anthropic direct access is the right",
+  "fail_file": "fail-diff.patch",
+  "pass_file": "pass-diff.patch",
+  "notes": "Fail diff hardcodes Anthropic as the only fallback (raises KeyError on missing env var — crashes for OAuth-only users), with an explicit 'single biggest onboarding cliff' comment that reinforces the inflated-problem framing. Pass diff checks for the key first, surfaces a clear error when absent, and phrases the error to suggest that other direct-provider fallbacks would be supported."
+}

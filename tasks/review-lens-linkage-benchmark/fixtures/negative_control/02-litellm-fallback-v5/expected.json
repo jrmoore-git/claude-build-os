@@ -1,0 +1,8 @@
+{
+  "mode": "negative_control",
+  "source_spec": "tasks/refine-frame-directive-validation/litellm-fallback-v5.md",
+  "concern_keywords": ["already-shipped", "already shipped", "inflated-problem", "inflated problem", "false-binary", "false binary", "inherited-frame", "inherited frame", "load-bearing-assumption", "load-bearing assumption", "frame defect", "frame check", "shipped premise", "reifies"],
+  "concern_phrase": null,
+  "pass_file": "pass-diff.patch",
+  "notes": "Frame-sound spec. Pass diff implements spec's fallback behavior with state persistence (fallback_active), clear error message, neutral stderr warning. Any MATERIAL finding citing a frame defect counts as FP."
+}

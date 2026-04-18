@@ -15,22 +15,23 @@ The problem it solves: a single model reviewing its own work produces sycophanti
 ```
 python3.11 scripts/debate.py challenge \
     --proposal tasks/auth-redesign-proposal.md \
-    --personas architect,security,pm \
+    --personas architect,security,pm,frame \
     --output tasks/auth-redesign-challenge.md
 ```
 
-Personas map to models via `config/debate-models.json`. The default assignments balance all three model families across four personas:
+Personas map to models via `config/debate-models.json`. The default assignments balance all three model families across the personas:
 
 | Persona | Default model | Rationale |
 |---------|--------------|-----------|
 | architect | claude-opus-4-7 | Systems reasoning, architecture benchmarks |
-| staff | gemini-3.1-pro | Code quality review by a different family than the author |
 | security | gpt-5.4 | Strictest reviewer, best at finding edge cases |
 | pm | gemini-3.1-pro | Product reasoning, spec compliance, user empathy |
+| frame | claude-sonnet-4-6 | Candidate-set critique: binary framings, missing compositional candidates, source-driven inheritance, problem inflation. With `--enable-tools`, expands to dual-mode: `frame-structural` (tools off) + `frame-factual` (tools on, `frame_factual_model` default `gpt-5.4`). See `.claude/rules/review-protocol.md` Stage 1 and `tasks/lessons.md` L43. |
+| staff | gemini-3.1-pro | Code quality review by a different family than the author (opt-in; not in default persona set) |
 
 The judge defaults to gpt-5.4 (different family from the typical Claude author avoids self-preference bias). The refinement rotation cycles all three families: gemini → gpt → claude.
 
-Each persona gets a role-specific adversarial prompt (architecture concerns, security focus, operational feasibility, or user value). Note that personas sharing a model are deduplicated — `--personas architect,staff` produces one challenger since both map to gemini-3.1-pro. Alternatively, pass `--models gpt-5.4,gemini-3.1-pro` directly with a generic adversarial prompt. An optional `--system-prompt` flag (takes a string or file path) overrides the default prompt entirely — used by `/review` to replace adversarial challenge prompts with review-specific persona lens definitions.
+Each persona gets a role-specific adversarial prompt (architecture concerns, security focus, operational feasibility, or user value). Note that personas sharing a model are deduplicated — `--personas pm,staff` produces one challenger since both map to gemini-3.1-pro. Alternatively, pass `--models gpt-5.4,gemini-3.1-pro` directly with a generic adversarial prompt. An optional `--system-prompt` flag (takes a string or file path) overrides the default prompt entirely — used by `/review` to replace adversarial challenge prompts with review-specific persona lens definitions.
 
 **`--enable-tools`** gives challengers access to read-only verifier tools (check_function_exists, check_test_coverage, count_records, get_recent_costs). These let challengers verify claims against the actual codebase rather than speculating. Tools are sandboxed to read-only operations.
 

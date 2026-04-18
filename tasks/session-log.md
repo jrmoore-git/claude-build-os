@@ -3659,3 +3659,35 @@ monkeypatch form for each of the 4 symbols).
 **Next Session:** Design review-lens linkage — consume upstream Frame Check from refined spec rather than generate new. Build benchmark BEFORE iterating per L47. Then triage `debate-efficacy-study-*` pile.
 
 **Commits:** `96f3f25` (judge-stage + rename), `67679db` (refine-stage v5), and this wrap commit.
+
+
+---
+
+## 2026-04-18 (afternoon) — Review-lens Frame Check linkage design closed (D32) via benchmark-first path
+
+**Focus:** Asked `/think discover` on how `/review` should consume upstream Frame Check from refined spec. User corrected framing mid-session ("ground in impact, not shape") — saved as durable feedback memory. Selected Approach C (benchmark before iterating) per L47. Built n=14 benchmark (harness + fixtures + raw outputs), found scorer bug, rescored honestly, closed design without adding a directive.
+
+**Decided:**
+- D32: Review-stage Frame Check linkage is existing PM-lens spec-compliance path — no new directive. PM catches Frame defects via evidence-quality vocabulary (`SPECULATIVE`, `without evidence`, `adoption friction`) rather than Frame Check category terminology. Qualitative recall 5/6; 2/2 clean on negative controls.
+- Feedback memory saved: every debate pipeline modification must be justified by measured outcome quality (better answers/products/research/code), not symmetry or engineering shape.
+
+**Implemented:**
+- `.claude/skills/review/SKILL.md` — Step 4 Frame Check linkage paragraph.
+- `tasks/review-lens-linkage-design.md` (APPROVED → DONE), `tasks/review-lens-linkage-benchmark-plan.md`, `tasks/review-lens-linkage-benchmark/README.md` + source-inventory + 8 fixtures (3 DRIFT + 3 NEW_DEFECT + 2 negative controls), `tasks/review-lens-linkage-benchmark-results.md` (rescored, annotated).
+- `scripts/review_frame_benchmark.py` (harness: `--baseline` + `--rescore` modes, thread-pool, per-mode F1 + FP rate, matcher bug-fix after initial n=14 run inflated scores via debate_id header leakage).
+- `tasks/decisions.md`: D32.
+- `~/.claude/projects/.../memory/feedback_debate_ground_in_impact.md`.
+
+**Not Finished:**
+- `tasks/debate-efficacy-study-*` pile (4-session carryover) — next-session triage candidate.
+- Premortem / explore-synthesis / think-discover frame directives — deferred pending evidence of real miss.
+- Scoring-methodology refinement for the benchmark — noted as followup; substring matcher is a tripwire, not a verdict.
+
+**Methodology notes:**
+- L47 (benchmark before iterating) prevented iteration-on-directive; instead surfaced that "detection rate" is partly a scoring-methodology artifact. n=7 first pass said F1=1.0; n=14 exposed the scorer bug, rescored F1=0.595; qualitative inspection showed real recall is 5/6. Two layers of over-optimism caught before they could drive a directive.
+- User feedback-correction mid-session produced the impact-first memory — this kind of durable principle is the highest-leverage output.
+- Self-review of prose prompted by the user surfaced a pattern: burying the recommendation under hedges + re-offering declined options. Rewrite pattern: bottom-line-up-front + concrete action list + no option re-offer after recommending.
+
+**Next Session:** Triage `tasks/debate-efficacy-study-*` pile. Likely the ROI measurement we want to run against the now-fixed pipeline (judge + refine Frame directives + review linkage documented).
+
+**Commits:** this wrap commit.

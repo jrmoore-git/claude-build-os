@@ -15,12 +15,12 @@ Global option: `--security-posture {1-5}` (before subcommand). Default 3.
 ```bash
 python3.11 scripts/debate.py challenge \
   --proposal tasks/<topic>-explore.md \
-  --personas architect,staff,security \
+  --personas architect,security,pm,frame \
   --output tasks/<topic>-challenge.md
 ```
 
 - `--personas` expands to models via config. Alternative: `--models` with explicit LiteLLM model names.
-- `--enable-tools` gives challengers read-only verifier tools.
+- `--enable-tools` gives challengers read-only verifier tools. With `--enable-tools`, the `frame` persona expands to two parallel challengers: `frame-structural` (tools off) + `frame-factual` (tools on, different model family). See `.claude/rules/review-protocol.md` Stage 1.
 
 ## Judge (independent evaluation of challenges)
 
@@ -56,7 +56,7 @@ python3.11 scripts/debate.py refine \
 # Step 1: Challenge
 python3.11 scripts/debate.py --security-posture 1 challenge \
   --proposal tasks/<topic>.md \
-  --personas architect,staff,security \
+  --personas architect,security,pm,frame \
   --output tasks/<topic>-challenge.md
 
 # Step 2: Judge

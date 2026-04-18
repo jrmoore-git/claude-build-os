@@ -1,28 +1,26 @@
 # Current State — 2026-04-18
 
 ## What Changed This Session
-- **Judge-stage Frame directive shipped** (commit `96f3f25`) — FRAME CRITIQUE section in `JUDGE_SYSTEM_PROMPT` with 5 defect categories + novelty gate. Validated against n=11 (8 original + 3 variance) + n=1 negative control + n=3 novelty-gate re-validation. 0 fabrications across all runs.
-- **SPIKE verdict renamed INVESTIGATE** — plain English, aligns with `/investigate` skill. Breaking change to judge CLI JSON fields (`spiked`→`investigating`, etc.) — no external consumer reads them.
-- **Refine-stage Frame Check directive v5 shipped** (commit `67679db`) — same 5 categories as judge but adapted for refine's document-polishing role. Three filters (load-bearing + out-of-scope-for-refine + not-already-covered). HARD RULE: fixed concerns → Review Notes; unfixed → Frame Check. Never both. Took 5 iterations to calibrate.
-- **Benchmark methodology lesson captured (L47)** — user caught that I'd iterated refine v1→v5 without comparing against a baseline. Building the benchmark revealed v2 was 0/6 detection (silent failure), v3/v4 had channel violations. Qualitative "looks cleaner" is pattern-matching, not evidence.
-- **Judge-stage audit applied load-bearing + refine-scope classification** to 14 judge findings. 10/14 genuine frame defects, 1 correctly ADVISORY, 1 reframe, 2 borderline. Accepted current calibration — tightening risks over-correction.
+- **Review-lens Frame Check linkage design closed (D32)** — decided not to add a directive to `/review`. Benchmark built (n=14, 8 fixtures across DRIFT + NEW_DEFECT modes + 2 negative controls) shows PM-lens spec-compliance already catches Frame defects that leak into implementation (5 of 6 real catches; 2/2 clean on negative controls). Updated `.claude/skills/review/SKILL.md` Step 4 with a paragraph documenting the linkage + benchmark evidence.
+- **Scoring methodology lesson surfaced** — keyword-based substring matcher has both false-negative rate (PM uses evidence-quality vocabulary like `SPECULATIVE` / `without evidence`, not Frame Check category terminology like `hardcoded` / `inherited-frame`) and false-positive rate (matcher fires incidentally on unrelated spec-compliance findings). Qualitative raw-output inspection is the authoritative read; numbers are a tripwire, not a verdict.
+- **Benchmark harness + fixtures kept on disk** — `scripts/review_frame_benchmark.py` and `tasks/review-lens-linkage-benchmark/` are re-usable if a real-world Frame defect slips past review later. Harness supports `--baseline` (run LLM) and `--rescore` (reuse raw outputs) modes.
+- **Impact-first feedback memory saved** (`feedback_debate_ground_in_impact.md`) — every debate pipeline modification must be justified by outcome quality (better answers/products/research/code), not symmetry or engineering shape. Durable principle, not session-specific.
 
 ## Current Blockers
-None. Judge + refine stages shipped and validated. Next stages scoped but deferred.
+None. Review-lens linkage closed; further Frame-reach work (premortem / explore-synthesis / think-discover) deferred pending evidence of real miss at those stages.
 
 ## Next Action
-Review-lens with **linkage model** — `.claude/skills/review/SKILL.md` should consume upstream Frame Check from refined spec rather than generate new frame findings. Distinct from judge/refine patterns. Design needed, not just a prompt edit — the spec parser must surface Frame Check concerns to the review lens prompt.
-
-Then triage the `tasks/debate-efficacy-study-*` pile (4-session carryover, ~33 files) — likely the ROI measurement we want to run against the fixed pipeline.
+Triage the `tasks/debate-efficacy-study-*` pile — 4-session carryover (~33 files from 2026-04-17 work). Likely the ROI measurement we want to run against the now-fixed pipeline. Skim the directory, decide resume vs. close.
 
 ## Recent Commits
+- `dc37c82` Session wrap 2026-04-18: judge + refine frame directives shipped, benchmark methodology captured
 - `67679db` Refine-stage Frame Check directive (v5) with mutually-exclusive channels
 - `96f3f25` Judge-stage Frame directive + novelty gate; SPIKE→INVESTIGATE rename
-- `99b55a8` Add rule banning wall-clock time estimates
 
 ## Followup tracked (not blocking)
-- **Review-lens linkage model** — not a copy-paste of the judge/refine pattern. Review's role is enforcement, not generation.
-- **Premortem, explore-synthesis, think-discover frame checks** — each needs a tailored shape, not one-size-fits-all (user insight from this session).
-- **`debate-efficacy-study-*` pile** — 4-session carryover. Triage once pipeline fixes are in place.
+- **Premortem, explore-synthesis, think-discover frame checks** — each needs a tailored shape. Deferred until evidence of real miss at those stages.
+- **`debate-efficacy-study-*` pile** — 4-session carryover; primary candidate for next session's work.
 - **Judge audit: 2 borderline findings** noted but not acted on. Revisit if downstream noise proves problematic.
+- **Scoring-methodology caveat in `scripts/review_frame_benchmark.py`** — if the benchmark is re-run later against a directive change, either tighten the concern_keywords list or replace with LLM-judged scoring. Current numbers are misleading without raw-output inspection.
+- **`docs/how-it-works.md` + `docs/reference/debate-invocations.md`** — modified this session aligning docs to the shipped `frame` persona (D28). Included in this wrap commit.
 - `.claude/scheduled_tasks.lock` — runtime artifact, ignore.

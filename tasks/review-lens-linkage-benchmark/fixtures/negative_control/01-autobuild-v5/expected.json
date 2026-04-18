@@ -1,0 +1,8 @@
+{
+  "mode": "negative_control",
+  "source_spec": "tasks/refine-frame-directive-validation/autobuild-v5.md",
+  "concern_keywords": ["already-shipped", "already shipped", "inflated-problem", "inflated problem", "false-binary", "false binary", "inherited-frame", "inherited frame", "load-bearing-assumption", "load-bearing assumption", "frame defect", "frame check"],
+  "concern_phrase": null,
+  "pass_file": "pass-diff.patch",
+  "notes": "Frame-sound spec. Pass diff implements the spec's requirements with all Non-Goals honored (no parallel execution, no auto-merge, no new scripts). No frame-MATERIAL finding should be produced. Any MATERIAL finding citing a frame defect (already-shipped, inflated-problem, false-binary, inherited-frame, load-bearing-assumption) against this diff counts as FP."
+}
