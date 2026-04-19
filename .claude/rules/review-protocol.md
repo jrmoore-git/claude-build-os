@@ -95,3 +95,4 @@ When a `/review` finding is dismissed (confirmed false positive), append it here
 
 ### Architecture lens negative examples
 <!-- append dismissed Architecture-lens findings -->
+- **Hardcoded fallback config (`_DEFAULT_PERSONA_MODEL_MAP`) diverges from JSON config — "revert is incomplete".** Flagged in `tasks/opus-4-7-revert-review.md` (2026-04-18) by both architect and security lenses. Dismissal: `scripts/debate_common.py:_DEFAULT_PERSONA_MODEL_MAP` is a degraded-mode safety net; divergence from production config is by design. Before flagging a fallback-vs-config gap as "revert incomplete," check inline comments and `git log -S` for the fallback's history — if the fallback was never the reverted value, it isn't in scope.
