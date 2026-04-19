@@ -151,10 +151,32 @@ _TOKEN_PRICING = {
 }
 
 
+# Anthropic prompt-caching price multipliers applied to the base input rate.
+# Verified empirically 2026-04-18: LiteLLM passthrough sums
+# input_tokens + cache_read + cache_creation into prompt_tokens. Priced naively
+# that triple-counts cache tokens. See tasks/prompt-caching-smoke-test-results.md.
+# Phase 0 uses 5m TTL exclusively — when 1h TTL enablement ships, the write
+# multiplier must be switched to 2.0x and _estimate_cost needs a ttl argument.
+_CACHE_READ_MULTIPLIER = 0.1         # cache-hit reads at 0.1x base input
+_CACHE_WRITE_5M_MULTIPLIER = 1.25    # 5-minute TTL writes at 1.25x base input
+
+
 def _estimate_cost(model, usage):
     """Estimate USD cost from model name and usage dict.
 
-    Returns 0.0 if pricing is unknown or usage is empty.
+    Returns 0.0 if pricing is unknown or usage is empty. For Claude models,
+    when usage contains cache_read_input_tokens or cache_creation_input_tokens,
+    those are priced at Anthropic's cache multipliers (0.1x read, 1.25x 5-min
+    write) and subtracted from prompt_tokens before the base rate applies —
+    LiteLLM double-counts cache tokens inside prompt_tokens (confirmed via
+    Phase 0a smoke test, 2026-04-18).
+
+    For non-Claude models (GPT, Gemini), cache fields in usage are ignored:
+    Anthropic-specific multipliers don't apply to OpenAI's 0.5x/1x cache
+    pricing or Gemini's context caching tiers. Current Build OS debate usage
+    only enables caching on Claude Sonnet; other providers are guarded here
+    so a future LiteLLM version that surfaces their cache counters doesn't
+    silently misbill through our Anthropic-tuned constants.
     """
     if not usage:
         return 0.0
@@ -167,7 +189,24 @@ def _estimate_cost(model, usage):
         return 0.0
     prompt_tokens = usage.get("prompt_tokens", 0) or 0
     completion_tokens = usage.get("completion_tokens", 0) or 0
-    cost = (prompt_tokens * pricing["input"] + completion_tokens * pricing["output"]) / 1_000_000
+
+    is_claude = model.startswith("claude-")
+    cache_read = (usage.get("cache_read_input_tokens", 0) or 0) if is_claude else 0
+    cache_creation = (usage.get("cache_creation_input_tokens", 0) or 0) if is_claude else 0
+
+    # LiteLLM reports prompt_tokens = input_tokens + cache_read + cache_creation.
+    # Subtract cache pools before applying the base rate so each is priced once
+    # at its own multiplier. Defensive clamp to 0 in case a provider eventually
+    # reports cache tokens separately (then prompt_tokens would be input-only
+    # and the subtraction would under-bill without the clamp).
+    base_input_tokens = max(0, prompt_tokens - cache_read - cache_creation)
+
+    cost = (
+        base_input_tokens * pricing["input"]
+        + cache_read * pricing["input"] * _CACHE_READ_MULTIPLIER
+        + cache_creation * pricing["input"] * _CACHE_WRITE_5M_MULTIPLIER
+        + completion_tokens * pricing["output"]
+    ) / 1_000_000
     return round(cost, 6)
 
 

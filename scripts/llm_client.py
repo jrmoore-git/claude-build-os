@@ -83,6 +83,114 @@ def _sanitize_llm_kwargs(model: str, kwargs: dict) -> dict:
 
 
 # ---------------------------------------------------------------------------
+# Prompt caching (Anthropic) — cache_control + cache_ttl plumbing
+# ---------------------------------------------------------------------------
+#
+# BUILDOS_CACHE_DISABLE=1 in env strips cache markers at the payload boundary
+# without changing call shape. This is the rollback path defined in
+# tasks/prompt-caching-plan.md.
+
+_VALID_CACHE_SCOPES = frozenset({None, "system", "system+user"})
+# Phase 0 exposes only the default 5-minute TTL. 1h TTL is supported by the
+# internal _cache_marker helper (emits ttl='1h' when asked) but is rejected at
+# the public validator because debate_common._estimate_cost hardcodes the
+# 5-minute write multiplier (1.25x). Enabling 1h requires a parallel update to
+# the pricing logic so writes are billed at 2.0x; see prompt-caching-plan.md.
+_VALID_CACHE_TTLS = frozenset({None, "5m"})
+
+
+def _cache_enabled() -> bool:
+    """Return False when BUILDOS_CACHE_DISABLE=1 strips caching at runtime."""
+    return os.environ.get("BUILDOS_CACHE_DISABLE") != "1"
+
+
+def _validate_cache_args(cache_control, cache_ttl):
+    """Raise LLMError on invalid cache kwargs. Return input unchanged."""
+    if cache_control not in _VALID_CACHE_SCOPES:
+        raise LLMError(
+            f"Invalid cache_control={cache_control!r}. "
+            f"Expected one of: None, 'system', 'system+user'.",
+            category="parse",
+        )
+    if cache_ttl not in _VALID_CACHE_TTLS:
+        raise LLMError(
+            f"Invalid cache_ttl={cache_ttl!r}. "
+            f"Expected one of: None, '5m'.",
+            category="parse",
+        )
+    return cache_control, cache_ttl
+
+
+def _should_cache(cache_control) -> bool:
+    """True if cache markers should be applied on this call."""
+    return cache_control is not None and _cache_enabled()
+
+
+def _cache_marker(cache_ttl):
+    """Build an Anthropic cache_control marker dict for the given TTL.
+
+    Default TTL (5m) omits the ttl field entirely — Anthropic treats the
+    marker without a ttl as the default tier, so writing 'ttl': '5m'
+    explicitly would be redundant.
+    """
+    marker = {"type": "ephemeral"}
+    if cache_ttl == "1h":
+        marker["ttl"] = "1h"
+    return marker
+
+
+def _extract_cache_usage(raw_usage):
+    """Normalize cache-token fields out of a provider usage dict/object.
+
+    Accepts either a plain dict (urllib path) or an object with attributes
+    (OpenAI SDK path). Checks multiple candidate field names because LiteLLM
+    passthrough naming for Anthropic cache fields is not documented — Phase 0a
+    smoke test pins this down empirically. Until then we accept whichever name
+    surfaces.
+
+    Returns (cache_read_input_tokens, cache_creation_input_tokens). Missing
+    values are reported as 0 per Anthropic convention (no cache activity).
+    """
+    # Candidate field names in priority order.
+    read_candidates = (
+        "cache_read_input_tokens",       # Anthropic native
+        "cached_tokens",                 # OpenAI-style (LiteLLM may normalize)
+    )
+    write_candidates = (
+        "cache_creation_input_tokens",   # Anthropic native
+        "cache_write_input_tokens",      # speculative LiteLLM name
+    )
+
+    def _lookup(source, names):
+        if isinstance(source, dict):
+            for n in names:
+                v = source.get(n)
+                if v is not None:
+                    return int(v) if v else 0
+            # Some providers nest under prompt_tokens_details
+            details = source.get("prompt_tokens_details") or {}
+            if isinstance(details, dict):
+                for n in names:
+                    v = details.get(n)
+                    if v is not None:
+                        return int(v) if v else 0
+        else:
+            for n in names:
+                v = getattr(source, n, None)
+                if v is not None and not callable(v):
+                    return int(v) if v else 0
+            details = getattr(source, "prompt_tokens_details", None)
+            if details is not None:
+                for n in names:
+                    v = getattr(details, n, None)
+                    if v is not None and not callable(v):
+                        return int(v) if v else 0
+        return 0
+
+    return _lookup(raw_usage, read_candidates), _lookup(raw_usage, write_candidates)
+
+
+# ---------------------------------------------------------------------------
 # Structured error
 # ---------------------------------------------------------------------------
 
@@ -361,20 +469,38 @@ def _fix_unescaped_newlines(text):
 # ---------------------------------------------------------------------------
 
 def _legacy_call(system, user, *, model, temperature, max_tokens, timeout,
-                 base_url, api_key):
-    """Raw urllib call matching the old pattern. Returns (content, model_used, usage)."""
+                 base_url, api_key, cache_control=None, cache_ttl=None):
+    """Raw urllib call matching the old pattern. Returns (content, model_used, usage).
+
+    When cache_control is provided, system and (optionally) user messages are
+    rewritten as content-block arrays with Anthropic cache_control markers.
+    LiteLLM is expected to pass these markers through to Anthropic when the
+    underlying model is a Claude family model; Phase 0a smoke test verifies.
+    """
     url = base_url.rstrip("/")
     # Strip /v1 suffix for legacy path which appends /chat/completions
     if url.endswith("/v1"):
         url = url[:-3]
     url = f"{url}/chat/completions"
 
+    if _should_cache(cache_control):
+        marker = _cache_marker(cache_ttl)
+        system_msg = {"role": "system", "content": [
+            {"type": "text", "text": system, "cache_control": marker},
+        ]}
+        if cache_control == "system+user":
+            user_msg = {"role": "user", "content": [
+                {"type": "text", "text": user, "cache_control": marker},
+            ]}
+        else:
+            user_msg = {"role": "user", "content": user}
+    else:
+        system_msg = {"role": "system", "content": system}
+        user_msg = {"role": "user", "content": user}
+
     payload = {
         "model": model,
-        "messages": [
-            {"role": "system", "content": system},
-            {"role": "user", "content": user},
-        ],
+        "messages": [system_msg, user_msg],
         "temperature": temperature,
     }
     if max_tokens is not None:
@@ -394,7 +520,10 @@ def _legacy_call(system, user, *, model, temperature, max_tokens, timeout,
     body = json.loads(resp.read().decode())
     content = body["choices"][0]["message"]["content"]
     model_used = body.get("model", model)
-    usage = body.get("usage", {})
+    usage = dict(body.get("usage", {}) or {})
+    cache_read, cache_creation = _extract_cache_usage(body.get("usage", {}) or {})
+    usage["cache_read_input_tokens"] = cache_read
+    usage["cache_creation_input_tokens"] = cache_creation
     return content, model_used, usage
 
 
@@ -403,16 +532,31 @@ def _legacy_call(system, user, *, model, temperature, max_tokens, timeout,
 # ---------------------------------------------------------------------------
 
 def _anthropic_call(system, user, *, model, temperature, max_tokens, timeout,
-                    api_key):
+                    api_key, cache_control=None, cache_ttl=None):
     """Direct Anthropic Messages API call. Returns (content, model_used, usage).
 
     Used when LiteLLM proxy is unavailable and ANTHROPIC_API_KEY is set.
     Mirrors _legacy_call pattern but targets Anthropic's Messages API format.
+
+    When cache_control is provided, system is rewritten as a content-block
+    array with cache_control markers; user content is similarly rewritten
+    when cache_control == 'system+user'.
     """
+    if _should_cache(cache_control):
+        marker = _cache_marker(cache_ttl)
+        system_payload = [{"type": "text", "text": system, "cache_control": marker}]
+        if cache_control == "system+user":
+            user_content = [{"type": "text", "text": user, "cache_control": marker}]
+        else:
+            user_content = user
+    else:
+        system_payload = system
+        user_content = user
+
     payload = _sanitize_llm_kwargs(model, {
         "model": model,
-        "system": system,
-        "messages": [{"role": "user", "content": user}],
+        "system": system_payload,
+        "messages": [{"role": "user", "content": user_content}],
         "temperature": temperature,
         "max_tokens": max_tokens if max_tokens is not None else 4096,
     })
@@ -439,11 +583,14 @@ def _anthropic_call(system, user, *, model, temperature, max_tokens, timeout,
     model_used = body.get("model", model)
     usage = {}
     if "usage" in body:
+        cache_read, cache_creation = _extract_cache_usage(body["usage"])
         usage = {
             "prompt_tokens": body["usage"].get("input_tokens", 0),
             "completion_tokens": body["usage"].get("output_tokens", 0),
             "total_tokens": (body["usage"].get("input_tokens", 0)
                             + body["usage"].get("output_tokens", 0)),
+            "cache_read_input_tokens": cache_read,
+            "cache_creation_input_tokens": cache_creation,
         }
     return content, model_used, usage
 
@@ -488,18 +635,37 @@ def _default_temperature_for_model(model):
 
 
 def _sdk_call(system, user, *, model, temperature, max_tokens, timeout,
-              base_url, api_key):
-    """OpenAI SDK call via LiteLLM. Returns (content, model_used, usage)."""
+              base_url, api_key, cache_control=None, cache_ttl=None):
+    """OpenAI SDK call via LiteLLM. Returns (content, model_used, usage).
+
+    When cache_control is provided, system and (optionally) user messages are
+    rewritten as OpenAI-compatible content-block arrays carrying Anthropic
+    cache_control markers. LiteLLM should pass these through for Claude
+    models; Phase 0a smoke test verifies passthrough. Usage dict gains
+    cache_read_input_tokens and cache_creation_input_tokens (0 when absent).
+    """
     from openai import OpenAI
 
     client = OpenAI(base_url=base_url, api_key=api_key)
 
+    if _should_cache(cache_control):
+        marker = _cache_marker(cache_ttl)
+        system_msg = {"role": "system", "content": [
+            {"type": "text", "text": system, "cache_control": marker},
+        ]}
+        if cache_control == "system+user":
+            user_msg = {"role": "user", "content": [
+                {"type": "text", "text": user, "cache_control": marker},
+            ]}
+        else:
+            user_msg = {"role": "user", "content": user}
+    else:
+        system_msg = {"role": "system", "content": system}
+        user_msg = {"role": "user", "content": user}
+
     kwargs = {
         "model": model,
-        "messages": [
-            {"role": "system", "content": system},
-            {"role": "user", "content": user},
-        ],
+        "messages": [system_msg, user_msg],
         "timeout": timeout,
         "temperature": temperature,
     }
@@ -513,10 +679,13 @@ def _sdk_call(system, user, *, model, temperature, max_tokens, timeout,
     model_used = response.model or model
     usage = {}
     if response.usage:
+        cache_read, cache_creation = _extract_cache_usage(response.usage)
         usage = {
             "prompt_tokens": response.usage.prompt_tokens,
             "completion_tokens": response.usage.completion_tokens,
             "total_tokens": response.usage.total_tokens,
+            "cache_read_input_tokens": cache_read,
+            "cache_creation_input_tokens": cache_creation,
         }
     return content, model_used, usage
 
@@ -534,8 +703,12 @@ def _normalize_url(url):
 
 
 def _dispatch(system, user, *, model, temperature, max_tokens, timeout,
-              base_url, api_key):
-    """Route to SDK, legacy, or Anthropic fallback."""
+              base_url, api_key, cache_control=None, cache_ttl=None):
+    """Route to SDK, legacy, or Anthropic fallback.
+
+    cache_control / cache_ttl are threaded through to every backend. None
+    (default) leaves calls uncached and preserves pre-caching byte-identity.
+    """
     global _FALLBACK_ACTIVE, _FALLBACK_WARNED
 
     # If fallback already activated, go directly to Anthropic
@@ -557,7 +730,8 @@ def _dispatch(system, user, *, model, temperature, max_tokens, timeout,
             _FALLBACK_WARNED = True
         return _anthropic_call(system, user, model=_FALLBACK_MODEL,
                                temperature=temperature, max_tokens=max_tokens,
-                               timeout=timeout, api_key=anthropic_key)
+                               timeout=timeout, api_key=anthropic_key,
+                               cache_control=cache_control, cache_ttl=cache_ttl)
 
     # Normal path: try proxy
     base_url = _normalize_url(base_url)
@@ -565,10 +739,12 @@ def _dispatch(system, user, *, model, temperature, max_tokens, timeout,
         if os.environ.get("BUILDOS_LLM_LEGACY") == "1":
             return _legacy_call(system, user, model=model, temperature=temperature,
                                 max_tokens=max_tokens, timeout=timeout,
-                                base_url=base_url, api_key=api_key)
+                                base_url=base_url, api_key=api_key,
+                                cache_control=cache_control, cache_ttl=cache_ttl)
         return _sdk_call(system, user, model=model, temperature=temperature,
                          max_tokens=max_tokens, timeout=timeout,
-                         base_url=base_url, api_key=api_key)
+                         base_url=base_url, api_key=api_key,
+                         cache_control=cache_control, cache_ttl=cache_ttl)
     except Exception as exc:
         if not _is_connection_refused(exc):
             raise
@@ -591,7 +767,8 @@ def _dispatch(system, user, *, model, temperature, max_tokens, timeout,
             _FALLBACK_WARNED = True
         return _anthropic_call(system, user, model=_FALLBACK_MODEL,
                                temperature=temperature, max_tokens=max_tokens,
-                               timeout=timeout, api_key=anthropic_key)
+                               timeout=timeout, api_key=anthropic_key,
+                               cache_control=cache_control, cache_ttl=cache_ttl)
 
 
 # ---------------------------------------------------------------------------
@@ -599,11 +776,19 @@ def _dispatch(system, user, *, model, temperature, max_tokens, timeout,
 # ---------------------------------------------------------------------------
 
 def llm_call(system, user, *, model=_DEFAULT_MODEL, temperature=0.0,
-             max_tokens=None, timeout=90, base_url=None, api_key=None):
+             max_tokens=None, timeout=90, base_url=None, api_key=None,
+             cache_control=None, cache_ttl=None):
     """Single-shot LLM call. Returns text content.
 
     Raises LLMError on failure (with category: timeout, rate_limit, auth, network, parse, unknown).
+
+    cache_control: None (default, no caching), 'system' (cache system prompt),
+    or 'system+user' (cache both). Invalid values raise LLMError(category='parse').
+    cache_ttl: None (default 5-min TTL), '5m', or '1h'. Ignored when cache_control is None.
+    BUILDOS_CACHE_DISABLE=1 in env strips markers at the payload boundary
+    (rollback path, preserves pre-caching byte-identity).
     """
+    _validate_cache_args(cache_control, cache_ttl)
     base_url = base_url or _get_base_url()
     api_key = api_key or _load_api_key()
     if not api_key:
@@ -619,19 +804,23 @@ def llm_call(system, user, *, model=_DEFAULT_MODEL, temperature=0.0,
         _dispatch, system, user, model=model, temperature=temperature,
         max_tokens=max_tokens, timeout=timeout,
         base_url=base_url, api_key=api_key,
+        cache_control=cache_control, cache_ttl=cache_ttl,
     )
     return content.strip() if content else ""
 
 
 def llm_call_json(system, user, *, model=_DEFAULT_MODEL, temperature=0.0,
-                  max_tokens=None, timeout=90, base_url=None, api_key=None):
+                  max_tokens=None, timeout=90, base_url=None, api_key=None,
+                  cache_control=None, cache_ttl=None):
     """Single-shot LLM call. Returns parsed JSON.
 
     Raises LLMError on LLM failure or JSON parse failure (category='parse').
+    See llm_call for cache_control / cache_ttl semantics.
     """
     text = llm_call(system, user, model=model, temperature=temperature,
                     max_tokens=max_tokens, timeout=timeout,
-                    base_url=base_url, api_key=api_key)
+                    base_url=base_url, api_key=api_key,
+                    cache_control=cache_control, cache_ttl=cache_ttl)
 
     result = _extract_json(text)
     if result is None:
@@ -642,11 +831,15 @@ def llm_call_json(system, user, *, model=_DEFAULT_MODEL, temperature=0.0,
 
 
 def llm_call_raw(system, user, *, model=_DEFAULT_MODEL, temperature=0.0,
-                 max_tokens=None, timeout=90, base_url=None, api_key=None):
+                 max_tokens=None, timeout=90, base_url=None, api_key=None,
+                 cache_control=None, cache_ttl=None):
     """Single-shot LLM call. Returns dict with 'content', 'model', 'usage' keys.
 
-    Raises LLMError on failure.
+    Raises LLMError on failure. See llm_call for cache_control / cache_ttl
+    semantics. Returned usage dict always includes cache_read_input_tokens
+    and cache_creation_input_tokens (0 when no cache activity).
     """
+    _validate_cache_args(cache_control, cache_ttl)
     base_url = base_url or _get_base_url()
     api_key = api_key or _load_api_key()
     if not api_key:
@@ -662,6 +855,7 @@ def llm_call_raw(system, user, *, model=_DEFAULT_MODEL, temperature=0.0,
         _dispatch, system, user, model=model, temperature=temperature,
         max_tokens=max_tokens, timeout=timeout,
         base_url=base_url, api_key=api_key,
+        cache_control=cache_control, cache_ttl=cache_ttl,
     )
     return {
         "content": content.strip() if content else "",
@@ -709,6 +903,8 @@ def llm_tool_loop(
     api_key=None,
     on_tool_call=None,
     tool_choice=None,
+    cache_control=None,
+    cache_ttl=None,
 ):
     """Run an LLM tool-use loop until the model stops calling tools or max_turns is hit.
 
@@ -720,6 +916,12 @@ def llm_tool_loop(
         model: Model name (default: Haiku for cost efficiency).
         max_turns: Hard cap on API round-trips.
         on_tool_call: Optional callback(turn, name, args, result) for audit.
+        cache_control: None | 'system' | 'system+user' — marks turn-0
+            system/user messages with Anthropic cache_control. Subsequent
+            turn messages (tool calls, tool results) are dynamic and not
+            cached. Per Anthropic invalidation hierarchy, tools + system
+            stay cached across turns as long as the tool list is stable.
+        cache_ttl: None (default 5m) | '5m' | '1h'.
 
     Returns:
         {"content": str, "turns": int, "tool_calls": list, "usage": dict}
@@ -729,6 +931,7 @@ def llm_tool_loop(
     """
     from openai import OpenAI
 
+    _validate_cache_args(cache_control, cache_ttl)
     base_url = _normalize_url(base_url or _get_base_url())
     api_key = api_key or _load_api_key()
     if not api_key:
@@ -745,11 +948,25 @@ def llm_tool_loop(
         )
 
     client = OpenAI(base_url=base_url, api_key=api_key)
-    messages = [
-        {"role": "system", "content": system},
-        {"role": "user", "content": user},
-    ]
-    total_usage = {"prompt_tokens": 0, "completion_tokens": 0, "total_tokens": 0}
+    if _should_cache(cache_control):
+        marker = _cache_marker(cache_ttl)
+        system_msg = {"role": "system", "content": [
+            {"type": "text", "text": system, "cache_control": marker},
+        ]}
+        if cache_control == "system+user":
+            user_msg = {"role": "user", "content": [
+                {"type": "text", "text": user, "cache_control": marker},
+            ]}
+        else:
+            user_msg = {"role": "user", "content": user}
+    else:
+        system_msg = {"role": "system", "content": system}
+        user_msg = {"role": "user", "content": user}
+    messages = [system_msg, user_msg]
+    total_usage = {
+        "prompt_tokens": 0, "completion_tokens": 0, "total_tokens": 0,
+        "cache_read_input_tokens": 0, "cache_creation_input_tokens": 0,
+    }
     all_tool_calls = []
 
     # Resolve tool_choice once: explicit override wins, otherwise per-model default.
@@ -880,9 +1097,12 @@ def _sdk_tool_call(client, messages, tools, model, temperature, max_tokens, time
         ]
     usage = {}
     if response.usage:
+        cache_read, cache_creation = _extract_cache_usage(response.usage)
         usage = {
             "prompt_tokens": response.usage.prompt_tokens,
             "completion_tokens": response.usage.completion_tokens,
             "total_tokens": response.usage.total_tokens,
+            "cache_read_input_tokens": cache_read,
+            "cache_creation_input_tokens": cache_creation,
         }
     return {"message": msg_dict, "usage": usage}
