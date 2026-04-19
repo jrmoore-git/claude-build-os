@@ -324,6 +324,93 @@ Some preamble.
     assert parsed["B"]["direction_improvement"]["items"] == []
 
 
+def test_classify_falsified_challenger_only_is_hallucination():
+    """Source names Challenger alone → hallucination (independent false claim)."""
+    text = """## Claim Verification Results
+
+1. **Claim**: `scripts/batch_dispatch.py` exists
+   **Source**: Challenger B
+   **Status**: FALSIFIED
+   **Evidence**: not present on disk.
+"""
+    out = scorer.classify_falsified_claims(text)
+    assert out["hallucination"] == 1
+    assert out["caught_misquote"] == 0
+    assert out["unclear"] == 0
+    assert out["total_falsified"] == 1
+
+
+def test_classify_falsified_proposal_only_is_caught_misquote():
+    """Source names Proposal alone → challenger was quoting the proposal
+    to flag it; proposal is the wrong one."""
+    text = """## Claim Verification Results
+
+1. **Claim**: CLAUDE.md says "Update decisions.md"
+   **Source**: Proposal (1A)
+   **Status**: FALSIFIED
+   **Evidence**: phrase not found in CLAUDE.md.
+"""
+    out = scorer.classify_falsified_claims(text)
+    assert out["caught_misquote"] == 1
+    assert out["hallucination"] == 0
+
+
+def test_classify_falsified_mixed_source_is_caught_misquote():
+    """Mixed source (Proposal + Challenger) → conservatively caught_misquote;
+    the challenger echoed a proposal claim in a critique context."""
+    text = """## Claim Verification Results
+
+1. **Claim**: review-protocol.md contains "--skip-challenge"
+   **Source**: Proposal (1C), Challenger A
+   **Status**: FALSIFIED
+   **Evidence**: flag not in rules.
+"""
+    out = scorer.classify_falsified_claims(text)
+    assert out["caught_misquote"] == 1
+    assert out["hallucination"] == 0
+
+
+def test_classify_verified_and_unresolvable_counted_but_not_classified():
+    text = """## Claim Verification Results
+
+1. **Claim**: foo
+   **Source**: Challenger A
+   **Status**: VERIFIED
+   **Evidence**: match found.
+
+2. **Claim**: bar
+   **Source**: Proposal
+   **Status**: UNRESOLVABLE
+   **Evidence**: ambiguous.
+"""
+    out = scorer.classify_falsified_claims(text)
+    assert out["total_verified"] == 1
+    assert out["total_unresolvable"] == 1
+    assert out["total_falsified"] == 0
+    assert out["hallucination"] == 0
+    assert out["caught_misquote"] == 0
+
+
+def test_classify_empty_input_returns_zeros():
+    assert scorer.classify_falsified_claims("")["total_falsified"] == 0
+    assert scorer.classify_falsified_claims(None)["total_falsified"] == 0
+
+
+def test_classify_unparseable_source_is_unclear():
+    text = """## Claim Verification Results
+
+1. **Claim**: something
+   **Status**: FALSIFIED
+   **Evidence**: checked.
+"""
+    # No Source line at all — classification falls through to unclear.
+    out = scorer.classify_falsified_claims(text)
+    assert out["total_falsified"] == 1
+    assert out["unclear"] == 1
+    assert out["hallucination"] == 0
+    assert out["caught_misquote"] == 0
+
+
 def test_parse_judge_output_strips_dimension_prefix():
     """Comparison prompt emits `dimension_N_<name>` keys; aggregator indexes
     bare `<name>`. parse_judge_output must strip the prefix so real runs

@@ -191,7 +191,13 @@ def _quality_density(dist: dict[str, float]) -> float | None:
 
 
 def _arm_verifier_stats(scored: dict[str, Any], arm: str) -> dict[str, int] | None:
-    """Return verifier stats for one arm's catch_rate, or None if unavailable."""
+    """Return verifier stats for one arm's catch_rate, or None if unavailable.
+
+    Also pulls falsified_classification (item 2 of metric-fix plan) when
+    present, which splits total falsified into hallucination (challenger
+    asserted, verifier falsified) vs caught_misquote (challenger quoted
+    proposal to flag it as false; verifier agrees proposal claim is false)
+    vs unclear (source unparseable)."""
     vc = (_arm_dim_data(scored, arm, GROUND_TRUTH_DIM) or {}).get("verify_claims") or {}
     if vc.get("status") != "verified":
         return None
@@ -199,17 +205,45 @@ def _arm_verifier_stats(scored: dict[str, Any], arm: str) -> dict[str, int] | No
     required = ("verified", "falsified", "unresolvable", "claims_checked")
     if not all(k in stats for k in required):
         return None
-    return {k: int(stats[k]) for k in required}
+    out = {k: int(stats[k]) for k in required}
+    clf = vc.get("falsified_classification") or {}
+    if clf:
+        # Total from classification may disagree with stats.falsified on
+        # older scored.json where verification_text was truncated. Trust
+        # stats.falsified as the authoritative total and scale classification
+        # proportionally if parsed total < stats.falsified.
+        parsed_total = int(clf.get("total_falsified", 0))
+        for k in ("hallucination", "caught_misquote", "unclear"):
+            out[k] = int(clf.get(k, 0))
+        # Flag truncation-caused undercount so downstream can note it.
+        out["classification_parsed_total"] = parsed_total
+        out["classification_stats_total"] = int(stats["falsified"])
+    return out
 
 
 def _aggregate_verifier(all_scored: list[dict[str, Any]]) -> dict[str, Any]:
     """Pool verifier stats across proposals, per arm, plus weighted accuracy
-    using the judge-rated quality density on catch_rate items."""
+    using the judge-rated quality density on catch_rate items.
+
+    When falsified_classification is present in the source data (item 2 of
+    metric-fix plan), computes TWO accuracy/hallucination pairs:
+      - raw: verified / (verified + falsified), falsified / claims_checked
+      - classified: verified / (verified + hallucination),
+                    hallucination / claims_checked (caught_misquote excluded
+                    from both denominators because it is not a claim the
+                    challenger made; they quoted the proposal's false claim)
+    The classified version is the one the per-dim verdict uses when both
+    arms have classifications with parsed totals that match (or
+    approximately match) the authoritative stats.falsified.
+    """
     pooled = {
         arm: {"verified": 0, "falsified": 0, "unresolvable": 0,
-              "claims_checked": 0, "missing": 0}
+              "claims_checked": 0, "missing": 0,
+              "hallucination": 0, "caught_misquote": 0, "unclear": 0,
+              "classified_parsed_total": 0, "classified_stats_total": 0}
         for arm in ("arm-a", "arm-b")
     }
+    has_classification = {"arm-a": False, "arm-b": False}
     for scored in all_scored:
         for arm in ("arm-a", "arm-b"):
             stats = _arm_verifier_stats(scored, arm)
@@ -218,33 +252,68 @@ def _aggregate_verifier(all_scored: list[dict[str, Any]]) -> dict[str, Any]:
                 continue
             for k in ("verified", "falsified", "unresolvable", "claims_checked"):
                 pooled[arm][k] += stats[k]
+            if "hallucination" in stats:
+                has_classification[arm] = True
+                for k in ("hallucination", "caught_misquote", "unclear"):
+                    pooled[arm][k] += stats.get(k, 0)
+                pooled[arm]["classified_parsed_total"] += stats.get(
+                    "classification_parsed_total", 0)
+                pooled[arm]["classified_stats_total"] += stats.get(
+                    "classification_stats_total", 0)
 
     out: dict[str, Any] = {}
+    use_classified = has_classification["arm-a"] and has_classification["arm-b"]
     for arm in ("arm-a", "arm-b"):
         p = pooled[arm]
-        denom_acc = p["verified"] + p["falsified"]
+        denom_acc_raw = p["verified"] + p["falsified"]
         denom_hall = p["claims_checked"]
-        accuracy = (p["verified"] / denom_acc) if denom_acc > 0 else None
-        hallucination = (p["falsified"] / denom_hall) if denom_hall > 0 else None
+        accuracy_raw = (p["verified"] / denom_acc_raw) if denom_acc_raw > 0 else None
+        hallucination_raw = (p["falsified"] / denom_hall) if denom_hall > 0 else None
 
         # Quality density on catch_rate items (judge-rated).
         catch_rate_dist = _sum_dim_distribution(all_scored, arm, GROUND_TRUTH_DIM)
         density = _quality_density(catch_rate_dist)
+
+        # Classified versions (source-aware) if available.
+        accuracy_cls = None
+        hallucination_cls = None
+        caught_misquote_rate = None
+        if use_classified:
+            denom_acc_cls = p["verified"] + p["hallucination"]
+            accuracy_cls = (p["verified"] / denom_acc_cls) if denom_acc_cls > 0 else None
+            hallucination_cls = (
+                p["hallucination"] / denom_hall if denom_hall > 0 else None
+            )
+            caught_misquote_rate = (
+                p["caught_misquote"] / denom_hall if denom_hall > 0 else None
+            )
+
+        # The primary accuracy the verdict will use: classified when both arms
+        # have it, else raw.
+        primary_accuracy = accuracy_cls if use_classified else accuracy_raw
+        primary_hallucination = hallucination_cls if use_classified else hallucination_raw
         weighted_accuracy = (
-            accuracy * density if accuracy is not None and density is not None
+            primary_accuracy * density
+            if primary_accuracy is not None and density is not None
             else None
         )
 
         out[arm] = {
             **p,
-            "accuracy": accuracy,
-            "hallucination_rate": hallucination,
+            "accuracy": primary_accuracy,
+            "accuracy_raw": accuracy_raw,
+            "accuracy_classified": accuracy_cls,
+            "hallucination_rate": primary_hallucination,
+            "hallucination_rate_raw": hallucination_raw,
+            "hallucination_rate_classified": hallucination_cls,
+            "caught_misquote_rate": caught_misquote_rate,
             "unresolvable_rate": (
                 p["unresolvable"] / denom_hall if denom_hall > 0 else None
             ),
             "quality_density": density,
             "weighted_accuracy": weighted_accuracy,
             "quality_distribution_sum": catch_rate_dist,
+            "signal_source": "classified" if use_classified else "raw",
         }
     return out
 
@@ -258,17 +327,20 @@ def _per_dim_verdict_verifier(
     guard + quality-weighted accuracy alignment."""
     a = verifier_agg["arm-a"]
     b = verifier_agg["arm-b"]
+    surfaced = (
+        "verified", "falsified", "unresolvable", "claims_checked",
+        "accuracy", "accuracy_raw", "accuracy_classified",
+        "hallucination_rate", "hallucination_rate_raw",
+        "hallucination_rate_classified", "caught_misquote_rate",
+        "hallucination", "caught_misquote", "unclear",
+        "quality_density", "weighted_accuracy",
+        "quality_distribution_sum", "signal_source",
+    )
     out: dict[str, Any] = {
         "dimension": GROUND_TRUTH_DIM,
-        "signal_type": "verifier-grounded + quality-weighted",
-        "arm-a": {k: a[k] for k in
-                  ("verified", "falsified", "unresolvable", "claims_checked",
-                   "accuracy", "hallucination_rate", "quality_density",
-                   "weighted_accuracy", "quality_distribution_sum")},
-        "arm-b": {k: b[k] for k in
-                  ("verified", "falsified", "unresolvable", "claims_checked",
-                   "accuracy", "hallucination_rate", "quality_density",
-                   "weighted_accuracy", "quality_distribution_sum")},
+        "signal_type": "verifier-grounded + source-classified + quality-weighted",
+        "arm-a": {k: a.get(k) for k in surfaced},
+        "arm-b": {k: b.get(k) for k in surfaced},
     }
 
     if a["accuracy"] is None or b["accuracy"] is None:
@@ -675,8 +747,13 @@ def render_markdown(
     # ── catch_rate detail ─────────────────────────────────────────────
     cr = per_dim.get(GROUND_TRUTH_DIM)
     if cr and "arm-a" in cr and "arm-b" in cr:
+        signal_source = cr["arm-a"].get("signal_source", "raw")
+        label = (
+            "source-classified (hallucination vs caught-misquote)"
+            if signal_source == "classified" else "raw (all falsified pooled)"
+        )
         lines.extend([
-            "## catch_rate — verifier accuracy + quality density",
+            f"## catch_rate — verifier accuracy + quality density ({label})",
             "",
             "| Arm | Claims | Verified | Falsified | Unresolvable | Accuracy | Hallucination | Quality density | Weighted accuracy |",
             "|---|---|---|---|---|---|---|---|---|",
@@ -691,6 +768,32 @@ def render_markdown(
                 f"{_fmt_pct(a['weighted_accuracy'])} |"
             )
         lines.append("")
+
+        if signal_source == "classified":
+            lines.extend([
+                "### FALSIFIED breakdown (item 2 of metric-fix plan)",
+                "",
+                "| Arm | Hallucination | Caught-misquote | Unclear | Raw accuracy | Classified accuracy |",
+                "|---|---|---|---|---|---|",
+            ])
+            for arm in ("arm-a", "arm-b"):
+                a = cr[arm]
+                lines.append(
+                    f"| {arm} | {a.get('hallucination', 0)} | "
+                    f"{a.get('caught_misquote', 0)} | "
+                    f"{a.get('unclear', 0)} | "
+                    f"{_fmt_pct(a.get('accuracy_raw'))} | "
+                    f"{_fmt_pct(a.get('accuracy_classified'))} |"
+                )
+            lines.extend([
+                "",
+                "_Hallucination = challenger asserted X, X is false. "
+                "Caught-misquote = challenger quoted proposal's false claim; "
+                "credit to challenger, not a hallucination. "
+                "Classified accuracy excludes caught-misquote from the "
+                "denominator (not a claim the challenger made)._",
+                "",
+            ])
 
     # ── Judge-graded detail ───────────────────────────────────────────
     for dim in JUDGE_GRADED_DIMS:

@@ -136,6 +136,91 @@ def run_claim_verifier_inprocess(
             "verification_text": verification_text, "stats": stats}
 
 
+# ── FALSIFIED source classification (item 2 of metric-fix plan) ────────────
+#
+# The verifier emits per-claim blocks like:
+#   **Claim**: ...
+#   **Source**: Proposal (1A), Challenger A (Challenge 1)
+#   **Status**: FALSIFIED
+#   **Evidence**: ...
+#
+# A FALSIFIED claim conflates two very different failure modes:
+#   - "hallucination": the challenger ASSERTED X as fact, and X is false.
+#   - "caught_misquote": the challenger quoted the proposal ("proposal says
+#     X") in order to flag that X is false.
+#
+# The Source field attributes the claim's origin. Classification rule:
+#   - Source mentions Challenger and NOT Proposal -> hallucination
+#   - Source mentions Proposal and NOT Challenger -> caught_misquote
+#   - Source mentions BOTH -> caught_misquote (challenger picked up the
+#     proposal's claim in the context of critique; the verifier agrees the
+#     claim is false; the challenger didn't independently hallucinate it)
+#   - Source unparseable -> unclear
+#
+# This is a conservative heuristic. The "mixed" case is the ambiguous one
+# but empirically on n=3 the majority of mixed claims are challengers
+# quoting the proposal to flag the error. The assumption is flagged in the
+# markdown output so a reader can spot-check.
+
+
+import re as _re  # module-level import for the parser below
+
+
+_CLAIM_BLOCK_RE = _re.compile(
+    r"\*\*Claim\*\*.*?(?=\*\*Claim\*\*|\Z)",
+    _re.DOTALL,
+)
+_SOURCE_RE = _re.compile(r"\*\*Source\*\*:\s*(.+?)$", _re.MULTILINE)
+_STATUS_RE = _re.compile(r"\*\*Status\*\*:\s*(.+?)$", _re.MULTILINE)
+
+
+def classify_falsified_claims(verification_text: str | None) -> dict[str, int]:
+    """Parse verifier's per-claim blocks. Return classification counts.
+
+    Returns {
+        "hallucination": int,       # challenger asserted, verifier falsified
+        "caught_misquote": int,     # challenger quoted proposal, proposal wrong
+        "unclear": int,             # source field unparseable
+        "total_falsified": int,     # sum for sanity
+        "total_verified": int,
+        "total_unresolvable": int,
+    }
+    All zero on empty/missing input.
+    """
+    out = {"hallucination": 0, "caught_misquote": 0, "unclear": 0,
+           "total_falsified": 0, "total_verified": 0, "total_unresolvable": 0}
+    if not verification_text:
+        return out
+
+    for block in _CLAIM_BLOCK_RE.findall(verification_text):
+        status_m = _STATUS_RE.search(block)
+        if not status_m:
+            continue
+        status = status_m.group(1).upper()
+        if "VERIFIED" in status and "FALSIFIED" not in status:
+            out["total_verified"] += 1
+            continue
+        if "UNRESOLVABLE" in status:
+            out["total_unresolvable"] += 1
+            continue
+        if "FALSIFIED" not in status:
+            continue
+        out["total_falsified"] += 1
+
+        source_m = _SOURCE_RE.search(block)
+        source = (source_m.group(1) if source_m else "").lower()
+        has_prop = "proposal" in source
+        has_chal = "challenger" in source
+        if has_chal and not has_prop:
+            out["hallucination"] += 1
+        elif has_prop:
+            # Proposal-only OR mixed: treat as caught_misquote.
+            out["caught_misquote"] += 1
+        else:
+            out["unclear"] += 1
+    return out
+
+
 # ── Parsing ─────────────────────────────────────────────────────────────────
 
 
@@ -730,10 +815,16 @@ def _attach_verifications(
     script."""
     for arm_label, arm_data in scored.get("arms", {}).items():
         verif = verifications.get(arm_label, {})
+        full_text = verif.get("verification_text") or ""
+        # Store the full verifier text (was truncated to 4000 chars previously
+        # — truncation stripped claims 10+ on busy proposals, making the
+        # falsified_classification undercount. Scored.json grows ~20KB per arm
+        # with full text; tolerable for diagnostic artifacts).
         entry = {
             "status": verif.get("status", "unknown"),
             "stats": verif.get("stats"),
-            "verification_text": (verif.get("verification_text") or "")[:4000],
+            "verification_text": full_text,
+            "falsified_classification": classify_falsified_claims(full_text),
         }
         if verif.get("error"):
             entry["error"] = verif["error"]
