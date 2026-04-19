@@ -1,12 +1,36 @@
 # Design Review Personas — Detailed Review Questions
 
-**Integration with cross-model debate:** When writing a proposal for debate (`tasks/<topic>-proposal.md`), copy the relevant persona checklist questions below into a "Review checklist" section of your proposal. This gives the challenger models the domain-specific questions to evaluate against, rather than relying on generic adversarial review alone. Use `--personas architect,security` on `debate.py` to route to the right models.
+**Integration with cross-model debate:** When writing a proposal for debate (`tasks/<topic>-proposal.md`), copy the relevant persona checklist questions below into a "Review checklist" section of your proposal. This gives the challenger models the domain-specific questions to evaluate against, rather than relying on generic adversarial review alone. Use `--personas architect,security,pm,frame` on `debate.py` to route to the right models.
 
 Referenced during phase gate reviews. Each persona's questions must be applied in full — not summarized into one-liners. If your review fits in a single bullet per persona, you are not doing the review.
 
-See `.claude/rules/review-protocol.md` for review order and process.
+See [docs/review-protocol.md](review-protocol.md) for review order and process.
 
 **Persona subagents DO NOT run bash commands.** They analyze pre-gathered evidence from `tasks/phase[N]-evidence.md`. If they find a gap, note `EVIDENCE GAP: need to verify [X]` — main agent checks after review.
+
+---
+
+## Persona summary
+
+Quick lookup — use this table to pick the right persona for your review.
+
+| Persona | Default model | Best for catching | Use on |
+|---|---|---|---|
+| **Architect** | `claude-opus-4-7` | Component boundary violations, state-integrity gaps, blast-radius blind spots, circular dependencies, partial-completion bugs | Design docs, architecture changes, new components |
+| **Security** | `gpt-5.4` | Injection (SQL, shell, prompt, XSS, SSRF), credential exposure, LLM boundary violations, untrusted input not validated, audit-log gaps | Auth changes, external-facing endpoints, credential handling, any user-input path |
+| **PM** | `gemini-3.1-pro` | Spec mismatch, missing non-goals, user value unclear, scope creep, success criteria undefined | Proposals, PRDs, plans where "is this the right thing?" is the question |
+| **Staff** | `gemini-3.1-pro` | Operational feasibility, runtime cost, deploy complexity, test coverage gaps, monitoring blind spots | Infrastructure proposals, cron jobs, anything that runs unattended |
+| **Frame** | `claude-sonnet-4-6` (structural) + `gpt-5.4` (factual, with `--enable-tools`) | Binary framings, missing compositional candidates, source-driven inheritance, problem inflation, "already shipped" claims | Every proposal by default (4th challenger in `/challenge`) |
+
+**Dual-mode Frame** — when `/challenge --enable-tools` is on, Frame expands to two parallel reviewers:
+- `frame-structural` — tools off, reasons from the proposal alone (catches what should exist but isn't proposed)
+- `frame-factual` — tools on, verifies proposal claims against the codebase (catches "already shipped" / stale code assertions)
+
+Persona-to-model mappings are configured in [`config/debate-models.json`](../config/debate-models.json).
+
+---
+
+## Detailed persona checklists
 
 ---
 

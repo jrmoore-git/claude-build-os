@@ -7,7 +7,7 @@ Build OS ships 22 hooks organized by event type. Hooks are the third level of th
 | Hook | Event | Matcher | Behavior |
 |------|-------|---------|----------|
 | [hook-intent-router.py](#hook-intent-routerpy) | UserPromptSubmit | — | **Injects** skill routing suggestions based on user intent |
-| [hook-decompose-gate.py](#hook-decompose-gatepy) | PreToolUse | Write\|Edit | **Blocks** first write until parallel decomposition is assessed |
+| [hook-decompose-gate.py](#hook-decompose-gatepy) | PreToolUse | Write\|Edit | **Nudges** (advisory) — emits a prompt hint suggesting worktree fan-out when a plan declares 2+ components |
 | [hook-guard-env.sh](#hook-guard-envsh) | PreToolUse | Write\|Edit, Bash | **Blocks** .env writes and credential management commands |
 | [hook-tier-gate.sh](#hook-tier-gatesh) | PreToolUse | Write\|Edit | **Blocks** Tier 1 file edits without debate artifacts |
 | [hook-pre-edit-gate.sh](#hook-pre-edit-gatesh) | PreToolUse | Write\|Edit | **Blocks** protected file edits without a recent plan/proposal |
@@ -26,6 +26,8 @@ Build OS ships 22 hooks organized by event type. Hooks are the third level of th
 | [hook-read-before-edit.py](#hook-read-before-editpy) | PreToolUse + PostToolUse | Write\|Edit, Read | **Warns** if editing a file not recently read in session |
 | [hook-skill-lint.py](#hook-skill-lintpy) | PostToolUse | Write\|Edit | **Warns** on SKILL.md frontmatter issues (description format, field validation) |
 | [hook-spec-status-check.py](#hook-spec-status-checkpy) | PostToolUse | Read | **Warns** when reading spec files without `implementation_status` field |
+| [hook-post-build-review.py](#hook-post-build-reviewpy) | PostToolUse | Write\|Edit | **Observes** — counts Write/Edit calls against an active plan; flags when a review is due (every 10 edits past threshold) |
+| [hook-session-telemetry.py](#hook-session-telemetrypy) | SessionStart + PostToolUse:Read + SessionEnd | — | **Observes** — emits session_start/context_read/session_outcome events for learning-velocity metrics |
 
 ---
 
@@ -520,6 +522,36 @@ Warns when reading spec files that lack implementation status tracking.
 **Behavior:** Non-blocking — prints a warning suggesting the agent add `implementation_status: shipped` (or `partial`) and `shipped_commit: <hash>` to the frontmatter when implementation is complete.
 
 **Design rationale:** A spec with recommendations but no status field is indistinguishable from unstarted work. This hook surfaces the gap at read time so it can be addressed in the same session.
+
+
+## hook-post-build-review.py
+
+Advisory PostToolUse hook on `Write|Edit`. Counts edits against an active plan and flags when a review is due. Never blocks.
+
+**What it does:**
+1. On each `Write|Edit`, checks if an active plan exists (a `tasks/*-plan.md` where `implementation_status` is not `shipped`)
+2. If yes, increments `edit_count` in `/tmp/claude-review-${SESSION_ID}.json`
+3. If a matching `tasks/<plan-topic>-review.md` exists with mtime later than the plan: clears the flag, resets the counter
+4. If `edit_count >= 10` and no review artifact exists: sets `flag=needs_review`, emits telemetry
+5. Re-fires every 5 edits past threshold (15, 20, 25…) while the flag remains set
+
+**Behavior:** Advisory only. Never blocks writes. State persists in `/tmp/claude-review-${SESSION_ID}.json`. All errors swallowed — exits 0 unconditionally.
+
+**Design rationale:** Long plans drift — the agent keeps shipping edits without running `/review`. This hook surfaces the gap without blocking flow, so the agent notices and runs `/review` when the edit volume suggests the work is ripe for review.
+
+
+## hook-session-telemetry.py
+
+Observer hook wired to three events: `SessionStart`, `PostToolUse:Read`, and `SessionEnd`. Emits telemetry for learning-velocity metrics. Never emits a permission decision.
+
+**What it does:**
+- **SessionStart** → emits a `session_start` event with cwd, git branch, and a topic stub (useful for later correlation)
+- **PostToolUse:Read** → if the file path matches the watchlist (governance files, `docs/current-state.md`, `tasks/handoff.md`), emits a `context_read` event
+- **SessionEnd** → emits a minimal `session_outcome` event with `outcome_source='session-end'` — skipped if `/wrap` already wrote one for this session_id (wrap is the authoritative source)
+
+**Behavior:** Pure observer. Always exits 0. Every exception is swallowed — never breaks a session. Events append to `stores/session-telemetry.jsonl`.
+
+**Design rationale:** Governance metrics (how often `current-state.md` is read, how often `/wrap` runs, session length distributions) need observation points. This hook provides them without disrupting the session.
 
 
 ## Wiring hooks into your project

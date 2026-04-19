@@ -4,6 +4,8 @@ BuildOS is a set of tools inside [Claude Code](https://claude.ai/claude-code) th
 
 This page shows you what works at each step.
 
+> Hit an unfamiliar term? The [Glossary](glossary.md) has plain-English definitions for ~25 recurring terms.
+
 ---
 
 ## What BuildOS does, in plain words
@@ -11,6 +13,39 @@ This page shows you what works at each step.
 Claude forgets everything between sessions. BuildOS gives it a memory: files on disk that record what you're building, what you've decided, and what you've learned. Then it adds a pipeline — problem discovery, planning, review, shipping — that Claude walks through with you.
 
 You describe what you want. BuildOS routes you to the right tool.
+
+---
+
+## Two different "tiers" — don't confuse them
+
+BuildOS uses two concepts that both get called "tiers" or "levels" in different docs. They're different things:
+
+| Concept | What it measures | Values | Set by |
+|---|---|---|---|
+| **Setup Level** | How much infrastructure you've installed | 1 (browser) / 2 (Claude Code) / 3 (+ API keys) | This page |
+| **Governance Tier** | How strict BuildOS enforces rules on you | 0 (advisory) / 1 (structured) / 2 (enforced) / 3 (production OS) | `/setup` based on your project's risk |
+
+This page is about **Setup Level** — what physically runs. For Governance Tier, see the [README's Governance Tiers section](../README.md#governance-tiers).
+
+---
+
+## At-a-glance: what works at each setup level
+
+| Capability | Level 1 (browser) | Level 2 (Claude Code) | Level 3 (+ API keys) |
+|---|:---:|:---:|:---:|
+| Talk to Claude about your project | ✅ | ✅ | ✅ |
+| Disk-based memory between sessions | ❌ | ✅ | ✅ |
+| Slash commands (`/think`, `/plan`, `/start`) | ❌ | ✅ | ✅ |
+| Plan files written to disk | ❌ | ✅ | ✅ |
+| Automated hooks and gates | ❌ | ✅ | ✅ |
+| Manual code review | Partial | ✅ | ✅ |
+| Cross-model review (`/review`, `/challenge`) | ❌ | ❌ | ✅ |
+| `/polish`, `/pressure-test`, `/explore` | ❌ | ❌ | ✅ |
+| `/research` (web research with citations) | ❌ | ❌ | ✅ (separate Perplexity key) |
+| Typical cost | $0 | $0 | Cents to a few dollars per cross-model run |
+| Setup time | 0 | ~10 min | ~30 min total |
+
+Detailed breakdowns for each level below.
 
 ---
 

@@ -2,6 +2,21 @@
 
 Technical internals for every script in the Build OS. Each script is a standalone CLI tool — pure stdlib Python, no pip dependencies — that powers part of the governance pipeline.
 
+**Jump to script:**
+
+| Script | What it does |
+|---|---|
+| [`debate.py`](#debatepy) | Cross-model challenge / judge / refine / review / pressure-test / explore |
+| [`tier_classify.py`](#tier_classifypy) | File-tier classification for review routing |
+| [`recall_search.py`](#recall_searchpy) | Governance search across decisions/lessons/rules |
+| [`finding_tracker.py`](#finding_trackerpy) | Finding lifecycle (open → resolved → archived) |
+| [`enrich_context.py`](#enrich_contextpy) | Context enrichment for proposals |
+| [`artifact_check.py`](#artifact_checkpy) | Artifact validation |
+| [`check-current-state-freshness.py`](#check-current-state-freshnesspy) | Freshness gate on `docs/current-state.md` |
+| [`lesson_events.py`](#lesson_eventspy) | Lesson lifecycle events + velocity metrics |
+
+---
+
 ## debate.py
 
 Cross-model adversarial review automation. This is the most important script: it orchestrates the full challenge → judge → refine pipeline by routing proposals through multiple AI models via a LiteLLM proxy.

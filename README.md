@@ -337,6 +337,21 @@ Full reference with flags and modes: [Cheat Sheet](docs/cheat-sheet.md).
 
 Build OS is designed for parallelization. When a task has three or more independent components, it should be decomposed into parallel agents rather than executed sequentially.
 
+**Decision flow:**
+
+```mermaid
+flowchart TD
+    A[New task in session] --> B{3+ independent<br/>file groups?}
+    B -->|No| C[Proceed sequentially<br/>single agent]
+    B -->|Yes| D{Shared state<br/>or interfaces?}
+    D -->|No| E[Parallel fan-out<br/>worktree per agent]
+    D -->|Yes| F[Foundation wave first<br/>then parallel execution]
+    E --> G[Integration & Review]
+    F --> G
+```
+
+**The parallel-execution shape:**
+
 ```mermaid
 flowchart TD
     A[Lead Agent] -->|defines interfaces| B[Foundation Wave]
@@ -348,7 +363,7 @@ flowchart TD
     E --> F
 ```
 
-**Decomposition gate:** A hook blocks the first write in each session until you assess whether the task should be parallelized. Three or more independent file groups? Decompose. One tightly coupled change? Proceed normally. This enforces the habit because Claude defaults to sequential execution even when tasks are clearly independent.
+**Decomposition nudge:** A hook reads your plan's `components:` list on the first write of the session. If the plan declares 2+ independent components, the hook surfaces a prompt hint suggesting worktree fan-out. The hook is **advisory, not blocking** — you can proceed sequentially after seeing the nudge. This keeps decomposition visible without adding friction when the work is genuinely sequential.
 
 **How it works in practice:**
 

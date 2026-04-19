@@ -14,18 +14,18 @@ A practical operating system for teams and individuals building serious projects
 | **Engineering team** | Philosophy, Tiers 1–2, File System, Operations, Review, Enforcement | Tier 3 specifics |
 | **Production agent system** | Everything | Nothing |
 
-This document is organized in layers:
+**Jump to:**
 
-1. **Philosophy** — the six things that matter (read once)
-2. **Governance tiers** — pick the tier that matches your risk (read once, revisit when stakes change)
-3. **File system** — what goes on disk and why (reference)
-4. **Operations** — cognitive and engineering, named and composable (reference)
-5. **Enforcement ladder** — how to make rules stick (reference)
-6. **Memory model** — how state survives between sessions (reference)
-7. **Review and testing** — how to verify work (reference)
-8. **Bootstrap** — how to start a new project (do once)
-9. **Patterns worth knowing** — hard-won production lessons (reference)
-10. **Survival basics** — protect yourself from common failures (read once, internalize)
+- [Part I. Philosophy](#part-i-philosophy) — the six things that matter (read once)
+- [Part II. Governance Tiers](#part-ii-the-governance-tiers) — pick the tier that matches your risk (read once, revisit when stakes change)
+- [Part III. File System](#part-iii-the-file-system) — what goes on disk and why (reference)
+- [Part IV. Operations](#part-iv-the-operations) — cognitive and engineering, named and composable (reference)
+- [Part V. Enforcement Ladder](#part-v-the-enforcement-ladder) — how to make rules stick (reference)
+- [Part VI. Memory Model](#part-vi-the-memory-model) — how state survives between sessions (reference)
+- [Part VII. Review and Testing](#part-vii-review-and-testing) — how to verify work (reference)
+- [Part VIII. Bootstrap](#part-viii-bootstrap) — how to start a new project (do once)
+- [Part IX. Patterns Worth Knowing](#part-ix-patterns-worth-knowing) — hard-won production lessons (reference)
+- [Part X. Survival Basics](#part-x-survival-basics) — protect yourself from common failures (read once, internalize)
 
 If you only read one section, read the governance tiers. Everything else follows from choosing the right tier.
 
@@ -507,7 +507,33 @@ Add when complexity demands:
 
 ## Part IX. Patterns Worth Knowing
 
-These are real failures from production Claude systems. Each one taught a lesson that shaped this framework.
+These are real failures from production Claude systems and the engineering patterns they shaped. The first half (war stories) is narrative — each section is a failure and what it taught. The second half (principles) is prescriptive — reusable patterns to apply.
+
+**War stories (jump to):**
+
+| Pattern | One-line lesson |
+|---|---|
+| [The invented email](#the-invented-email) | Advisory rules won't stop hallucinated data — validate at a code gate |
+| [The mocks that validated the bug](#the-mocks-that-validated-the-bug) | Mocks encode assumptions; one end-to-end smoke test catches what 100 unit tests miss |
+| [The $724 day](#the-724-day) | Budget docs aren't limits — cost routing has to live in code |
+| [The sequential-by-default agent](#the-sequential-by-default-agent) | Some model defaults resist prose; they need a gate |
+| [The gate that always passed](#the-gate-that-always-passed) | Gates on accumulating files always pass — check for fresh artifacts |
+
+**Principles (jump to):**
+
+| Pattern | One-line lesson |
+|---|---|
+| [Model routing by task type](#model-routing-by-task-type) | Cheapest model that handles the task reliably, not default to premium |
+| [Provenance beats plausibility](#provenance-beats-plausibility) | Names, emails, IDs come from verified systems, never LLM inference |
+| [The LLM boundary in practice](#the-llm-boundary-in-practice) | Deterministic fetch → LLM reason → schema validate → deterministic apply → audit |
+| [Strip before it reaches the model](#strip-before-it-reaches-the-model) | Redact PII and secrets before the prompt, not after |
+| [Toolbelt audit](#toolbelt-audit) | Audit the LLM's tools quarterly; remove unused, tighten scopes |
+| [Metrics require time bounds](#metrics-require-time-bounds) | "Success rate" without a window is meaningless |
+| [Hook safety](#hook-safety) | Treat hook configs like CI scripts — review before trusting |
+| [Enforce verification at the system boundary](#enforce-verification-at-the-system-boundary) | Don't trust LLM claims of completion — check at the boundary |
+| [Dependency discipline](#dependency-discipline) | New dependency = new attack surface — challenge before adding |
+
+---
 
 ### The invented email
 

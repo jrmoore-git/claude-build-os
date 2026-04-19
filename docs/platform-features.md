@@ -98,10 +98,54 @@ Hooks are deterministic enforcement — Level 3 on the enforcement ladder. They 
 | `PostToolUse` | After a tool completes | Run tests after edits, format code |
 | `Stop` | Session is ending | Export handoff, run final checks |
 | `SessionStart` | Session begins | Inject context, verify environment |
+| `SessionEnd` | Session terminates (user exit or timeout) | Emit telemetry, backup state |
 | `PreCompact` | Before context compaction | Preserve critical state |
 | `SubagentStart` | Subagent is spawned | Audit or restrict subagent behavior |
 | `UserPromptSubmit` | User sends a message | Inject instructions, validate input |
 | `ConfigChange` | Settings are modified | Audit configuration changes |
+
+### Event timeline — when hooks fire during a session
+
+```mermaid
+sequenceDiagram
+    participant User
+    participant ClaudeCode as Claude Code
+    participant Hook
+
+    User->>ClaudeCode: Open project
+    ClaudeCode->>Hook: SessionStart
+    Note right of Hook: inject context,<br/>verify environment
+
+    loop Each turn
+        User->>ClaudeCode: Submit prompt
+        ClaudeCode->>Hook: UserPromptSubmit
+        Note right of Hook: inject rules,<br/>validate input
+
+        ClaudeCode->>ClaudeCode: Model reasons
+
+        opt Tool invoked
+            ClaudeCode->>Hook: PreToolUse
+            Note right of Hook: block dangerous ops,<br/>validate paths
+            ClaudeCode->>ClaudeCode: Tool executes
+            ClaudeCode->>Hook: PostToolUse
+            Note right of Hook: run tests, format,<br/>check syntax
+        end
+
+        opt Subagent spawned
+            ClaudeCode->>Hook: SubagentStart
+            Note right of Hook: audit or<br/>restrict agent
+        end
+    end
+
+    opt Context fills
+        ClaudeCode->>Hook: PreCompact
+        Note right of Hook: preserve state<br/>before summarize
+    end
+
+    User->>ClaudeCode: Close or exit
+    ClaudeCode->>Hook: Stop / SessionEnd
+    Note right of Hook: export handoff,<br/>emit telemetry
+```
 
 - **Exit code 2 blocks the action.** Any other exit code (including errors) allows it to proceed.
 - **Matchers** filter by tool name, file path, or event type. Support regex.

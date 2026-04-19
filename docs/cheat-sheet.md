@@ -7,7 +7,7 @@
 - 🟡 Requires terminal + git setup (framework installed locally)
 - 🔴 Requires LiteLLM + API keys (Anthropic, OpenAI, Google AI)
 
-New to this? See [Non-Engineer Start Here](non-engineer-start-here.md).
+New to this? See [Non-Engineer Start Here](non-engineer-start-here.md). Unfamiliar term? Check the [Glossary](glossary.md).
 
 ## Pipeline by Task Type
 
@@ -32,6 +32,8 @@ If it has a UI, wire in `/design consult` (before plan) and `/design review` (be
 | Route incoming info | `/triage` |
 
 ## All Skills
+
+BuildOS ships **22 core skills**. The table below has more rows because several skills expose useful flag variants (`/challenge --deep`, `/review --second-opinion`, `/plan --auto`, etc.) — each is listed on its own row.
 
 | Role | Skill | Needs | What it does |
 |------|-------|-------|-------------|

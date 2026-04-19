@@ -36,9 +36,13 @@ Plain-English definitions of terms that appear across BuildOS docs. If you hit a
 
 **Hook** — A small script that Claude Code runs automatically on certain events (before edits, after commits, at session start). Hooks live in `hooks/` and are wired in `.claude/settings.json`. BuildOS ships ~21 hooks that enforce the framework's rules.
 
-**Spike** — In BuildOS pipeline terms: a quick exploratory build with no full pipeline ceremony. "I want to test if this is possible in under an hour" → spike. Different from INVESTIGATE (a judge verdict, see below).
+**Spike** — A quick exploratory build with no full pipeline ceremony. "I want to test if this is possible in under an hour" → spike. Different from INVESTIGATE (a judge verdict, see below). Note: the term "spike" used to also be a judge verdict in `/challenge`; that usage was renamed to INVESTIGATE in April 2026.
 
-**Pipeline tier** — How much ceremony a change needs. T0 (spike) = just build. T1 (new feature) = `/think discover` → `/challenge` → `/plan` → build → `/review` → `/ship`. T2 (standard) = `/think refine` → `/plan` → build → `/review` → `/ship`.
+**Pipeline path** — How much ceremony a change needs (previously called "pipeline tier" — renamed to avoid confusion with Governance tier). Spike = just build. Bugfix = `/plan --skip-challenge` → build → `/review` → `/ship`. Small feature = `/think refine` → `/plan` → build → `/review` → `/ship`. New feature = `/think discover` → `/challenge` → `/plan` → build → `/review` → `/ship`. Full matrix in the [Cheat Sheet](cheat-sheet.md#pipeline-by-task-type).
+
+**Setup Level** — How much of BuildOS infrastructure is installed on your machine: Level 1 (claude.ai browser only), Level 2 (Claude Code with no API keys), Level 3 (+ LiteLLM + API keys for cross-model review). Detailed in [Non-Engineer Start Here](non-engineer-start-here.md). **Not the same as Governance Tier** (below).
+
+**Governance Tier** — How strictly BuildOS enforces rules on your project, set by `/setup` based on your project's risk. Tier 0 (advisory — CLAUDE.md + git), Tier 1 (structured — + PRD/decisions/lessons/handoff), Tier 2 (enforced — + hooks + contract tests + review), Tier 3 (production OS — + cross-model review + approvals + kill switches). **Not the same as Setup Level** (above). Details in the [README's Governance Tiers section](../README.md#governance-tiers).
 
 ---
 

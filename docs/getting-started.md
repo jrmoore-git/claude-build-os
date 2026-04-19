@@ -2,7 +2,7 @@
 
 A guided first-hour tutorial. By the end, you'll have a defined product, an implementation plan, and a shipped first change.
 
-> **Not an engineer?** Start at [Non-Engineer Start Here](non-engineer-start-here.md) first — it shows what works without API keys or terminal comfort, then points you back here when you're ready.
+> **Not an engineer?** Start at [Non-Engineer Start Here](non-engineer-start-here.md) first — it shows what works without API keys or terminal comfort, then points you back here when you're ready. Hit jargon? The [Glossary](glossary.md) has plain-English definitions.
 
 ---
 

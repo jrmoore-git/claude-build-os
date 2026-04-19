@@ -6,6 +6,27 @@ Your version (pre-April 1) had the basic framework: skills, hooks, rules, and th
 
 ---
 
+## At-a-glance summary
+
+| Category | Count | Examples |
+|---|---|---|
+| **New skills** | 8 added (22 total after consolidations) | `/prd`, `/audit`, `/guide`, `/healthcheck`, `/triage`, `/log`, `/research`, `/sync` |
+| **New hooks** | 11 added (22 total) | `hook-context-inject`, `hook-decompose-gate`, `hook-skill-lint`, `hook-spec-status-check`, `hook-session-telemetry`, `hook-post-build-review` |
+| **New rules** | 6 added | `natural-language-routing`, `orchestration`, `bash-failures`, `session-discipline`, `code-quality`, `review-protocol` |
+| **New config** | `config/debate-models.json`, `config/protected-paths.json` | Centralizes model→persona mapping and protected-path enforcement |
+| **Skill renames** | 3 (affects invocation) | `/check` → `/review`, SPIKE verdict → INVESTIGATE, `/sim*` archived |
+| **Breaking for downstream** | 2 | `cmd_judge` JSON fields (`spiked` → `investigating`), `/check` command removed in favor of `/review` |
+| **Archived** | Sim ecosystem (`sim_compiler.py`, `eval_intake.py`) | Superseded by D22 — iterative critique loop replaces automated simulation |
+
+**Operator action required:**
+
+1. Re-run `./setup.sh` to sync templates and hook wiring
+2. If you used `/check`, switch to `/review`
+3. If you parse `cmd_judge` JSON output, update field names: `spiked` → `investigating`, `spikes` → `investigations`
+4. If you rely on sim ecosystem scripts, check `archive/sim-retrospective.md` for replacement patterns
+
+---
+
 ## Fixes For The Issues You Flagged
 
 ### "Exploration felt truncated"

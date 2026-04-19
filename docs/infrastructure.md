@@ -4,6 +4,72 @@ What each dependency does and why the Build OS needs it.
 
 ---
 
+## Setup matrix — what you need and when
+
+| Component | Required? | Env vars / config | Verify with | Unlocks |
+|---|---|---|---|---|
+| [Claude Code](https://claude.ai/claude-code) | **Required** | — | `claude --version` | The framework itself — everything runs inside Claude Code |
+| git | **Required** | — | `git --version` | Version control, hooks, plan-gate |
+| Python 3.11+ | **Required** | — | `python3.11 --version` | All `scripts/` tooling (`debate.py`, `tier_classify.py`, etc.) |
+| Unix shell (macOS / Linux) | **Required** | — | `bash --version` | Hook scripts, `setup.sh` |
+| Anthropic API key | Needed for cross-model | `ANTHROPIC_API_KEY` in `.env` | `grep ANTHROPIC .env` | Claude calls in `/challenge`, `/review`, `/refine` |
+| OpenAI API key | Needed for cross-model | `OPENAI_API_KEY` in `.env` | `grep OPENAI .env` | GPT calls (judge, security, frame-factual) |
+| Google AI key | Needed for cross-model | `GOOGLE_API_KEY` or `GEMINI_API_KEY` in `.env` | `grep -E 'GOOGLE\|GEMINI' .env` | Gemini calls (architect, staff, pm) |
+| LiteLLM | Needed for cross-model | `config/litellm-config.yaml`, `docker ps \| grep litellm` | `curl -s localhost:4000/health` | Routes to all three providers through one API |
+| Perplexity Sonar | Optional | `PERPLEXITY_API_KEY` in `.env` | `grep PERPLEXITY .env` | `/research` — deep web research with citations |
+| Ollama | Optional | `ollama list \| grep nomic` | `ollama list` | Semantic search across governance files |
+| gstack + headless browser | Optional | `~/.claude/skills/gstack/` exists | `bash scripts/browse.sh --help` | `/design review` — visual QA with screenshots |
+
+**Three operational modes:**
+
+```mermaid
+flowchart TD
+    A[Your setup] --> B{LiteLLM running<br/>+ multi-provider keys?}
+    B -->|Yes| C[Full cross-model mode<br/>all skills available]
+    B -->|No| D{Anthropic key only?}
+    D -->|Yes| E[Single-model fallback<br/>/review, /challenge work<br/>with Claude only]
+    D -->|No| F[Local-only mode<br/>/think, /plan, /start, /wrap<br/>manual review]
+```
+
+---
+
+## Dependency map
+
+```mermaid
+flowchart LR
+    subgraph CC[Claude Code]
+        skills[Skills]
+        hooks[Hooks]
+    end
+    subgraph FW[Framework scripts]
+        debate[debate.py]
+        llm[llm_client.py]
+        tier[tier_classify.py]
+        recall[recall_search.py]
+    end
+    subgraph EXT[External services]
+        LL[LiteLLM proxy]
+        ANT[Anthropic]
+        OAI[OpenAI]
+        GOO[Google AI]
+        PPX[Perplexity]
+        OLL[Ollama]
+    end
+
+    skills -->|invoke| debate
+    skills -->|invoke| recall
+    hooks -->|invoke| tier
+    debate --> llm
+    llm --> LL
+    LL --> ANT
+    LL --> OAI
+    LL --> GOO
+    recall -.optional.-> OLL
+    skills -.research skill only.-> PPX
+```
+
+---
+
 ## Required Dependencies
 
 ### Python 3
