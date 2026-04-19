@@ -261,7 +261,7 @@ topic: <topic>
 review_tier: cross-model
 status: <passed|revise|degraded>
 git_head: <current short SHA>
-producer: claude-opus-4-7
+producer: claude-opus-4-6
 created_at: <ISO datetime in Pacific>
 scope: <comma-separated changed files>
 findings_count: <N material>
@@ -430,7 +430,7 @@ Use `review --models` to get 3 independent models evaluating with the same promp
 
 ```bash
 python3.11 scripts/debate.py review \
-  --models claude-opus-4-7,gemini-3.1-pro,gpt-5.4 \
+  --models claude-opus-4-6,gemini-3.1-pro,gpt-5.4 \
   --prompt-file <temp eval prompt> \
   --input <path to document>
 ```
@@ -447,7 +447,7 @@ topic: <topic>
 review_tier: cross-model-evaluation
 status: passed | passed-with-warnings | fail
 content_type: document
-models: claude-opus-4-7, gemini-3.1-pro, gpt-5.4
+models: claude-opus-4-6, gemini-3.1-pro, gpt-5.4
 ---
 # /review — <topic> (document review)
 
@@ -674,7 +674,7 @@ Write `tasks/<topic>-qa.md`:
 topic: <topic>
 qa_result: <go|no-go>
 git_head: <current short SHA>
-producer: claude-opus-4-7
+producer: claude-opus-4-6
 created_at: <ISO datetime in Pacific>
 ---
 ```

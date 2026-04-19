@@ -118,7 +118,7 @@ with open('$RESULTS', 'w') as f:
 # ── Pre-flight ─────────────────────────────────────────────────────────────
 
 echo "Pre-flight: checking model availability..."
-if ! python3.11 scripts/debate.py check-models 2>&1 | grep -q "claude-opus-4-7"; then
+if ! python3.11 scripts/debate.py check-models 2>&1 | grep -q "claude-opus-4-6"; then
     echo "FATAL: LiteLLM models not available."
     exit 1
 fi

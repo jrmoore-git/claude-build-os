@@ -21,7 +21,7 @@ import debate_common
 class TestEstimateCost:
     def test_claude_opus_prefix_match(self):
         usage = {"prompt_tokens": 1000, "completion_tokens": 500}
-        cost = debate_common._estimate_cost("claude-opus-4-7", usage)
+        cost = debate_common._estimate_cost("claude-opus-4-6", usage)
         assert cost == pytest.approx(0.0525)
 
     def test_claude_sonnet_prefix_match(self):
@@ -57,10 +57,10 @@ class TestEstimateCost:
         assert cost == pytest.approx(0.00075)
 
     def test_empty_usage_dict(self):
-        assert debate_common._estimate_cost("claude-opus-4-7", {}) == 0.0
+        assert debate_common._estimate_cost("claude-opus-4-6", {}) == 0.0
 
     def test_none_usage(self):
-        assert debate_common._estimate_cost("claude-opus-4-7", None) == 0.0
+        assert debate_common._estimate_cost("claude-opus-4-6", None) == 0.0
 
     def test_unknown_model(self):
         usage = {"prompt_tokens": 1000, "completion_tokens": 500}
@@ -68,25 +68,25 @@ class TestEstimateCost:
 
     def test_zero_tokens(self):
         usage = {"prompt_tokens": 0, "completion_tokens": 0}
-        assert debate_common._estimate_cost("claude-opus-4-7", usage) == 0.0
+        assert debate_common._estimate_cost("claude-opus-4-6", usage) == 0.0
 
     def test_missing_keys_in_usage(self):
-        assert debate_common._estimate_cost("claude-opus-4-7", {"irrelevant": 42}) == 0.0
+        assert debate_common._estimate_cost("claude-opus-4-6", {"irrelevant": 42}) == 0.0
 
     def test_none_token_values_treated_as_zero(self):
         usage = {"prompt_tokens": None, "completion_tokens": None}
-        assert debate_common._estimate_cost("claude-opus-4-7", usage) == 0.0
+        assert debate_common._estimate_cost("claude-opus-4-6", usage) == 0.0
 
     def test_prefix_match_picks_first(self):
-        # "claude-opus-4" is the pricing key; "claude-opus-4-7" matches it
+        # "claude-opus-4" is the pricing key; "claude-opus-4-6" matches it
         usage = {"prompt_tokens": 1000, "completion_tokens": 0}
-        cost = debate_common._estimate_cost("claude-opus-4-7", usage)
+        cost = debate_common._estimate_cost("claude-opus-4-6", usage)
         expected = 1000 * 15.0 / 1_000_000
         assert cost == pytest.approx(expected)
 
     def test_result_is_rounded(self):
         usage = {"prompt_tokens": 1, "completion_tokens": 1}
-        cost = debate_common._estimate_cost("claude-opus-4-7", usage)
+        cost = debate_common._estimate_cost("claude-opus-4-6", usage)
         # 1 * 15 / 1M + 1 * 75 / 1M = 0.000090
         assert cost == round(cost, 6)
 
@@ -100,7 +100,7 @@ class TestChallengerTemperature:
 
     def test_claude_model_gets_default(self):
         default = debate.LLM_CALL_DEFAULTS["challenger_temperature_default"]
-        assert debate._challenger_temperature("claude-opus-4-7") == default
+        assert debate._challenger_temperature("claude-opus-4-6") == default
 
     def test_gpt_model_gets_default(self):
         default = debate.LLM_CALL_DEFAULTS["challenger_temperature_default"]
@@ -918,9 +918,9 @@ class TestAutoGenerateMapping:
 
     def test_existing_mapping_preserved(self):
         challenge_text = (
-            "---\ndebate_id: test\nmapping:\n  A: claude-opus-4-7\n  B: gpt-5.4\n---\n"
+            "---\ndebate_id: test\nmapping:\n  A: claude-opus-4-6\n  B: gpt-5.4\n---\n"
             "## Challenger A\n\nText.\n\n## Challenger B\n\nText.\n"
         )
         meta, body = debate._parse_frontmatter(challenge_text)
         debate._auto_generate_mapping(meta, body)
-        assert meta["mapping"] == {"A": "claude-opus-4-7", "B": "gpt-5.4"}
+        assert meta["mapping"] == {"A": "claude-opus-4-6", "B": "gpt-5.4"}

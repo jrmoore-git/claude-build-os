@@ -1,6 +1,6 @@
 {
   "persona_model_map": {
-    "architect": "claude-opus-4-7",
+    "architect": "claude-opus-4-6",
     "staff": "gemini-3.1-pro",
     "security": "gpt-5.4",
     "pm": "gemini-3.1-pro",
@@ -8,10 +8,10 @@
   },
   "judge_default": "gpt-5.4",
   "compare_default": "gemini-3.1-pro",
-  "refine_rotation": ["gemini-3.1-pro", "gpt-5.4", "claude-opus-4-7"],
+  "refine_rotation": ["gemini-3.1-pro", "gpt-5.4", "claude-opus-4-6"],
   "single_review_default": "gpt-5.4",
   "verifier_default": "claude-sonnet-4-6",
   "frame_factual_model": "gpt-5.4",
-  "version": "2026-04-17",
-  "notes": "GPT restored to security with tool-encouraging prompt (was anti-tool 'focus on reasoning'). read_file_snippet tool unlocked GPT tool use (9 calls in first debate). P2 verifier as safety net. 3 model families for diversity. Re-benchmark when GPT-6, Gemini 4, or Claude 5 ships. compare_default added 2026-04-09 (debate-py-bandaid-cleanup) — compare is intentionally lighter than judge. 2026-04-16: bumped Opus 4.6 → 4.7. 2026-04-17: added frame persona (4th lens) — structural half uses claude-sonnet-4-6 (tools forced off, reasons from proposal alone); factual half uses gpt-5.4 (tools on, verifies claims) for cross-family diversity."
+  "version": "2026-04-18",
+  "notes": "GPT restored to security with tool-encouraging prompt (was anti-tool 'focus on reasoning'). read_file_snippet tool unlocked GPT tool use (9 calls in first debate). P2 verifier as safety net. 3 model families for diversity. Re-benchmark when GPT-6, Gemini 4, or Claude 5 ships. compare_default added 2026-04-09 (debate-py-bandaid-cleanup) — compare is intentionally lighter than judge. 2026-04-17: added frame persona (4th lens) — structural half uses claude-sonnet-4-6 (tools forced off, reasons from proposal alone); factual half uses gpt-5.4 (tools on, verifies claims) for cross-family diversity. 2026-04-18: reverted Opus 4.7 → 4.6 (architect, refine_rotation) — 4.7 too expensive and slow for debate workload; keep 4.7 for IDE coding only."
 }

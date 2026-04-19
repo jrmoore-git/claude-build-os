@@ -16,7 +16,7 @@ Quick lookup — use this table to pick the right persona for your review.
 
 | Persona | Default model | Best for catching | Use on |
 |---|---|---|---|
-| **Architect** | `claude-opus-4-7` | Component boundary violations, state-integrity gaps, blast-radius blind spots, circular dependencies, partial-completion bugs | Design docs, architecture changes, new components |
+| **Architect** | `claude-opus-4-6` | Component boundary violations, state-integrity gaps, blast-radius blind spots, circular dependencies, partial-completion bugs | Design docs, architecture changes, new components |
 | **Security** | `gpt-5.4` | Injection (SQL, shell, prompt, XSS, SSRF), credential exposure, LLM boundary violations, untrusted input not validated, audit-log gaps | Auth changes, external-facing endpoints, credential handling, any user-input path |
 | **PM** | `gemini-3.1-pro` | Spec mismatch, missing non-goals, user value unclear, scope creep, success criteria undefined | Proposals, PRDs, plans where "is this the right thing?" is the question |
 | **Staff** | `gemini-3.1-pro` | Operational feasibility, runtime cost, deploy complexity, test coverage gaps, monitoring blind spots | Infrastructure proposals, cron jobs, anything that runs unattended |

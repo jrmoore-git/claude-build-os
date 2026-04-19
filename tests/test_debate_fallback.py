@@ -236,7 +236,7 @@ class TestGetModelFamily:
     """Tests for _get_model_family."""
 
     def test_claude_models(self):
-        assert debate_common._get_model_family("claude-opus-4-7") == "claude"
+        assert debate_common._get_model_family("claude-opus-4-6") == "claude"
         assert debate_common._get_model_family("claude-sonnet-4-6") == "claude"
         assert debate_common._get_model_family("claude-haiku-4-5-20251001") == "claude"
 
@@ -253,7 +253,7 @@ class TestGetModelFamily:
         assert debate_common._get_model_family("gemini-2.0-flash") == "gemini"
 
     def test_litellm_prefix_stripped(self):
-        assert debate_common._get_model_family("litellm/claude-opus-4-7") == "claude"
+        assert debate_common._get_model_family("litellm/claude-opus-4-6") == "claude"
 
     def test_unknown_model_uses_first_token(self):
         assert debate_common._get_model_family("mistral-large-2") == "mistral"

@@ -708,7 +708,7 @@ def test_estimate_cost_mixed_cache_read_and_creation():
         "cache_creation_input_tokens": 500_000,
         "completion_tokens": 100_000,
     }
-    cost = debate_common._estimate_cost("claude-opus-4-7", usage)
+    cost = debate_common._estimate_cost("claude-opus-4-6", usage)
     assert cost == 18.975
 
 

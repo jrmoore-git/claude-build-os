@@ -38,7 +38,7 @@ Personas map to models via `config/debate-models.json`. The default assignments 
 
 | Persona | Default model | Rationale |
 |---------|--------------|-----------|
-| architect | claude-opus-4-7 | Systems reasoning, architecture benchmarks |
+| architect | claude-opus-4-6 | Systems reasoning, architecture benchmarks |
 | security | gpt-5.4 | Strictest reviewer, best at finding edge cases |
 | pm | gemini-3.1-pro | Product reasoning, spec compliance, user empathy |
 | frame | claude-sonnet-4-6 | Candidate-set critique: binary framings, missing compositional candidates, source-driven inheritance, problem inflation. With `--enable-tools`, expands to dual-mode: `frame-structural` (tools off) + `frame-factual` (tools on, `frame_factual_model` default `gpt-5.4`). See `.claude/rules/review-protocol.md` Stage 1 and `tasks/lessons.md` L43. |
@@ -87,7 +87,7 @@ python3.11 scripts/debate.py refine \
     --enable-tools
 ```
 
-Default model rotation: gemini-3.1-pro → gpt-5.4 → claude-opus-4-7 (cycles if rounds exceed model count). All three model families participate in refinement, ensuring no single family's biases dominate the final output. Default rounds: 6 (each model refines twice). Each round produces review notes and a complete revised document; the revised document feeds into the next round.
+Default model rotation: gemini-3.1-pro → gpt-5.4 → claude-opus-4-6 (cycles if rounds exceed model count). All three model families participate in refinement, ensuring no single family's biases dominate the final output. Default rounds: 6 (each model refines twice). Each round produces review notes and a complete revised document; the revised document feeds into the next round.
 
 **Challenge synthesis mode:** When refine processes a multi-challenger document (output of `challenge`), it automatically switches to structured extract-then-classify synthesis instead of prose rewriting. Phase 1 extracts every distinct finding from all challengers and classifies each by diagnosticity (HIGH/MEDIUM/LOW), evidence type (CITED/REASONED/ASSERTED), and support count. Phase 2 verifies completeness. A NEVER-DROP rule ensures minority findings (1-of-3 challengers) are preserved — these are often the most valuable insights. A MERGE vs SPLIT rule prevents same-topic-different-claim findings from being incorrectly merged (e.g., a risk and its mitigation stay separate). A/B tested: 5/5 blind judge wins vs prose consolidation, Finding Recall 4.8/5 vs 3.0/5.
 
@@ -143,7 +143,7 @@ python3.11 scripts/debate.py review \
 
 # Multiple models (parallel panel, no persona framing)
 python3.11 scripts/debate.py review \
-    --models claude-opus-4-7,gemini-3.1-pro,gpt-5.4 \
+    --models claude-opus-4-6,gemini-3.1-pro,gpt-5.4 \
     --prompt-file /tmp/eval-prompt.md \
     --input tasks/auth-redesign-doc.md
 ```

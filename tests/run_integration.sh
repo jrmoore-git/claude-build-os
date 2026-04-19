@@ -8,7 +8,7 @@
 #   ./tests/run_integration.sh 1 3 5        # run tests 1, 3, 5
 #
 # Prerequisites:
-#   - LiteLLM proxy running (debate.py models: claude-opus-4-7, gpt-5.4, gemini-3.1-pro)
+#   - LiteLLM proxy running (debate.py models: claude-opus-4-6, gpt-5.4, gemini-3.1-pro)
 #   - MA_API_KEY set in environment (for test 7 — MA consolidation)
 #   - python3.11 available
 #
@@ -89,7 +89,7 @@ done
 # ── Pre-flight ──────────────────────────────────────────────────────────────
 
 echo "Pre-flight: checking model availability..."
-if ! python3.11 scripts/debate.py check-models 2>&1 | grep -q "claude-opus-4-7"; then
+if ! python3.11 scripts/debate.py check-models 2>&1 | grep -q "claude-opus-4-6"; then
     echo "FATAL: LiteLLM models not available. Start LiteLLM proxy first."
     echo "[FATAL] LiteLLM models not available" >> "$RESULTS"
     exit 1

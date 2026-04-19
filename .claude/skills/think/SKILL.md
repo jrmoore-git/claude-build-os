@@ -214,9 +214,9 @@ These examples show the difference between soft exploration and rigorous diagnos
 - GOOD: "Growth rate is not a vision. Every competitor in your space can cite the same stat. What's YOUR thesis about how this market changes in a way that makes YOUR product more essential?"
 
 **Pattern 5: Undefined terms -> precision demand**
-- User: "We want to make onboarding more seamless"
+- User: "We want to make onboarding more frictionless"
 - BAD: "What does your current onboarding flow look like?"
-- GOOD: "'Seamless' is not a product feature -- it's a feeling. What specific step in onboarding causes users to drop off? What's the drop-off rate? Have you watched someone go through it?"
+- GOOD: "'Frictionless' is not a product feature -- it's a feeling. What specific step in onboarding causes users to drop off? What's the drop-off rate? Have you watched someone go through it?"
 
 ### The Six Forcing Questions
 
@@ -700,7 +700,7 @@ Use `$WRAPPED_DOC` as the `--input` argument below. Clean up after review comple
 
 ```bash
 /opt/homebrew/bin/python3.11 scripts/debate.py review \
-  --models claude-opus-4-7,gemini-3.1-pro,gpt-5.4 \
+  --models claude-opus-4-6,gemini-3.1-pro,gpt-5.4 \
   --enable-tools \
   --allowed-tools check_code_presence,read_config_value \
   --prompt "Read this design document and review on 5 dimensions: Completeness, Consistency, Clarity, Scope (YAGNI?), Feasibility. For each dimension: PASS or list specific issues with fixes. Return a quality score (1-10). You have access to read-only verifier tools (check_code_presence, read_config_value) to fact-check claims about the current system. The document begins with project context so you can evaluate against the actual project state." \

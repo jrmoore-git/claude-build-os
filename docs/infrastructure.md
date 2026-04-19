@@ -225,6 +225,6 @@ ollama show nomic-embed-text
 
 **Why cross-model review matters:** When three models from different families all flag the same concern, it is almost certainly real. When only one flags something, it may be model-specific bias. Cross-model agreement is a stronger signal than single-model confidence.
 
-**Why LiteLLM over direct calls:** The debate scripts rotate models through different roles (challenger, judge, author). LiteLLM lets the scripts address models by alias (`claude-opus-4-7`, `gpt-5.4`, `gemini-3.1-pro`) without embedding provider-specific client code. Swapping a model is a config change, not a code change.
+**Why LiteLLM over direct calls:** The debate scripts rotate models through different roles (challenger, judge, author). LiteLLM lets the scripts address models by alias (`claude-opus-4-6`, `gpt-5.4`, `gemini-3.1-pro`) without embedding provider-specific client code. Swapping a model is a config change, not a code change.
 
 **Why local embeddings:** Semantic search over governance files (lessons, decisions, PRD) finds conceptually related context that keyword search misses. Running embeddings locally via Ollama means no data leaves your machine and no API costs for retrieval.

@@ -246,7 +246,7 @@ future sessions.
 3. Run:
    ```bash
    /opt/homebrew/bin/python3.11 scripts/debate.py review \
-     --models claude-opus-4-7,gemini-3.1-pro,gpt-5.4 \
+     --models claude-opus-4-6,gemini-3.1-pro,gpt-5.4 \
      --prompt "Verify this claim against the current codebase. Is it still true, partially true, or false? Cite specific evidence (file paths, code, git history). One paragraph max." \
      --input /tmp/healthcheck-verify-<ID>.md
    ```

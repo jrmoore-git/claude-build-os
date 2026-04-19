@@ -319,7 +319,7 @@ _DEFAULT_PERSONA_MODEL_MAP = {
 }
 
 _DEFAULT_JUDGE = "gpt-5.4"
-_DEFAULT_REFINE_ROTATION = ["gemini-3.1-pro", "gpt-5.4", "claude-opus-4-7"]
+_DEFAULT_REFINE_ROTATION = ["gemini-3.1-pro", "gpt-5.4", "claude-opus-4-6"]
 
 VALID_PERSONAS = {"architect", "staff", "security", "pm", "frame"}
 
