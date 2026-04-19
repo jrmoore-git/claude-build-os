@@ -2,6 +2,17 @@
 
 A guided first-hour tutorial. By the end, you'll have a defined product, an implementation plan, and a shipped first change.
 
+> **Not an engineer?** Start at [Non-Engineer Start Here](non-engineer-start-here.md) first — it shows what works without API keys or terminal comfort, then points you back here when you're ready.
+
+---
+
+## Two paths through this tutorial
+
+- **Basic path (no API keys needed):** `/setup` → `/think` → `/plan` → build → manual review. Covered in sections 2-5 and 7-8. Section 6 (`/review`) is skipped.
+- **Full path (+LiteLLM + API keys):** Everything below, including cross-model review in section 6.
+
+If you don't have API keys from Anthropic, OpenAI, and Google AI yet, do the basic path first. You can add keys later without redoing any work.
+
 ---
 
 ## The Only Thing You Need to Know

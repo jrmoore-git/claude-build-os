@@ -185,6 +185,19 @@ Total skills: **22** (after /simulate removal and 4 additions).
 
 New `docs/orchestrator-contract.md` defines the interface contract for conductor-style orchestration. Specifies how to spawn agents, define interfaces, and coordinate parallel work.
 
+## Frame Lens + Judge/Refine Frame Directives (April 16-18)
+
+Three-stage effort to fix "confidently wrong" output from the debate pipeline by adding frame-level critique at each stage.
+
+- **Frame persona (4th `/challenge` lens)** — critiques the candidate set itself: binary framings, missing compositional candidates, source-driven inheritance (proposal inherits its source's frame), problem inflation. Default model: `claude-sonnet-4-6`. With `--enable-tools`, frame expands to two parallel challengers: `frame-structural` (tools off, reasons from proposal alone) and `frame-factual` (tools on, verifies proposal claims against codebase). Factual half uses a different model family (`frame_factual_model`, default `gpt-5.4`) for diversity. Validated across n=5 historical proposals: dual-mode caught ~30 novel MATERIAL findings beyond the 3-persona panel and flipped one verdict from REVISE to REJECT (proposal targeted a feature already shipped).
+- **Judge-stage FRAME CRITIQUE + novelty gate** — after evaluating challenger findings, judge runs a second pass against the proposal to surface frame-level defects no challenger raised. Novelty gate requires judge to (1) state the concrete fix, (2) scan existing findings for the same fix, (3) suppress as "covered" if redundant. Validated n=11 + negative control + 3 novelty-gate re-runs, 0 fabrications.
+- **Refine-stage FRAME CHECK with mutually-exclusive channel rule** — each refine round surfaces frame concerns through three filters (load-bearing, out-of-scope-for-refine, not-already-covered). Fixed concerns → Review Notes. Unfixed → Frame Check. Never both. Calibrated v1→v5 against a 5-proposal benchmark (v2 had 0/6 detection, silent failure caught only by building the benchmark).
+- **Dual-mode generalization audited** — architect ADOPTS dual-mode (5/5 BIDIRECTIONAL). Security DECLINES at 5/5 threshold (passed 4/5). PM DECLINES (2/5; value comes from prompt-level reasoning, not codebase verification). Pattern: dual-mode benefit correlates with how much a persona's value comes from codebase verification vs prompt-level reasoning.
+- **SPIKE verdict renamed INVESTIGATE** — plain English, aligns with `/investigate` skill. Breaking change to judge CLI JSON fields (`spiked` → `investigating`). No external consumer reads them.
+- **Judge-stage Frame-reach audit: DECLINE.** Reusable harness shipped as `scripts/judge_frame_orchestrator.py`. Intake-check subcommand exists as a composable primitive but is NOT wired into `/challenge` as a pre-check — severity drift + factual-FP asymmetry make MATERIAL count an unreliable reject/proceed signal.
+
+Evidence: decisions D28-D31; lessons L43, L46, L47. See `.claude/rules/review-protocol.md` Stage 1 for operator-facing spec.
+
 ## Other Changes
 
 - README rewritten to lead with the enforcement ladder; collapsed detail for adoption
@@ -193,6 +206,8 @@ New `docs/orchestrator-contract.md` defines the interface contract for conductor
 - Conviction gate archived to `archive/conviction-gate/`
 - `/start` fixed: verify before recommending, show results not process
 - `/ship` expanded with pre-flight gate details
+- Global tone rule added (`~/.claude/CLAUDE.md`) to counter Opus 4.7 register mirroring; BuildOS CLAUDE.md adopts "Plain language in chat output" operating rule
+- Rule banning wall-clock time estimates (`tasks/session-discipline.md`) — use effort units (files, tool calls, review rounds, S/M/L)
 
 ---
 

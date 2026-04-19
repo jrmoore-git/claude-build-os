@@ -92,6 +92,8 @@ cd claude-build-os
 
 **First time?** Read the [Getting Started Guide](docs/getting-started.md) to build your first feature in an hour.
 
+**Not an engineer?** Read [Non-Engineer Start Here](docs/non-engineer-start-here.md) first — it shows what works at each level of setup (browser only → Claude Code → full API-key setup). Hit unfamiliar terms? The [Glossary](docs/glossary.md) has plain-English definitions.
+
 ---
 
 ## Starter Kit

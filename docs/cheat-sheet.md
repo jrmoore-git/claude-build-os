@@ -2,6 +2,13 @@
 
 **You don't need to memorize any of this.** Just describe what you want to do — Build OS routes you automatically. Type `/guide` if you're lost. This reference is for when you want precision.
 
+**Dependency levels used in this page:**
+- 🟢 Works with Claude Code only (no extra setup)
+- 🟡 Requires terminal + git setup (framework installed locally)
+- 🔴 Requires LiteLLM + API keys (Anthropic, OpenAI, Google AI)
+
+New to this? See [Non-Engineer Start Here](non-engineer-start-here.md).
+
 ## Pipeline by Task Type
 
 ```
@@ -26,39 +33,38 @@ If it has a UI, wire in `/design consult` (before plan) and `/design review` (be
 
 ## All Skills
 
-| Role | Skill | What it does |
-|------|-------|-------------|
-| PM | `/think` | Problem discovery (`discover`) or forcing questions (`refine`) |
-| PM | `/elevate` | Stress-test scope and ambition (4 modes) |
-| PM | `/prd` | Generate or validate a PRD from a design doc |
-| PM | `/start` | Session bootstrap + workflow routing + contextual suggestions |
-| Designer | `/design consult` | Create or upgrade DESIGN.md with competitive research |
-| Designer | `/design review` | Visual QA with browser, 94-item checklist |
-| Designer | `/design variants` | Generate and compare multiple design variants |
-| Designer | `/design plan-check` | Rate a plan 0-10 on design completeness |
-| Architect | `/challenge` | Cross-model gate: should we build this? |
-| Architect | `/challenge --deep` | Full adversarial pipeline: challenge → judge → refine |
-| Architect | `/explore` | 3+ divergent directions with cross-model synthesis |
-| Architect | `/pressure-test` | Counter-thesis or pre-mortem failure analysis |
-| Architect | `/investigate` | Structured root-cause analysis (symptom, drift, claim modes) |
-| Refiner | `/polish` | 6-round cross-model improvement on any document |
-| Lead Eng | `/plan` | Write implementation plan with valid frontmatter |
-| Lead Eng | `/plan --auto` | Auto-detect tier, chain skills, surface taste decisions |
-| Reviewer | `/review` | Cross-model code review (PM + Security + Architecture) |
-| Reviewer | `/review --second-opinion` | Second opinion from a different model family |
-| Reviewer | `/review --qa` | Domain-specific QA validation |
-| Reviewer | `/review --governance` | Governance hygiene scan |
-| Release | `/ship` | Pre-flight gates (tests + review + verify) then deploy |
-| Release | `/sync` | Sync docs to match what shipped |
-| Research | `/research` | Deep web research via Perplexity Sonar |
-| Session | `/start` | Bootstrap session from disk (PRD, decisions, lessons) |
-| Session | `/wrap` | Write handoff, session log, current state |
-| Session | `/log` | Extract decisions/lessons from conversation |
-| Session | `/triage` | Classify and route incoming information |
-| System | `/healthcheck` | Learning system health check (scans lessons, decisions, rules) |
-| Bootstrap | `/setup` | Interactive project setup |
-| Bootstrap | `/audit` | Two-phase blind discovery audit |
-| Discovery | `/guide` | Intent-based skill map — "what can I do?" |
+| Role | Skill | Needs | What it does |
+|------|-------|-------|-------------|
+| PM | `/think` | 🟡 | Problem discovery (`discover`) or forcing questions (`refine`) |
+| PM | `/elevate` | 🔴 | Stress-test scope and ambition (4 modes) |
+| PM | `/prd` | 🟡 | Generate or validate a PRD from a design doc |
+| Designer | `/design consult` | 🔴 | Create or upgrade DESIGN.md with competitive research |
+| Designer | `/design review` | 🔴 | Visual QA with browser, 94-item checklist |
+| Designer | `/design variants` | 🔴 | Generate and compare multiple design variants |
+| Designer | `/design plan-check` | 🟡 | Rate a plan 0-10 on design completeness |
+| Architect | `/challenge` | 🔴 | Cross-model gate: should we build this? |
+| Architect | `/challenge --deep` | 🔴 | Full adversarial pipeline: challenge → judge → refine |
+| Architect | `/explore` | 🔴 | 3+ divergent directions with cross-model synthesis |
+| Architect | `/pressure-test` | 🔴 | Counter-thesis or pre-mortem failure analysis |
+| Architect | `/investigate` | 🟡 | Structured root-cause analysis (symptom, drift, claim modes) |
+| Refiner | `/polish` | 🔴 | 6-round cross-model improvement on any document |
+| Lead Eng | `/plan` | 🟡 | Write implementation plan with valid frontmatter |
+| Lead Eng | `/plan --auto` | 🟡 | Auto-detect tier, chain skills, surface taste decisions |
+| Reviewer | `/review` | 🔴 | Cross-model code review (PM + Security + Architecture) |
+| Reviewer | `/review --second-opinion` | 🔴 | Second opinion from a different model family |
+| Reviewer | `/review --qa` | 🔴 | Domain-specific QA validation |
+| Reviewer | `/review --governance` | 🔴 | Governance hygiene scan |
+| Release | `/ship` | 🟡 | Pre-flight gates (tests + review + verify) then deploy |
+| Release | `/sync` | 🟡 | Sync docs to match what shipped |
+| Research | `/research` | 🔴 | Deep web research via Perplexity Sonar |
+| Session | `/start` | 🟡 | Bootstrap session from disk (PRD, decisions, lessons) |
+| Session | `/wrap` | 🟡 | Write handoff, session log, current state |
+| Session | `/log` | 🟡 | Extract decisions/lessons from conversation |
+| Session | `/triage` | 🟡 | Classify and route incoming information |
+| System | `/healthcheck` | 🟡 | Learning system health check (scans lessons, decisions, rules) |
+| Bootstrap | `/setup` | 🟡 | Interactive project setup |
+| Bootstrap | `/audit` | 🟡 | Two-phase blind discovery audit |
+| Discovery | `/guide` | 🟢 | Intent-based skill map — "what can I do?" |
 
 ## Key Files
 
