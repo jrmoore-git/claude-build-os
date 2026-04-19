@@ -223,8 +223,9 @@ def test_catch_rate_uses_weighted_accuracy_as_primary():
     v = verdict.compute_verdict(scores)
     cr = v["per_dimension_verdicts"]["catch_rate"]
     # Raw accuracy ties (both 100%); weighted favors B → verdict favors B.
+    # REDESIGN C: primary_basis updated to reflect bootstrap path.
     assert cr["verdict"] == "directional-favor-arm-b"
-    assert cr["primary_basis"] == "weighted_accuracy"
+    assert "weighted_accuracy" in cr["primary_basis"]
 
 
 def test_catch_rate_not_yet_measured_when_verifier_missing():
@@ -402,3 +403,135 @@ def test_render_markdown_renders_with_empty_input():
          "overall": {}}
     md = verdict.render_markdown(v, [])
     assert "insufficient-sample" in md
+
+
+# ── REDESIGN C: bootstrap + locked thresholds ─────────────────────────────
+
+
+def test_paired_bootstrap_known_answer_constant_deltas():
+    """All deltas identical → CI collapses to a point at delta value."""
+    boot = verdict.paired_bootstrap_ci([5.0, 5.0, 5.0, 5.0])
+    assert boot["mean"] == 5.0
+    assert boot["ci_dir_low"] == 5.0
+    assert boot["ci_dir_high"] == 5.0
+    assert boot["method"] == "constant-delta"
+
+
+def test_paired_bootstrap_known_answer_alternating():
+    """Alternating deltas → mean ≈ midpoint; CI bounded."""
+    boot = verdict.paired_bootstrap_ci([10.0, 0.0, 10.0, 0.0], B=5000, seed=42)
+    assert abs(boot["mean"] - 5.0) < 0.01
+    assert boot["ci_dir_low"] >= 0.0
+    assert boot["ci_dir_high"] <= 10.0
+    # 95% CI should be tighter than 99% CI.
+    assert (boot["ci_dir_high"] - boot["ci_dir_low"]) <= \
+        (boot["ci_conf_high"] - boot["ci_conf_low"])
+
+
+def test_paired_bootstrap_seed_deterministic():
+    """Same seed + same input → identical CIs (the load-bearing guarantee
+    for reproducibility — different-seed divergence is incidental)."""
+    deltas = [1.0, 3.0, 2.0, 5.0, 4.0]
+    b1 = verdict.paired_bootstrap_ci(deltas, B=2000, seed=20260419)
+    b2 = verdict.paired_bootstrap_ci(deltas, B=2000, seed=20260419)
+    assert b1 == b2
+
+
+def test_paired_bootstrap_empty_returns_method_empty():
+    boot = verdict.paired_bootstrap_ci([])
+    assert boot["mean"] is None
+    assert boot["method"] == "empty"
+
+
+def test_threshold_load_succeeds():
+    """Default threshold JSON loads cleanly + has expected keys."""
+    import sys
+    sys.path.insert(0, str(SCRIPTS_DIR))
+    import arm_study_thresholds as t
+    thresholds, sha = t.load_thresholds()
+    assert sha != "legacy-fallback"
+    assert "bootstrap" in thresholds
+    assert "catch_rate" in thresholds
+    assert thresholds["bootstrap"]["B"] == 10000
+
+
+def test_threshold_hash_mismatch_raises(tmp_path):
+    """Editing the JSON file changes the hash → verify_hash raises."""
+    import sys
+    sys.path.insert(0, str(SCRIPTS_DIR))
+    import arm_study_thresholds as t
+
+    fake_path = tmp_path / "fake_thresholds.json"
+    fake_path.write_text('{"version": "v1"}')
+    thresholds, sha = t.load_thresholds(path=fake_path)
+    # Mutate file → hash drifts.
+    fake_path.write_text('{"version": "v2"}')
+    with pytest.raises(t.ThresholdHashMismatch):
+        t.verify_hash(sha, path=fake_path)
+
+
+def test_threshold_load_falls_back_when_missing(tmp_path):
+    """Missing JSON → load_thresholds returns legacy fallback dict."""
+    import sys
+    sys.path.insert(0, str(SCRIPTS_DIR))
+    import arm_study_thresholds as t
+    missing = tmp_path / "does-not-exist.json"
+    thresholds, sha = t.load_thresholds(path=missing)
+    assert sha == "legacy-fallback"
+    assert thresholds["version"] == "legacy-fallback"
+
+
+def test_compute_verdict_emits_thresholds_provenance():
+    """compute_verdict's decision_thresholds includes path + sha + version."""
+    s = _scored()
+    v = verdict.compute_verdict([s] * 3)
+    th = v["decision_thresholds"]
+    assert "thresholds_path" in th
+    assert "thresholds_sha256" in th
+    assert th["thresholds_source"] in ("locked-json", "legacy-fallback")
+
+
+def test_judge_graded_per_proposal_mean_replaces_summed_threshold():
+    """Per-proposal mean used (not sum); bootstrap surfaces signal."""
+    scores = []
+    quals = [
+        {"arm-a": _qdist(substantive=2, marginal=4),
+         "arm-b": _qdist(substantive=4, marginal=5)}
+        for _ in range(3)
+    ]
+    for q in quals:
+        scores.append(_scored(dim_quality={"direction_improvement": q}))
+    v = verdict.compute_verdict(scores)
+    di = v["per_dimension_verdicts"]["direction_improvement"]
+    # arm-b per-proposal weighted score > arm-a; mean delta clears 1.5 floor.
+    assert di["verdict"].startswith("directional-favor-arm-b") or \
+        di["verdict"].startswith("confident-favor-arm-b")
+    assert "per_proposal_mean_a" in di
+    assert "per_proposal_mean_b" in di
+    assert di["per_proposal_mean_b"] > di["per_proposal_mean_a"]
+
+
+def test_harmful_rate_per_proposal_regression_blocks():
+    """Winner with high per-proposal harmful rate → blocked."""
+    scores = []
+    for _ in range(3):
+        scores.append(_scored(dim_quality={"direction_improvement": {
+            "arm-a": _qdist(substantive=2, marginal=8),
+            "arm-b": _qdist(substantive=10, harmful=5),
+        }}))
+    v = verdict.compute_verdict(scores)
+    di = v["per_dimension_verdicts"]["direction_improvement"]
+    # arm-b per-proposal harmful rate = 5/15 ≈ 33%; arm-a = 0%; delta > 20pp cap.
+    assert di["verdict"] == "regression-blocked"
+    assert "winner_harm_rate" in di
+
+
+def test_legacy_fallback_uses_legacy_constants(tmp_path, monkeypatch):
+    """When threshold JSON missing, load_thresholds returns legacy."""
+    import sys
+    sys.path.insert(0, str(SCRIPTS_DIR))
+    import arm_study_thresholds as t
+    thresholds, sha = t.load_thresholds(path=tmp_path / "missing.json")
+    assert sha == "legacy-fallback"
+    # Legacy thresholds keep the old summed-score floor of 5.0.
+    assert thresholds["judge_graded"]["floor_directional"] == 5.0

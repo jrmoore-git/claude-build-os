@@ -287,8 +287,23 @@ def score_run(run_id: str, model: str = DEFAULT_MODEL) -> dict[str, Any]:
             **parsed,
         }
 
-    out["status"] = "scored"
+    # Orphan #2 fix (cross-model code review): top-level `status` field
+    # used to be unconditionally "scored". Reflect actual per-arm outcomes:
+    # - any arm scored → "scored" (preserves prior verdict-aggregator wiring)
+    # - all arms failed/parse-error → "failed" + per-arm reason
     out["per_arm"] = per_arm
+    arm_statuses = [v.get("status") for v in per_arm.values()]
+    if any(s == "scored" for s in arm_statuses):
+        out["status"] = "scored"
+    elif arm_statuses and all(s in ("llm-failed", "parse-error", "no-arm-output")
+                              for s in arm_statuses):
+        out["status"] = "failed"
+        out["failed_reason"] = (
+            f"all arms produced unscorable outputs: "
+            f"{[(arm, st) for arm, st in zip(per_arm.keys(), arm_statuses)]}"
+        )
+    else:
+        out["status"] = "scored"  # mixed scored/skipped — keep legacy
     return out
 
 
@@ -311,7 +326,9 @@ def main() -> int:
     target.parent.mkdir(parents=True, exist_ok=True)
     target.write_text(json.dumps(out, indent=2, sort_keys=True) + "\n")
     sys.stdout.write(json.dumps(out, indent=2, sort_keys=True) + "\n")
-    return 0 if out["status"] == "scored" else 2
+    # exit 0 for "scored" (success) AND "no-downstream-artifact"
+    # (intentional non-scorable per module docstring; not an error).
+    return 0 if out["status"] in ("scored", "no-downstream-artifact") else 2
 
 
 if __name__ == "__main__":

@@ -1,37 +1,35 @@
 #!/usr/bin/env python3.11
 """
-Arm-comparison study verdict (Phase 3, refined per user feedback to surface
-all 7 dimensions and granularity-weight the per-dim signals).
+Arm-comparison study verdict — paired-bootstrap verdicting against a
+locked threshold file (REDESIGN C, supersedes the prior fixed-threshold
+direct-delta logic).
 
-Reads scorer output (from arm_study_scorer.py) across N proposals and emits
-a verdict that includes a PER-DIMENSION primary verdict for each scorable
-dimension, plus an overall verdict that combines them.
+Reads scorer output (from arm_study_scorer.py) across N proposals and
+emits a per-dimension verdict using:
 
-Design (supersedes the single-primary accuracy-only framing of the earlier
-commit):
+- **Per-proposal aggregation** rather than summed-across-proposals totals
+  (eliminates style/verbosity bias on judge-graded dims).
+- **Paired bootstrap** (B=10000, fixed seed) on per-proposal deltas to
+  produce 95% / 99% CIs. Verdict ladder: inconclusive if CI includes 0
+  OR `|mean delta| < floor`; directional if 95% CI excludes 0 AND ≥ floor;
+  confident if 99% CI excludes 0 AND ≥ confident-floor.
+- **Locked thresholds** loaded from `config/study/arm_study_thresholds.json`
+  via `arm_study_thresholds.load_thresholds()`. SHA256 captured in every
+  run artifact; `verify_hash` aborts a rerun if the file changed.
+- **Rate-based harmful guardrail** — winners with > harmful_rate_per_proposal_max
+  fraction of harmful items per proposal are blocked.
 
-- catch_rate (Dim 4) is verifier-grounded. Primary signal per arm is
-  quality-weighted accuracy: verifier accuracy × judge-rated quality
-  density. Hallucination rate is a guardrail.
-- direction_improvement (Dim 1), nuance_caught (Dim 2), net_new_ideas
-  (Dim 3) are judge-graded. Primary signal per arm per dim is
-  quality-weighted substantive score:
-      substantive*3 + marginal*1 + superficial*0.5 + harmful*(-1)
-  summed across proposals, mean across non-Claude judges. Convergence
-  is advisory, not a gate (D40).
-- miss_rate (Dim 5), plan_quality_delta (Dim 6), code_review_quality_delta
-  (Dim 7) are not yet fully wired. Dim 5 requires an independent
-  issue-discoverer (item 5 in the metric-fix plan); Dim 6/7 require a
-  retrospective scorer reading downstream artifacts (item 6). Verdict
-  reports "not-yet-measured" for each and the reason.
+This is a redesign of *shipped* verdict logic (commits `52584fc`,
+`e2c77ab` wired Dim 5/6 originally). Regression surface relative to
+`stores/arm-study/verdict-n3-v7.md` is intentional — direct-delta and
+summed-score thresholds didn't scale n=3 → n=10. See D42 (REDESIGN B
+sensitivity logging) and D43 (REDESIGN C bootstrap + locked thresholds)
+in `tasks/decisions.md`.
 
-Overall verdict composes the per-dim verdicts. A scorable dim contributes
-only if its own verdict is directional-favor-<arm> or
-confident-favor-<arm>. Inconclusive, not-yet-measured, and
-regression-blocked dims do not vote.
-
-See tasks/decisions.md D40 for methodology framing, and D41 (this commit)
-for the per-dim promotion + quality-weighting shift.
+If the threshold JSON cannot be read, falls back to legacy module-level
+constants in degraded mode and surfaces the fallback in the run artifact.
+The overall verdict composition still requires `directional-favor-<arm>`
+or `confident-favor-<arm>` for a per-dim vote (D40 framing preserved).
 """
 
 from __future__ import annotations
@@ -45,31 +43,162 @@ from typing import Any
 REPO_ROOT = Path(__file__).resolve().parent.parent
 DEFAULT_STORE = REPO_ROOT / "stores" / "arm-study"
 
-# ── Thresholds (module-level for auditability + test access) ────────────────
+import sys as _sys  # noqa: E402
+_sys.path.insert(0, str(REPO_ROOT / "scripts"))
+import arm_study_thresholds as _thresholds  # noqa: E402
+import random as _random  # noqa: E402
 
-PRIMARY_ACCURACY_DELTA_PP = 0.05
-HALLUCINATION_GUARDRAIL_PP = 0.02
-# Substantive-score threshold for per-dim winner. Absolute scale: weighted
-# score uses substantive*3 + marginal*1 + superficial*0.5 + harmful*(-1).
-# At n=3 with typical 3-10 items per dim per arm per proposal, totals land
-# around 15-50. A delta of 5 corresponds to ~1 substantive item's worth of
-# signal averaged across proposals — tight enough to reject noise, loose
-# enough to call a real 2-3 substantive-item gap.
-SUBSTANTIVE_DELTA_MIN = 5.0
-# Quality-density regression guardrail. If arm X wins substantive score but
-# has more harmful items (absolute count), block promotion.
+# ── Thresholds (loaded from locked JSON file with legacy fallback) ─────────
+# REDESIGN C: thresholds live in config/study/arm_study_thresholds.json with
+# SHA256 captured per-run. Module-level constants below mirror the loaded
+# values for backward compat with tests + downstream callers reading them.
+
+_LOADED_THRESHOLDS, _LOADED_THRESHOLDS_HASH = _thresholds.load_thresholds()
+
+
+def _set_module_thresholds(t: dict) -> None:
+    """Hydrate module-level constants from a thresholds dict. Called at
+    import time and exposed for test override."""
+    global PRIMARY_ACCURACY_DELTA_PP, HALLUCINATION_GUARDRAIL_PP
+    global SUBSTANTIVE_DELTA_MIN, SUBSTANTIVE_DELTA_CONFIDENT
+    global HARMFUL_RATE_PER_PROPOSAL_MAX
+    global MIN_SAMPLE_FOR_DIRECTIONAL, MIN_SAMPLE_FOR_CONFIDENT
+    global QUALITY_WEIGHTS
+    global BOOTSTRAP_B, BOOTSTRAP_SEED, CI_DIRECTIONAL, CI_CONFIDENT
+    global MISS_RATE_DELTA_MIN, MISS_RATE_DELTA_CONFIDENT
+    global PLAN_QUALITY_DELTA_MIN, PLAN_QUALITY_DELTA_CONFIDENT
+    PRIMARY_ACCURACY_DELTA_PP = t["catch_rate"]["floor_directional_pp"]
+    SUBSTANTIVE_DELTA_MIN = t["judge_graded"]["floor_directional"]
+    SUBSTANTIVE_DELTA_CONFIDENT = t["judge_graded"]["floor_confident"]
+    HALLUCINATION_GUARDRAIL_PP = t["catch_rate"]["hallucination_regression_pp"]
+    HARMFUL_RATE_PER_PROPOSAL_MAX = t["judge_graded"]["harmful_rate_per_proposal_max"]
+    MIN_SAMPLE_FOR_DIRECTIONAL = t["min_sample_for_directional"]
+    MIN_SAMPLE_FOR_CONFIDENT = t["min_sample_for_confident"]
+    QUALITY_WEIGHTS = dict(t["quality_weights"])
+    BOOTSTRAP_B = t["bootstrap"]["B"]
+    BOOTSTRAP_SEED = t["bootstrap"]["seed"]
+    CI_DIRECTIONAL = t["bootstrap"]["ci_directional"]
+    CI_CONFIDENT = t["bootstrap"]["ci_confident"]
+    MISS_RATE_DELTA_MIN = t["miss_rate"]["floor_directional_pp"]
+    MISS_RATE_DELTA_CONFIDENT = t["miss_rate"]["floor_confident_pp"]
+    PLAN_QUALITY_DELTA_MIN = t["plan_quality_delta"]["floor_directional_pp"]
+    PLAN_QUALITY_DELTA_CONFIDENT = t["plan_quality_delta"]["floor_confident_pp"]
+
+
+_set_module_thresholds(_LOADED_THRESHOLDS)
+# Legacy alias kept exported (one downstream test references it).
 HARMFUL_REGRESSION_ABSOLUTE_MAX = 2
-MIN_SAMPLE_FOR_DIRECTIONAL = 3
-MIN_SAMPLE_FOR_CONFIDENT = 5
 
-# Quality weights. substantive is the load-bearing class; marginal is
-# directionally useful; superficial is filler; harmful actively subtracts.
-QUALITY_WEIGHTS = {
-    "substantive": 3.0,
-    "marginal": 1.0,
-    "superficial": 0.5,
-    "harmful": -1.0,
-}
+
+# ── Paired bootstrap (REDESIGN C) ───────────────────────────────────────────
+
+
+def _percentile(sorted_vals: list[float], q: float) -> float:
+    """Linear-interpolation percentile on a sorted list. q in [0, 1]."""
+    if not sorted_vals:
+        return 0.0
+    if len(sorted_vals) == 1:
+        return sorted_vals[0]
+    pos = q * (len(sorted_vals) - 1)
+    lo = int(pos)
+    hi = min(lo + 1, len(sorted_vals) - 1)
+    frac = pos - lo
+    return sorted_vals[lo] * (1 - frac) + sorted_vals[hi] * frac
+
+
+def paired_bootstrap_ci(
+    deltas: list[float],
+    *,
+    B: int | None = None,
+    seed: int | None = None,
+    ci_directional: float | None = None,
+    ci_confident: float | None = None,
+) -> dict:
+    """Pure-Python percentile bootstrap on per-proposal deltas.
+
+    Returns {mean, ci_dir_low, ci_dir_high, ci_conf_low, ci_conf_high, n,
+    method}. Tie handling: when all deltas identical, CI collapses to a
+    point — return [delta, delta] for both intervals.
+
+    Why percentile and not BCa: at n ≤ 30, BCa's bias-correction
+    acceleration estimate is unstable and can produce overly-narrow CIs.
+    Percentile is conservative and well-understood.
+    """
+    if B is None:
+        B = BOOTSTRAP_B
+    if seed is None:
+        seed = BOOTSTRAP_SEED
+    if ci_directional is None:
+        ci_directional = CI_DIRECTIONAL
+    if ci_confident is None:
+        ci_confident = CI_CONFIDENT
+
+    n = len(deltas)
+    if n == 0:
+        return {
+            "mean": None, "ci_dir_low": None, "ci_dir_high": None,
+            "ci_conf_low": None, "ci_conf_high": None, "n": 0,
+            "method": "empty",
+        }
+    mean_delta = sum(deltas) / n
+    if all(d == deltas[0] for d in deltas):
+        return {
+            "mean": deltas[0],
+            "ci_dir_low": deltas[0], "ci_dir_high": deltas[0],
+            "ci_conf_low": deltas[0], "ci_conf_high": deltas[0],
+            "n": n, "method": "constant-delta",
+        }
+
+    rng = _random.Random(seed)
+    resample_means = []
+    for _ in range(B):
+        sample = [rng.choice(deltas) for _ in range(n)]
+        resample_means.append(sum(sample) / n)
+    resample_means.sort()
+
+    dir_alpha = (1 - ci_directional) / 2  # tail per side
+    conf_alpha = (1 - ci_confident) / 2
+    ci_dir_low = _percentile(resample_means, dir_alpha)
+    ci_dir_high = _percentile(resample_means, 1 - dir_alpha)
+    ci_conf_low = _percentile(resample_means, conf_alpha)
+    ci_conf_high = _percentile(resample_means, 1 - conf_alpha)
+    return {
+        "mean": mean_delta,
+        "ci_dir_low": ci_dir_low, "ci_dir_high": ci_dir_high,
+        "ci_conf_low": ci_conf_low, "ci_conf_high": ci_conf_high,
+        "n": n, "method": "percentile",
+    }
+
+
+def _bootstrap_verdict(
+    boot: dict, floor_directional: float, floor_confident: float,
+) -> tuple[str, str | None]:
+    """Map a bootstrap result + floors → verdict label + winner.
+
+    Returns (label, winner) where label is "inconclusive" |
+    "directional-favor-arm-a" | "directional-favor-arm-b" |
+    "confident-favor-arm-a" | "confident-favor-arm-b" | "not-yet-measured".
+    Winner is "arm-a" / "arm-b" / None.
+
+    Confident label additionally requires n ≥ MIN_SAMPLE_FOR_CONFIDENT
+    (preserves the n=3 design ceiling — no "confident" claims at n=3 even
+    when the bootstrap CI is degenerate-tight).
+    """
+    mean = boot.get("mean")
+    n_paired = boot.get("n", 0)
+    if mean is None:
+        return "not-yet-measured", None
+    abs_mean = abs(mean)
+    ci_dir_includes_zero = boot["ci_dir_low"] <= 0 <= boot["ci_dir_high"]
+    ci_conf_includes_zero = boot["ci_conf_low"] <= 0 <= boot["ci_conf_high"]
+    winner = "arm-b" if mean > 0 else "arm-a"
+    if ci_dir_includes_zero or abs_mean < floor_directional:
+        return "inconclusive", None
+    if (n_paired >= MIN_SAMPLE_FOR_CONFIDENT
+            and not ci_conf_includes_zero
+            and abs_mean >= floor_confident):
+        return f"confident-favor-{winner}", winner
+    return f"directional-favor-{winner}", winner
 
 GROUND_TRUTH_DIM = "catch_rate"
 JUDGE_GRADED_DIMS = (
@@ -360,13 +489,55 @@ def _aggregate_verifier(all_scored: list[dict[str, Any]]) -> dict[str, Any]:
     return out
 
 
+def _per_proposal_weighted_accuracy(
+    scored: dict[str, Any], arm: str,
+) -> tuple[float | None, float | None]:
+    """Compute per-proposal (weighted_accuracy, hallucination_rate) for one
+    arm. Returns (None, None) if verifier data missing for that arm.
+
+    weighted_accuracy = accuracy × quality_density on catch_rate items.
+    accuracy uses CHALLENGER_FABRICATION as the hallucination denominator
+    when LLM-mode mechanism labels present (orphan #11), else legacy stats.
+    """
+    stats = _arm_verifier_stats(scored, arm)
+    if stats is None:
+        return None, None
+    verified = stats["verified"]
+    hallucination = stats.get("hallucination", 0)
+    falsified = stats["falsified"]
+    claims_checked = stats["claims_checked"]
+    # Prefer mechanism-classified accuracy when available (REDESIGN A).
+    if stats.get("classifier_source") == "llm" and "mechanism_labels" in stats:
+        denom_acc = verified + hallucination
+        accuracy = (verified / denom_acc) if denom_acc > 0 else None
+        hall_rate = (hallucination / claims_checked) if claims_checked > 0 else None
+    else:
+        denom_acc = verified + falsified
+        accuracy = (verified / denom_acc) if denom_acc > 0 else None
+        hall_rate = (falsified / claims_checked) if claims_checked > 0 else None
+    if accuracy is None:
+        return None, hall_rate
+    # Quality density on catch_rate items for this proposal.
+    dim_data = _arm_dim_data(scored, arm, GROUND_TRUTH_DIM)
+    dist = _arm_dim_quality_distribution(dim_data)
+    density = _quality_density(dist)
+    if density is None:
+        density = 1.0  # fallback: no judge items → treat density as 1
+    return accuracy * density, hall_rate
+
+
 def _per_dim_verdict_verifier(
     all_scored: list[dict[str, Any]],
     verifier_agg: dict[str, Any],
     n: int,
 ) -> dict[str, Any]:
-    """Compute the catch_rate verdict using verifier accuracy + hallucination
-    guard + quality-weighted accuracy alignment."""
+    """REDESIGN C: paired bootstrap on per-proposal weighted_accuracy delta.
+
+    The pooled verifier_agg block is preserved for markdown rendering /
+    audit (quality density across all claims, raw vs classified accuracy
+    comparison, etc.). The verdict label is computed from per-proposal
+    paired bootstrap on weighted_accuracy.
+    """
     a = verifier_agg["arm-a"]
     b = verifier_agg["arm-b"]
     surfaced = (
@@ -385,57 +556,94 @@ def _per_dim_verdict_verifier(
         "arm-b": {k: b.get(k) for k in surfaced},
     }
 
-    # Fix 3 (must-fix per cross-model review): primary is weighted_accuracy,
-    # not raw/classified accuracy. D40 intended weighted as primary; earlier
-    # impl left it as a tie-break. If weighted is unavailable (density is
-    # None — no judge catch_rate items), fall back to classified/raw so the
-    # dim still produces a signal, but note the fallback.
-    wa_a = a.get("weighted_accuracy")
-    wa_b = b.get("weighted_accuracy")
-    if wa_a is not None and wa_b is not None:
-        delta = wa_b - wa_a
-        primary_basis = "weighted_accuracy"
-    elif a.get("accuracy") is not None and b.get("accuracy") is not None:
-        delta = b["accuracy"] - a["accuracy"]
-        primary_basis = "accuracy (weighted unavailable)"
-    else:
-        out["verdict"] = "not-yet-measured"
-        out["reason"] = "verifier accuracy missing on one or both arms"
-        return out
-    out["delta_pp"] = delta
-    out["primary_basis"] = primary_basis
+    # Build per-proposal weighted_accuracy + hallucination_rate pairs.
+    pp_a: list[float] = []
+    pp_b: list[float] = []
+    pp_hall_a: list[float] = []
+    pp_hall_b: list[float] = []
+    for scored in all_scored:
+        wa_a, hr_a = _per_proposal_weighted_accuracy(scored, "arm-a")
+        wa_b, hr_b = _per_proposal_weighted_accuracy(scored, "arm-b")
+        if wa_a is None or wa_b is None:
+            continue
+        pp_a.append(wa_a)
+        pp_b.append(wa_b)
+        if hr_a is not None and hr_b is not None:
+            pp_hall_a.append(hr_a)
+            pp_hall_b.append(hr_b)
 
-    if abs(delta) < PRIMARY_ACCURACY_DELTA_PP:
-        out["verdict"] = "inconclusive"
+    if not pp_a:
+        # Fallback to pooled comparison when per-proposal data unavailable.
+        wa_a_pooled = a.get("weighted_accuracy")
+        wa_b_pooled = b.get("weighted_accuracy")
+        if wa_a_pooled is None or wa_b_pooled is None:
+            out["verdict"] = "not-yet-measured"
+            out["reason"] = "verifier accuracy missing on one or both arms"
+            return out
+        delta = wa_b_pooled - wa_a_pooled
+        out["delta_pp"] = delta
+        out["primary_basis"] = "pooled_weighted_accuracy (no per-proposal data)"
+        if abs(delta) < PRIMARY_ACCURACY_DELTA_PP:
+            out["verdict"] = "inconclusive"
+            out["reason"] = (
+                f"pooled weighted_accuracy delta {delta*100:+.1f}pp < floor "
+                f"{PRIMARY_ACCURACY_DELTA_PP*100:.0f}pp"
+            )
+            return out
+        winner = "arm-b" if delta > 0 else "arm-a"
+        out["verdict"] = (f"directional-favor-{winner}" if n < MIN_SAMPLE_FOR_CONFIDENT
+                          else f"confident-favor-{winner}")
         out["reason"] = (
-            f"{primary_basis} delta {delta*100:+.1f}pp within "
-            f"±{PRIMARY_ACCURACY_DELTA_PP*100:.0f}pp noise floor"
+            f"pooled weighted_accuracy delta {delta*100:+.1f}pp favors "
+            f"{winner} (per-proposal bootstrap unavailable)"
         )
+        out["primary_winner"] = winner
         return out
 
-    winner = "arm-b" if delta > 0 else "arm-a"
-    loser = "arm-a" if winner == "arm-b" else "arm-b"
-    hall_winner = verifier_agg[winner]["hallucination_rate"]
-    hall_loser = verifier_agg[loser]["hallucination_rate"]
-    if hall_winner is not None and hall_loser is not None:
-        if hall_winner - hall_loser > HALLUCINATION_GUARDRAIL_PP:
+    deltas = [b_v - a_v for a_v, b_v in zip(pp_a, pp_b)]
+    boot = paired_bootstrap_ci(deltas)
+    out["bootstrap"] = boot
+    out["per_proposal_mean_a"] = sum(pp_a) / len(pp_a)
+    out["per_proposal_mean_b"] = sum(pp_b) / len(pp_b)
+    out["delta_pp"] = boot["mean"]
+    out["primary_basis"] = "weighted_accuracy paired bootstrap"
+
+    label, winner = _bootstrap_verdict(
+        boot,
+        floor_directional=PRIMARY_ACCURACY_DELTA_PP,
+        floor_confident=PRIMARY_ACCURACY_DELTA_PP * 2,  # 0.10 from JSON
+    )
+
+    # Hallucination rate guardrail (per-proposal mean).
+    if winner is not None and pp_hall_a and pp_hall_b:
+        h_winner = pp_hall_b if winner == "arm-b" else pp_hall_a
+        h_loser = pp_hall_a if winner == "arm-b" else pp_hall_b
+        h_winner_mean = sum(h_winner) / len(h_winner)
+        h_loser_mean = sum(h_loser) / len(h_loser)
+        if h_winner_mean - h_loser_mean > HALLUCINATION_GUARDRAIL_PP:
             out["verdict"] = "regression-blocked"
             out["reason"] = (
                 f"primary winner ({winner}) hallucinates "
-                f"{(hall_winner - hall_loser)*100:+.1f}pp more than {loser}; "
-                f"guardrail blocks promotion"
+                f"{(h_winner_mean - h_loser_mean)*100:+.1f}pp/proposal more "
+                f"than loser; cap {HALLUCINATION_GUARDRAIL_PP*100:.0f}pp"
             )
             out["primary_winner"] = winner
             return out
 
-    label = f"directional-favor-{winner}" if n < MIN_SAMPLE_FOR_CONFIDENT \
-        else f"confident-favor-{winner}"
     out["verdict"] = label
-    out["reason"] = (
-        f"{primary_basis} delta {delta*100:+.1f}pp, "
-        f"hallucination guardrail passes, n={n}"
-    )
-    out["primary_winner"] = winner
+    if label == "inconclusive":
+        out["reason"] = (
+            f"per-proposal weighted_accuracy delta {boot['mean']*100:+.1f}pp, "
+            f"95% CI [{boot['ci_dir_low']*100:+.1f}pp, "
+            f"{boot['ci_dir_high']*100:+.1f}pp] includes 0 or |delta| < "
+            f"{PRIMARY_ACCURACY_DELTA_PP*100:.0f}pp"
+        )
+    else:
+        out["reason"] = (
+            f"per-proposal weighted_accuracy delta {boot['mean']*100:+.1f}pp "
+            f"favors {winner}, CI excludes 0; n_paired={boot['n']}"
+        )
+        out["primary_winner"] = winner
     return out
 
 
@@ -501,60 +709,104 @@ def _per_dim_verdict_judge_graded(
     dim: str,
     n: int,
 ) -> dict[str, Any]:
+    """REDESIGN C: per-proposal mean weighted score + paired bootstrap CI.
+
+    Per-proposal delta list = `[arm_b_score(p) - arm_a_score(p) for paired p]`.
+    Bootstrap on the delta list → 95%/99% CIs. Verdict from
+    _bootstrap_verdict against judge_graded floors. Harmful guardrail uses
+    per-proposal harmful rate (fraction of harmful items in this dim per
+    proposal), winner blocked if mean rate exceeds loser's by more than
+    HARMFUL_RATE_PER_PROPOSAL_MAX.
+    """
+    # Collect per-proposal pairs.
+    per_proposal_a: list[float] = []
+    per_proposal_b: list[float] = []
+    per_proposal_harm_a: list[float] = []
+    per_proposal_harm_b: list[float] = []
+    unpaired_dropped = 0
+    for scored in all_scored:
+        a_data = _arm_dim_data(scored, "arm-a", dim)
+        b_data = _arm_dim_data(scored, "arm-b", dim)
+        a_ws = _weighted_dim_score(a_data)
+        b_ws = _weighted_dim_score(b_data)
+        if a_ws is None or b_ws is None:
+            unpaired_dropped += 1
+            continue
+        per_proposal_a.append(a_ws)
+        per_proposal_b.append(b_ws)
+        # Per-proposal harmful rate = harmful_total / total_items_in_dim
+        # (denominator is mean across judges).
+        a_dist = _arm_dim_quality_distribution(a_data)
+        b_dist = _arm_dim_quality_distribution(b_data)
+        a_total = sum(a_dist.values()) or 1.0
+        b_total = sum(b_dist.values()) or 1.0
+        per_proposal_harm_a.append(a_dist.get("harmful", 0) / a_total)
+        per_proposal_harm_b.append(b_dist.get("harmful", 0) / b_total)
+
+    # Legacy aggregate fields preserved for backward compat with markdown.
     agg = _aggregate_judge_dim(all_scored, dim)
     out: dict[str, Any] = {
         "dimension": dim,
-        "signal_type": "judge-graded quality-weighted substantive score",
+        "signal_type": "judge-graded per-proposal mean (paired bootstrap)",
         "arm-a": agg["arm-a"],
         "arm-b": agg["arm-b"],
-        "unpaired_dropped": agg.get("_unpaired_dropped", 0),
+        "unpaired_dropped": unpaired_dropped,
     }
-    a = agg["arm-a"]
-    b = agg["arm-b"]
-    if a["n_scored"] == 0 or b["n_scored"] == 0:
+
+    n_paired = len(per_proposal_a)
+    if n_paired == 0:
         out["verdict"] = "not-yet-measured"
-        out["reason"] = "no scorable data for this dimension"
+        out["reason"] = "no paired-scorable data for this dimension"
         return out
 
-    delta = b["weighted_score_total"] - a["weighted_score_total"]
-    out["delta"] = delta
+    deltas = [b - a for a, b in zip(per_proposal_a, per_proposal_b)]
+    boot = paired_bootstrap_ci(deltas)
+    out["bootstrap"] = boot
+    out["per_proposal_mean_a"] = sum(per_proposal_a) / n_paired
+    out["per_proposal_mean_b"] = sum(per_proposal_b) / n_paired
+    out["delta"] = boot["mean"]
 
-    if abs(delta) < SUBSTANTIVE_DELTA_MIN:
-        out["verdict"] = "inconclusive"
+    label, winner = _bootstrap_verdict(
+        boot, SUBSTANTIVE_DELTA_MIN, SUBSTANTIVE_DELTA_CONFIDENT,
+    )
+
+    # Harmful-rate-per-proposal guardrail.
+    if winner is not None and per_proposal_harm_a and per_proposal_harm_b:
+        winner_harm = per_proposal_harm_b if winner == "arm-b" else per_proposal_harm_a
+        loser_harm = per_proposal_harm_a if winner == "arm-b" else per_proposal_harm_b
+        winner_harm_mean = sum(winner_harm) / len(winner_harm)
+        loser_harm_mean = sum(loser_harm) / len(loser_harm)
+        if winner_harm_mean - loser_harm_mean > HARMFUL_RATE_PER_PROPOSAL_MAX:
+            out["verdict"] = "regression-blocked"
+            out["reason"] = (
+                f"primary winner ({winner}) per-proposal harmful rate "
+                f"{winner_harm_mean:.2%} vs loser's {loser_harm_mean:.2%}; "
+                f"delta exceeds cap {HARMFUL_RATE_PER_PROPOSAL_MAX:.0%}"
+            )
+            out["primary_winner"] = winner
+            out["winner_harm_rate"] = winner_harm_mean
+            out["loser_harm_rate"] = loser_harm_mean
+            return out
+
+    out["verdict"] = label
+    if label == "inconclusive":
         out["reason"] = (
-            f"weighted-score delta {delta:+.1f} within "
-            f"±{SUBSTANTIVE_DELTA_MIN} noise floor"
+            f"per-proposal mean delta {boot['mean']:+.2f}, 95% CI "
+            f"[{boot['ci_dir_low']:+.2f}, {boot['ci_dir_high']:+.2f}] "
+            f"includes 0 or |delta| < floor {SUBSTANTIVE_DELTA_MIN}; n_paired={n_paired}"
         )
-        return out
-
-    winner = "arm-b" if delta > 0 else "arm-a"
-    winner_agg = agg[winner]
-    loser_agg = agg["arm-a" if winner == "arm-b" else "arm-b"]
-
-    # Fix 2 (must-fix per cross-model review): harmful-regression semantics.
-    # The rule is "winner may not regress > HARMFUL_REGRESSION_ABSOLUTE_MAX
-    # harmful items", i.e. the DELTA between winner and loser exceeds the
-    # cap. Earlier impl blocked only when winner's absolute count was ≥ 2.
-    harm_delta = winner_agg["harmful_total"] - loser_agg["harmful_total"]
-    if harm_delta > HARMFUL_REGRESSION_ABSOLUTE_MAX:
-        out["verdict"] = "regression-blocked"
+    else:
+        strength = "confident" if label.startswith("confident") else "directional"
+        ci_used = (
+            f"[{boot['ci_conf_low']:+.2f}, {boot['ci_conf_high']:+.2f}]"
+            if strength == "confident"
+            else f"[{boot['ci_dir_low']:+.2f}, {boot['ci_dir_high']:+.2f}]"
+        )
         out["reason"] = (
-            f"primary winner ({winner}) has {winner_agg['harmful_total']} "
-            f"harmful items vs loser's {loser_agg['harmful_total']} "
-            f"(delta {harm_delta:+d} > cap {HARMFUL_REGRESSION_ABSOLUTE_MAX}); "
-            f"guardrail blocks promotion"
+            f"per-proposal mean delta {boot['mean']:+.2f} favors {winner}, "
+            f"{strength} CI {ci_used} excludes 0; n_paired={n_paired}"
         )
         out["primary_winner"] = winner
-        return out
-
-    label = f"directional-favor-{winner}" if n < MIN_SAMPLE_FOR_CONFIDENT \
-        else f"confident-favor-{winner}"
-    out["verdict"] = label
-    out["reason"] = (
-        f"weighted-score delta {delta:+.1f} clears ±{SUBSTANTIVE_DELTA_MIN}, "
-        f"no harmful regression, n={n}"
-    )
-    out["primary_winner"] = winner
     return out
 
 
@@ -679,39 +931,91 @@ def _per_dim_verdict_plan_quality(
         out["reason"] = "insufficient landing data on one or both arms"
         return out
 
-    delta = lr_b - lr_a  # positive = B lands more items
-    out["delta"] = delta
     out["retrospective_proposals_with_artifact"] = n - no_artifact_count
+    retro_n = n - no_artifact_count
 
+    # REDESIGN C: bootstrap on per-proposal landing-rate delta.
+    pp_a_rates: list[float] = []
+    pp_b_rates: list[float] = []
+    for scored in all_scored:
+        retro = _load_retrospective_for_scored(scored, store_root)
+        if retro is None or retro.get("status") != "scored":
+            continue
+        per_arm_retro = retro.get("per_arm") or {}
+        a_retro = per_arm_retro.get("arm-a") or {}
+        b_retro = per_arm_retro.get("arm-b") or {}
+        if (a_retro.get("status") != "scored"
+                or b_retro.get("status") != "scored"):
+            continue
+        a_summary = a_retro.get("summary") or {}
+        b_summary = b_retro.get("summary") or {}
+        a_total = int(a_summary.get("total", 0))
+        b_total = int(b_summary.get("total", 0))
+        if a_total <= 0 or b_total <= 0:
+            continue
+        a_landed = (int(a_summary.get("landed", 0))
+                    + 0.5 * int(a_summary.get("partial", 0)))
+        b_landed = (int(b_summary.get("landed", 0))
+                    + 0.5 * int(b_summary.get("partial", 0)))
+        pp_a_rates.append(a_landed / a_total)
+        pp_b_rates.append(b_landed / b_total)
+
+    if pp_a_rates:
+        # Higher landing rate wins; delta = b - a (positive favors B).
+        deltas = [b - a for a, b in zip(pp_a_rates, pp_b_rates)]
+        boot = paired_bootstrap_ci(deltas)
+        out["bootstrap"] = boot
+        out["per_proposal_mean_a"] = sum(pp_a_rates) / len(pp_a_rates)
+        out["per_proposal_mean_b"] = sum(pp_b_rates) / len(pp_b_rates)
+        out["delta"] = boot["mean"]
+        label, winner = _bootstrap_verdict(
+            boot, PLAN_QUALITY_DELTA_MIN, PLAN_QUALITY_DELTA_CONFIDENT,
+        )
+        if retro_n < MIN_SAMPLE_FOR_DIRECTIONAL and label != "inconclusive":
+            out["verdict"] = "insufficient-retrospective-sample"
+            out["reason"] = (
+                f"retro_n={retro_n} < {MIN_SAMPLE_FOR_DIRECTIONAL}"
+            )
+            return out
+        out["verdict"] = label
+        if label == "inconclusive":
+            out["reason"] = (
+                f"per-proposal landing-rate delta {boot['mean']*100:+.1f}pp, "
+                f"95% CI [{boot['ci_dir_low']*100:+.1f}pp, "
+                f"{boot['ci_dir_high']*100:+.1f}pp] includes 0 or "
+                f"|delta| < {PLAN_QUALITY_DELTA_MIN*100:.0f}pp"
+            )
+        else:
+            out["reason"] = (
+                f"per-proposal landing-rate delta {boot['mean']*100:+.1f}pp "
+                f"favors {winner}; n_paired={boot['n']}"
+            )
+            out["primary_winner"] = winner
+        return out
+
+    # Fallback: pooled comparison.
+    delta = lr_b - lr_a
+    out["delta"] = delta
     if abs(delta) < PLAN_QUALITY_DELTA_MIN:
         out["verdict"] = "inconclusive"
         out["reason"] = (
-            f"landing-rate delta {delta*100:+.1f}pp within "
-            f"±{PLAN_QUALITY_DELTA_MIN*100:.0f}pp noise floor"
+            f"pooled landing-rate delta {delta*100:+.1f}pp < "
+            f"{PLAN_QUALITY_DELTA_MIN*100:.0f}pp"
         )
         return out
-
     winner = "arm-b" if delta > 0 else "arm-a"
-    # Confidence requires n≥5 AND all scored proposals agreed.
-    retro_n = n - no_artifact_count
     if retro_n < MIN_SAMPLE_FOR_DIRECTIONAL:
         out["verdict"] = "insufficient-retrospective-sample"
         out["reason"] = (
-            f"only {retro_n} of {n} proposals had a downstream artifact — "
-            f"below MIN_SAMPLE_FOR_DIRECTIONAL={MIN_SAMPLE_FOR_DIRECTIONAL} "
-            f"for this dim"
+            f"only {retro_n} of {n} proposals had a downstream artifact"
         )
         return out
-    label = (
+    out["verdict"] = (
         f"directional-favor-{winner}"
         if retro_n < MIN_SAMPLE_FOR_CONFIDENT
         else f"confident-favor-{winner}"
     )
-    out["verdict"] = label
-    out["reason"] = (
-        f"landing-rate delta {delta*100:+.1f}pp favors {winner} "
-        f"(retro_n={retro_n})"
-    )
+    out["reason"] = f"pooled landing-rate delta {delta*100:+.1f}pp favors {winner}"
     out["primary_winner"] = winner
     return out
 
@@ -815,33 +1119,69 @@ def _per_dim_verdict_miss_rate(
         out["reason"] = "insufficient coverage data on one or both arms"
         return out
 
-    # Lower miss_rate wins. Compute delta as (loser - winner).
-    delta = mr_a - mr_b  # positive = B misses less
-    out["delta"] = delta
+    # REDESIGN C: bootstrap on per-proposal miss_rate delta (lower wins).
+    pp_a_rates: list[float] = []
+    pp_b_rates: list[float] = []
+    for scored in all_scored:
+        a_rc = ((_arm_dim_data(scored, "arm-a", "miss_rate") or {})
+                .get("reference_coverage") or {})
+        b_rc = ((_arm_dim_data(scored, "arm-b", "miss_rate") or {})
+                .get("reference_coverage") or {})
+        if a_rc.get("status") != "scored" or b_rc.get("status") != "scored":
+            continue
+        a_total = int(a_rc.get("total_reference_issues", 0))
+        b_total = int(b_rc.get("total_reference_issues", 0))
+        if a_total <= 0 or b_total <= 0:
+            continue
+        pp_a_rates.append(int(a_rc.get("missed_count", 0)) / a_total)
+        pp_b_rates.append(int(b_rc.get("missed_count", 0)) / b_total)
 
-    if abs(delta) < MISS_RATE_DELTA_MIN:
-        out["verdict"] = "inconclusive"
-        out["reason"] = (
-            f"miss_rate delta {delta*100:+.1f}pp within "
-            f"±{MISS_RATE_DELTA_MIN*100:.0f}pp noise floor"
+    if pp_a_rates:
+        # Lower miss_rate wins. delta = a - b means positive favors arm-b.
+        deltas = [a - b for a, b in zip(pp_a_rates, pp_b_rates)]
+        boot = paired_bootstrap_ci(deltas)
+        out["bootstrap"] = boot
+        out["per_proposal_mean_a"] = sum(pp_a_rates) / len(pp_a_rates)
+        out["per_proposal_mean_b"] = sum(pp_b_rates) / len(pp_b_rates)
+        out["delta"] = boot["mean"]
+        label, winner = _bootstrap_verdict(
+            boot, MISS_RATE_DELTA_MIN, MISS_RATE_DELTA_CONFIDENT,
         )
-        return out
-
-    winner = "arm-b" if delta > 0 else "arm-a"
-    label = (
-        f"directional-favor-{winner}"
-        if n < MIN_SAMPLE_FOR_CONFIDENT
-        else f"confident-favor-{winner}"
-    )
-    out["verdict"] = label
-    out["reason"] = (
-        f"miss_rate delta {delta*100:+.1f}pp favors {winner} "
-        f"({pooled[winner]['missed']}/{pooled[winner]['total']} missed vs "
-        f"{pooled['arm-a' if winner == 'arm-b' else 'arm-b']['missed']}/"
-        f"{pooled['arm-a' if winner == 'arm-b' else 'arm-b']['total']}); "
-        f"n={n}"
-    )
-    out["primary_winner"] = winner
+        if label == "inconclusive":
+            out["verdict"] = label
+            out["reason"] = (
+                f"per-proposal miss_rate delta {boot['mean']*100:+.1f}pp, "
+                f"95% CI [{boot['ci_dir_low']*100:+.1f}pp, "
+                f"{boot['ci_dir_high']*100:+.1f}pp] includes 0 or "
+                f"|delta| < {MISS_RATE_DELTA_MIN*100:.0f}pp"
+            )
+        else:
+            out["verdict"] = label
+            out["reason"] = (
+                f"per-proposal miss_rate delta {boot['mean']*100:+.1f}pp "
+                f"favors {winner}, CI excludes 0; n_paired={boot['n']}"
+            )
+            out["primary_winner"] = winner
+    else:
+        # Fallback to pooled comparison.
+        delta = mr_a - mr_b
+        out["delta"] = delta
+        if abs(delta) < MISS_RATE_DELTA_MIN:
+            out["verdict"] = "inconclusive"
+            out["reason"] = (
+                f"miss_rate delta {delta*100:+.1f}pp < {MISS_RATE_DELTA_MIN*100:.0f}pp"
+            )
+        else:
+            winner = "arm-b" if delta > 0 else "arm-a"
+            out["verdict"] = (
+                f"directional-favor-{winner}"
+                if n < MIN_SAMPLE_FOR_CONFIDENT
+                else f"confident-favor-{winner}"
+            )
+            out["reason"] = (
+                f"pooled miss_rate delta {delta*100:+.1f}pp favors {winner}"
+            )
+            out["primary_winner"] = winner
     # REDESIGN B sensitivity: append per-rule pooled coverage so render
     # can show how the verdict shifts under union/intersection aggregation.
     if sensitivity_present:
@@ -985,10 +1325,22 @@ def compute_verdict(
         "primary_accuracy_delta_pp": PRIMARY_ACCURACY_DELTA_PP,
         "hallucination_guardrail_pp": HALLUCINATION_GUARDRAIL_PP,
         "substantive_delta_min": SUBSTANTIVE_DELTA_MIN,
-        "harmful_regression_absolute_max": HARMFUL_REGRESSION_ABSOLUTE_MAX,
+        "substantive_delta_confident": SUBSTANTIVE_DELTA_CONFIDENT,
+        "harmful_rate_per_proposal_max": HARMFUL_RATE_PER_PROPOSAL_MAX,
         "min_sample_for_directional": MIN_SAMPLE_FOR_DIRECTIONAL,
         "min_sample_for_confident": MIN_SAMPLE_FOR_CONFIDENT,
         "quality_weights": QUALITY_WEIGHTS,
+        "bootstrap_B": BOOTSTRAP_B,
+        "bootstrap_seed": BOOTSTRAP_SEED,
+        "ci_directional": CI_DIRECTIONAL,
+        "ci_confident": CI_CONFIDENT,
+        "thresholds_path": str(_thresholds.DEFAULT_THRESHOLDS_PATH),
+        "thresholds_sha256": _LOADED_THRESHOLDS_HASH,
+        "thresholds_version": _LOADED_THRESHOLDS.get("version", "unknown"),
+        "thresholds_source": (
+            "locked-json" if _LOADED_THRESHOLDS_HASH != "legacy-fallback"
+            else "legacy-fallback"
+        ),
     }
 
     if n == 0:
@@ -1276,10 +1628,15 @@ def render_markdown(
             f"- Hallucination guardrail: primary winner may not regress > "
             f"{thresholds['hallucination_guardrail_pp']*100:.0f}pp",
             f"- Substantive-score delta min: {thresholds['substantive_delta_min']}",
-            f"- Harmful regression cap: {thresholds['harmful_regression_absolute_max']}",
+            f"- Substantive-score delta confident: {thresholds.get('substantive_delta_confident', '—')}",
+            f"- Harmful rate per proposal max: {thresholds.get('harmful_rate_per_proposal_max', '—')}",
             f"- Min sample for directional: {thresholds['min_sample_for_directional']}",
             f"- Min sample for confident: {thresholds['min_sample_for_confident']}",
             f"- Quality weights: {thresholds['quality_weights']}",
+            f"- Bootstrap B / seed: {thresholds.get('bootstrap_B', '—')} / {thresholds.get('bootstrap_seed', '—')}",
+            f"- Thresholds path: {thresholds.get('thresholds_path', '—')}",
+            f"- Thresholds SHA256: {(thresholds.get('thresholds_sha256') or '—')[:16]}",
+            f"- Thresholds source: {thresholds.get('thresholds_source', '—')}",
             "",
         ])
 
