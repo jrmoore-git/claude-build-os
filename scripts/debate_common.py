@@ -104,7 +104,7 @@ def _get_model_family(model_name):
     """Extract model family from a model name string.
 
     Returns a lowercase family identifier for cross-family independence checks.
-    Examples: 'claude-opus-4-7' -> 'claude', 'gpt-5.4' -> 'gpt',
+    Examples: 'claude-opus-4-6' -> 'claude', 'gpt-5.4' -> 'gpt',
               'gemini-3.1-pro' -> 'gemini'
     """
     name = model_name.lower()

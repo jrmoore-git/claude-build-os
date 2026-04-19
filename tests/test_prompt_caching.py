@@ -107,14 +107,49 @@ def test_cache_disabled_when_env_set(monkeypatch):
 
 def test_should_cache_respects_disable_flag(monkeypatch):
     monkeypatch.setenv("BUILDOS_CACHE_DISABLE", "1")
-    # Even with a valid scope, _should_cache returns False when disabled
-    assert _should_cache("system") is False
-    assert _should_cache("system+user") is False
+    # Even with a valid scope and Claude model, returns False when disabled
+    assert _should_cache("system", "claude-opus-4-6") is False
+    assert _should_cache("system+user", "claude-opus-4-6") is False
 
 
 def test_should_cache_false_when_scope_none(monkeypatch):
     monkeypatch.delenv("BUILDOS_CACHE_DISABLE", raising=False)
-    assert _should_cache(None) is False
+    assert _should_cache(None, "claude-opus-4-6") is False
+
+
+def test_should_cache_true_for_claude_variants(monkeypatch):
+    """Claude family covers bare names, provider prefixes, and version suffixes."""
+    monkeypatch.delenv("BUILDOS_CACHE_DISABLE", raising=False)
+    for model in (
+        "claude-opus-4-6",
+        "claude-sonnet-4-6",
+        "claude-haiku-4-5-20251001",
+        "anthropic/claude-opus-4-6",
+        "litellm/claude-opus-4-6",
+        "claude-opus-4-6-1m",
+    ):
+        assert _should_cache("system", model) is True, f"expected True for {model}"
+
+
+def test_should_cache_false_for_non_claude(monkeypatch):
+    """Cache markers are Anthropic-specific; non-Claude providers must not receive them.
+
+    Regression guard for Gemini 400: CachedContent + tools + system_instruction
+    combination is rejected by Gemini's API. LiteLLM translation triggers the
+    error when markers pass through. Observed on 2026-04-18 during /review of
+    commit 07477b3; Gemini persona dropped from the panel.
+    """
+    monkeypatch.delenv("BUILDOS_CACHE_DISABLE", raising=False)
+    for model in (
+        "gemini-3.1-pro",
+        "gemini-2.5-pro",
+        "gpt-5.4",
+        "gpt-4.1",
+        "o1-preview",
+        "mistral-large-2",
+    ):
+        assert _should_cache("system", model) is False, f"expected False for {model}"
+        assert _should_cache("system+user", model) is False, f"expected False for {model}"
 
 
 # ---------------------------------------------------------------------------

@@ -121,9 +121,22 @@ def _validate_cache_args(cache_control, cache_ttl):
     return cache_control, cache_ttl
 
 
-def _should_cache(cache_control) -> bool:
-    """True if cache markers should be applied on this call."""
-    return cache_control is not None and _cache_enabled()
+def _should_cache(cache_control, model) -> bool:
+    """True if Anthropic cache_control markers should be applied on this call.
+
+    Cache markers are Anthropic-specific (cache_control blocks in the content
+    array). Passing them to non-Claude providers via LiteLLM triggers provider
+    errors — e.g., Gemini rejects GenerateContent requests that combine
+    CachedContent with system_instruction + tools (HTTP 400). Gate on the
+    model name so non-Claude providers never see the markers.
+
+    Substring match ("claude" in model) covers bare names (claude-opus-4-6),
+    provider prefixes (anthropic/claude-...), LiteLLM prefixes (litellm/claude-...),
+    and version suffixes (claude-opus-4-6-1m) with one check.
+    """
+    if cache_control is None or not _cache_enabled():
+        return False
+    return "claude" in model
 
 
 def _cache_marker(cache_ttl):
@@ -483,7 +496,7 @@ def _legacy_call(system, user, *, model, temperature, max_tokens, timeout,
         url = url[:-3]
     url = f"{url}/chat/completions"
 
-    if _should_cache(cache_control):
+    if _should_cache(cache_control, model):
         marker = _cache_marker(cache_ttl)
         system_msg = {"role": "system", "content": [
             {"type": "text", "text": system, "cache_control": marker},
@@ -542,7 +555,7 @@ def _anthropic_call(system, user, *, model, temperature, max_tokens, timeout,
     array with cache_control markers; user content is similarly rewritten
     when cache_control == 'system+user'.
     """
-    if _should_cache(cache_control):
+    if _should_cache(cache_control, model):
         marker = _cache_marker(cache_ttl)
         system_payload = [{"type": "text", "text": system, "cache_control": marker}]
         if cache_control == "system+user":
@@ -648,7 +661,7 @@ def _sdk_call(system, user, *, model, temperature, max_tokens, timeout,
 
     client = OpenAI(base_url=base_url, api_key=api_key)
 
-    if _should_cache(cache_control):
+    if _should_cache(cache_control, model):
         marker = _cache_marker(cache_ttl)
         system_msg = {"role": "system", "content": [
             {"type": "text", "text": system, "cache_control": marker},
@@ -948,7 +961,7 @@ def llm_tool_loop(
         )
 
     client = OpenAI(base_url=base_url, api_key=api_key)
-    if _should_cache(cache_control):
+    if _should_cache(cache_control, model):
         marker = _cache_marker(cache_ttl)
         system_msg = {"role": "system", "content": [
             {"type": "text", "text": system, "cache_control": marker},
