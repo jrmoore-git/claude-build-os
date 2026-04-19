@@ -47,6 +47,21 @@ COUNT_CONVERGENCE_TOLERANCE = 1
 QUALITY_CONVERGENCE_THRESHOLD = 0.60
 UNANIMOUS_QUALITY_THRESHOLD = 0.80
 
+# REDESIGN A — second-pass mechanism classifier (tasks/arm-study-redesigns-refined.md)
+A3_PROMPT_PATH = REPO_ROOT / "config" / "study" / "a3-mechanism-prompt.md"
+A3_DEFAULT_MODEL = "claude-sonnet-4-6"
+A3_MECHANISM_LABELS = (
+    "PROPOSAL_ERROR_CAUGHT",
+    "CHALLENGER_FABRICATION",
+    "AMBIGUOUS",
+    "INFERENCE_NOT_GROUNDED",
+)
+A3_AMBIGUOUS_FALLBACK_THRESHOLD = 0.50  # >50% AMBIGUOUS → regex fallback
+A3_PARSE_FAIL_FALLBACK_THRESHOLD = 0.20  # >20% parse failures → regex fallback
+A3_MECHANISM_CACHE_PATH = DEFAULT_STORE / "mechanism-cache.jsonl"
+A3_ADJUDICATION_LOG_PATH = DEFAULT_STORE / "adjudication-log.jsonl"
+A3_EXCERPT_WINDOW = 600  # chars of context around claim text in proposal/challenger
+
 
 # ── Family exclusion ────────────────────────────────────────────────────────
 
@@ -219,6 +234,375 @@ def classify_falsified_claims(verification_text: str | None) -> dict[str, int]:
         else:
             out["unclear"] += 1
     return out
+
+
+# ── REDESIGN A — second-pass mechanism classifier ──────────────────────────
+#
+# Per cross-model challenge (tasks/arm-study-redesigns-judgment.md Challenge 1),
+# the regex above conflates 4 mechanisms into 2 labels. The dedicated
+# second-pass classifier asks a separate LLM (no tools, schema-constrained
+# JSON output, temperature=0, content-hashed cache) to attribute each
+# FALSIFIED claim to one of A3_MECHANISM_LABELS.
+#
+# Failure detection (>50% AMBIGUOUS or >20% parse failures) falls back to
+# the regex above and flags the run as `classifier_source: regex-fallback`
+# so the verdict aggregator can apply legacy formulas.
+#
+# Production debate.py is NOT modified — the classifier lives entirely in
+# this module and uses llm_client.llm_call_json directly.
+
+
+import hashlib as _hashlib  # module-level for deterministic cache keys
+
+
+_A3_PROMPT_CACHE: tuple[str, str] | None = None  # (system, user_template)
+
+
+def _load_a3_prompt() -> tuple[str, str]:
+    """Load and split the A3 mechanism prompt into (system, user_template).
+    Cached at module level. Splits on the '## SYSTEM' / '## USER' headings.
+    """
+    global _A3_PROMPT_CACHE
+    if _A3_PROMPT_CACHE is not None:
+        return _A3_PROMPT_CACHE
+    text = A3_PROMPT_PATH.read_text()
+    sys_marker = "\n## SYSTEM\n"
+    usr_marker = "\n## USER\n"
+    if sys_marker not in text or usr_marker not in text:
+        raise ValueError(
+            f"a3-mechanism-prompt.md missing required '## SYSTEM' / '## USER' "
+            f"sections at {A3_PROMPT_PATH}"
+        )
+    sys_idx = text.index(sys_marker) + len(sys_marker)
+    usr_idx = text.index(usr_marker)
+    system = text[sys_idx:usr_idx].strip()
+    user_template = text[usr_idx + len(usr_marker):].strip()
+    _A3_PROMPT_CACHE = (system, user_template)
+    return _A3_PROMPT_CACHE
+
+
+def _hash_claim(
+    claim_text: str, verifier_evidence: str, model_version: str,
+) -> str:
+    """Stable cache key for one (claim, verifier_evidence, model) tuple.
+    Cache hits require exact byte-equality on all three inputs."""
+    h = _hashlib.sha256()
+    h.update(model_version.encode("utf-8"))
+    h.update(b"\x1e")
+    h.update(claim_text.encode("utf-8"))
+    h.update(b"\x1e")
+    h.update(verifier_evidence.encode("utf-8"))
+    return h.hexdigest()
+
+
+def _load_mechanism_cache(
+    cache_path: Path = A3_MECHANISM_CACHE_PATH,
+) -> dict[str, dict[str, Any]]:
+    """Load the JSONL cache as a dict keyed by claim hash. Last-write-wins
+    on duplicates (file is append-only; later entries override earlier)."""
+    out: dict[str, dict[str, Any]] = {}
+    if not cache_path.is_file():
+        return out
+    with cache_path.open() as f:
+        for line in f:
+            line = line.strip()
+            if not line:
+                continue
+            try:
+                entry = json.loads(line)
+            except json.JSONDecodeError:
+                continue
+            key = entry.get("claim_hash")
+            if isinstance(key, str):
+                out[key] = entry
+    return out
+
+
+def _persist_mechanism_cache_entry(
+    entry: dict[str, Any],
+    cache_path: Path = A3_MECHANISM_CACHE_PATH,
+) -> None:
+    """Append one entry to the JSONL cache. Creates parent dir if missing."""
+    cache_path.parent.mkdir(parents=True, exist_ok=True)
+    with cache_path.open("a") as f:
+        f.write(json.dumps(entry, sort_keys=True) + "\n")
+
+
+def _log_adjudication(
+    log_path: Path, payload: dict[str, Any],
+) -> None:
+    """Append one classifier I/O record to the adjudication log."""
+    log_path.parent.mkdir(parents=True, exist_ok=True)
+    with log_path.open("a") as f:
+        f.write(json.dumps(payload, sort_keys=True) + "\n")
+
+
+def _excerpt_around(text: str, needle: str, window: int = A3_EXCERPT_WINDOW) -> str:
+    """Return up to `window` chars centered on the first case-insensitive
+    occurrence of `needle` in `text`. If not found, return the first
+    `window` chars. Empty inputs → empty string."""
+    if not text or not needle:
+        return (text or "")[:window]
+    idx = text.lower().find(needle.lower()[:80])  # match first 80 chars
+    if idx < 0:
+        return text[:window]
+    half = window // 2
+    start = max(0, idx - half)
+    end = min(len(text), idx + half)
+    return text[start:end]
+
+
+def _utc_now_iso() -> str:
+    """Stable ISO-8601 UTC timestamp for log entries."""
+    from datetime import datetime, timezone
+    return datetime.now(timezone.utc).isoformat()
+
+
+def classify_mechanism_for_claim(
+    claim_text: str,
+    source_field: str,
+    verifier_evidence: str,
+    proposal_text: str,
+    challenger_text: str,
+    model: str = A3_DEFAULT_MODEL,
+    cache: dict[str, dict[str, Any]] | None = None,
+    run_id: str | None = None,
+    log_path: Path = A3_ADJUDICATION_LOG_PATH,
+    cache_path: Path = A3_MECHANISM_CACHE_PATH,
+    _llm_call_json=None,  # injectable for tests
+) -> dict[str, Any]:
+    """Classify one FALSIFIED claim into one of A3_MECHANISM_LABELS.
+
+    Returns {label, rationale, parse_ok, raw_response, cache_hit, error}.
+    On any LLM error: returns label=AMBIGUOUS + parse_ok=False + error=msg.
+    Never raises — all failures recorded inline so the caller can compute
+    parse-fail rates and fall back to regex.
+    """
+    cache_key = _hash_claim(claim_text, verifier_evidence, model)
+    if cache is not None and cache_key in cache:
+        cached = cache[cache_key]
+        return {
+            "label": cached.get("label", "AMBIGUOUS"),
+            "rationale": cached.get("rationale", ""),
+            "parse_ok": cached.get("parse_ok", True),
+            "raw_response": cached.get("raw_response", ""),
+            "cache_hit": True,
+            "error": None,
+        }
+
+    if _llm_call_json is None:
+        try:
+            from llm_client import llm_call_json as _llm_call_json
+        except ImportError as e:
+            return {
+                "label": "AMBIGUOUS", "rationale": "", "parse_ok": False,
+                "raw_response": "", "cache_hit": False,
+                "error": f"llm_client import failed: {e}",
+            }
+
+    system, user_template = _load_a3_prompt()
+    proposal_excerpt = _excerpt_around(proposal_text, claim_text)
+    challenger_excerpt = _excerpt_around(challenger_text, claim_text)
+    user_filled = (
+        user_template
+        .replace("{claim_text}", claim_text)
+        .replace("{source_field}", source_field)
+        .replace("{verifier_evidence}", verifier_evidence)
+        .replace("{proposal_excerpt}", proposal_excerpt)
+        .replace("{challenger_excerpt}", challenger_excerpt)
+    )
+
+    raw_response = ""
+    parse_ok = False
+    label = "AMBIGUOUS"
+    rationale = ""
+    error: str | None = None
+    try:
+        result = _llm_call_json(
+            system=system, user=user_filled, model=model,
+            temperature=0.0, max_tokens=200, timeout=60,
+        )
+        raw_response = json.dumps(result) if isinstance(result, dict) else str(result)
+        if isinstance(result, dict):
+            candidate = result.get("label")
+            if isinstance(candidate, str) and candidate in A3_MECHANISM_LABELS:
+                label = candidate
+                parse_ok = True
+            else:
+                error = f"label not in allowed set: {candidate!r}"
+            r = result.get("rationale")
+            if isinstance(r, str):
+                rationale = r[:160]
+        else:
+            error = "JSON top-level not an object"
+    except Exception as e:
+        error = f"llm_call_json raised: {e!s}"
+
+    entry = {
+        "claim_hash": cache_key,
+        "label": label,
+        "rationale": rationale,
+        "parse_ok": parse_ok,
+        "raw_response": raw_response,
+        "model": model,
+        "error": error,
+    }
+    _persist_mechanism_cache_entry(entry, cache_path=cache_path)
+    if cache is not None:
+        cache[cache_key] = entry
+
+    _log_adjudication(log_path, {
+        "ts": _utc_now_iso(),
+        "run_id": run_id,
+        "claim_hash": cache_key,
+        "model": model,
+        "label": label,
+        "parse_ok": parse_ok,
+        "error": error,
+        "claim_excerpt": claim_text[:200],
+    })
+
+    return {
+        "label": label, "rationale": rationale, "parse_ok": parse_ok,
+        "raw_response": raw_response, "cache_hit": False, "error": error,
+    }
+
+
+def iter_falsified_blocks(verification_text: str | None):
+    """Yield (claim_text, source_field, evidence_text) per FALSIFIED claim.
+    Used by classify_mechanisms_llm and arm_study_a3_calibration."""
+    if not verification_text:
+        return
+    _EVIDENCE_RE = _re.compile(r"\*\*Evidence\*\*:\s*(.+?)$", _re.MULTILINE)
+    for block in _CLAIM_BLOCK_RE.findall(verification_text):
+        status_m = _STATUS_RE.search(block)
+        if not status_m:
+            continue
+        status = status_m.group(1).upper()
+        if "FALSIFIED" not in status or "VERIFIED" in status:
+            continue
+        # Extract claim text — content between **Claim**: marker and the
+        # next **Field** marker. The verifier indents subsequent fields
+        # with whitespace (e.g. "   **Source**:"), so the lookahead allows
+        # optional leading whitespace before the next bold marker.
+        claim_m = _re.search(
+            r"\*\*Claim\*\*:?\s*(.+?)(?=\n\s*\*\*[A-Z]|\Z)",
+            block, _re.DOTALL,
+        )
+        claim_text = (claim_m.group(1).strip() if claim_m else "").strip()
+        source_m = _SOURCE_RE.search(block)
+        source = source_m.group(1).strip() if source_m else ""
+        ev_m = _EVIDENCE_RE.search(block)
+        evidence = ev_m.group(1).strip() if ev_m else ""
+        yield claim_text, source, evidence
+
+
+def classify_mechanisms_llm(
+    verification_text: str | None,
+    proposal_text: str,
+    challenger_text: str,
+    model: str = A3_DEFAULT_MODEL,
+    run_id: str | None = None,
+    cache: dict[str, dict[str, Any]] | None = None,
+    log_path: Path = A3_ADJUDICATION_LOG_PATH,
+    cache_path: Path = A3_MECHANISM_CACHE_PATH,
+    _llm_call_json=None,
+    _regex_fallback=None,
+) -> dict[str, Any]:
+    """Run the second-pass classifier across every FALSIFIED claim.
+
+    Returns aggregate + per-claim labels + classifier_source. If degraded
+    (high AMBIGUOUS rate or parse failures), falls back to the regex
+    classifier and sets classifier_source = "regex-fallback".
+    """
+    if cache is None:
+        cache = _load_mechanism_cache(cache_path=cache_path)
+    if _regex_fallback is None:
+        _regex_fallback = classify_falsified_claims
+
+    regex_counts = _regex_fallback(verification_text)
+    base = {
+        "labels": {label: 0 for label in A3_MECHANISM_LABELS},
+        "per_claim": [],
+        "classifier_source": "llm",
+        "ambiguous_rate": 0.0,
+        "parse_failures": 0,
+        "regex_fallback_used": False,
+        "fallback_reason": None,
+        "total_falsified": regex_counts.get("total_falsified", 0),
+        "total_verified": regex_counts.get("total_verified", 0),
+        "total_unresolvable": regex_counts.get("total_unresolvable", 0),
+    }
+
+    blocks = list(iter_falsified_blocks(verification_text))
+    if not blocks:
+        # No FALSIFIED claims → trivially degenerate; surface regex-counts
+        # for compat (they'll be all-zero too).
+        base["hallucination"] = regex_counts.get("hallucination", 0)
+        base["caught_misquote"] = regex_counts.get("caught_misquote", 0)
+        base["unclear"] = regex_counts.get("unclear", 0)
+        return base
+
+    for claim_text, source_field, evidence in blocks:
+        result = classify_mechanism_for_claim(
+            claim_text=claim_text,
+            source_field=source_field,
+            verifier_evidence=evidence,
+            proposal_text=proposal_text,
+            challenger_text=challenger_text,
+            model=model, cache=cache, run_id=run_id,
+            log_path=log_path, cache_path=cache_path,
+            _llm_call_json=_llm_call_json,
+        )
+        base["per_claim"].append({
+            "claim_text": claim_text[:200],
+            "source_field": source_field,
+            "label": result["label"],
+            "rationale": result["rationale"],
+            "parse_ok": result["parse_ok"],
+            "error": result["error"],
+            "cache_hit": result["cache_hit"],
+        })
+        base["labels"][result["label"]] += 1
+        if not result["parse_ok"]:
+            base["parse_failures"] += 1
+
+    total = len(base["per_claim"])
+    base["ambiguous_rate"] = (
+        base["labels"]["AMBIGUOUS"] / total if total > 0 else 0.0
+    )
+    parse_fail_rate = base["parse_failures"] / total if total > 0 else 0.0
+
+    if base["ambiguous_rate"] > A3_AMBIGUOUS_FALLBACK_THRESHOLD:
+        base["regex_fallback_used"] = True
+        base["fallback_reason"] = (
+            f"ambiguous_rate {base['ambiguous_rate']:.2%} exceeds "
+            f"{A3_AMBIGUOUS_FALLBACK_THRESHOLD:.0%} threshold"
+        )
+    elif parse_fail_rate > A3_PARSE_FAIL_FALLBACK_THRESHOLD:
+        base["regex_fallback_used"] = True
+        base["fallback_reason"] = (
+            f"parse_failure_rate {parse_fail_rate:.2%} exceeds "
+            f"{A3_PARSE_FAIL_FALLBACK_THRESHOLD:.0%} threshold"
+        )
+
+    if base["regex_fallback_used"]:
+        base["classifier_source"] = "regex-fallback"
+        base["hallucination"] = regex_counts.get("hallucination", 0)
+        base["caught_misquote"] = regex_counts.get("caught_misquote", 0)
+        base["unclear"] = regex_counts.get("unclear", 0)
+    else:
+        # Map explicit labels to legacy field names for verdict-aggregator
+        # backward compat. With LLM mode, the verdict aggregator reads
+        # `labels` directly and uses CHALLENGER_FABRICATION as the
+        # hallucination denominator (orphan #10/#11 fixes per refined doc).
+        base["hallucination"] = base["labels"]["CHALLENGER_FABRICATION"]
+        base["caught_misquote"] = base["labels"]["PROPOSAL_ERROR_CAUGHT"]
+        base["unclear"] = (
+            base["labels"]["AMBIGUOUS"] + base["labels"]["INFERENCE_NOT_GROUNDED"]
+        )
+
+    return base
 
 
 # ── Parsing ─────────────────────────────────────────────────────────────────
@@ -750,11 +1134,13 @@ def score_run(
         arm_extractions[arm] = parse_judge_output(stdout)
 
         # Dim 4/5 code grounding: run the claim verifier in-process on the
-        # concatenated challenge + proposal. Failures are recorded but do
+        # concatenated challenge + proposal, then run the REDESIGN A
+        # second-pass mechanism classifier. Failures are recorded but do
         # not abort scoring — downstream aggregation reads what's available.
         if proposal_path is not None and proposal_path.is_file():
             arm_verifications[arm] = _verify_ground_truth_dimensions(
-                combined, proposal_path
+                combined, proposal_path,
+                run_classifier=True, run_id=run_id,
             )
         else:
             arm_verifications[arm] = {
@@ -873,23 +1259,71 @@ def _attach_miss_rate_coverage(
 def _verify_ground_truth_dimensions(
     challenge_path: Path,
     proposal_path: Path,
+    *,
+    run_classifier: bool = True,
+    classifier_model: str = A3_DEFAULT_MODEL,
+    run_id: str | None = None,
+    mechanism_cache: dict[str, dict[str, Any]] | None = None,
 ) -> dict[str, Any]:
     """Read the per-arm concatenated challenge file and the proposal, run
-    the claim verifier in-process, and return its result dict. Per-item
-    mapping from VERIFIED/FALSIFIED/UNRESOLVABLE to extracted items is
-    deferred to Phase 2 per D39 — this stores the raw verifier_text so
-    Phase 2 can observe real output before wiring the matcher."""
+    the claim verifier in-process, then run the REDESIGN A second-pass
+    mechanism classifier on FALSIFIED claims.
+
+    Returns dict with verifier output + (when run_classifier) a
+    `mechanism_classification` block populated by classify_mechanisms_llm.
+    """
     try:
         challenge_text = challenge_path.read_text()
     except OSError as e:
         return {"status": "failed", "error": f"read challenge failed: {e}",
-                "verification_text": None, "stats": None}
+                "verification_text": None, "stats": None,
+                "challenge_text": None, "proposal_text": None}
     try:
         proposal_text = proposal_path.read_text()
     except OSError as e:
         return {"status": "failed", "error": f"read proposal failed: {e}",
-                "verification_text": None, "stats": None}
-    return run_claim_verifier_inprocess(challenge_text, proposal_text)
+                "verification_text": None, "stats": None,
+                "challenge_text": challenge_text, "proposal_text": None}
+
+    result = run_claim_verifier_inprocess(challenge_text, proposal_text)
+    result["challenge_text"] = challenge_text
+    result["proposal_text"] = proposal_text
+
+    if run_classifier and result.get("status") == "verified":
+        try:
+            mech = classify_mechanisms_llm(
+                verification_text=result.get("verification_text"),
+                proposal_text=proposal_text,
+                challenger_text=challenge_text,
+                model=classifier_model,
+                run_id=run_id,
+                cache=mechanism_cache,
+            )
+            result["mechanism_classification"] = mech
+        except Exception as e:
+            # Classifier failure is non-fatal — verifier output stays.
+            result["mechanism_classification"] = {
+                "classifier_source": "regex-fallback",
+                "regex_fallback_used": True,
+                "fallback_reason": f"classifier raised: {e!s}",
+                "labels": {label: 0 for label in A3_MECHANISM_LABELS},
+                "per_claim": [],
+                "ambiguous_rate": 0.0,
+                "parse_failures": 0,
+            }
+            # Backfill regex counts so verdict aggregator has data.
+            regex_counts = classify_falsified_claims(
+                result.get("verification_text")
+            )
+            result["mechanism_classification"].update({
+                "hallucination": regex_counts.get("hallucination", 0),
+                "caught_misquote": regex_counts.get("caught_misquote", 0),
+                "unclear": regex_counts.get("unclear", 0),
+                "total_falsified": regex_counts.get("total_falsified", 0),
+                "total_verified": regex_counts.get("total_verified", 0),
+                "total_unresolvable": regex_counts.get("total_unresolvable", 0),
+            })
+    return result
 
 
 def _attach_verifications(
@@ -898,26 +1332,38 @@ def _attach_verifications(
 ) -> None:
     """Attach verify-claims output to each ground-truth dimension in-place.
 
-    `debate.py judge --verify-claims` emits a "## Claim Verification Results"
-    section with per-claim VERIFIED / FALSIFIED / UNRESOLVABLE statuses
-    (documented at debate.py:1347 in VERIFIER_SYSTEM_PROMPT). Phase 1 stores
-    the raw output; Phase 2 dry run will observe real judge responses and
-    implement the per-item matching that maps verifier claims to
-    judge-extracted items, producing valid / hallucinated / partial /
-    unverifiable labels on each item. See plan Files table row for this
-    script."""
+    Verifier output is stored alongside the REDESIGN A `mechanism_classification`
+    block (per-claim explicit labels via the second-pass LLM classifier, or
+    regex-fallback when degraded). The verdict aggregator reads
+    `mechanism_classification.classifier_source` to pick formula path.
+    """
     for arm_label, arm_data in scored.get("arms", {}).items():
         verif = verifications.get(arm_label, {})
         full_text = verif.get("verification_text") or ""
-        # Store the full verifier text (was truncated to 4000 chars previously
-        # — truncation stripped claims 10+ on busy proposals, making the
-        # falsified_classification undercount. Scored.json grows ~20KB per arm
-        # with full text; tolerable for diagnostic artifacts).
+        mech = verif.get("mechanism_classification")
+        if mech is None:
+            # Caller skipped the classifier (e.g., legacy code path or test
+            # that constructed verifications without it) — fall back to regex.
+            mech = classify_mechanisms_llm.__wrapped__(
+                full_text, "", "", run_id=None,
+            ) if hasattr(classify_mechanisms_llm, "__wrapped__") else None
+            if mech is None:
+                regex = classify_falsified_claims(full_text)
+                mech = {
+                    "classifier_source": "regex-fallback",
+                    "regex_fallback_used": True,
+                    "fallback_reason": "no mechanism_classification in verifier output",
+                    "labels": {label: 0 for label in A3_MECHANISM_LABELS},
+                    "per_claim": [],
+                    "ambiguous_rate": 0.0,
+                    "parse_failures": 0,
+                    **regex,
+                }
         entry = {
             "status": verif.get("status", "unknown"),
             "stats": verif.get("stats"),
             "verification_text": full_text,
-            "falsified_classification": classify_falsified_claims(full_text),
+            "falsified_classification": mech,
         }
         if verif.get("error"):
             entry["error"] = verif["error"]

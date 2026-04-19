@@ -411,6 +411,217 @@ def test_classify_unparseable_source_is_unclear():
     assert out["caught_misquote"] == 0
 
 
+# ── REDESIGN A: second-pass mechanism classifier tests ───────────────────
+
+
+def _falsified_block(claim: str, source: str, evidence: str = "checked") -> str:
+    return f"""## Claim Verification Results
+
+1. **Claim**: {claim}
+   **Source**: {source}
+   **Status**: FALSIFIED
+   **Evidence**: {evidence}
+"""
+
+
+def _make_llm_stub(label_seq):
+    """Build a stub _llm_call_json that returns labels in order."""
+    calls = {"n": 0}
+
+    def stub(*, system, user, model, temperature, max_tokens, timeout):
+        i = calls["n"]
+        calls["n"] += 1
+        spec = label_seq[min(i, len(label_seq) - 1)]
+        if spec == "MALFORMED":
+            return {"unexpected": "key"}
+        if spec == "MISSING_LABEL":
+            return {"rationale": "no label"}
+        return {"label": spec, "rationale": f"rationale-{i}"}
+
+    return stub, calls
+
+
+def test_classify_mechanism_for_claim_all_four_labels(tmp_path):
+    """Each of the 4 labels parses correctly into the result dict."""
+    cache_path = tmp_path / "cache.jsonl"
+    log_path = tmp_path / "log.jsonl"
+    for label in scorer.A3_MECHANISM_LABELS:
+        stub, _ = _make_llm_stub([label])
+        result = scorer.classify_mechanism_for_claim(
+            claim_text=f"claim about {label}",
+            source_field="Proposal (1A)",
+            verifier_evidence="evidence",
+            proposal_text="proposal text",
+            challenger_text="challenger text",
+            model="test-model", cache={},
+            cache_path=cache_path, log_path=log_path,
+            _llm_call_json=stub,
+        )
+        assert result["label"] == label
+        assert result["parse_ok"] is True
+        assert result["error"] is None
+
+
+def test_classify_mechanism_for_claim_malformed_label(tmp_path):
+    """Label not in allowed set → AMBIGUOUS + parse_ok=False."""
+    stub, _ = _make_llm_stub(["NOT_A_REAL_LABEL"])
+    result = scorer.classify_mechanism_for_claim(
+        claim_text="claim", source_field="Challenger",
+        verifier_evidence="ev", proposal_text="", challenger_text="",
+        model="m", cache={},
+        cache_path=tmp_path / "c.jsonl", log_path=tmp_path / "l.jsonl",
+        _llm_call_json=stub,
+    )
+    assert result["label"] == "AMBIGUOUS"
+    assert result["parse_ok"] is False
+    assert "label not in allowed set" in result["error"]
+
+
+def test_classify_mechanism_for_claim_missing_label(tmp_path):
+    """Response missing `label` key → AMBIGUOUS + parse_ok=False."""
+    stub, _ = _make_llm_stub(["MISSING_LABEL"])
+    result = scorer.classify_mechanism_for_claim(
+        claim_text="claim", source_field="Challenger",
+        verifier_evidence="ev", proposal_text="", challenger_text="",
+        model="m", cache={},
+        cache_path=tmp_path / "c.jsonl", log_path=tmp_path / "l.jsonl",
+        _llm_call_json=stub,
+    )
+    assert result["label"] == "AMBIGUOUS"
+    assert result["parse_ok"] is False
+
+
+def test_classify_mechanism_for_claim_cache_hit(tmp_path):
+    """Second call with identical inputs returns cached result without LLM."""
+    cache: dict[str, dict[str, Any]] = {}
+    stub1, calls1 = _make_llm_stub(["PROPOSAL_ERROR_CAUGHT"])
+    args = {
+        "claim_text": "claim", "source_field": "Proposal",
+        "verifier_evidence": "ev", "proposal_text": "p",
+        "challenger_text": "c", "model": "m", "cache": cache,
+        "cache_path": tmp_path / "c.jsonl",
+        "log_path": tmp_path / "l.jsonl",
+    }
+    r1 = scorer.classify_mechanism_for_claim(**args, _llm_call_json=stub1)
+    assert calls1["n"] == 1
+    assert r1["cache_hit"] is False
+
+    stub2, calls2 = _make_llm_stub(["CHALLENGER_FABRICATION"])  # ignored
+    r2 = scorer.classify_mechanism_for_claim(**args, _llm_call_json=stub2)
+    assert calls2["n"] == 0  # cache short-circuited
+    assert r2["cache_hit"] is True
+    assert r2["label"] == "PROPOSAL_ERROR_CAUGHT"  # original label
+
+
+def test_classify_mechanisms_llm_fallback_high_ambiguous(tmp_path):
+    """>50% AMBIGUOUS → classifier_source=regex-fallback."""
+    # 4 claims, 3 of which the LLM labels AMBIGUOUS (75% > 50% cap).
+    vt = "\n".join(
+        _falsified_block(f"c{i}", f"Source {i}") for i in range(4)
+    )
+    stub, _ = _make_llm_stub([
+        "AMBIGUOUS", "AMBIGUOUS", "AMBIGUOUS", "PROPOSAL_ERROR_CAUGHT",
+    ])
+    result = scorer.classify_mechanisms_llm(
+        verification_text=vt, proposal_text="p", challenger_text="c",
+        model="m", cache={},
+        cache_path=tmp_path / "c.jsonl",
+        log_path=tmp_path / "l.jsonl",
+        _llm_call_json=stub,
+    )
+    assert result["regex_fallback_used"] is True
+    assert result["classifier_source"] == "regex-fallback"
+    assert "ambiguous_rate" in result["fallback_reason"]
+
+
+def test_classify_mechanisms_llm_fallback_high_parse_failures(tmp_path):
+    """>20% parse failures → classifier_source=regex-fallback."""
+    vt = "\n".join(
+        _falsified_block(f"c{i}", f"Source {i}") for i in range(5)
+    )
+    # 2 of 5 = 40% parse failures (above 20% cap).
+    stub, _ = _make_llm_stub([
+        "PROPOSAL_ERROR_CAUGHT", "MALFORMED", "CHALLENGER_FABRICATION",
+        "MISSING_LABEL", "PROPOSAL_ERROR_CAUGHT",
+    ])
+    result = scorer.classify_mechanisms_llm(
+        verification_text=vt, proposal_text="p", challenger_text="c",
+        model="m", cache={},
+        cache_path=tmp_path / "c.jsonl",
+        log_path=tmp_path / "l.jsonl",
+        _llm_call_json=stub,
+    )
+    assert result["regex_fallback_used"] is True
+    assert "parse_failure_rate" in result["fallback_reason"]
+
+
+def test_classify_mechanisms_llm_clean_run(tmp_path):
+    """Healthy run (no fallback): classifier_source=llm; explicit labels
+    populate hallucination/caught_misquote per orphan #11 fix."""
+    vt = "\n".join(
+        _falsified_block(f"c{i}", f"Challenger {i}") for i in range(4)
+    )
+    stub, _ = _make_llm_stub([
+        "PROPOSAL_ERROR_CAUGHT", "PROPOSAL_ERROR_CAUGHT",
+        "CHALLENGER_FABRICATION", "INFERENCE_NOT_GROUNDED",
+    ])
+    result = scorer.classify_mechanisms_llm(
+        verification_text=vt, proposal_text="p", challenger_text="c",
+        model="m", cache={},
+        cache_path=tmp_path / "c.jsonl",
+        log_path=tmp_path / "l.jsonl",
+        _llm_call_json=stub,
+    )
+    assert result["regex_fallback_used"] is False
+    assert result["classifier_source"] == "llm"
+    assert result["labels"]["PROPOSAL_ERROR_CAUGHT"] == 2
+    assert result["labels"]["CHALLENGER_FABRICATION"] == 1
+    assert result["labels"]["INFERENCE_NOT_GROUNDED"] == 1
+    # Orphan #11: hallucination = CHALLENGER_FABRICATION; caught_misquote =
+    # PROPOSAL_ERROR_CAUGHT. Same denominator across both metrics.
+    assert result["hallucination"] == 1
+    assert result["caught_misquote"] == 2
+
+
+def test_classify_mechanisms_llm_no_falsified_claims(tmp_path):
+    """Empty/no FALSIFIED claims: degenerate result, no LLM calls."""
+    stub, calls = _make_llm_stub(["PROPOSAL_ERROR_CAUGHT"])
+    result = scorer.classify_mechanisms_llm(
+        verification_text="## Summary\n- Verified: 5", proposal_text="p",
+        challenger_text="c", model="m", cache={},
+        cache_path=tmp_path / "c.jsonl",
+        log_path=tmp_path / "l.jsonl",
+        _llm_call_json=stub,
+    )
+    assert calls["n"] == 0
+    assert result["labels"]["PROPOSAL_ERROR_CAUGHT"] == 0
+    assert result["per_claim"] == []
+
+
+def test_iter_falsified_blocks_skips_verified(tmp_path):
+    """Only FALSIFIED claims yielded — VERIFIED/UNRESOLVABLE filtered out."""
+    vt = """## Claim Verification Results
+
+1. **Claim**: c1
+   **Source**: Proposal
+   **Status**: VERIFIED
+   **Evidence**: ok
+
+2. **Claim**: c2
+   **Source**: Challenger
+   **Status**: FALSIFIED
+   **Evidence**: bad
+
+3. **Claim**: c3
+   **Source**: Challenger
+   **Status**: UNRESOLVABLE
+   **Evidence**: nope
+"""
+    blocks = list(scorer.iter_falsified_blocks(vt))
+    assert len(blocks) == 1
+    assert blocks[0][0] == "c2"
+
+
 def test_parse_judge_output_strips_dimension_prefix():
     """Comparison prompt emits `dimension_N_<name>` keys; aggregator indexes
     bare `<name>`. parse_judge_output must strip the prefix so real runs

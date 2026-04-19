@@ -196,11 +196,15 @@ def _quality_density(dist: dict[str, float]) -> float | None:
 def _arm_verifier_stats(scored: dict[str, Any], arm: str) -> dict[str, int] | None:
     """Return verifier stats for one arm's catch_rate, or None if unavailable.
 
-    Also pulls falsified_classification (item 2 of metric-fix plan) when
-    present, which splits total falsified into hallucination (challenger
-    asserted, verifier falsified) vs caught_misquote (challenger quoted
-    proposal to flag it as false; verifier agrees proposal claim is false)
-    vs unclear (source unparseable)."""
+    REDESIGN A (2026-04-19): when `falsified_classification.classifier_source
+    == "llm"`, the explicit per-claim labels resolve the classifier ambiguity
+    that the regex collapses; classified_accuracy/hallucination_rate use
+    `CHALLENGER_FABRICATION` as the hallucination denominator (orphan #10/#11
+    fixes — same denominator across both metrics).
+
+    When classifier_source is "regex-fallback" or absent, legacy formulas
+    apply via the regex-counted hallucination/caught_misquote/unclear fields.
+    """
     vc = (_arm_dim_data(scored, arm, GROUND_TRUTH_DIM) or {}).get("verify_claims") or {}
     if vc.get("status") != "verified":
         return None
@@ -211,16 +215,32 @@ def _arm_verifier_stats(scored: dict[str, Any], arm: str) -> dict[str, int] | No
     out = {k: int(stats[k]) for k in required}
     clf = vc.get("falsified_classification") or {}
     if clf:
-        # Total from classification may disagree with stats.falsified on
-        # older scored.json where verification_text was truncated. Trust
-        # stats.falsified as the authoritative total and scale classification
-        # proportionally if parsed total < stats.falsified.
+        source = clf.get("classifier_source", "regex")
+        out["classifier_source"] = source
+        out["regex_fallback_used"] = bool(clf.get("regex_fallback_used", False))
+        if "fallback_reason" in clf:
+            out["fallback_reason"] = clf.get("fallback_reason")
+        # Surface the labels block when LLM mode (used by markdown render).
+        if "labels" in clf and isinstance(clf["labels"], dict):
+            out["mechanism_labels"] = {
+                k: int(v) for k, v in clf["labels"].items()
+            }
+        # Legacy fields (always populated by classify_mechanisms_llm)
+        # — used by regex-fallback path AND as cross-checks.
         parsed_total = int(clf.get("total_falsified", 0))
         for k in ("hallucination", "caught_misquote", "unclear"):
             out[k] = int(clf.get(k, 0))
-        # Flag truncation-caused undercount so downstream can note it.
         out["classification_parsed_total"] = parsed_total
         out["classification_stats_total"] = int(stats["falsified"])
+        # When LLM mode, hallucination = CHALLENGER_FABRICATION exactly
+        # (set by classify_mechanisms_llm; preserved here for clarity).
+        if source == "llm" and "mechanism_labels" in out:
+            out["hallucination"] = out["mechanism_labels"].get(
+                "CHALLENGER_FABRICATION", out["hallucination"]
+            )
+            out["caught_misquote"] = out["mechanism_labels"].get(
+                "PROPOSAL_ERROR_CAUGHT", out["caught_misquote"]
+            )
     return out
 
 
@@ -243,7 +263,16 @@ def _aggregate_verifier(all_scored: list[dict[str, Any]]) -> dict[str, Any]:
         arm: {"verified": 0, "falsified": 0, "unresolvable": 0,
               "claims_checked": 0, "missing": 0,
               "hallucination": 0, "caught_misquote": 0, "unclear": 0,
-              "classified_parsed_total": 0, "classified_stats_total": 0}
+              "classified_parsed_total": 0, "classified_stats_total": 0,
+              # REDESIGN A: per-source counts so the markdown can show how
+              # many proposals were classified by LLM vs regex-fallback.
+              "n_llm_classified": 0, "n_regex_fallback": 0,
+              "mechanism_labels": {
+                  "PROPOSAL_ERROR_CAUGHT": 0,
+                  "CHALLENGER_FABRICATION": 0,
+                  "AMBIGUOUS": 0,
+                  "INFERENCE_NOT_GROUNDED": 0,
+              }}
         for arm in ("arm-a", "arm-b")
     }
     has_classification = {"arm-a": False, "arm-b": False}
@@ -263,6 +292,16 @@ def _aggregate_verifier(all_scored: list[dict[str, Any]]) -> dict[str, Any]:
                     "classification_parsed_total", 0)
                 pooled[arm]["classified_stats_total"] += stats.get(
                     "classification_stats_total", 0)
+                # REDESIGN A: surface classifier provenance.
+                source = stats.get("classifier_source", "regex")
+                if source == "llm":
+                    pooled[arm]["n_llm_classified"] += 1
+                else:
+                    pooled[arm]["n_regex_fallback"] += 1
+                mech = stats.get("mechanism_labels") or {}
+                for label, count in mech.items():
+                    if label in pooled[arm]["mechanism_labels"]:
+                        pooled[arm]["mechanism_labels"][label] += int(count)
 
     out: dict[str, Any] = {}
     use_classified = has_classification["arm-a"] and has_classification["arm-b"]
@@ -1054,6 +1093,45 @@ def render_markdown(
                 "denominator (not a claim the challenger made)._",
                 "",
             ])
+
+            # REDESIGN A: explicit per-label breakdown + classifier provenance.
+            any_llm = any(
+                cr[arm].get("n_llm_classified", 0) > 0
+                for arm in ("arm-a", "arm-b")
+            )
+            any_fb = any(
+                cr[arm].get("n_regex_fallback", 0) > 0
+                for arm in ("arm-a", "arm-b")
+            )
+            if any_llm or any_fb:
+                lines.extend([
+                    "### Mechanism classification provenance (REDESIGN A)",
+                    "",
+                    "| Arm | LLM-classified | Regex-fallback | "
+                    "PROPOSAL_ERROR_CAUGHT | CHALLENGER_FABRICATION | "
+                    "AMBIGUOUS | INFERENCE_NOT_GROUNDED |",
+                    "|---|---|---|---|---|---|---|",
+                ])
+                for arm in ("arm-a", "arm-b"):
+                    a = cr[arm]
+                    mech = a.get("mechanism_labels") or {}
+                    lines.append(
+                        f"| {arm} | {a.get('n_llm_classified', 0)} | "
+                        f"{a.get('n_regex_fallback', 0)} | "
+                        f"{mech.get('PROPOSAL_ERROR_CAUGHT', 0)} | "
+                        f"{mech.get('CHALLENGER_FABRICATION', 0)} | "
+                        f"{mech.get('AMBIGUOUS', 0)} | "
+                        f"{mech.get('INFERENCE_NOT_GROUNDED', 0)} |"
+                    )
+                lines.extend([
+                    "",
+                    "_With LLM classification, hallucination_rate = "
+                    "CHALLENGER_FABRICATION / claims_checked and "
+                    "classified_accuracy = verified / (verified + "
+                    "CHALLENGER_FABRICATION). Same denominator across both "
+                    "metrics (orphan #11 fix)._",
+                    "",
+                ])
 
     # ── Judge-graded detail ───────────────────────────────────────────
     for dim in JUDGE_GRADED_DIMS:
