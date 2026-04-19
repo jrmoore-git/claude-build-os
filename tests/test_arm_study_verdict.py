@@ -200,30 +200,31 @@ def test_catch_rate_confident_at_n5():
     assert cr["verdict"] == "confident-favor-arm-b"
 
 
-def test_catch_rate_mixed_on_quality_when_weighted_accuracy_disagrees():
-    """Arm A has higher raw accuracy but Arm B has higher quality density
-    → B's weighted_accuracy exceeds A's. Mixed-on-quality result."""
+def test_catch_rate_uses_weighted_accuracy_as_primary():
+    """Fix 3 (must-fix per cross-model review): catch_rate primary metric
+    is weighted_accuracy, not raw accuracy. When raw accuracy ties across
+    arms but quality density differs, weighted_accuracy picks the winner."""
     scores = []
     for _ in range(3):
         s = _scored(
-            catch_rate_verifier=(18, 2, 0),  # A: 90% accuracy
+            catch_rate_verifier=(20, 0, 0),  # Arm A: 100% raw accuracy
             catch_rate_quality={
-                # A: 100% superficial — weighted accuracy very low
+                # A: 100% superficial → quality_density 0
                 "arm-a": _qdist(substantive=0, marginal=0, superficial=20, harmful=0),
-                # B: 100% substantive — weighted accuracy high
-                "arm-b": _qdist(substantive=15, marginal=0, superficial=0, harmful=0),
+                # B: 100% substantive → quality_density 1.0
+                "arm-b": _qdist(substantive=10, marginal=0, superficial=0, harmful=0),
             },
         )
-        # B's raw accuracy: 12/15 = 80% (lower than A's 90%), but density flips.
         s["arms"]["arm-b"]["catch_rate"]["verify_claims"]["stats"] = {
-            "verified": 12, "falsified": 3, "unresolvable": 0,
-            "claims_checked": 15, "model": "claude-sonnet-4-6", "tool_calls": 0,
+            "verified": 10, "falsified": 0, "unresolvable": 0,
+            "claims_checked": 10, "model": "claude-sonnet-4-6", "tool_calls": 0,
         }
         scores.append(s)
     v = verdict.compute_verdict(scores)
     cr = v["per_dimension_verdicts"]["catch_rate"]
-    # Raw accuracy favors A; weighted favors B → mixed-on-quality
-    assert cr["verdict"] == "mixed-on-quality"
+    # Raw accuracy ties (both 100%); weighted favors B → verdict favors B.
+    assert cr["verdict"] == "directional-favor-arm-b"
+    assert cr["primary_basis"] == "weighted_accuracy"
 
 
 def test_catch_rate_not_yet_measured_when_verifier_missing():

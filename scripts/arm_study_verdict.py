@@ -346,18 +346,30 @@ def _per_dim_verdict_verifier(
         "arm-b": {k: b.get(k) for k in surfaced},
     }
 
-    if a["accuracy"] is None or b["accuracy"] is None:
+    # Fix 3 (must-fix per cross-model review): primary is weighted_accuracy,
+    # not raw/classified accuracy. D40 intended weighted as primary; earlier
+    # impl left it as a tie-break. If weighted is unavailable (density is
+    # None — no judge catch_rate items), fall back to classified/raw so the
+    # dim still produces a signal, but note the fallback.
+    wa_a = a.get("weighted_accuracy")
+    wa_b = b.get("weighted_accuracy")
+    if wa_a is not None and wa_b is not None:
+        delta = wa_b - wa_a
+        primary_basis = "weighted_accuracy"
+    elif a.get("accuracy") is not None and b.get("accuracy") is not None:
+        delta = b["accuracy"] - a["accuracy"]
+        primary_basis = "accuracy (weighted unavailable)"
+    else:
         out["verdict"] = "not-yet-measured"
         out["reason"] = "verifier accuracy missing on one or both arms"
         return out
-
-    delta = b["accuracy"] - a["accuracy"]
     out["delta_pp"] = delta
+    out["primary_basis"] = primary_basis
 
     if abs(delta) < PRIMARY_ACCURACY_DELTA_PP:
         out["verdict"] = "inconclusive"
         out["reason"] = (
-            f"accuracy delta {delta*100:+.1f}pp within "
+            f"{primary_basis} delta {delta*100:+.1f}pp within "
             f"±{PRIMARY_ACCURACY_DELTA_PP*100:.0f}pp noise floor"
         )
         return out
@@ -377,31 +389,12 @@ def _per_dim_verdict_verifier(
             out["primary_winner"] = winner
             return out
 
-    # Quality-weighted accuracy alignment: the winner should still win on
-    # weighted accuracy (accuracy × quality density). If unweighted favors
-    # one arm and weighted favors the other, the raw accuracy was carried by
-    # low-density items — downgrade to mixed.
-    wa_a = verifier_agg["arm-a"]["weighted_accuracy"]
-    wa_b = verifier_agg["arm-b"]["weighted_accuracy"]
-    if wa_a is not None and wa_b is not None:
-        weighted_winner = "arm-b" if wa_b > wa_a else "arm-a"
-        if weighted_winner != winner:
-            out["verdict"] = "mixed-on-quality"
-            out["reason"] = (
-                f"unweighted accuracy favors {winner} but "
-                f"quality-weighted accuracy favors {weighted_winner}; "
-                f"raw accuracy relied on low-density items"
-            )
-            out["primary_winner"] = winner
-            out["weighted_winner"] = weighted_winner
-            return out
-
     label = f"directional-favor-{winner}" if n < MIN_SAMPLE_FOR_CONFIDENT \
         else f"confident-favor-{winner}"
     out["verdict"] = label
     out["reason"] = (
-        f"accuracy delta {delta*100:+.1f}pp, "
-        f"hallucination guardrail passes, weighted accuracy aligns, n={n}"
+        f"{primary_basis} delta {delta*100:+.1f}pp, "
+        f"hallucination guardrail passes, n={n}"
     )
     out["primary_winner"] = winner
     return out
@@ -413,36 +406,54 @@ def _per_dim_verdict_verifier(
 def _aggregate_judge_dim(
     all_scored: list[dict[str, Any]], dim: str,
 ) -> dict[str, Any]:
-    """Aggregate a judge-graded dim across proposals + judges."""
+    """Aggregate a judge-graded dim across proposals + judges.
+
+    Fix 1A (must-fix per cross-model review): paired aggregation. A proposal
+    is pooled only when BOTH arms have a scorable weighted_dim_score for
+    this dim. Dropping one arm because it failed extraction while counting
+    the other was silently biasing verdicts.
+    """
+    per_arm_state: dict[str, dict[str, Any]] = {
+        arm: {"weighted_scores": [], "harmful_totals": [],
+              "distribution": {cat: 0.0 for cat in QUALITY_WEIGHTS},
+              "n_scored": 0}
+        for arm in ("arm-a", "arm-b")
+    }
+    unpaired_dropped = 0
+    for scored in all_scored:
+        a_data = _arm_dim_data(scored, "arm-a", dim)
+        b_data = _arm_dim_data(scored, "arm-b", dim)
+        a_ws = _weighted_dim_score(a_data)
+        b_ws = _weighted_dim_score(b_data)
+        if a_ws is None or b_ws is None:
+            unpaired_dropped += 1
+            continue
+        for arm, data, ws in (("arm-a", a_data, a_ws),
+                              ("arm-b", b_data, b_ws)):
+            state = per_arm_state[arm]
+            state["weighted_scores"].append(ws)
+            state["harmful_totals"].append(_dim_harmful_total(data))
+            dist = _arm_dim_quality_distribution(data)
+            for cat in QUALITY_WEIGHTS:
+                state["distribution"][cat] += dist.get(cat, 0.0)
+            state["n_scored"] += 1
+
     per_arm: dict[str, dict[str, Any]] = {}
     for arm in ("arm-a", "arm-b"):
-        weighted_scores: list[float] = []
-        harmful_totals: list[int] = []
-        distribution = {cat: 0.0 for cat in QUALITY_WEIGHTS}
-        n_scored = 0
-        for scored in all_scored:
-            dim_data = _arm_dim_data(scored, arm, dim)
-            ws = _weighted_dim_score(dim_data)
-            if ws is None:
-                continue
-            weighted_scores.append(ws)
-            harmful_totals.append(_dim_harmful_total(dim_data))
-            dist = _arm_dim_quality_distribution(dim_data)
-            for cat in QUALITY_WEIGHTS:
-                distribution[cat] += dist.get(cat, 0.0)
-            n_scored += 1
-        density = _quality_density(distribution)
+        s = per_arm_state[arm]
+        density = _quality_density(s["distribution"])
         per_arm[arm] = {
-            "weighted_score_total": sum(weighted_scores),
+            "weighted_score_total": sum(s["weighted_scores"]),
             "weighted_score_mean": (
-                sum(weighted_scores) / len(weighted_scores)
-                if weighted_scores else None
+                sum(s["weighted_scores"]) / len(s["weighted_scores"])
+                if s["weighted_scores"] else None
             ),
-            "harmful_total": sum(harmful_totals),
-            "quality_distribution_sum": distribution,
+            "harmful_total": sum(s["harmful_totals"]),
+            "quality_distribution_sum": s["distribution"],
             "quality_density": density,
-            "n_scored": n_scored,
+            "n_scored": s["n_scored"],
         }
+    per_arm["_unpaired_dropped"] = unpaired_dropped
     return per_arm
 
 
@@ -457,6 +468,7 @@ def _per_dim_verdict_judge_graded(
         "signal_type": "judge-graded quality-weighted substantive score",
         "arm-a": agg["arm-a"],
         "arm-b": agg["arm-b"],
+        "unpaired_dropped": agg.get("_unpaired_dropped", 0),
     }
     a = agg["arm-a"]
     b = agg["arm-b"]
@@ -480,13 +492,17 @@ def _per_dim_verdict_judge_graded(
     winner_agg = agg[winner]
     loser_agg = agg["arm-a" if winner == "arm-b" else "arm-b"]
 
-    # Harmful-item regression guard.
-    if winner_agg["harmful_total"] > loser_agg["harmful_total"] \
-            and winner_agg["harmful_total"] >= HARMFUL_REGRESSION_ABSOLUTE_MAX:
+    # Fix 2 (must-fix per cross-model review): harmful-regression semantics.
+    # The rule is "winner may not regress > HARMFUL_REGRESSION_ABSOLUTE_MAX
+    # harmful items", i.e. the DELTA between winner and loser exceeds the
+    # cap. Earlier impl blocked only when winner's absolute count was ≥ 2.
+    harm_delta = winner_agg["harmful_total"] - loser_agg["harmful_total"]
+    if harm_delta > HARMFUL_REGRESSION_ABSOLUTE_MAX:
         out["verdict"] = "regression-blocked"
         out["reason"] = (
             f"primary winner ({winner}) has {winner_agg['harmful_total']} "
-            f"harmful items vs loser's {loser_agg['harmful_total']}; "
+            f"harmful items vs loser's {loser_agg['harmful_total']} "
+            f"(delta {harm_delta:+d} > cap {HARMFUL_REGRESSION_ABSOLUTE_MAX}); "
             f"guardrail blocks promotion"
         )
         out["primary_winner"] = winner
@@ -560,6 +576,8 @@ def _per_dim_verdict_plan_quality(
               for arm in ("arm-a", "arm-b")}
     any_scored = False
     no_artifact_count = 0
+    unpaired_dropped = 0
+    # Fix 1C (must-fix per cross-model review): pair proposals before pooling.
     for scored in all_scored:
         retro = _load_retrospective_for_scored(scored, store_root)
         if retro is None:
@@ -569,12 +587,18 @@ def _per_dim_verdict_plan_quality(
             continue
         if retro.get("status") != "scored":
             continue
-        for arm in ("arm-a", "arm-b"):
-            arm_retro = (retro.get("per_arm") or {}).get(arm) or {}
-            if arm_retro.get("status") != "scored":
-                continue
+        per_arm_retro = retro.get("per_arm") or {}
+        a_retro = per_arm_retro.get("arm-a") or {}
+        b_retro = per_arm_retro.get("arm-b") or {}
+        if (a_retro.get("status") != "scored"
+                or b_retro.get("status") != "scored"):
+            if (a_retro.get("status") == "scored"
+                    or b_retro.get("status") == "scored"):
+                unpaired_dropped += 1
+            continue
+        any_scored = True
+        for arm, arm_retro in (("arm-a", a_retro), ("arm-b", b_retro)):
             summary = arm_retro.get("summary") or {}
-            any_scored = True
             for k in ("landed", "partial", "not_landed", "total"):
                 pooled[arm][k] += int(summary.get(k, 0))
 
@@ -583,6 +607,8 @@ def _per_dim_verdict_plan_quality(
         "signal_type": "retrospective-landing (plan > refined > judgment)",
         "arm-a": pooled["arm-a"],
         "arm-b": pooled["arm-b"],
+        "unpaired_dropped": unpaired_dropped,
+        "no_artifact_count": no_artifact_count,
     }
     if not any_scored:
         out["verdict"] = "not-yet-measured"
@@ -662,13 +688,23 @@ def _per_dim_verdict_miss_rate(
     pooled = {arm: {"caught": 0, "missed": 0, "total": 0}
               for arm in ("arm-a", "arm-b")}
     any_scored = False
+    unpaired_dropped = 0
+    # Fix 1B (must-fix per cross-model review): pair proposals before pooling.
     for scored in all_scored:
-        for arm in ("arm-a", "arm-b"):
-            mr = _arm_dim_data(scored, arm, "miss_rate") or {}
-            rc = mr.get("reference_coverage") or {}
-            if rc.get("status") != "scored":
-                continue
-            any_scored = True
+        a_rc = (
+            (_arm_dim_data(scored, "arm-a", "miss_rate") or {})
+            .get("reference_coverage") or {}
+        )
+        b_rc = (
+            (_arm_dim_data(scored, "arm-b", "miss_rate") or {})
+            .get("reference_coverage") or {}
+        )
+        if a_rc.get("status") != "scored" or b_rc.get("status") != "scored":
+            if a_rc.get("status") == "scored" or b_rc.get("status") == "scored":
+                unpaired_dropped += 1
+            continue
+        any_scored = True
+        for arm, rc in (("arm-a", a_rc), ("arm-b", b_rc)):
             pooled[arm]["caught"] += int(rc.get("caught_count", 0))
             pooled[arm]["missed"] += int(rc.get("missed_count", 0))
             pooled[arm]["total"] += int(rc.get("total_reference_issues", 0))
@@ -678,6 +714,7 @@ def _per_dim_verdict_miss_rate(
         "signal_type": "independent-discoverer + token-coverage matcher",
         "arm-a": pooled["arm-a"],
         "arm-b": pooled["arm-b"],
+        "unpaired_dropped": unpaired_dropped,
     }
     if not any_scored:
         out["verdict"] = "not-yet-measured"
