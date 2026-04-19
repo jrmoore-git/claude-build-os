@@ -1,8 +1,12 @@
-"""Unit tests for scripts/arm_study_verdict.py (Phase 3 decision logic).
+"""Unit tests for scripts/arm_study_verdict.py — per-dimension verdict logic.
 
-Covers the family-exclusion guard, the decision ladder in compute_verdict(),
-and the markdown renderer. Fixture scored-dicts are built with a helper so
-each test only declares the values that matter to that test.
+Covers family-exclusion, catch_rate verifier dim verdict (accuracy +
+hallucination guard + quality-weighted alignment), judge-graded dim verdict
+(weighted substantive score + harmful regression guard), not-yet-measured
+dim stubs, and overall verdict composition.
+
+Fixtures are constructed with a helper so each test declares only the
+values that matter to it.
 """
 
 from __future__ import annotations
@@ -22,29 +26,51 @@ import arm_study_verdict as verdict  # noqa: E402
 # ── Test fixture builder ────────────────────────────────────────────────────
 
 
+def _qdist(substantive=0, marginal=0, superficial=0, harmful=0):
+    return {"substantive": substantive, "marginal": marginal,
+            "superficial": superficial, "harmful": harmful}
+
+
 def _scored(
-    arm_a_verifier: tuple[int, int, int] | None = None,
-    arm_b_verifier: tuple[int, int, int] | None = None,
-    arm_a_substantive: dict[str, tuple[int, int]] | None = None,
-    arm_b_substantive: dict[str, tuple[int, int]] | None = None,
+    catch_rate_verifier: tuple[int, int, int] | None = None,
+    catch_rate_quality: dict[str, int] | None = None,
+    dim_quality: dict[str, dict[str, dict[str, int]]] | None = None,
     judges: list[str] | None = None,
     run_id: str = "test-run",
+    arm_swap: bool = False,
 ) -> dict[str, Any]:
     """Build a minimal scored dict.
 
-    Tuples are (verified, falsified, unresolvable) for verifier stats, and
-    (judge_a_count, judge_b_count) for per-dim substantive counts."""
+    catch_rate_verifier: (verified, falsified, unresolvable) for arm-a; arm-b
+        gets the same tuple unless arm_swap=True.
+    catch_rate_quality: per-arm quality dict {"arm-a": {"substantive": N, ...}}.
+    dim_quality: per-dim per-arm quality dict, e.g.
+        {"direction_improvement": {"arm-a": {"substantive": 3, ...},
+                                   "arm-b": {...}}}.
+    """
     judges = judges or ["gpt-5.4", "gemini-3.1-pro"]
+    ja, jb = judges[0], judges[1]
+    catch_rate_quality = catch_rate_quality or {
+        "arm-a": _qdist(), "arm-b": _qdist(),
+    }
 
-    def _arm(verif, subs):
-        out = {
+    def _build_arm(arm: str):
+        out: dict[str, Any] = {
             "catch_rate": {
-                "substantive_count": {"A": 0, "B": 0},
-                "convergence": {"count_converged": True, "count_delta": 0},
+                "dimension": "catch_rate",
+                "status": "scored",
+                "substantive_count": {ja: catch_rate_quality[arm].get("substantive", 0),
+                                       jb: catch_rate_quality[arm].get("substantive", 0)},
+                "quality_distribution": {
+                    ja: catch_rate_quality[arm],
+                    jb: catch_rate_quality[arm],
+                },
+                "convergence": {"count_converged": True, "count_delta": 0,
+                                "level": "high"},
             }
         }
-        if verif is not None:
-            v, f, u = verif
+        if catch_rate_verifier is not None:
+            v, f, u = catch_rate_verifier
             out["catch_rate"]["verify_claims"] = {
                 "status": "verified",
                 "stats": {
@@ -58,20 +84,22 @@ def _scored(
             out["catch_rate"]["verify_claims"] = {
                 "status": "failed", "stats": None, "error": "test fixture",
             }
-        for dim in verdict.SECONDARY_DIMENSIONS:
-            ja, jb = (subs or {}).get(dim, (0, 0))
+        for dim in verdict.JUDGE_GRADED_DIMS:
+            q = (dim_quality or {}).get(dim, {}).get(arm) or _qdist()
             out[dim] = {
-                "substantive_count": {"A": ja, "B": jb},
-                "convergence": {"count_converged": ja == jb, "count_delta": abs(ja - jb)},
+                "dimension": dim,
+                "status": "scored",
+                "substantive_count": {ja: q.get("substantive", 0),
+                                       jb: q.get("substantive", 0)},
+                "quality_distribution": {ja: q, jb: q},
+                "convergence": {"count_converged": True, "count_delta": 0,
+                                "level": "high"},
             }
         return out
 
     return {
         "metadata": {"judges": judges, "run_id": run_id},
-        "arms": {
-            "arm-a": _arm(arm_a_verifier, arm_a_substantive),
-            "arm-b": _arm(arm_b_verifier, arm_b_substantive),
-        },
+        "arms": {"arm-a": _build_arm("arm-a"), "arm-b": _build_arm("arm-b")},
         "unblinded": True,
     }
 
@@ -103,186 +131,266 @@ def test_dry_run_fixture_passes_family_exclusion():
     assert all(not j.startswith("claude-") for j in out)
 
 
-# ── Decision ladder ─────────────────────────────────────────────────────────
+# ── catch_rate (verifier-grounded) per-dim verdict ──────────────────────────
 
 
-def test_insufficient_sample_below_directional_floor():
-    """n=2 < MIN_SAMPLE_FOR_DIRECTIONAL (3) short-circuits to
-    insufficient-sample regardless of signal quality."""
-    strong_b_win = _scored(
-        arm_a_verifier=(5, 15, 2),
-        arm_b_verifier=(18, 2, 2),
-    )
-    v = verdict.compute_verdict([strong_b_win, strong_b_win])
+def test_catch_rate_inconclusive_when_accuracy_delta_below_floor():
+    # A: 10/15, B: 10/16 — delta ~4pp, below 5pp floor
+    scored = _scored(catch_rate_verifier=(10, 5, 1))
+    v = verdict.compute_verdict([scored] * 3)
+    cr = v["per_dimension_verdicts"]["catch_rate"]
+    assert cr["verdict"] == "inconclusive"
+
+
+def test_catch_rate_regression_blocked_when_winner_hallucinates_more():
+    # B has higher accuracy but higher hallucination rate.
+    scores = []
+    for _ in range(3):
+        s = _scored(catch_rate_verifier=(7, 3, 10))  # arm-a
+        # Override arm-b's verifier stats to show higher accuracy + higher hall
+        s["arms"]["arm-b"]["catch_rate"]["verify_claims"]["stats"] = {
+            "verified": 16, "falsified": 4, "unresolvable": 0,
+            "claims_checked": 20, "model": "claude-sonnet-4-6", "tool_calls": 0,
+        }
+        scores.append(s)
+    v = verdict.compute_verdict(scores)
+    cr = v["per_dimension_verdicts"]["catch_rate"]
+    # Accuracy: A 70% B 80% delta +10pp. Hallucination: A 15% B 20% — B regresses 5pp.
+    assert cr["verdict"] == "regression-blocked"
+    assert cr["primary_winner"] == "arm-b"
+
+
+def test_catch_rate_directional_at_n3_when_clean_signal():
+    scores = []
+    for _ in range(3):
+        s = _scored(
+            catch_rate_verifier=(8, 6, 2),
+            catch_rate_quality={
+                "arm-a": _qdist(substantive=4, marginal=3, superficial=7, harmful=0),
+                "arm-b": _qdist(substantive=6, marginal=5, superficial=2, harmful=0),
+            },
+        )
+        s["arms"]["arm-b"]["catch_rate"]["verify_claims"]["stats"] = {
+            "verified": 14, "falsified": 3, "unresolvable": 2,
+            "claims_checked": 19, "model": "claude-sonnet-4-6", "tool_calls": 0,
+        }
+        scores.append(s)
+    v = verdict.compute_verdict(scores)
+    cr = v["per_dimension_verdicts"]["catch_rate"]
+    assert cr["verdict"] == "directional-favor-arm-b"
+
+
+def test_catch_rate_confident_at_n5():
+    scores = []
+    for _ in range(5):
+        s = _scored(
+            catch_rate_verifier=(8, 6, 2),
+            catch_rate_quality={
+                "arm-a": _qdist(substantive=4, marginal=3, superficial=7, harmful=0),
+                "arm-b": _qdist(substantive=6, marginal=5, superficial=2, harmful=0),
+            },
+        )
+        s["arms"]["arm-b"]["catch_rate"]["verify_claims"]["stats"] = {
+            "verified": 14, "falsified": 3, "unresolvable": 2,
+            "claims_checked": 19, "model": "claude-sonnet-4-6", "tool_calls": 0,
+        }
+        scores.append(s)
+    v = verdict.compute_verdict(scores)
+    cr = v["per_dimension_verdicts"]["catch_rate"]
+    assert cr["verdict"] == "confident-favor-arm-b"
+
+
+def test_catch_rate_mixed_on_quality_when_weighted_accuracy_disagrees():
+    """Arm A has higher raw accuracy but Arm B has higher quality density
+    → B's weighted_accuracy exceeds A's. Mixed-on-quality result."""
+    scores = []
+    for _ in range(3):
+        s = _scored(
+            catch_rate_verifier=(18, 2, 0),  # A: 90% accuracy
+            catch_rate_quality={
+                # A: 100% superficial — weighted accuracy very low
+                "arm-a": _qdist(substantive=0, marginal=0, superficial=20, harmful=0),
+                # B: 100% substantive — weighted accuracy high
+                "arm-b": _qdist(substantive=15, marginal=0, superficial=0, harmful=0),
+            },
+        )
+        # B's raw accuracy: 12/15 = 80% (lower than A's 90%), but density flips.
+        s["arms"]["arm-b"]["catch_rate"]["verify_claims"]["stats"] = {
+            "verified": 12, "falsified": 3, "unresolvable": 0,
+            "claims_checked": 15, "model": "claude-sonnet-4-6", "tool_calls": 0,
+        }
+        scores.append(s)
+    v = verdict.compute_verdict(scores)
+    cr = v["per_dimension_verdicts"]["catch_rate"]
+    # Raw accuracy favors A; weighted favors B → mixed-on-quality
+    assert cr["verdict"] == "mixed-on-quality"
+
+
+def test_catch_rate_not_yet_measured_when_verifier_missing():
+    scored = _scored(catch_rate_verifier=None)
+    v = verdict.compute_verdict([scored] * 3)
+    cr = v["per_dimension_verdicts"]["catch_rate"]
+    assert cr["verdict"] == "not-yet-measured"
+
+
+# ── Judge-graded per-dim verdict ────────────────────────────────────────────
+
+
+def test_judge_graded_dim_directional_at_n3():
+    """Arm B wins direction_improvement by substantive margin."""
+    scores = []
+    for _ in range(3):
+        s = _scored(
+            dim_quality={
+                "direction_improvement": {
+                    "arm-a": _qdist(substantive=2, marginal=3, superficial=2, harmful=0),
+                    "arm-b": _qdist(substantive=6, marginal=4, superficial=1, harmful=0),
+                },
+            },
+        )
+        scores.append(s)
+    v = verdict.compute_verdict(scores)
+    d = v["per_dimension_verdicts"]["direction_improvement"]
+    assert d["verdict"] == "directional-favor-arm-b"
+
+
+def test_judge_graded_dim_inconclusive_when_below_floor():
+    """Tight scores — delta below SUBSTANTIVE_DELTA_MIN."""
+    scores = []
+    for _ in range(3):
+        s = _scored(
+            dim_quality={
+                "direction_improvement": {
+                    "arm-a": _qdist(substantive=2, marginal=2),
+                    "arm-b": _qdist(substantive=2, marginal=3),
+                },
+            },
+        )
+        scores.append(s)
+    v = verdict.compute_verdict(scores)
+    d = v["per_dimension_verdicts"]["direction_improvement"]
+    assert d["verdict"] == "inconclusive"
+
+
+def test_judge_graded_dim_regression_blocked_on_harmful_items():
+    """Arm B wins substantive but has too many harmful items."""
+    scores = []
+    for _ in range(3):
+        s = _scored(
+            dim_quality={
+                "direction_improvement": {
+                    "arm-a": _qdist(substantive=2, marginal=3, harmful=0),
+                    "arm-b": _qdist(substantive=6, marginal=4, harmful=3),
+                },
+            },
+        )
+        scores.append(s)
+    v = verdict.compute_verdict(scores)
+    d = v["per_dimension_verdicts"]["direction_improvement"]
+    assert d["verdict"] == "regression-blocked"
+
+
+# ── Not-yet-measured dims ───────────────────────────────────────────────────
+
+
+def test_not_yet_measured_dims_report_reason():
+    scored = _scored(catch_rate_verifier=(10, 5, 1))
+    v = verdict.compute_verdict([scored] * 3)
+    for dim in verdict.NOT_YET_MEASURED_DIMS:
+        d = v["per_dimension_verdicts"][dim]
+        assert d["verdict"] == "not-yet-measured"
+        assert d["reason"]
+        # Reason references the pending item.
+        assert "item" in d["reason"].lower() or "pending" in d["reason"].lower()
+
+
+# ── Overall composition ────────────────────────────────────────────────────
+
+
+def test_overall_insufficient_sample_at_n_lt_3():
+    scored = _scored(catch_rate_verifier=(18, 2, 0))
+    v = verdict.compute_verdict([scored, scored])
     assert v["verdict"] == "insufficient-sample"
 
 
-def test_evidence_gathering_when_verifier_missing():
-    """Any arm lacking verifier data returns evidence-gathering-only."""
-    a_missing = _scored(arm_a_verifier=None, arm_b_verifier=(10, 5, 2))
-    v = verdict.compute_verdict([a_missing] * 3)
-    assert v["verdict"] == "evidence-gathering-only"
-
-
-def test_inconclusive_when_primary_within_noise_floor():
-    """|accuracy(B)-accuracy(A)| < 5pp → inconclusive."""
-    # 10/15 = 66.7% vs 11/15 = 73.3% — delta 6.6pp > 5pp (need tighter)
-    # 10/15 = 66.7% vs 10/15 + 1 falsified = 10/16 = 62.5% -> delta 4pp < 5pp
-    tight = _scored(
-        arm_a_verifier=(10, 5, 1),   # 10/15 = 66.7% accuracy
-        arm_b_verifier=(10, 6, 1),   # 10/16 = 62.5% accuracy — delta 4.2pp
-    )
-    v = verdict.compute_verdict([tight] * 3)
+def test_overall_inconclusive_when_no_dim_produces_verdict():
+    scored = _scored(catch_rate_verifier=(10, 5, 1))  # within noise
+    v = verdict.compute_verdict([scored] * 3)
     assert v["verdict"] == "inconclusive"
+    assert v["overall"]["a_votes"] == 0
+    assert v["overall"]["b_votes"] == 0
 
 
-def test_regression_blocked_when_primary_winner_hallucinates_more():
-    """Primary winner (B) hallucinates > 2pp more than loser → blocked."""
-    # B has better accuracy but also much higher falsified rate in absolute
-    b_high_hall = _scored(
-        arm_a_verifier=(10, 2, 3),    # 10/12 = 83.3% acc, 2/15 = 13.3% hall
-        arm_b_verifier=(15, 5, 0),    # 15/20 = 75% acc, 5/20 = 25% hall
-                                       # NOTE: A has better accuracy here.
-    )
-    # Want B-winner with hallucination regression — flip:
-    b_wins_but_regresses = _scored(
-        arm_a_verifier=(10, 4, 2),    # 10/14 = 71.4% acc, 4/16 = 25% hall
-        arm_b_verifier=(20, 4, 2),    # 20/24 = 83.3% acc, 4/26 = 15.4% hall
-                                       # B better on both — does NOT regress.
-    )
-    # Correct regression scenario: both arms same hallucination denominator
-    regression = _scored(
-        arm_a_verifier=(7, 3, 10),    # 7/10 = 70% acc, 3/20 = 15% hall
-        arm_b_verifier=(16, 4, 0),    # 16/20 = 80% acc, 4/20 = 20% hall
-    )                                  # B wins accuracy +10pp, hallucinates +5pp
-    v = verdict.compute_verdict([regression] * 3)
-    assert v["verdict"] == "regression-blocked"
-    assert v["primary_winner"] == "arm-b"
-
-
-def test_directional_favor_arm_b_at_n3():
-    """Primary + secondary agree, hallucination fine, n=3 → directional."""
-    clear_b_win = _scored(
-        arm_a_verifier=(8, 6, 2),     # 8/14 = 57% acc, 6/16 = 38% hall
-        arm_b_verifier=(14, 3, 2),    # 14/17 = 82% acc, 3/19 = 16% hall
-        arm_a_substantive={
-            "direction_improvement": (4, 2),
-            "nuance_caught": (3, 2),
-            "net_new_ideas": (2, 1),
-        },
-        arm_b_substantive={
-            "direction_improvement": (6, 5),
-            "nuance_caught": (5, 4),
-            "net_new_ideas": (4, 3),
-        },
-    )
-    v = verdict.compute_verdict([clear_b_win] * 3)
-    assert v["verdict"] == "directional-favor-arm-b"
-    assert v["primary_winner"] == "arm-b"
-
-
-def test_confident_favor_arm_b_at_n5():
-    """Same signal at n=5 → confident-favor-arm-b."""
-    clear_b_win = _scored(
-        arm_a_verifier=(8, 6, 2),
-        arm_b_verifier=(14, 3, 2),
-        arm_a_substantive={
-            "direction_improvement": (4, 2),
-            "nuance_caught": (3, 2),
-            "net_new_ideas": (2, 1),
-        },
-        arm_b_substantive={
-            "direction_improvement": (6, 5),
-            "nuance_caught": (5, 4),
-            "net_new_ideas": (4, 3),
-        },
-    )
-    v = verdict.compute_verdict([clear_b_win] * 5)
-    assert v["verdict"] == "confident-favor-arm-b"
-
-
-def test_mixed_directional_when_primary_and_secondary_disagree():
-    """B wins verifier accuracy, A wins substantive-count majority → mixed."""
-    mixed = _scored(
-        arm_a_verifier=(8, 6, 2),     # 57% acc
-        arm_b_verifier=(14, 3, 2),    # 82% acc — B wins primary +25pp
-        arm_a_substantive={
-            "direction_improvement": (8, 6),  # A leads
-            "nuance_caught": (7, 5),          # A leads
-            "net_new_ideas": (6, 4),          # A leads
-        },
-        arm_b_substantive={
-            "direction_improvement": (3, 2),
-            "nuance_caught": (2, 1),
-            "net_new_ideas": (2, 1),
-        },
-    )
-    v = verdict.compute_verdict([mixed] * 3)
+def test_overall_mixed_when_dims_split():
+    """B wins catch_rate, A wins a judge-graded dim."""
+    scores = []
+    for _ in range(3):
+        s = _scored(
+            catch_rate_verifier=(8, 6, 2),
+            catch_rate_quality={
+                "arm-a": _qdist(substantive=3, marginal=3, superficial=2),
+                "arm-b": _qdist(substantive=6, marginal=5, superficial=1),
+            },
+            dim_quality={
+                "direction_improvement": {
+                    "arm-a": _qdist(substantive=6, marginal=4),  # A wins
+                    "arm-b": _qdist(substantive=2, marginal=2),
+                },
+            },
+        )
+        s["arms"]["arm-b"]["catch_rate"]["verify_claims"]["stats"] = {
+            "verified": 14, "falsified": 3, "unresolvable": 2,
+            "claims_checked": 19, "model": "claude-sonnet-4-6", "tool_calls": 0,
+        }
+        scores.append(s)
+    v = verdict.compute_verdict(scores)
     assert v["verdict"] == "mixed-directional"
-    assert v["primary_winner"] == "arm-b"
-    assert v["secondary_winner"] == "arm-a"
+    assert v["overall"]["a_votes"] >= 1
+    assert v["overall"]["b_votes"] >= 1
 
 
-def test_volume_winner_loses_to_substantive_winner():
-    """The user's volume-gaming check: Arm A extracts 30 claims with 10
-    verified / 20 unresolvable (loose claims); Arm B extracts 10 claims with
-    9 verified / 1 falsified. Accuracy ratio decides, not raw count."""
-    substance_beats_volume = _scored(
-        arm_a_verifier=(10, 0, 20),   # 10/10 = 100% acc — but only 10 actual
-        arm_b_verifier=(9, 1, 0),     # 9/10 = 90% acc
-    )
-    # Hmm — A actually wins accuracy here. Flip the scenario:
-    # Substance beats volume via hallucination guard:
-    volume_gamer = _scored(
-        arm_a_verifier=(10, 15, 5),   # 10/25 = 40% acc, huge volume but half wrong
-        arm_b_verifier=(9, 1, 0),     # 9/10 = 90% acc — substance wins big
-        arm_b_substantive={
-            "direction_improvement": (3, 2),
-            "nuance_caught": (2, 1),
-            "net_new_ideas": (2, 1),
-        },
-    )
-    v = verdict.compute_verdict([volume_gamer] * 3)
+def test_overall_directional_when_all_voting_dims_agree():
+    """Arm B wins catch_rate AND direction_improvement; others inconclusive."""
+    scores = []
+    for _ in range(3):
+        s = _scored(
+            catch_rate_verifier=(8, 6, 2),
+            catch_rate_quality={
+                "arm-a": _qdist(substantive=3, marginal=3, superficial=2),
+                "arm-b": _qdist(substantive=6, marginal=5, superficial=1),
+            },
+            dim_quality={
+                "direction_improvement": {
+                    "arm-a": _qdist(substantive=2, marginal=2),
+                    "arm-b": _qdist(substantive=6, marginal=4),
+                },
+            },
+        )
+        s["arms"]["arm-b"]["catch_rate"]["verify_claims"]["stats"] = {
+            "verified": 14, "falsified": 3, "unresolvable": 2,
+            "claims_checked": 19, "model": "claude-sonnet-4-6", "tool_calls": 0,
+        }
+        scores.append(s)
+    v = verdict.compute_verdict(scores)
     assert v["verdict"] == "directional-favor-arm-b"
+    assert v["overall"]["b_votes"] >= 2
+    assert v["overall"]["a_votes"] == 0
 
 
-def test_convergence_is_advisory_not_blocking():
-    """Wide judge count divergence does NOT block a clean verdict per D40."""
-    clear_b_win = _scored(
-        arm_a_verifier=(8, 6, 2),
-        arm_b_verifier=(14, 3, 2),
-        arm_a_substantive={
-            "direction_improvement": (20, 2),  # gpt-5.4 extracts 10x more
-            "nuance_caught": (15, 1),
-            "net_new_ideas": (10, 1),
-        },
-        arm_b_substantive={
-            "direction_improvement": (30, 3),
-            "nuance_caught": (20, 2),
-            "net_new_ideas": (15, 2),
-        },
-    )
-    v = verdict.compute_verdict([clear_b_win] * 3)
-    # Verdict should still promote despite wide per-judge divergence.
-    assert v["verdict"] == "directional-favor-arm-b"
-    # But the convergence note should reflect the divergence.
-    conv = v["convergence"]
-    assert conv["dims_converged"] < conv["dims_total"]
+# ── Rendering ──────────────────────────────────────────────────────────────
 
 
-# ── Output shape ────────────────────────────────────────────────────────────
+def test_render_markdown_includes_all_seven_dims():
+    scores = [_scored(catch_rate_verifier=(10, 5, 1))] * 3
+    v = verdict.compute_verdict(scores)
+    md = verdict.render_markdown(v, scores)
+    for dim in verdict.ALL_REPORTED_DIMS:
+        assert dim in md
 
 
-def test_render_markdown_contains_verdict_and_primary_table():
-    scored_list = [verdict._dry_run_scored_fixture()] * 3
-    v = verdict.compute_verdict(scored_list)
-    md = verdict.render_markdown(v, scored_list)
-    assert v["verdict"] in md
-    assert "Primary signal" in md
-    assert "verifier accuracy" in md
-
-
-def test_render_markdown_with_empty_scored_still_emits_frontmatter():
-    v = {"verdict": "insufficient-sample", "reason": "test", "n_proposals": 0}
+def test_render_markdown_renders_with_empty_input():
+    v = {"verdict": "insufficient-sample", "reason": "test", "n_proposals": 0,
+         "per_dimension_verdicts": {}, "decision_thresholds": {},
+         "overall": {}}
     md = verdict.render_markdown(v, [])
     assert "insufficient-sample" in md

@@ -1,31 +1,37 @@
 #!/usr/bin/env python3.11
 """
-Arm-comparison study verdict (Phase 3).
+Arm-comparison study verdict (Phase 3, refined per user feedback to surface
+all 7 dimensions and granularity-weight the per-dim signals).
 
-Aggregates scored outputs from arm_study_scorer.py across N proposals and
-emits a verdict dict + markdown summary.
+Reads scorer output (from arm_study_scorer.py) across N proposals and emits
+a verdict that includes a PER-DIMENSION primary verdict for each scorable
+dimension, plus an overall verdict that combines them.
 
-Per D40 the primary trust metric is verifier accuracy on catch_rate:
-`verified / (verified + falsified)`. The hallucination guardrail is the
-falsified rate. Judge-count convergence is advisory only; substantive-count
-per arm (mean across non-Claude judges per dimension, summed across
-non-ground-truth dimensions) is the secondary signal.
+Design (supersedes the single-primary accuracy-only framing of the earlier
+commit):
 
-Decision ladder (first matching rule wins):
+- catch_rate (Dim 4) is verifier-grounded. Primary signal per arm is
+  quality-weighted accuracy: verifier accuracy × judge-rated quality
+  density. Hallucination rate is a guardrail.
+- direction_improvement (Dim 1), nuance_caught (Dim 2), net_new_ideas
+  (Dim 3) are judge-graded. Primary signal per arm per dim is
+  quality-weighted substantive score:
+      substantive*3 + marginal*1 + superficial*0.5 + harmful*(-1)
+  summed across proposals, mean across non-Claude judges. Convergence
+  is advisory, not a gate (D40).
+- miss_rate (Dim 5), plan_quality_delta (Dim 6), code_review_quality_delta
+  (Dim 7) are not yet fully wired. Dim 5 requires an independent
+  issue-discoverer (item 5 in the metric-fix plan); Dim 6/7 require a
+  retrospective scorer reading downstream artifacts (item 6). Verdict
+  reports "not-yet-measured" for each and the reason.
 
-  - n < MIN_SAMPLE_FOR_DIRECTIONAL (3)           -> insufficient-sample
-  - any arm missing verifier data                -> evidence-gathering-only
-  - |accuracy(B) - accuracy(A)| < 5pp            -> inconclusive
-  - primary winner regresses hallucination > 2pp -> regression-blocked
-  - primary + secondary disagree                 -> mixed-directional
-  - primary + secondary agree, n < 5             -> directional-favor-<arm>
-  - primary + secondary agree, n >= 5            -> confident-favor-<arm>
+Overall verdict composes the per-dim verdicts. A scorable dim contributes
+only if its own verdict is directional-favor-<arm> or
+confident-favor-<arm>. Inconclusive, not-yet-measured, and
+regression-blocked dims do not vote.
 
-Any non-default verdict still surfaces every signal value so the reader can
-audit the conclusion.
-
-See tasks/decisions.md D40 for the methodology shift that motivates the
-accuracy-first framing.
+See tasks/decisions.md D40 for methodology framing, and D41 (this commit)
+for the per-dim promotion + quality-weighting shift.
 """
 
 from __future__ import annotations
@@ -39,23 +45,44 @@ from typing import Any
 REPO_ROOT = Path(__file__).resolve().parent.parent
 DEFAULT_STORE = REPO_ROOT / "stores" / "arm-study"
 
-# Thresholds are module-level for auditability + test access.
-PRIMARY_ACCURACY_DELTA_PP = 0.05  # 5pp accuracy gap needed to call a winner
-HALLUCINATION_GUARDRAIL_PP = 0.02  # primary winner must not regress > 2pp
+# ── Thresholds (module-level for auditability + test access) ────────────────
+
+PRIMARY_ACCURACY_DELTA_PP = 0.05
+HALLUCINATION_GUARDRAIL_PP = 0.02
+# Substantive-score threshold for per-dim winner. Absolute scale: weighted
+# score uses substantive*3 + marginal*1 + superficial*0.5 + harmful*(-1).
+# At n=3 with typical 3-10 items per dim per arm per proposal, totals land
+# around 15-50. A delta of 5 corresponds to ~1 substantive item's worth of
+# signal averaged across proposals — tight enough to reject noise, loose
+# enough to call a real 2-3 substantive-item gap.
+SUBSTANTIVE_DELTA_MIN = 5.0
+# Quality-density regression guardrail. If arm X wins substantive score but
+# has more harmful items (absolute count), block promotion.
+HARMFUL_REGRESSION_ABSOLUTE_MAX = 2
 MIN_SAMPLE_FOR_DIRECTIONAL = 3
 MIN_SAMPLE_FOR_CONFIDENT = 5
 
-# Dimensions the verifier grounds directly (catch_rate) + active judge-only
-# dims used for the secondary substantive-count signal. Dim 6/7 are
-# retrospective-only per the plan and skipped unless scorable. miss_rate
-# is ground-truth but produces 0/0 unless the review explicitly names gaps
-# — excluded from secondary since it's usually empty.
-ACCURACY_DIMENSION = "catch_rate"
-SECONDARY_DIMENSIONS = (
+# Quality weights. substantive is the load-bearing class; marginal is
+# directionally useful; superficial is filler; harmful actively subtracts.
+QUALITY_WEIGHTS = {
+    "substantive": 3.0,
+    "marginal": 1.0,
+    "superficial": 0.5,
+    "harmful": -1.0,
+}
+
+GROUND_TRUTH_DIM = "catch_rate"
+JUDGE_GRADED_DIMS = (
     "direction_improvement",
     "nuance_caught",
     "net_new_ideas",
 )
+NOT_YET_MEASURED_DIMS = (
+    "miss_rate",
+    "plan_quality_delta",
+    "code_review_quality_delta",
+)
+ALL_REPORTED_DIMS = (GROUND_TRUTH_DIM,) + JUDGE_GRADED_DIMS + NOT_YET_MEASURED_DIMS
 
 
 # ── Family exclusion (same rule as scorer) ─────────────────────────────────
@@ -80,14 +107,92 @@ def enforce_non_claude_from_scored(scored: dict[str, Any]) -> list[str]:
     return list(judges)
 
 
-# ── Aggregation helpers ────────────────────────────────────────────────────
+# ── Quality-weighted helpers ───────────────────────────────────────────────
+
+
+def _arm_dim_data(scored: dict[str, Any], arm: str, dim: str) -> dict[str, Any]:
+    return (scored.get("arms", {}).get(arm) or {}).get(dim) or {}
+
+
+def _weighted_dim_score(dim_data: dict[str, Any]) -> float | None:
+    """Mean weighted score across judges for one dim. Uses per-judge
+    quality_distribution. None if the dim is not_scorable."""
+    qd = dim_data.get("quality_distribution")
+    if not isinstance(qd, dict) or not qd:
+        return None
+    per_judge_scores = []
+    for _, counts in qd.items():
+        if not isinstance(counts, dict):
+            continue
+        score = sum(
+            int(counts.get(cat, 0)) * QUALITY_WEIGHTS[cat]
+            for cat in QUALITY_WEIGHTS
+        )
+        per_judge_scores.append(score)
+    if not per_judge_scores:
+        return None
+    return sum(per_judge_scores) / len(per_judge_scores)
+
+
+def _dim_harmful_total(dim_data: dict[str, Any]) -> int:
+    """Sum of harmful items across judges (max-upper-bound, not mean, to keep
+    the guardrail conservative — if any judge saw harmful items, count them)."""
+    qd = dim_data.get("quality_distribution")
+    if not isinstance(qd, dict) or not qd:
+        return 0
+    return max(
+        (int(counts.get("harmful", 0)) for counts in qd.values()
+         if isinstance(counts, dict)),
+        default=0,
+    )
+
+
+def _arm_dim_quality_distribution(dim_data: dict[str, Any]) -> dict[str, float]:
+    """Mean per-category counts across judges for one dim."""
+    qd = dim_data.get("quality_distribution")
+    if not isinstance(qd, dict) or not qd:
+        return {cat: 0.0 for cat in QUALITY_WEIGHTS}
+    out: dict[str, float] = {cat: 0.0 for cat in QUALITY_WEIGHTS}
+    n = 0
+    for _, counts in qd.items():
+        if not isinstance(counts, dict):
+            continue
+        for cat in QUALITY_WEIGHTS:
+            out[cat] += int(counts.get(cat, 0))
+        n += 1
+    if n > 0:
+        out = {cat: v / n for cat, v in out.items()}
+    return out
+
+
+def _sum_dim_distribution(
+    all_scored: list[dict[str, Any]], arm: str, dim: str,
+) -> dict[str, float]:
+    """Sum mean-across-judges quality distribution across proposals for one
+    (arm, dim) pair."""
+    out = {cat: 0.0 for cat in QUALITY_WEIGHTS}
+    for scored in all_scored:
+        dim_data = _arm_dim_data(scored, arm, dim)
+        dist = _arm_dim_quality_distribution(dim_data)
+        for cat in QUALITY_WEIGHTS:
+            out[cat] += dist.get(cat, 0.0)
+    return out
+
+
+def _quality_density(dist: dict[str, float]) -> float | None:
+    """(substantive + marginal) / total items. None if total is 0."""
+    total = sum(dist.values())
+    if total <= 0:
+        return None
+    return (dist.get("substantive", 0.0) + dist.get("marginal", 0.0)) / total
+
+
+# ── Verifier-grounded dim verdict (catch_rate) ──────────────────────────────
 
 
 def _arm_verifier_stats(scored: dict[str, Any], arm: str) -> dict[str, int] | None:
-    """Return verifier stats for one arm, or None if unavailable."""
-    arm_data = scored.get("arms", {}).get(arm) or {}
-    dim = arm_data.get(ACCURACY_DIMENSION) or {}
-    vc = dim.get("verify_claims") or {}
+    """Return verifier stats for one arm's catch_rate, or None if unavailable."""
+    vc = (_arm_dim_data(scored, arm, GROUND_TRUTH_DIM) or {}).get("verify_claims") or {}
     if vc.get("status") != "verified":
         return None
     stats = vc.get("stats") or {}
@@ -97,13 +202,14 @@ def _arm_verifier_stats(scored: dict[str, Any], arm: str) -> dict[str, int] | No
     return {k: int(stats[k]) for k in required}
 
 
-def _aggregate_accuracy(all_scored: list[dict[str, Any]]) -> dict[str, Any]:
-    """Pool verifier stats across proposals, per arm. Accuracy excludes
-    unresolvable; hallucination is falsified / claims_checked."""
-    pooled = {"arm-a": {"verified": 0, "falsified": 0, "unresolvable": 0,
-                        "claims_checked": 0, "missing": 0},
-              "arm-b": {"verified": 0, "falsified": 0, "unresolvable": 0,
-                        "claims_checked": 0, "missing": 0}}
+def _aggregate_verifier(all_scored: list[dict[str, Any]]) -> dict[str, Any]:
+    """Pool verifier stats across proposals, per arm, plus weighted accuracy
+    using the judge-rated quality density on catch_rate items."""
+    pooled = {
+        arm: {"verified": 0, "falsified": 0, "unresolvable": 0,
+              "claims_checked": 0, "missing": 0}
+        for arm in ("arm-a", "arm-b")
+    }
     for scored in all_scored:
         for arm in ("arm-a", "arm-b"):
             stats = _arm_verifier_stats(scored, arm)
@@ -113,88 +219,257 @@ def _aggregate_accuracy(all_scored: list[dict[str, Any]]) -> dict[str, Any]:
             for k in ("verified", "falsified", "unresolvable", "claims_checked"):
                 pooled[arm][k] += stats[k]
 
-    def _rates(p: dict[str, int]) -> dict[str, float | None]:
+    out: dict[str, Any] = {}
+    for arm in ("arm-a", "arm-b"):
+        p = pooled[arm]
         denom_acc = p["verified"] + p["falsified"]
         denom_hall = p["claims_checked"]
-        return {
-            "accuracy": (p["verified"] / denom_acc) if denom_acc > 0 else None,
-            "hallucination_rate": (p["falsified"] / denom_hall) if denom_hall > 0 else None,
-            "unresolvable_rate": (p["unresolvable"] / denom_hall) if denom_hall > 0 else None,
+        accuracy = (p["verified"] / denom_acc) if denom_acc > 0 else None
+        hallucination = (p["falsified"] / denom_hall) if denom_hall > 0 else None
+
+        # Quality density on catch_rate items (judge-rated).
+        catch_rate_dist = _sum_dim_distribution(all_scored, arm, GROUND_TRUTH_DIM)
+        density = _quality_density(catch_rate_dist)
+        weighted_accuracy = (
+            accuracy * density if accuracy is not None and density is not None
+            else None
+        )
+
+        out[arm] = {
+            **p,
+            "accuracy": accuracy,
+            "hallucination_rate": hallucination,
+            "unresolvable_rate": (
+                p["unresolvable"] / denom_hall if denom_hall > 0 else None
+            ),
+            "quality_density": density,
+            "weighted_accuracy": weighted_accuracy,
+            "quality_distribution_sum": catch_rate_dist,
         }
+    return out
 
+
+def _per_dim_verdict_verifier(
+    all_scored: list[dict[str, Any]],
+    verifier_agg: dict[str, Any],
+    n: int,
+) -> dict[str, Any]:
+    """Compute the catch_rate verdict using verifier accuracy + hallucination
+    guard + quality-weighted accuracy alignment."""
+    a = verifier_agg["arm-a"]
+    b = verifier_agg["arm-b"]
+    out: dict[str, Any] = {
+        "dimension": GROUND_TRUTH_DIM,
+        "signal_type": "verifier-grounded + quality-weighted",
+        "arm-a": {k: a[k] for k in
+                  ("verified", "falsified", "unresolvable", "claims_checked",
+                   "accuracy", "hallucination_rate", "quality_density",
+                   "weighted_accuracy", "quality_distribution_sum")},
+        "arm-b": {k: b[k] for k in
+                  ("verified", "falsified", "unresolvable", "claims_checked",
+                   "accuracy", "hallucination_rate", "quality_density",
+                   "weighted_accuracy", "quality_distribution_sum")},
+    }
+
+    if a["accuracy"] is None or b["accuracy"] is None:
+        out["verdict"] = "not-yet-measured"
+        out["reason"] = "verifier accuracy missing on one or both arms"
+        return out
+
+    delta = b["accuracy"] - a["accuracy"]
+    out["delta_pp"] = delta
+
+    if abs(delta) < PRIMARY_ACCURACY_DELTA_PP:
+        out["verdict"] = "inconclusive"
+        out["reason"] = (
+            f"accuracy delta {delta*100:+.1f}pp within "
+            f"±{PRIMARY_ACCURACY_DELTA_PP*100:.0f}pp noise floor"
+        )
+        return out
+
+    winner = "arm-b" if delta > 0 else "arm-a"
+    loser = "arm-a" if winner == "arm-b" else "arm-b"
+    hall_winner = verifier_agg[winner]["hallucination_rate"]
+    hall_loser = verifier_agg[loser]["hallucination_rate"]
+    if hall_winner is not None and hall_loser is not None:
+        if hall_winner - hall_loser > HALLUCINATION_GUARDRAIL_PP:
+            out["verdict"] = "regression-blocked"
+            out["reason"] = (
+                f"primary winner ({winner}) hallucinates "
+                f"{(hall_winner - hall_loser)*100:+.1f}pp more than {loser}; "
+                f"guardrail blocks promotion"
+            )
+            out["primary_winner"] = winner
+            return out
+
+    # Quality-weighted accuracy alignment: the winner should still win on
+    # weighted accuracy (accuracy × quality density). If unweighted favors
+    # one arm and weighted favors the other, the raw accuracy was carried by
+    # low-density items — downgrade to mixed.
+    wa_a = verifier_agg["arm-a"]["weighted_accuracy"]
+    wa_b = verifier_agg["arm-b"]["weighted_accuracy"]
+    if wa_a is not None and wa_b is not None:
+        weighted_winner = "arm-b" if wa_b > wa_a else "arm-a"
+        if weighted_winner != winner:
+            out["verdict"] = "mixed-on-quality"
+            out["reason"] = (
+                f"unweighted accuracy favors {winner} but "
+                f"quality-weighted accuracy favors {weighted_winner}; "
+                f"raw accuracy relied on low-density items"
+            )
+            out["primary_winner"] = winner
+            out["weighted_winner"] = weighted_winner
+            return out
+
+    label = f"directional-favor-{winner}" if n < MIN_SAMPLE_FOR_CONFIDENT \
+        else f"confident-favor-{winner}"
+    out["verdict"] = label
+    out["reason"] = (
+        f"accuracy delta {delta*100:+.1f}pp, "
+        f"hallucination guardrail passes, weighted accuracy aligns, n={n}"
+    )
+    out["primary_winner"] = winner
+    return out
+
+
+# ── Judge-graded dim verdict ────────────────────────────────────────────────
+
+
+def _aggregate_judge_dim(
+    all_scored: list[dict[str, Any]], dim: str,
+) -> dict[str, Any]:
+    """Aggregate a judge-graded dim across proposals + judges."""
+    per_arm: dict[str, dict[str, Any]] = {}
+    for arm in ("arm-a", "arm-b"):
+        weighted_scores: list[float] = []
+        harmful_totals: list[int] = []
+        distribution = {cat: 0.0 for cat in QUALITY_WEIGHTS}
+        n_scored = 0
+        for scored in all_scored:
+            dim_data = _arm_dim_data(scored, arm, dim)
+            ws = _weighted_dim_score(dim_data)
+            if ws is None:
+                continue
+            weighted_scores.append(ws)
+            harmful_totals.append(_dim_harmful_total(dim_data))
+            dist = _arm_dim_quality_distribution(dim_data)
+            for cat in QUALITY_WEIGHTS:
+                distribution[cat] += dist.get(cat, 0.0)
+            n_scored += 1
+        density = _quality_density(distribution)
+        per_arm[arm] = {
+            "weighted_score_total": sum(weighted_scores),
+            "weighted_score_mean": (
+                sum(weighted_scores) / len(weighted_scores)
+                if weighted_scores else None
+            ),
+            "harmful_total": sum(harmful_totals),
+            "quality_distribution_sum": distribution,
+            "quality_density": density,
+            "n_scored": n_scored,
+        }
+    return per_arm
+
+
+def _per_dim_verdict_judge_graded(
+    all_scored: list[dict[str, Any]],
+    dim: str,
+    n: int,
+) -> dict[str, Any]:
+    agg = _aggregate_judge_dim(all_scored, dim)
+    out: dict[str, Any] = {
+        "dimension": dim,
+        "signal_type": "judge-graded quality-weighted substantive score",
+        "arm-a": agg["arm-a"],
+        "arm-b": agg["arm-b"],
+    }
+    a = agg["arm-a"]
+    b = agg["arm-b"]
+    if a["n_scored"] == 0 or b["n_scored"] == 0:
+        out["verdict"] = "not-yet-measured"
+        out["reason"] = "no scorable data for this dimension"
+        return out
+
+    delta = b["weighted_score_total"] - a["weighted_score_total"]
+    out["delta"] = delta
+
+    if abs(delta) < SUBSTANTIVE_DELTA_MIN:
+        out["verdict"] = "inconclusive"
+        out["reason"] = (
+            f"weighted-score delta {delta:+.1f} within "
+            f"±{SUBSTANTIVE_DELTA_MIN} noise floor"
+        )
+        return out
+
+    winner = "arm-b" if delta > 0 else "arm-a"
+    winner_agg = agg[winner]
+    loser_agg = agg["arm-a" if winner == "arm-b" else "arm-b"]
+
+    # Harmful-item regression guard.
+    if winner_agg["harmful_total"] > loser_agg["harmful_total"] \
+            and winner_agg["harmful_total"] >= HARMFUL_REGRESSION_ABSOLUTE_MAX:
+        out["verdict"] = "regression-blocked"
+        out["reason"] = (
+            f"primary winner ({winner}) has {winner_agg['harmful_total']} "
+            f"harmful items vs loser's {loser_agg['harmful_total']}; "
+            f"guardrail blocks promotion"
+        )
+        out["primary_winner"] = winner
+        return out
+
+    label = f"directional-favor-{winner}" if n < MIN_SAMPLE_FOR_CONFIDENT \
+        else f"confident-favor-{winner}"
+    out["verdict"] = label
+    out["reason"] = (
+        f"weighted-score delta {delta:+.1f} clears ±{SUBSTANTIVE_DELTA_MIN}, "
+        f"no harmful regression, n={n}"
+    )
+    out["primary_winner"] = winner
+    return out
+
+
+# ── Not-yet-measured dim stubs ──────────────────────────────────────────────
+
+
+_NOT_YET_MEASURED_REASON = {
+    "miss_rate": (
+        "Dim 5 requires independent issue-discoverer "
+        "(pending: item 5 of metric-fix plan — reads proposal + code, emits "
+        "reference issue list, diffs against challenger output)"
+    ),
+    "plan_quality_delta": (
+        "Dim 6 requires retrospective scorer reading downstream plan artifact "
+        "(pending: item 6 of metric-fix plan)"
+    ),
+    "code_review_quality_delta": (
+        "Dim 7 requires retrospective scorer reading downstream code artifact "
+        "(pending: item 6 of metric-fix plan)"
+    ),
+}
+
+
+def _per_dim_verdict_not_yet_measured(dim: str) -> dict[str, Any]:
     return {
-        "arm-a": {**pooled["arm-a"], **_rates(pooled["arm-a"])},
-        "arm-b": {**pooled["arm-b"], **_rates(pooled["arm-b"])},
+        "dimension": dim,
+        "signal_type": "not-yet-wired",
+        "verdict": "not-yet-measured",
+        "reason": _NOT_YET_MEASURED_REASON.get(dim, "dimension not yet implemented"),
     }
 
 
-def _dim_mean_substantive(dim_data: dict[str, Any]) -> float | None:
-    """Mean substantive-count across judges for one dim. Mean over n=2 is
-    the median at n=2 and is stable under judge-label swap. None if the
-    dim is not scorable or has no substantive_count."""
-    sub = dim_data.get("substantive_count")
-    if not isinstance(sub, dict) or not sub:
-        return None
-    vals = [v for v in sub.values() if isinstance(v, (int, float))]
-    if not vals:
-        return None
-    return sum(vals) / len(vals)
-
-
-def _aggregate_substantive(all_scored: list[dict[str, Any]]) -> dict[str, Any]:
-    """Sum mean-across-judges substantive counts across proposals for each
-    secondary dimension. Returns per-dim deltas (B-A) plus an aggregate
-    (how many dims Arm B wins)."""
-    per_dim: dict[str, dict[str, float]] = {
-        dim: {"arm-a": 0.0, "arm-b": 0.0, "n_scored": 0}
-        for dim in SECONDARY_DIMENSIONS
-    }
-    for scored in all_scored:
-        for arm in ("arm-a", "arm-b"):
-            arm_data = scored.get("arms", {}).get(arm) or {}
-            for dim in SECONDARY_DIMENSIONS:
-                mean = _dim_mean_substantive(arm_data.get(dim, {}))
-                if mean is None:
-                    continue
-                per_dim[dim][arm] += mean
-                if arm == "arm-a":
-                    per_dim[dim]["n_scored"] += 1  # count once per proposal
-
-    dim_winners = {}
-    for dim, totals in per_dim.items():
-        delta = totals["arm-b"] - totals["arm-a"]
-        if delta > 0:
-            dim_winners[dim] = "arm-b"
-        elif delta < 0:
-            dim_winners[dim] = "arm-a"
-        else:
-            dim_winners[dim] = "tie"
-
-    b_wins = sum(1 for w in dim_winners.values() if w == "arm-b")
-    a_wins = sum(1 for w in dim_winners.values() if w == "arm-a")
-    return {
-        "per_dim_totals": per_dim,
-        "per_dim_winners": dim_winners,
-        "b_dim_wins": b_wins,
-        "a_dim_wins": a_wins,
-        "majority_winner": (
-            "arm-b" if b_wins > a_wins else
-            "arm-a" if a_wins > b_wins else "tie"
-        ),
-    }
+# ── Advisory convergence note ───────────────────────────────────────────────
 
 
 def _convergence_note(all_scored: list[dict[str, Any]]) -> dict[str, Any]:
-    """D40 demoted convergence to advisory. Summarize it so the markdown
-    can surface the noise level without gating on it."""
+    """D40 demoted convergence to advisory. Summarize it so the markdown can
+    surface the noise level without gating on it."""
     count_converged = 0
     count_total = 0
     deltas = []
     for scored in all_scored:
         for arm in ("arm-a", "arm-b"):
-            arm_data = scored.get("arms", {}).get(arm) or {}
-            for dim in (ACCURACY_DIMENSION,) + SECONDARY_DIMENSIONS:
-                conv = (arm_data.get(dim) or {}).get("convergence") or {}
+            for dim in (GROUND_TRUTH_DIM,) + JUDGE_GRADED_DIMS:
+                conv = (_arm_dim_data(scored, arm, dim) or {}).get("convergence") or {}
                 if "count_converged" in conv:
                     count_total += 1
                     if conv["count_converged"]:
@@ -212,127 +487,132 @@ def _convergence_note(all_scored: list[dict[str, Any]]) -> dict[str, Any]:
     }
 
 
-# ── Decision rule ──────────────────────────────────────────────────────────
+# ── Overall verdict composition ─────────────────────────────────────────────
+
+
+def _compose_overall_verdict(
+    per_dim: dict[str, dict[str, Any]],
+    n: int,
+) -> dict[str, Any]:
+    """Compose overall verdict from per-dim verdicts. A dim votes only if its
+    verdict is directional-favor-<arm> or confident-favor-<arm>. Everything
+    else abstains (inconclusive, regression-blocked, not-yet-measured,
+    mixed-on-quality)."""
+    a_votes = 0
+    b_votes = 0
+    abstaining = []
+    for dim, v in per_dim.items():
+        verdict = v.get("verdict", "")
+        if verdict.endswith("arm-a"):
+            a_votes += 1
+        elif verdict.endswith("arm-b"):
+            b_votes += 1
+        else:
+            abstaining.append((dim, verdict))
+
+    if n < MIN_SAMPLE_FOR_DIRECTIONAL:
+        return {
+            "verdict": "insufficient-sample",
+            "reason": f"n={n} < {MIN_SAMPLE_FOR_DIRECTIONAL}",
+            "a_votes": a_votes, "b_votes": b_votes,
+            "abstaining_dims": abstaining,
+        }
+    if a_votes == 0 and b_votes == 0:
+        return {
+            "verdict": "inconclusive",
+            "reason": "no dimension produced a directional-or-stronger signal",
+            "a_votes": 0, "b_votes": 0,
+            "abstaining_dims": abstaining,
+        }
+    if a_votes > 0 and b_votes > 0:
+        return {
+            "verdict": "mixed-directional",
+            "reason": (
+                f"{b_votes} dim(s) favor arm-b, {a_votes} dim(s) favor arm-a; "
+                f"signals split"
+            ),
+            "a_votes": a_votes, "b_votes": b_votes,
+            "abstaining_dims": abstaining,
+        }
+    winner = "arm-b" if b_votes > a_votes else "arm-a"
+    votes = max(a_votes, b_votes)
+    strength = "confident" if n >= MIN_SAMPLE_FOR_CONFIDENT else "directional"
+    return {
+        "verdict": f"{strength}-favor-{winner}",
+        "reason": (
+            f"{votes} dim(s) favor {winner}, 0 oppose; "
+            f"{len(abstaining)} abstain (inconclusive / not-yet-measured / "
+            f"regression-blocked)"
+        ),
+        "a_votes": a_votes, "b_votes": b_votes,
+        "abstaining_dims": abstaining,
+    }
+
+
+# ── Entry point ────────────────────────────────────────────────────────────
 
 
 def compute_verdict(all_scored: list[dict[str, Any]]) -> dict[str, Any]:
-    """Aggregate across N proposals and return a verdict dict.
-
-    Input: list of scored.json contents (one per proposal). Family-exclusion
-    should already have been enforced on each input by the caller.
-
-    Output keys:
-      verdict: one of the labels in the decision ladder
-      reason: short string explaining the selected label
-      n_proposals: count
-      accuracy: per-arm accuracy/hallucination/unresolvable stats
-      secondary: per-dim substantive-count deltas + majority winner
-      convergence: advisory convergence note
-      decision_thresholds: constants used for auditability
-    """
+    """Aggregate across N proposals and return a verdict dict with per-dim
+    primary signals + overall composition."""
     n = len(all_scored)
     thresholds = {
         "primary_accuracy_delta_pp": PRIMARY_ACCURACY_DELTA_PP,
         "hallucination_guardrail_pp": HALLUCINATION_GUARDRAIL_PP,
+        "substantive_delta_min": SUBSTANTIVE_DELTA_MIN,
+        "harmful_regression_absolute_max": HARMFUL_REGRESSION_ABSOLUTE_MAX,
         "min_sample_for_directional": MIN_SAMPLE_FOR_DIRECTIONAL,
         "min_sample_for_confident": MIN_SAMPLE_FOR_CONFIDENT,
+        "quality_weights": QUALITY_WEIGHTS,
     }
 
-    base = {
+    if n == 0:
+        return {
+            "verdict": "insufficient-sample",
+            "reason": "no scored inputs",
+            "n_proposals": 0,
+            "per_dimension_verdicts": {},
+            "decision_thresholds": thresholds,
+        }
+
+    verifier_agg = _aggregate_verifier(all_scored)
+    per_dim: dict[str, dict[str, Any]] = {
+        GROUND_TRUTH_DIM: _per_dim_verdict_verifier(all_scored, verifier_agg, n),
+    }
+    for dim in JUDGE_GRADED_DIMS:
+        per_dim[dim] = _per_dim_verdict_judge_graded(all_scored, dim, n)
+    for dim in NOT_YET_MEASURED_DIMS:
+        per_dim[dim] = _per_dim_verdict_not_yet_measured(dim)
+
+    overall = _compose_overall_verdict(per_dim, n)
+
+    return {
+        "verdict": overall["verdict"],
+        "reason": overall["reason"],
         "n_proposals": n,
+        "per_dimension_verdicts": per_dim,
+        "overall": {
+            "a_votes": overall["a_votes"],
+            "b_votes": overall["b_votes"],
+            "abstaining_dims": overall["abstaining_dims"],
+            "verifier_aggregate": verifier_agg,
+            "convergence_advisory": _convergence_note(all_scored),
+        },
         "decision_thresholds": thresholds,
-        "accuracy": _aggregate_accuracy(all_scored) if n > 0 else None,
-        "secondary": _aggregate_substantive(all_scored) if n > 0 else None,
-        "convergence": _convergence_note(all_scored) if n > 0 else None,
     }
 
-    if n < MIN_SAMPLE_FOR_DIRECTIONAL:
-        return {**base,
-                "verdict": "insufficient-sample",
-                "reason": f"n={n} < {MIN_SAMPLE_FOR_DIRECTIONAL}; "
-                          f"need more proposals before any directional call"}
 
-    acc = base["accuracy"]
-    acc_a = acc["arm-a"]["accuracy"]
-    acc_b = acc["arm-b"]["accuracy"]
-    if acc_a is None or acc_b is None:
-        return {**base,
-                "verdict": "evidence-gathering-only",
-                "reason": "verifier accuracy missing on one or both arms; "
-                          "cannot compute primary signal"}
-
-    delta = acc_b - acc_a
-    if abs(delta) < PRIMARY_ACCURACY_DELTA_PP:
-        return {**base,
-                "verdict": "inconclusive",
-                "reason": f"accuracy delta {delta*100:+.1f}pp is within "
-                          f"±{PRIMARY_ACCURACY_DELTA_PP*100:.0f}pp noise floor"}
-
-    primary_winner = "arm-b" if delta > 0 else "arm-a"
-    primary_loser = "arm-a" if primary_winner == "arm-b" else "arm-b"
-
-    hall_winner = acc[primary_winner]["hallucination_rate"]
-    hall_loser = acc[primary_loser]["hallucination_rate"]
-    if hall_winner is None or hall_loser is None:
-        return {**base,
-                "verdict": "evidence-gathering-only",
-                "reason": "hallucination guardrail not computable; "
-                          "cannot promote primary signal"}
-
-    if hall_winner - hall_loser > HALLUCINATION_GUARDRAIL_PP:
-        return {**base,
-                "verdict": "regression-blocked",
-                "reason": f"primary winner ({primary_winner}) hallucinates "
-                          f"{(hall_winner - hall_loser)*100:+.1f}pp more than "
-                          f"{primary_loser}; guardrail blocks promotion",
-                "primary_winner": primary_winner}
-
-    sec = base["secondary"]
-    sec_winner = sec["majority_winner"]
-
-    if sec_winner != primary_winner and sec_winner != "tie":
-        return {**base,
-                "verdict": "mixed-directional",
-                "reason": f"primary signal favors {primary_winner} "
-                          f"but secondary (substantive-count majority) "
-                          f"favors {sec_winner}; "
-                          f"signals disagree — call ambiguous at n={n}",
-                "primary_winner": primary_winner,
-                "secondary_winner": sec_winner}
-
-    label_suffix = primary_winner.replace("arm-", "arm-")
-    if n >= MIN_SAMPLE_FOR_CONFIDENT:
-        return {**base,
-                "verdict": f"confident-favor-{label_suffix}",
-                "reason": f"primary + secondary agree on {primary_winner}, "
-                          f"no hallucination regression, n={n} "
-                          f">= {MIN_SAMPLE_FOR_CONFIDENT}",
-                "primary_winner": primary_winner}
-    return {**base,
-            "verdict": f"directional-favor-{label_suffix}",
-            "reason": f"primary + secondary agree on {primary_winner}, "
-                      f"no hallucination regression, but n={n} "
-                      f"< {MIN_SAMPLE_FOR_CONFIDENT} — directional only",
-            "primary_winner": primary_winner}
-
-
-# ── Fixtures for --dry-run ─────────────────────────────────────────────────
+# ── Fixture for --dry-run ──────────────────────────────────────────────────
 
 
 def _dry_run_scored_fixture() -> dict[str, Any]:
-    """Minimal scored input that satisfies family-exclusion and shape checks.
-    Used by the --dry-run CLI path; also consumed by tests that need a
-    clean baseline."""
     return {
         "metadata": {
             "dry_run": True,
             "judges": ["gpt-5.4", "gemini-3.1-pro"],
             "run_id": "dry-run-fixture",
         },
-        "arms": {
-            "arm-a": {},
-            "arm-b": {},
-        },
+        "arms": {"arm-a": {}, "arm-b": {}},
         "aggregate_inconclusive": False,
         "unblinded": True,
     }
@@ -345,9 +625,17 @@ def _fmt_pct(x: float | None) -> str:
     return "—" if x is None else f"{x*100:.1f}%"
 
 
-def render_markdown(verdict: dict[str, Any], scored_list: list[dict[str, Any]]) -> str:
-    judges = set()
-    run_ids = []
+def _fmt_num(x: float | int | None, dec: int = 1) -> str:
+    if x is None:
+        return "—"
+    return f"{x:.{dec}f}"
+
+
+def render_markdown(
+    verdict: dict[str, Any], scored_list: list[dict[str, Any]]
+) -> str:
+    judges: set[str] = set()
+    run_ids: list[str] = []
     for s in scored_list:
         meta = s.get("metadata", {})
         if isinstance(meta.get("judges"), list):
@@ -366,60 +654,85 @@ def render_markdown(verdict: dict[str, Any], scored_list: list[dict[str, Any]]) 
         "",
     ]
 
-    acc = verdict.get("accuracy")
-    if acc:
+    per_dim = verdict.get("per_dimension_verdicts", {}) or {}
+
+    # ── Per-dim table (all 7 dims) ─────────────────────────────────────
+    lines.extend([
+        "## Per-dimension verdicts (all 7 dimensions)",
+        "",
+        "| Dim | Type | Verdict | Reason |",
+        "|---|---|---|---|",
+    ])
+    for dim in ALL_REPORTED_DIMS:
+        v = per_dim.get(dim, {})
+        lines.append(
+            f"| {dim} | {v.get('signal_type', '—')} | "
+            f"`{v.get('verdict', '—')}` | "
+            f"{(v.get('reason') or '')[:120]} |"
+        )
+    lines.append("")
+
+    # ── catch_rate detail ─────────────────────────────────────────────
+    cr = per_dim.get(GROUND_TRUTH_DIM)
+    if cr and "arm-a" in cr and "arm-b" in cr:
         lines.extend([
-            "## Primary signal — verifier accuracy (catch_rate)",
+            "## catch_rate — verifier accuracy + quality density",
             "",
-            "| Arm | Claims | Verified | Falsified | Unresolvable | Accuracy | Hallucination |",
-            "|---|---|---|---|---|---|---|",
+            "| Arm | Claims | Verified | Falsified | Unresolvable | Accuracy | Hallucination | Quality density | Weighted accuracy |",
+            "|---|---|---|---|---|---|---|---|---|",
         ])
         for arm in ("arm-a", "arm-b"):
-            a = acc[arm]
+            a = cr[arm]
             lines.append(
                 f"| {arm} | {a['claims_checked']} | {a['verified']} | "
                 f"{a['falsified']} | {a['unresolvable']} | "
-                f"{_fmt_pct(a['accuracy'])} | {_fmt_pct(a['hallucination_rate'])} |"
+                f"{_fmt_pct(a['accuracy'])} | {_fmt_pct(a['hallucination_rate'])} | "
+                f"{_fmt_pct(a['quality_density'])} | "
+                f"{_fmt_pct(a['weighted_accuracy'])} |"
             )
         lines.append("")
 
-    sec = verdict.get("secondary")
-    if sec:
+    # ── Judge-graded detail ───────────────────────────────────────────
+    for dim in JUDGE_GRADED_DIMS:
+        d = per_dim.get(dim)
+        if not d or "arm-a" not in d:
+            continue
         lines.extend([
-            "## Secondary signal — substantive-count by dimension (mean across judges)",
+            f"## {dim} — quality-weighted substantive score",
             "",
-            "| Dimension | Arm A | Arm B | Winner |",
-            "|---|---|---|---|",
+            "| Arm | Substantive | Marginal | Superficial | Harmful | Weighted score | Density |",
+            "|---|---|---|---|---|---|---|",
         ])
-        for dim, totals in sec["per_dim_totals"].items():
-            winner = sec["per_dim_winners"].get(dim, "—")
+        for arm in ("arm-a", "arm-b"):
+            a = d[arm]
+            dist = a["quality_distribution_sum"]
             lines.append(
-                f"| {dim} | {totals['arm-a']:.1f} | {totals['arm-b']:.1f} | {winner} |"
+                f"| {arm} | {_fmt_num(dist.get('substantive'))} | "
+                f"{_fmt_num(dist.get('marginal'))} | "
+                f"{_fmt_num(dist.get('superficial'))} | "
+                f"{_fmt_num(dist.get('harmful'))} | "
+                f"{_fmt_num(a.get('weighted_score_total'))} | "
+                f"{_fmt_pct(a.get('quality_density'))} |"
             )
-        lines.append(
-            f"\n_Dim majority: Arm B wins {sec['b_dim_wins']}, "
-            f"Arm A wins {sec['a_dim_wins']}. Majority winner: {sec['majority_winner']}._"
-        )
         lines.append("")
 
-    conv = verdict.get("convergence")
-    if conv and conv.get("dims_total"):
+    # ── Convergence advisory ──────────────────────────────────────────
+    conv = (verdict.get("overall") or {}).get("convergence_advisory") or {}
+    if conv.get("dims_total"):
         lines.extend([
             "## Advisory — judge count convergence (not a gate per D40)",
             "",
-            f"- Dims converged (±{conv.get('dims_total', 0)} total): "
-            f"{conv['dims_converged']}/{conv['dims_total']} "
-            f"({_fmt_pct(conv['convergence_rate'])})",
-            f"- Mean |count_delta|: {conv['mean_abs_count_delta']:.1f}"
-            if conv.get("mean_abs_count_delta") is not None else "- Mean |count_delta|: —",
-            f"- Max |count_delta|: {conv['max_abs_count_delta']}"
-            if conv.get("max_abs_count_delta") is not None else "- Max |count_delta|: —",
+            f"- Dims converged: {conv['dims_converged']}/{conv['dims_total']} "
+            f"({_fmt_pct(conv.get('convergence_rate'))})",
+            f"- Mean |count_delta|: {_fmt_num(conv.get('mean_abs_count_delta'))}",
+            f"- Max |count_delta|: {conv.get('max_abs_count_delta', '—')}",
             "",
-            "_Wide convergence deltas indicate prompt looseness on item counts, "
-            "not arm quality — primary signal above is independent._",
+            "_Wide deltas indicate prompt looseness on extraction counts — "
+            "per-dim primary signals above are independent._",
             "",
         ])
 
+    # ── Thresholds ────────────────────────────────────────────────────
     thresholds = verdict.get("decision_thresholds") or {}
     if thresholds:
         lines.extend([
@@ -428,11 +741,12 @@ def render_markdown(verdict: dict[str, Any], scored_list: list[dict[str, Any]]) 
             f"- Primary accuracy delta to call a winner: "
             f"{thresholds['primary_accuracy_delta_pp']*100:.0f}pp",
             f"- Hallucination guardrail: primary winner may not regress > "
-            f"{thresholds['hallucination_guardrail_pp']*100:.0f}pp vs loser",
-            f"- Min sample for directional verdict: "
-            f"{thresholds['min_sample_for_directional']}",
-            f"- Min sample for confident verdict: "
-            f"{thresholds['min_sample_for_confident']}",
+            f"{thresholds['hallucination_guardrail_pp']*100:.0f}pp",
+            f"- Substantive-score delta min: {thresholds['substantive_delta_min']}",
+            f"- Harmful regression cap: {thresholds['harmful_regression_absolute_max']}",
+            f"- Min sample for directional: {thresholds['min_sample_for_directional']}",
+            f"- Min sample for confident: {thresholds['min_sample_for_confident']}",
+            f"- Quality weights: {thresholds['quality_weights']}",
             "",
         ])
 
