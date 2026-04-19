@@ -6,7 +6,9 @@ A 3-stage quality assurance process that uses cross-model evaluation to catch is
 
 ### Stage 1: `/challenge` -- Should we build this?
 
-A cross-model gate that runs BEFORE planning. Three models independently evaluate whether the proposed work is necessary and appropriately scoped.
+A cross-model gate that runs BEFORE planning. A multi-persona panel (**architect, security, pm, frame** — 4 default challengers as of April 2026) independently evaluates whether the proposed work is necessary and appropriately scoped.
+
+**Frame lens:** Debate output quality is bounded by proposal frame quality. Three personas critiquing the candidates inside a proposal cannot escape a flawed candidate set — they optimize within it. The `frame` persona is the structural fix: a 4th challenger whose only job is to critique what the candidate set is **missing** (binary framings, missing compositional candidates, source-driven inheritance, problem inflation). With `--enable-tools`, frame expands into two parallel halves: `frame-structural` (tools off) + `frame-factual` (tools on, different model family). See `docs/PERSONAS.md` for the full persona matrix.
 
 **Purpose:** Prevent unnecessary features, over-engineered abstractions, and scope creep before any code is written.
 
@@ -39,7 +41,7 @@ A full adversarial pipeline that produces a refined specification. The flow is: 
 - Changes that don't involve architectural choices
 
 **Output:** Three artifacts:
-- `tasks/<topic>-debate.md` -- the adversarial arguments
+- `tasks/<topic>-challenge.md` -- the adversarial arguments (from Stage 1)
 - `tasks/<topic>-judgment.md` -- the judge's ruling with rationale
 - `tasks/<topic>-refined.md` -- the refined spec incorporating the judgment
 
@@ -91,14 +93,17 @@ Model-to-persona assignments are configured in `config/debate-models.json` and c
 
 ### Verifier Tools (--enable-tools)
 
-When `--enable-tools` is passed to `debate.py challenge`, challengers get access to read-only verifier tools that let them check claims against the actual codebase:
+When `--enable-tools` is passed to `debate.py challenge`, challengers get access to read-only verifier tools that let them check claims against the actual codebase. Tool definitions live in `scripts/debate_tools.py`:
 
+- **check_code_presence** — Grep for a pattern across the codebase (returns match count + paths)
 - **check_function_exists** — Verify a function/class/subcommand exists at the stated location
 - **check_test_coverage** — Find test files for a given source file
-- **count_records** — Count rows in a SQLite table (no content access)
-- **get_recent_costs** — Query API cost data from audit logs
+- **read_file_snippet** — Read up to 50 lines of actual source code
+- **read_config_value** — Look up a specific key in a config file
+- **get_recent_commits** — Query recent git log entries
+- **get_job_schedule** — Check whether a cron job is actually configured
 
-These tools convert speculative claims into evidenced ones. A challenger saying "this function might not exist" can verify it directly. Tools are read-only — they cannot modify files or data.
+These tools convert speculative claims into evidenced ones. A challenger saying "this function might not exist" can verify it directly. Tools are read-only — they cannot modify files or data. The full tool registry and I/O schemas are in `scripts/debate_tools.py`.
 
 ### Proposal Quality Requirements
 

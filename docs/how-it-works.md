@@ -48,7 +48,7 @@ The judge defaults to gpt-5.4 (different family from the typical Claude author a
 
 Each persona gets a role-specific adversarial prompt (architecture concerns, security focus, operational feasibility, or user value). Note that personas sharing a model are deduplicated — `--personas pm,staff` produces one challenger since both map to gemini-3.1-pro. Alternatively, pass `--models gpt-5.4,gemini-3.1-pro` directly with a generic adversarial prompt. An optional `--system-prompt` flag (takes a string or file path) overrides the default prompt entirely — used by `/review` to replace adversarial challenge prompts with review-specific persona lens definitions.
 
-**`--enable-tools`** gives challengers access to read-only verifier tools (check_function_exists, check_test_coverage, count_records, get_recent_costs). These let challengers verify claims against the actual codebase rather than speculating. Tools are sandboxed to read-only operations.
+**`--enable-tools`** gives challengers access to read-only verifier tools (`check_code_presence`, `check_function_exists`, `check_test_coverage`, `read_file_snippet`, `read_config_value`, `get_recent_commits`, `get_job_schedule` — defined in `scripts/debate_tools.py`). These let challengers verify claims against the actual codebase rather than speculating. Tools are sandboxed to read-only operations.
 
 Produces: `tasks/<topic>-challenge.md` with YAML frontmatter containing `debate_id`, `created` timestamp, and a `mapping` of challenger labels (A, B, C...) to model names. Also prints a JSON status object to stdout with `status`, `challengers` count, `mapping`, and any `warnings`.
 

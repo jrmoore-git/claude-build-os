@@ -36,13 +36,14 @@ Your version (pre-April 1) had the basic framework: skills, hooks, rules, and th
 
 ### "Reviews didn't ground themselves in the code"
 
-- **Verifier tools** (`debate_tools.py`, 517 lines, entirely new) — challengers and reviewers can now *check the code* before making claims. 6 read-only tools:
-  - `check_code_presence` — does a function/pattern actually exist?
+- **Verifier tools** (`scripts/debate_tools.py`) — challengers and reviewers can now *check the code* before making claims. 7 read-only tools:
+  - `check_code_presence` — grep for a pattern across the codebase
+  - `check_function_exists` — verify a function/class/subcommand exists at the stated location
+  - `check_test_coverage` — find test files for a given source file
   - `read_file_snippet` — read up to 50 lines of actual source code
-  - `count_records` — how many audit entries match?
-  - `read_config_key` — what does the config actually say?
+  - `read_config_value` — look up a specific key in a config file
+  - `get_recent_commits` — query recent git log entries
   - `get_job_schedule` — is this cron job actually configured?
-  - `get_cost_trend` — what are the real cost numbers?
 - **Forced tool use** — GPT and Gemini get `tool_choice: required` on their first turn, forcing them to actually use the verifier tools before commenting.
 - **Evidence tagging** — judge prompt now requires `[EVIDENCE: verified]` or `[EVIDENCE: unverified]` tags on each finding. Unverified claims get weighted down in the final judgment.
 - **Deny-by-default data egress** — tools return structured metadata only, never raw DB rows or secrets.
