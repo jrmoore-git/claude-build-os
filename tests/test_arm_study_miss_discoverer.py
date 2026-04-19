@@ -358,6 +358,77 @@ def test_run_ensemble_returns_per_model_outputs():
     assert all(e["parsed"]["issues"] for e in out)
 
 
+def test_adjudicate_borderline_loads_disk_cache_when_in_memory_none(tmp_path):
+    """Post-build review Finding 3: cross-process determinism — when called
+    with cache=None, adjudicate_borderline loads on-disk JSONL and uses it."""
+    cache_path = tmp_path / "cache.jsonl"
+    log_path = tmp_path / "log.jsonl"
+    issue = _issue("i1", ["foo"])
+
+    # First call (no cache, real LLM stub) — populates the on-disk cache.
+    calls = {"n": 0}
+
+    def stub(*, system, user, model, temperature, max_tokens, timeout):
+        calls["n"] += 1
+        return {"decision": "YES", "rationale": "first"}
+
+    r1 = mrd.adjudicate_borderline(
+        challenge_text="foo here", issue=issue, cache=None,
+        cache_path=cache_path, log_path=log_path,
+        _llm_call_json=stub,
+    )
+    assert calls["n"] == 1
+    assert r1["cache_hit"] is False
+
+    # Second call with cache=None again — should load disk cache and skip LLM.
+    r2 = mrd.adjudicate_borderline(
+        challenge_text="foo here", issue=issue, cache=None,
+        cache_path=cache_path, log_path=log_path,
+        _llm_call_json=lambda **kw: {"decision": "NO"},  # would override
+    )
+    assert calls["n"] == 1  # disk cache short-circuited
+    assert r2["cache_hit"] is True
+    assert r2["decision"] == "YES"
+
+
+def test_excerpt_around_tokens_uses_word_boundaries(tmp_path):
+    """Post-build review Finding 4: excerpt selection uses word-boundary
+    match — 'test' in 'testing' must NOT pull the testing-context excerpt.
+    """
+    text = "irrelevant prefix " + ("padding " * 50) + " unrelated test " + ("trailing " * 50)
+    # If word-boundary works, the excerpt centers on " test ", not on
+    # "testing" earlier in the text.
+    excerpt = mrd._excerpt_around_tokens(text, ["test"], window=200)
+    assert " test " in excerpt
+    # Non-word-boundary search would have found 'test' in 'testing' first;
+    # since there's no 'testing' here, this test isolates the principle:
+    # add a competing 'testing' to verify the new code skips it.
+    text2 = "first 'testing' early on " + ("pad " * 100) + " whole test here"
+    excerpt2 = mrd._excerpt_around_tokens(text2, ["test"], window=200)
+    # New behavior: skips 'testing', returns excerpt around the whole 'test'.
+    assert " test here" in excerpt2 or "whole test" in excerpt2
+    assert excerpt2 != text2[:200]  # not the head-fallback
+
+
+def test_adjudication_cache_invalidates_on_prompt_change(tmp_path, monkeypatch):
+    """Post-build review Finding 1: editing the b1-adjudicator prompt
+    invalidates the cache (the cache key includes a prompt-text hash)."""
+    issue = _issue("i1", ["foo"])
+    h1 = mrd._hash_adjudication("text", issue, "model-x")
+    # Mutate the cached prompt by clearing the module cache + patching path
+    # to a temp file with different content.
+    mrd._B1_PROMPT_CACHE = None
+    fake_prompt = tmp_path / "fake_prompt.md"
+    fake_prompt.write_text(
+        "## SYSTEM\nDIFFERENT SYSTEM PROMPT\n## USER\nDIFFERENT USER\n"
+    )
+    monkeypatch.setattr(mrd, "B1_ADJUDICATOR_PROMPT_PATH", fake_prompt)
+    h2 = mrd._hash_adjudication("text", issue, "model-x")
+    # Restore for other tests.
+    mrd._B1_PROMPT_CACHE = None
+    assert h1 != h2
+
+
 def test_run_ensemble_handles_one_model_failure():
     def stub(text, model, **kw):
         if model == "m2":

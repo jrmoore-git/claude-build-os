@@ -489,7 +489,11 @@ def _load_b1_prompt() -> tuple[str, str]:
 def _hash_adjudication(
     challenge_text: str, issue: dict[str, Any], model_version: str,
 ) -> str:
-    """Stable cache key for an adjudication call."""
+    """Stable cache key for an adjudication call.
+
+    Includes a hash of the b1-adjudicator-prompt.md template so prompt
+    edits invalidate cached YES/NO decisions (post-build review Finding 1).
+    """
     h = _hashlib.sha256()
     h.update(model_version.encode("utf-8"))
     h.update(b"\x1e")
@@ -501,6 +505,14 @@ def _hash_adjudication(
     h.update(tokens.encode("utf-8"))
     h.update(b"\x1e")
     h.update(str(issue.get("description", "")).encode("utf-8"))
+    h.update(b"\x1e")
+    try:
+        system, user_template = _load_b1_prompt()
+        h.update(system.encode("utf-8"))
+        h.update(b"\x1d")
+        h.update(user_template.encode("utf-8"))
+    except Exception:
+        h.update(b"prompt-unavailable")
     return h.hexdigest()
 
 
@@ -550,14 +562,24 @@ def _log_adjudication_event(
 def _excerpt_around_tokens(
     text: str, tokens: list[str], window: int = B1_EXCERPT_WINDOW,
 ) -> str:
-    """Return up to `window` chars around the first matching key_token in
-    `text`. Falls back to first `window` chars if no token matches."""
+    """Return up to `window` chars around the first whole-word match of
+    a key_token in `text`. Falls back to first `window` chars if no token
+    matches.
+
+    Post-build review Finding 4: word-boundary lookup matches the matcher-v2
+    semantics — a substring search would reintroduce partial-token false
+    positives (e.g. matching 'test' inside 'testing') in the adjudicator
+    excerpt, biasing the LLM toward YES on token noise.
+    """
     if not text:
         return ""
     lower = text.lower()
     for token in tokens:
-        idx = lower.find(token.lower())
-        if idx >= 0:
+        t = token.lower()
+        # Whole-word match using regex word boundaries.
+        m = re.search(rf"(?<!\w){re.escape(t)}(?!\w)", lower)
+        if m:
+            idx = m.start()
             half = window // 2
             start = max(0, idx - half)
             end = min(len(text), idx + half)
@@ -579,11 +601,17 @@ def adjudicate_borderline(
     Returns {decision: 'YES'|'NO', rationale, parse_ok, cache_hit, error}.
     Raises CredentialEgressError if challenge_text contains credential
     patterns (pre-egress safety stop).
+
+    Post-build review Finding 3: when called with `cache=None`, loads the
+    on-disk JSONL cache so cross-process reruns hit cached decisions
+    rather than re-invoking the LLM.
     """
     if cache_path is None:
         cache_path = B1_ADJUDICATION_CACHE_PATH
     if log_path is None:
         log_path = B1_ADJUDICATION_LOG_PATH
+    if cache is None:
+        cache = _load_adjudication_cache(cache_path=cache_path)
 
     hits = _scan_credentials_in_inputs(challenge_text, issue.get("description") or "")
     if hits:

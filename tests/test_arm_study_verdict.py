@@ -535,3 +535,26 @@ def test_legacy_fallback_uses_legacy_constants(tmp_path, monkeypatch):
     assert sha == "legacy-fallback"
     # Legacy thresholds keep the old summed-score floor of 5.0.
     assert thresholds["judge_graded"]["floor_directional"] == 5.0
+
+
+def test_compute_verdict_aborts_on_threshold_hash_mismatch():
+    """Post-build review Finding 1: passing a wrong expected_sha aborts."""
+    import sys
+    sys.path.insert(0, str(SCRIPTS_DIR))
+    import arm_study_thresholds as t
+    s = _scored()
+    with pytest.raises(t.ThresholdHashMismatch):
+        verdict.compute_verdict(
+            [s] * 3, expected_thresholds_sha="deadbeef" * 8,
+        )
+
+
+def test_compute_verdict_accepts_correct_threshold_hash():
+    """Passing the actual SHA succeeds (verifies the lock isn't paranoid)."""
+    import sys
+    sys.path.insert(0, str(SCRIPTS_DIR))
+    import arm_study_thresholds as t
+    _, actual_sha = t.load_thresholds()
+    s = _scored()
+    v = verdict.compute_verdict([s] * 3, expected_thresholds_sha=actual_sha)
+    assert v["decision_thresholds"]["thresholds_sha256"] == actual_sha

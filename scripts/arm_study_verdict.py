@@ -1312,6 +1312,7 @@ def _compose_overall_verdict(
 def compute_verdict(
     all_scored: list[dict[str, Any]],
     store_root: Path = DEFAULT_STORE,
+    expected_thresholds_sha: str | None = None,
 ) -> dict[str, Any]:
     """Aggregate across N proposals and return a verdict dict with per-dim
     primary signals + overall composition.
@@ -1319,7 +1320,15 @@ def compute_verdict(
     store_root: where retrospective.json files live for Dim 6 (item 6 of
     metric-fix plan). Defaults to DEFAULT_STORE so tests that don't
     exercise retrospective data work unchanged.
+
+    expected_thresholds_sha: post-build review Finding 1 — when set, the
+    locked thresholds file is re-hashed and the call raises
+    `arm_study_thresholds.ThresholdHashMismatch` if it has drifted since
+    the prior run. Without this enforcement, the SHA captured in run
+    artifacts is observational only.
     """
+    if expected_thresholds_sha:
+        _thresholds.verify_hash(expected_thresholds_sha)
     n = len(all_scored)
     thresholds = {
         "primary_accuracy_delta_pp": PRIMARY_ACCURACY_DELTA_PP,
@@ -1667,6 +1676,15 @@ def main() -> int:
     ap.add_argument("--dry-run", action="store_true",
                     help="Use fixture scored input; no file I/O")
     ap.add_argument("--output-markdown", type=Path, default=None)
+    ap.add_argument(
+        "--expected-thresholds-sha", default=None,
+        help=(
+            "If set, verify the locked thresholds file's SHA256 matches the "
+            "expected value before computing the verdict. Aborts on drift. "
+            "Pass the value captured in a prior scored.json run artifact "
+            "to enforce the threshold lock across reruns of the same study."
+        ),
+    )
     args = ap.parse_args()
 
     if args.dry_run:
@@ -1690,7 +1708,14 @@ def main() -> int:
             print(f"ERROR: {e}", file=sys.stderr)
             return 2
 
-    verdict = compute_verdict(scored_list, store_root=args.store_root)
+    try:
+        verdict = compute_verdict(
+            scored_list, store_root=args.store_root,
+            expected_thresholds_sha=args.expected_thresholds_sha,
+        )
+    except _thresholds.ThresholdHashMismatch as e:
+        print(f"ERROR: thresholds hash mismatch — {e}", file=sys.stderr)
+        return 3
 
     if args.output_markdown:
         args.output_markdown.parent.mkdir(parents=True, exist_ok=True)

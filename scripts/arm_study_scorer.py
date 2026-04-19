@@ -284,14 +284,29 @@ def _load_a3_prompt() -> tuple[str, str]:
 def _hash_claim(
     claim_text: str, verifier_evidence: str, model_version: str,
 ) -> str:
-    """Stable cache key for one (claim, verifier_evidence, model) tuple.
-    Cache hits require exact byte-equality on all three inputs."""
+    """Stable cache key for one (claim, verifier_evidence, model, prompt) tuple.
+
+    Includes a hash of the loaded a3-mechanism-prompt.md so a prompt edit
+    invalidates cached labels (post-build review Finding 1A — the prompt
+    file's own claim that "edits invalidate the cache" was previously
+    untrue).
+    """
     h = _hashlib.sha256()
     h.update(model_version.encode("utf-8"))
     h.update(b"\x1e")
     h.update(claim_text.encode("utf-8"))
     h.update(b"\x1e")
     h.update(verifier_evidence.encode("utf-8"))
+    h.update(b"\x1e")
+    try:
+        system, user_template = _load_a3_prompt()
+        h.update(system.encode("utf-8"))
+        h.update(b"\x1d")
+        h.update(user_template.encode("utf-8"))
+    except Exception:
+        # Prompt unreadable → use a stable placeholder so cache stays
+        # consistent across runs in degraded environments.
+        h.update(b"prompt-unavailable")
     return h.hexdigest()
 
 
@@ -1384,21 +1399,19 @@ def _attach_verifications(
         if mech is None:
             # Caller skipped the classifier (e.g., legacy code path or test
             # that constructed verifications without it) — fall back to regex.
-            mech = classify_mechanisms_llm.__wrapped__(
-                full_text, "", "", run_id=None,
-            ) if hasattr(classify_mechanisms_llm, "__wrapped__") else None
-            if mech is None:
-                regex = classify_falsified_claims(full_text)
-                mech = {
-                    "classifier_source": "regex-fallback",
-                    "regex_fallback_used": True,
-                    "fallback_reason": "no mechanism_classification in verifier output",
-                    "labels": {label: 0 for label in A3_MECHANISM_LABELS},
-                    "per_claim": [],
-                    "ambiguous_rate": 0.0,
-                    "parse_failures": 0,
-                    **regex,
-                }
+            # Post-build review Finding 2: removed the dead `__wrapped__`
+            # branch that never fired (function was never decorated).
+            regex = classify_falsified_claims(full_text)
+            mech = {
+                "classifier_source": "regex-fallback",
+                "regex_fallback_used": True,
+                "fallback_reason": "no mechanism_classification in verifier output",
+                "labels": {label: 0 for label in A3_MECHANISM_LABELS},
+                "per_claim": [],
+                "ambiguous_rate": 0.0,
+                "parse_failures": 0,
+                **regex,
+            }
         entry = {
             "status": verif.get("status", "unknown"),
             "stats": verif.get("stats"),
