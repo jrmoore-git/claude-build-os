@@ -1038,7 +1038,7 @@ def cmd_challenge(args):
     custom_prompt = args.system_prompt.read() if args.system_prompt else None
 
     # Resolve --personas to (model, prompt) pairs; --models uses generic prompt
-    config = debate_common._load_config()
+    config = debate_common._load_config(getattr(args, "config", None))
     pmap = config["persona_model_map"]
     challengers = []  # list of dicts: {model, prompt, use_tools, persona_name}
 
@@ -3922,6 +3922,8 @@ def main():
                      help="Override default adversarial system prompt (file path or inline string)")
     ch.add_argument("--enable-tools", action="store_true", default=False,
                      help="Give challengers read-only verifier tools (costs, schedules, code presence)")
+    ch.add_argument("--config", default=None,
+                     help="Path to custom model config JSON (overrides config/debate-models.json)")
 
     # intake-check
     ic = sub.add_parser("intake-check",
