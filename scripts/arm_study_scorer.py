@@ -92,29 +92,48 @@ def invoke_review(
     return proc.returncode, proc.stdout or "", proc.stderr or ""
 
 
-def invoke_verify_claims(
-    input_path: Path,
-    judge_model: str,
-    timeout: int = 600,
-) -> tuple[int, str, str]:
-    """Invoke `debate.py judge --verify-claims ...` for Dim 4/5 grounding.
-    Returns (exit_code, stdout, stderr). Not called in --dry-run."""
-    cmd = [
-        sys.executable,
-        str(REPO_ROOT / "scripts" / "debate.py"),
-        "judge",
-        "--verify-claims",
-        "--model", judge_model,
-        "--input", str(input_path),
-    ]
+def run_claim_verifier_inprocess(
+    challenge_text: str,
+    proposal_text: str,
+) -> dict[str, Any]:
+    """Run the claim verifier in-process via `debate._run_claim_verifier`.
+
+    `debate.py judge` is a full judgment pipeline with no standalone
+    verify-only subcommand, and modifying production debate.py is out of
+    scope per the study plan. Calling the helper function directly yields
+    the raw verification_text the plan's Phase 1 intent calls for, at the
+    cost of one LLM call rather than two.
+
+    Returns {status, verification_text, stats, error}.
+    """
     try:
-        proc = subprocess.run(
-            cmd, capture_output=True, text=True,
-            timeout=timeout, cwd=str(REPO_ROOT),
+        import debate
+        import debate_common
+    except ImportError as e:
+        return {"status": "failed", "error": f"import failed: {e}",
+                "verification_text": None, "stats": None}
+
+    try:
+        api_key, litellm_url, _ = debate_common._load_credentials()
+    except Exception as e:
+        return {"status": "failed", "error": f"credential load failed: {e}",
+                "verification_text": None, "stats": None}
+
+    try:
+        verification_text, stats = debate._run_claim_verifier(
+            challenge_text, proposal_text, litellm_url, api_key,
         )
-    except subprocess.TimeoutExpired:
-        return 124, "", "timeout"
-    return proc.returncode, proc.stdout or "", proc.stderr or ""
+    except Exception as e:
+        return {"status": "failed", "error": f"verifier raised: {e}",
+                "verification_text": None, "stats": None}
+
+    if verification_text is None:
+        return {"status": "failed",
+                "error": "verifier returned None (see debate.py stderr)",
+                "verification_text": None, "stats": None}
+
+    return {"status": "verified", "error": None,
+            "verification_text": verification_text, "stats": stats}
 
 
 # ── Parsing ─────────────────────────────────────────────────────────────────
@@ -608,6 +627,19 @@ def score_run(
     if not labels_path.is_file():
         raise FileNotFoundError(f"labels.json not found: {labels_path}")
 
+    # Resolve the proposal path from the orchestrator's manifest. Needed
+    # for the claim verifier, which takes (challenge_text, proposal_text).
+    manifest_path = run_dir / "manifest.json"
+    proposal_path: Path | None = None
+    if manifest_path.is_file():
+        try:
+            manifest = json.loads(manifest_path.read_text())
+            rel = manifest.get("proposal_path")
+            if rel:
+                proposal_path = REPO_ROOT / rel
+        except (json.JSONDecodeError, OSError):
+            proposal_path = None
+
     arm_extractions: dict[str, dict[str, Any]] = {}
     arm_verifications: dict[str, dict[str, Any]] = {}
     for arm in ("arm-x", "arm-y"):
@@ -632,12 +664,20 @@ def score_run(
             )
         arm_extractions[arm] = parse_judge_output(stdout)
 
-        # Dim 4/5 code grounding: run verify-claims on the same combined input.
-        # Use the first (primary) judge model. Failures are recorded but do
+        # Dim 4/5 code grounding: run the claim verifier in-process on the
+        # concatenated challenge + proposal. Failures are recorded but do
         # not abort scoring — downstream aggregation reads what's available.
-        arm_verifications[arm] = _verify_ground_truth_dimensions(
-            combined, judges[0]
-        )
+        if proposal_path is not None and proposal_path.is_file():
+            arm_verifications[arm] = _verify_ground_truth_dimensions(
+                combined, proposal_path
+            )
+        else:
+            arm_verifications[arm] = {
+                "status": "failed",
+                "error": f"proposal_path missing from manifest ({manifest_path})",
+                "verification_text": None,
+                "stats": None,
+            }
 
     scored = aggregate_proposal(arm_extractions)
     _attach_verifications(scored, arm_verifications)
@@ -653,19 +693,25 @@ def score_run(
 
 
 def _verify_ground_truth_dimensions(
-    combined_review: Path,
-    judge_model: str,
+    challenge_path: Path,
+    proposal_path: Path,
 ) -> dict[str, Any]:
-    """Run `debate.py judge --verify-claims` for Dim 4/5 grounding. Returns
-    {status: "verified"|"failed"|"timeout", stdout: str, stderr: str}. Does
-    not parse per-item validity — that happens in _attach_verifications."""
-    code, stdout, stderr = invoke_verify_claims(combined_review, judge_model)
-    if code == 124:
-        return {"status": "timeout", "stdout": "", "stderr": stderr}
-    if code != 0:
-        return {"status": "failed", "stdout": stdout, "stderr": stderr,
-                "exit_code": code}
-    return {"status": "verified", "stdout": stdout, "stderr": stderr}
+    """Read the per-arm concatenated challenge file and the proposal, run
+    the claim verifier in-process, and return its result dict. Per-item
+    mapping from VERIFIED/FALSIFIED/UNRESOLVABLE to extracted items is
+    deferred to Phase 2 per D39 — this stores the raw verifier_text so
+    Phase 2 can observe real output before wiring the matcher."""
+    try:
+        challenge_text = challenge_path.read_text()
+    except OSError as e:
+        return {"status": "failed", "error": f"read challenge failed: {e}",
+                "verification_text": None, "stats": None}
+    try:
+        proposal_text = proposal_path.read_text()
+    except OSError as e:
+        return {"status": "failed", "error": f"read proposal failed: {e}",
+                "verification_text": None, "stats": None}
+    return run_claim_verifier_inprocess(challenge_text, proposal_text)
 
 
 def _attach_verifications(
@@ -684,12 +730,16 @@ def _attach_verifications(
     script."""
     for arm_label, arm_data in scored.get("arms", {}).items():
         verif = verifications.get(arm_label, {})
+        entry = {
+            "status": verif.get("status", "unknown"),
+            "stats": verif.get("stats"),
+            "verification_text": (verif.get("verification_text") or "")[:4000],
+        }
+        if verif.get("error"):
+            entry["error"] = verif["error"]
         for dim in GROUND_TRUTH_DIMENSIONS:
             if dim in arm_data:
-                arm_data[dim]["verify_claims"] = {
-                    "status": verif.get("status", "unknown"),
-                    "stdout": verif.get("stdout", "")[:2000],
-                }
+                arm_data[dim]["verify_claims"] = entry
 
 
 def main() -> int:
