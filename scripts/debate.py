@@ -3043,6 +3043,13 @@ def cmd_refine(args):
         if enable_tools:
             system_prompt += REFINE_TOOL_SUFFIX
 
+        # Cache only the system prompt (template + judgment_context). current_doc
+        # rotates every round so "system+user" would cache-write each round with
+        # zero hits — worse than uncached. "system" caches the stable preamble:
+        # rounds sharing (model, round-type template) can hit each other's caches
+        # within the 5m TTL (e.g., rounds 2 and 5 on gpt, rounds 3 and 6 on opus
+        # with the default 3-model rotation), and re-runs of /refine on the same
+        # input hit all rounds' caches.
         print(f"Refine round {round_num}/{rounds} ({model})...", file=sys.stderr)
         try:
             if enable_tools:
@@ -3060,6 +3067,7 @@ def cmd_refine(args):
                     timeout=MODEL_TIMEOUTS.get(model, REFINE_TIMEOUT_SECONDS),
                     base_url=litellm_url,
                     api_key=api_key,
+                    cache_control="system",
                     on_tool_call=lambda turn, name, targs, res: tool_log.append(
                         {"turn": turn, "tool": name}
                     ),
@@ -3073,7 +3081,8 @@ def cmd_refine(args):
             else:
                 fallback = models[(i + 1) % len(models)] if len(models) > 1 else None
                 response, used_model = _call_with_model_fallback(
-                    model, fallback, system_prompt, current_doc, litellm_url, api_key)
+                    model, fallback, system_prompt, current_doc, litellm_url, api_key,
+                    cache_control="system")
                 if used_model != model:
                     print(f"  Round {round_num}: used fallback {used_model} "
                           f"(primary {model} timed out)", file=sys.stderr)
