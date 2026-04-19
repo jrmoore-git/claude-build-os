@@ -561,7 +561,13 @@ def _log_adjudication_event(
 
 def _excerpt_around_tokens(
     text: str, tokens: list[str], window: int = B1_EXCERPT_WINDOW,
-) -> str:
+) -> str:  # noqa: E501
+    # Known edge case (post-build review v2 Finding 6): for hyphen-bearing
+    # tokens like "foo-bar", the (?<!\w)...(?!\w) boundary is satisfied by
+    # adjacent hyphens too — so "foo-bar" matches inside "foo-bar-baz".
+    # Acceptable for the current discoverer key-token vocabulary (filename
+    # + function-name fragments rarely collide this way); revisit only if a
+    # real false-positive is observed in the n=10 calibration sweep.
     """Return up to `window` chars around the first whole-word match of
     a key_token in `text`. Falls back to first `window` chars if no token
     matches.
@@ -641,7 +647,17 @@ def adjudicate_borderline(
                 "error": f"llm_client import failed: {e}",
             }
 
-    system, user_template = _load_b1_prompt()
+    # Post-build review v2 Finding 2: graceful prompt-load failure mirrors
+    # the LLM-import-failure path. Conservative on degraded mode (NO + error)
+    # so the matcher marks the issue missed rather than crashing the run.
+    try:
+        system, user_template = _load_b1_prompt()
+    except Exception as e:
+        return {
+            "decision": "NO", "rationale": "", "parse_ok": False,
+            "cache_hit": False,
+            "error": f"prompt load failed: {e!s}",
+        }
     excerpt = _excerpt_around_tokens(
         challenge_text, issue.get("key_tokens") or []
     )

@@ -389,9 +389,9 @@ def classify_mechanism_for_claim(
     """Classify one FALSIFIED claim into one of A3_MECHANISM_LABELS.
 
     Returns {label, rationale, parse_ok, raw_response, cache_hit, error}.
-    On any LLM error: returns label=AMBIGUOUS + parse_ok=False + error=msg.
-    Never raises — all failures recorded inline so the caller can compute
-    parse-fail rates and fall back to regex.
+    On any LLM error or prompt-load error: returns label=AMBIGUOUS +
+    parse_ok=False + error=msg. Never raises — all failures recorded
+    inline so the caller can compute parse-fail rates and fall back to regex.
     """
     cache_key = _hash_claim(claim_text, verifier_evidence, model)
     if cache is not None and cache_key in cache:
@@ -415,7 +415,17 @@ def classify_mechanism_for_claim(
                 "error": f"llm_client import failed: {e}",
             }
 
-    system, user_template = _load_a3_prompt()
+    # Post-build review v2 Finding 2: graceful prompt-load failure (mirror
+    # the llm_client import-failure path) so the calibration script and any
+    # other direct caller don't crash on degraded environments.
+    try:
+        system, user_template = _load_a3_prompt()
+    except Exception as e:
+        return {
+            "label": "AMBIGUOUS", "rationale": "", "parse_ok": False,
+            "raw_response": "", "cache_hit": False,
+            "error": f"prompt load failed: {e!s}",
+        }
     proposal_excerpt = _excerpt_around(proposal_text, claim_text)
     challenger_excerpt = _excerpt_around(challenger_text, claim_text)
     user_filled = (
