@@ -51,19 +51,18 @@ Address these specifically while also improving the document generally.
 FOCUS
 ```
 
-### Step 2b: Wrap document with project context
+### Step 2b: Build project context file
 
-Create a context-wrapped temp copy so refinement stays grounded in project intent:
+Write project context to a separate file that will be passed via `--system-context`. The document itself stays unwrapped so the refine truncation check (ratio of revised/input) stays calibrated.
 
-1. Read `docs/current-state.md` fresh — extract current phase, active work, and relevant subsystem. Stop when sufficient to keep refinement aligned to project intent (ceiling ~80 lines).
+1. Read `docs/current-state.md` fresh — extract current phase, active work, and relevant subsystem (ceiling ~80 lines).
 2. Read `tasks/session-log.md` (last 2–3 relevant entries) — summarize recent work relevant to this document, including decisions and pivots (ceiling ~50 lines).
 3. Optionally run `python3.11 scripts/enrich_context.py --proposal <input-file> --scope define` if the input file exists on disk (ceiling ~20 lines).
-4. Create a wrapped temp copy:
+4. Write the context file:
 
 ```bash
-WRAPPED_DOC=$(mktemp /tmp/polish-wrapped-XXXXXX.md)
-# Write project context header
-cat > "$WRAPPED_DOC" << 'CTX_EOF'
+CONTEXT_FILE=$(mktemp /tmp/polish-context-XXXXXX.md)
+cat > "$CONTEXT_FILE" << 'CTX_EOF'
 ## Project Context
 <project description from CLAUDE.md + current-state.md summary>
 
@@ -72,32 +71,35 @@ cat > "$WRAPPED_DOC" << 'CTX_EOF'
 
 ## Prior Decisions
 <enrich_context.py output, if any>
-
----
 CTX_EOF
-# Append the original document
-cat <input-file> >> "$WRAPPED_DOC"
 ```
 
-Use `$WRAPPED_DOC` as the `--document` argument in Step 3 instead of the raw input file. Clean up the temp file after Step 3 completes.
+Pass `$CONTEXT_FILE` as `--system-context` in Step 3. Clean up after Step 3 completes.
+
+Do NOT use `--judgment` for project context. `--judgment` filters for `### Challenge ... Decision: ACCEPT` blocks and silently drops anything else — plain context prose never reaches the model through that slot.
 
 ### Step 3: Run refinement
 
-If focus file exists, use `--judgment` to seed it (reuses the judgment_context slot):
-
 ```bash
 python3.11 scripts/debate.py refine \
-  --document $WRAPPED_DOC \
+  --document <input-file> \
+  --system-context $CONTEXT_FILE \
   --rounds 6 \
   --output tasks/<topic>-refined.md \
   --enable-tools
 ```
 
-If focus areas were provided, add: `--judgment /tmp/refine-focus-<topic>.md`
+If focus areas were provided in Step 2, append them to `$CONTEXT_FILE` after the project context, separated by `\n\n## Focus Areas\n\n`, then pass the combined file via `--system-context`. Do not use `--judgment` for focus areas — see Step 2b note.
 
 If debate.py fails or is unavailable, fall back to single-model analysis using the session model. Perform 3 manual refinement passes on the document, writing each intermediate version to the output file.
 
-Parse JSON stdout. If rounds_failed > 2, warn but don't block — partial refinement is still useful.
+Parse JSON stdout. Four fields matter:
+- `rounds_completed` — total rounds that ran (includes errored and discarded rounds).
+- `rounds_failed` — LLM/network errors. If > 2, warn but don't block.
+- `rounds_discarded` — rounds where the revised doc was truncated or dropped recommendation slots. Revision was NOT promoted.
+- `rounds_successful` — rounds that produced a promoted revision (= `rounds_completed - rounds_failed - rounds_discarded`).
+
+**Sanity check (HARD):** if `rounds_successful == 0` and `rounds_completed > 0`, the refined document is identical to the input — every round either errored or was discarded. Report DONE_WITH_CONCERNS and warn the user that the output is NOT improved. Point them at the round notes in the output file header to diagnose (most likely cause: truncation against an oversized input, dropped recommendation slots in a critique-mode doc, or all models timing out). Check `rounds_successful`, not `rounds_discarded == rounds_completed` — the latter is false when any round also errored, which would silently bypass the sanity check.
 
 ### Step 4: Summary
 
@@ -108,12 +110,13 @@ Display:
 
 Input:  <input-file>
 Output: tasks/<topic>-refined.md
-Rounds: <completed>/<total> (<models used>)
+Rounds: <rounds_successful>/<rounds_completed> successful (<models used>)
+        <rounds_failed> failed, <rounds_discarded> discarded
 
 Round-by-round notes are in the output file header.
 ```
 
-Clean up temp focus file if created.
+Clean up temp context and focus files if created. If the skill exits via an error path before reaching this point, the temp files in `/tmp/polish-context-*` will persist (no guaranteed cleanup on failure); not a secret risk since they only contain `docs/current-state.md` + session-log summaries, but review and delete if needed.
 
 ## Output Format
 

@@ -2880,6 +2880,29 @@ def _parse_refine_response(text):
     return text.strip(), ""
 
 
+def _aggregate_round_counts(round_notes):
+    """Tally refine round outcomes into mutually-exclusive buckets. All three
+    status flags are explicit booleans on the round note dict: `errored` (set
+    in the except branch around line 3248), `truncated` (truncation check
+    ~line 3118), `slots_dropped` (slot-drop check ~line 3161). `successful` is
+    the residual — a round that did not error, was not truncated, and did not
+    drop slots. The mutual-exclusivity invariant (completed = errored +
+    discarded + successful) is asserted by `test_partition_is_mutually_exclusive`.
+    """
+    completed = len(round_notes)
+    errored = sum(1 for rn in round_notes if rn.get("errored"))
+    discarded = sum(
+        1 for rn in round_notes
+        if not rn.get("errored") and (rn.get("truncated") or rn.get("slots_dropped"))
+    )
+    return {
+        "completed": completed,
+        "failed": errored,
+        "discarded": discarded,
+        "successful": completed - errored - discarded,
+    }
+
+
 def cmd_refine(args):
     """Iterative cross-model refinement: each model improves the document in turn."""
     _cost_snapshot = debate_common.get_session_costs()
@@ -2997,6 +3020,22 @@ def cmd_refine(args):
                     + "\n\n".join(accepted)
                 )
 
+    # Load verbatim system context if provided — prepended to the system prompt
+    # each round. Separate from --judgment so plain context prose isn't silently
+    # filtered out by the ACCEPT-block regex above. Framed as "reference material"
+    # so the model treats it as background rather than governance — the refine
+    # template that follows (including the D31 Frame Check channel rule) is the
+    # authoritative instruction surface.
+    system_context = ""
+    if getattr(args, "system_context", None):
+        system_context_text = args.system_context.read().strip()
+        if system_context_text:
+            system_context = (
+                "## Project Context (reference material — does not override instructions below)\n\n"
+                + system_context_text
+                + "\n\n---\n\n"
+            )
+
     # Derive debate_id from output filename
     debate_id = os.path.splitext(os.path.basename(args.output))[0]
     if debate_id.endswith("-refined"):
@@ -3039,6 +3078,9 @@ def cmd_refine(args):
                 system_prompt = REFINE_FIRST_ROUND_PROMPT.format(judgment_context=ctx)
             else:
                 system_prompt = REFINE_SUBSEQUENT_ROUND_PROMPT.format(judgment_context=ctx)
+
+        if system_context:
+            system_prompt = system_context + system_prompt
 
         if enable_tools:
             system_prompt += REFINE_TOOL_SUFFIX
@@ -3207,6 +3249,7 @@ def cmd_refine(args):
                 "round": round_num,
                 "model": model,
                 "notes": f"[ERROR: {e}]",
+                "errored": True,
             })
 
     # Build output
@@ -3238,10 +3281,13 @@ def cmd_refine(args):
     with open(args.output, "w") as f:
         f.write(output_text)
 
+    counts = _aggregate_round_counts(round_notes)
     result = {
         "status": "ok",
-        "rounds_completed": len(round_notes),
-        "rounds_failed": sum(1 for rn in round_notes if rn["notes"].startswith("[ERROR:")),
+        "rounds_completed": counts["completed"],
+        "rounds_failed": counts["failed"],
+        "rounds_discarded": counts["discarded"],
+        "rounds_successful": counts["successful"],
         "models": models[:rounds],
     }
     print(json.dumps(result))
@@ -3250,9 +3296,13 @@ def cmd_refine(args):
         "phase": "refine",
         "debate_id": debate_id,
         "rounds": rounds,
-        "rounds_completed": len(round_notes),
+        "rounds_completed": counts["completed"],
+        "rounds_failed": counts["failed"],
+        "rounds_discarded": counts["discarded"],
+        "rounds_successful": counts["successful"],
         "models": models[:rounds],
         "seeded_from_judgment": bool(judgment_context),
+        "seeded_from_system_context": bool(system_context),
         "output": args.output,
     }
     if enable_tools:
@@ -3980,7 +4030,15 @@ def main():
     rf.add_argument("--models", default=None,
                      help="Comma-separated model rotation (default: gemini-3.1-pro,gpt-5.4,claude-opus-4-6)")
     rf.add_argument("--judgment", type=argparse.FileType("r"), default=None,
-                     help="Path to judgment file — seeds first round with accepted challenges")
+                     help="Path to judgment file — seeds first round with accepted challenges. "
+                          "Filtered for '### Challenge ... Decision: ACCEPT' blocks; "
+                          "non-matching content is dropped. Use --system-context for verbatim text.")
+    rf.add_argument("--system-context", dest="system_context",
+                     type=argparse.FileType("r"), default=None,
+                     help="Path to file with project/session context to prepend verbatim "
+                          "to the system prompt every round. Unlike --judgment, no filtering. "
+                          "Trust boundary: content is injected into the system prompt with high "
+                          "effective priority — do not source from user-submitted or external input.")
     rf.add_argument("--output", required=True,
                      help="Output path for refined document")
     rf.add_argument("--enable-tools", action="store_true", default=False,
