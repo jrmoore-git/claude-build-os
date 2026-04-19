@@ -812,7 +812,8 @@ Output format:
 
 
 def _call_litellm(model, system_prompt, user_content, litellm_url, api_key,
-                  temperature=None, max_tokens=None, timeout=None):
+                  temperature=None, max_tokens=None, timeout=None,
+                  cache_control=None, cache_ttl=None):
     """Call LiteLLM chat completions. Returns response text or raises LLMError.
 
     Tracks token usage and estimated cost per call.
@@ -822,6 +823,11 @@ def _call_litellm(model, system_prompt, user_content, litellm_url, api_key,
     most _call_litellm callers are judge/verdict/compare paths that benefit
     from deterministic output. Challenger paths that need per-model temperature
     must pass it explicitly (see _challenger_temperature helper).
+
+    cache_control / cache_ttl forward to llm_call_raw. Default None = uncached
+    (preserves pre-caching byte-identity for callers that haven't been validated
+    for caching). Subcommands that share system+proposal across calls should
+    pass cache_control="system+user".
     """
     if temperature is None:
         temperature = LLM_CALL_DEFAULTS["judge_temperature"]
@@ -831,7 +837,8 @@ def _call_litellm(model, system_prompt, user_content, litellm_url, api_key,
         timeout = MODEL_TIMEOUTS.get(model, LLM_CALL_DEFAULTS["timeout"])
     raw = llm_call_raw(system_prompt, user_content, model=model,
                        temperature=temperature, max_tokens=max_tokens,
-                       timeout=timeout, base_url=litellm_url, api_key=api_key)
+                       timeout=timeout, base_url=litellm_url, api_key=api_key,
+                       cache_control=cache_control, cache_ttl=cache_ttl)
     model_used = raw.get("model", model)
     usage = raw.get("usage", {})
     cost_usd = debate_common._estimate_cost(model_used, usage)
@@ -1161,6 +1168,7 @@ def cmd_challenge(args):
                         timeout=MODEL_TIMEOUTS.get(model, TOOL_LOOP_TIMEOUT_SECONDS),
                         base_url=litellm_url,
                         api_key=api_key,
+                        cache_control="system+user",
                         on_tool_call=lambda turn, name, targs, res: tool_log.append(
                             {"turn": turn, "tool": name}
                         ),
@@ -1189,6 +1197,7 @@ def cmd_challenge(args):
                         timeout=MODEL_TIMEOUTS.get(fallback, TOOL_LOOP_TIMEOUT_SECONDS),
                         base_url=litellm_url,
                         api_key=api_key,
+                        cache_control="system+user",
                         on_tool_call=lambda turn, name, targs, res: tool_log.append(
                             {"turn": turn, "tool": name}
                         ),
@@ -1205,7 +1214,8 @@ def cmd_challenge(args):
                 fallback = debate_common._get_fallback_model(model, config)
                 response, _used = _call_with_model_fallback(
                     model, fallback, sys_prompt, proposal, litellm_url, api_key,
-                    temperature=challenger_temp)
+                    temperature=challenger_temp,
+                    cache_control="system+user")
                 tool_log = []
             warnings = _validate_challenge(response)
             elapsed = time.time() - t0
@@ -1740,7 +1750,8 @@ def cmd_judge(args):
         judge_fallback = debate_common._get_fallback_model(judge_model, config)
         response, _used = _call_with_model_fallback(
             judge_model, judge_fallback, system_prompt, user_content,
-            litellm_url, api_key)
+            litellm_url, api_key,
+            cache_control="system+user")
     except LLM_SAFE_EXCEPTIONS as e:
         print(f"ERROR: judge call failed — {e}", file=sys.stderr)
         return 2
@@ -3442,6 +3453,7 @@ def cmd_review(args):
                         timeout=MODEL_TIMEOUTS.get(model, TOOL_LOOP_TIMEOUT_SECONDS),
                         base_url=litellm_url,
                         api_key=api_key,
+                        cache_control="system+user",
                         on_tool_call=lambda turn, name, targs, res: tool_log.append(
                             {"turn": turn, "tool": name}
                         ),
@@ -3471,6 +3483,7 @@ def cmd_review(args):
                         timeout=MODEL_TIMEOUTS.get(fallback, TOOL_LOOP_TIMEOUT_SECONDS),
                         base_url=litellm_url,
                         api_key=api_key,
+                        cache_control="system+user",
                         on_tool_call=lambda turn, name, targs, res: tool_log.append(
                             {"turn": turn, "tool": name}
                         ),
@@ -3489,7 +3502,8 @@ def cmd_review(args):
                 fallback = debate_common._get_fallback_model(model, config)
                 response, _used = _call_with_model_fallback(
                     model, fallback, prompt, input_text, litellm_url, api_key,
-                    temperature=challenger_temp)
+                    temperature=challenger_temp,
+                    cache_control="system+user")
             elapsed = time.time() - t0
             if response and response.strip():
                 print(f"  {persona} ({model}): {elapsed:.1f}s", file=sys.stderr)
@@ -3663,7 +3677,8 @@ def cmd_pressure_test(args):
             response, _used = _call_with_model_fallback(
                 model, pt_fallback, prompt, user_content,
                 litellm_url, api_key,
-                temperature=LLM_CALL_DEFAULTS["pressure_test_temperature"])
+                temperature=LLM_CALL_DEFAULTS["pressure_test_temperature"],
+                cache_control="system+user")
         except LLM_SAFE_EXCEPTIONS as e:
             print(f"ERROR: {phase} failed — {e}", file=sys.stderr)
             return 1
@@ -3721,7 +3736,8 @@ def cmd_pressure_test(args):
             resp, used = _call_with_model_fallback(
                 m, fb, prompt, user_content,
                 litellm_url, api_key,
-                temperature=LLM_CALL_DEFAULTS["pressure_test_temperature"])
+                temperature=LLM_CALL_DEFAULTS["pressure_test_temperature"],
+                cache_control="system+user")
             elapsed = time.time() - t0
             if resp and resp.strip():
                 print(f"  {m}: {elapsed:.1f}s", file=sys.stderr)

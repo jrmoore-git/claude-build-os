@@ -130,7 +130,8 @@ def fake_credentials_fallback(monkeypatch):
 def fake_llm(monkeypatch):
     """Monkeypatch _call_litellm to return canned responses."""
     def _fake_call(model, system_prompt, user_content, litellm_url, api_key,
-                   temperature=None, timeout=None):
+                   temperature=None, timeout=None, max_tokens=None,
+                   cache_control=None, cache_ttl=None):
         return f"Response from {model}: Reviewed the content."
 
     monkeypatch.setattr(debate, "_call_litellm", _fake_call)
@@ -140,7 +141,8 @@ def fake_llm(monkeypatch):
 def fake_llm_with_sections(monkeypatch):
     """Monkeypatch _call_litellm to return challenger-style responses."""
     def _fake_call(model, system_prompt, user_content, litellm_url, api_key,
-                   temperature=None, timeout=None):
+                   temperature=None, timeout=None, max_tokens=None,
+                   cache_control=None, cache_ttl=None):
         return (
             "## Challenges\n\n"
             "1. **ASSUMPTION [MATERIAL]:** Test finding from model.\n\n"
