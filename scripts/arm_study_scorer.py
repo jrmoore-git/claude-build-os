@@ -766,6 +766,16 @@ def score_run(
 
     scored = aggregate_proposal(arm_extractions)
     _attach_verifications(scored, arm_verifications)
+
+    # miss_rate (Dim 5) coverage pass — reads reference issue list if present.
+    # The discoverer is run separately via arm_study_miss_discoverer.py to
+    # keep LLM costs transparent. If the reference file doesn't exist, the
+    # miss_rate block stays "not-yet-measured" for this run.
+    _attach_miss_rate_coverage(scored, run_dir, arm_extractions_dirs={
+        arm: run_dir / arm / "_combined-for-scoring.md"
+        for arm in ("arm-x", "arm-y")
+    })
+
     labels = json.loads(labels_path.read_text())
     scored = unblind(scored, labels)
     scored["metadata"] = {
@@ -775,6 +785,89 @@ def score_run(
         "verify_claims_judge": judges[0],
     }
     return scored
+
+
+def _attach_miss_rate_coverage(
+    scored: dict[str, Any],
+    run_dir: Path,
+    arm_extractions_dirs: dict[str, Path],
+) -> None:
+    """Attach miss_rate coverage data to each arm's miss_rate block.
+
+    Reads stores/arm-study/<run_id>/miss_reference_issues.json (produced by
+    arm_study_miss_discoverer.py). Matches each issue's key_tokens against
+    each arm's combined challenge text. Stores per-arm matched/missed
+    counts so the verdict can compute miss_rate per arm.
+    """
+    ref_path = run_dir / "miss_reference_issues.json"
+    if not ref_path.is_file():
+        for arm in scored.get("arms", {}).values():
+            if "miss_rate" in arm:
+                arm["miss_rate"]["reference_coverage"] = {
+                    "status": "reference-not-generated",
+                    "reason": (
+                        f"miss_reference_issues.json not found at "
+                        f"{ref_path.relative_to(REPO_ROOT)} — run "
+                        f"arm_study_miss_discoverer.py to generate"
+                    ),
+                }
+        return
+
+    try:
+        ref = json.loads(ref_path.read_text())
+    except (OSError, json.JSONDecodeError) as e:
+        for arm in scored.get("arms", {}).values():
+            if "miss_rate" in arm:
+                arm["miss_rate"]["reference_coverage"] = {
+                    "status": "reference-load-failed",
+                    "error": str(e),
+                }
+        return
+
+    issues = ref.get("issues") or []
+    if not issues:
+        for arm in scored.get("arms", {}).values():
+            if "miss_rate" in arm:
+                arm["miss_rate"]["reference_coverage"] = {
+                    "status": "reference-empty",
+                    "reason": "discoverer returned zero issues",
+                }
+        return
+
+    # Lazy import — keeps the scorer importable without the discoverer's
+    # dependencies (the matcher itself is pure Python).
+    try:
+        import arm_study_miss_discoverer as mrd
+    except ImportError as e:
+        for arm in scored.get("arms", {}).values():
+            if "miss_rate" in arm:
+                arm["miss_rate"]["reference_coverage"] = {
+                    "status": "matcher-import-failed",
+                    "error": str(e),
+                }
+        return
+
+    for arm_neutral, arm_data in scored.get("arms", {}).items():
+        combined_path = arm_extractions_dirs.get(arm_neutral)
+        if not combined_path or not combined_path.is_file():
+            continue
+        challenge_text = combined_path.read_text()
+        coverage = mrd.match_reference_issues(issues, challenge_text)
+        if "miss_rate" not in arm_data:
+            arm_data["miss_rate"] = {
+                "dimension": "miss_rate", "status": "scored",
+                "item_counts": {}, "quality_distribution": {},
+                "substantive_count": {}, "convergence": {},
+            }
+        arm_data["miss_rate"]["reference_coverage"] = {
+            "status": "scored",
+            "total_reference_issues": coverage["total_reference_issues"],
+            "caught_count": coverage["caught_count"],
+            "missed_count": coverage["missed_count"],
+            "miss_rate": coverage["miss_rate"],
+            "caught": coverage["caught"],
+            "missed": coverage["missed"],
+        }
 
 
 def _verify_ground_truth_dimensions(

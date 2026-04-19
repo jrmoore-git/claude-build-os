@@ -78,11 +78,14 @@ JUDGE_GRADED_DIMS = (
     "net_new_ideas",
 )
 NOT_YET_MEASURED_DIMS = (
-    "miss_rate",
     "plan_quality_delta",
     "code_review_quality_delta",
 )
-ALL_REPORTED_DIMS = (GROUND_TRUTH_DIM,) + JUDGE_GRADED_DIMS + NOT_YET_MEASURED_DIMS
+MISS_RATE_DIM = "miss_rate"
+ALL_REPORTED_DIMS = (
+    (GROUND_TRUTH_DIM,) + JUDGE_GRADED_DIMS
+    + (MISS_RATE_DIM,) + NOT_YET_MEASURED_DIMS
+)
 
 
 # ── Family exclusion (same rule as scorer) ─────────────────────────────────
@@ -504,11 +507,6 @@ def _per_dim_verdict_judge_graded(
 
 
 _NOT_YET_MEASURED_REASON = {
-    "miss_rate": (
-        "Dim 5 requires independent issue-discoverer "
-        "(pending: item 5 of metric-fix plan — reads proposal + code, emits "
-        "reference issue list, diffs against challenger output)"
-    ),
     "plan_quality_delta": (
         "Dim 6 requires retrospective scorer reading downstream plan artifact "
         "(pending: item 6 of metric-fix plan)"
@@ -519,6 +517,8 @@ _NOT_YET_MEASURED_REASON = {
     ),
 }
 
+MISS_RATE_DELTA_MIN = 0.15  # miss_rate delta must be ≥15pp for a winner
+
 
 def _per_dim_verdict_not_yet_measured(dim: str) -> dict[str, Any]:
     return {
@@ -527,6 +527,90 @@ def _per_dim_verdict_not_yet_measured(dim: str) -> dict[str, Any]:
         "verdict": "not-yet-measured",
         "reason": _NOT_YET_MEASURED_REASON.get(dim, "dimension not yet implemented"),
     }
+
+
+def _per_dim_verdict_miss_rate(
+    all_scored: list[dict[str, Any]], n: int,
+) -> dict[str, Any]:
+    """miss_rate verdict based on reference-issue coverage (item 5 output).
+
+    Pools reference issues across proposals per arm; miss_rate(arm) =
+    total_missed / total_reference_issues. Lower is better.
+    """
+    pooled = {arm: {"caught": 0, "missed": 0, "total": 0}
+              for arm in ("arm-a", "arm-b")}
+    any_scored = False
+    for scored in all_scored:
+        for arm in ("arm-a", "arm-b"):
+            mr = _arm_dim_data(scored, arm, "miss_rate") or {}
+            rc = mr.get("reference_coverage") or {}
+            if rc.get("status") != "scored":
+                continue
+            any_scored = True
+            pooled[arm]["caught"] += int(rc.get("caught_count", 0))
+            pooled[arm]["missed"] += int(rc.get("missed_count", 0))
+            pooled[arm]["total"] += int(rc.get("total_reference_issues", 0))
+
+    out: dict[str, Any] = {
+        "dimension": "miss_rate",
+        "signal_type": "independent-discoverer + token-coverage matcher",
+        "arm-a": pooled["arm-a"],
+        "arm-b": pooled["arm-b"],
+    }
+    if not any_scored:
+        out["verdict"] = "not-yet-measured"
+        out["reason"] = (
+            "miss_rate reference_coverage absent on all proposals — run "
+            "arm_study_miss_discoverer.py per proposal to generate"
+        )
+        return out
+
+    for arm in ("arm-a", "arm-b"):
+        total = pooled[arm]["total"]
+        pooled[arm]["miss_rate"] = (
+            pooled[arm]["missed"] / total if total > 0 else None
+        )
+        pooled[arm]["catch_rate"] = (
+            pooled[arm]["caught"] / total if total > 0 else None
+        )
+    out["arm-a"] = pooled["arm-a"]
+    out["arm-b"] = pooled["arm-b"]
+
+    mr_a = pooled["arm-a"]["miss_rate"]
+    mr_b = pooled["arm-b"]["miss_rate"]
+    if mr_a is None or mr_b is None:
+        out["verdict"] = "not-yet-measured"
+        out["reason"] = "insufficient coverage data on one or both arms"
+        return out
+
+    # Lower miss_rate wins. Compute delta as (loser - winner).
+    delta = mr_a - mr_b  # positive = B misses less
+    out["delta"] = delta
+
+    if abs(delta) < MISS_RATE_DELTA_MIN:
+        out["verdict"] = "inconclusive"
+        out["reason"] = (
+            f"miss_rate delta {delta*100:+.1f}pp within "
+            f"±{MISS_RATE_DELTA_MIN*100:.0f}pp noise floor"
+        )
+        return out
+
+    winner = "arm-b" if delta > 0 else "arm-a"
+    label = (
+        f"directional-favor-{winner}"
+        if n < MIN_SAMPLE_FOR_CONFIDENT
+        else f"confident-favor-{winner}"
+    )
+    out["verdict"] = label
+    out["reason"] = (
+        f"miss_rate delta {delta*100:+.1f}pp favors {winner} "
+        f"({pooled[winner]['missed']}/{pooled[winner]['total']} missed vs "
+        f"{pooled['arm-a' if winner == 'arm-b' else 'arm-b']['missed']}/"
+        f"{pooled['arm-a' if winner == 'arm-b' else 'arm-b']['total']}); "
+        f"n={n}"
+    )
+    out["primary_winner"] = winner
+    return out
 
 
 # ── Advisory convergence note ───────────────────────────────────────────────
@@ -653,6 +737,10 @@ def compute_verdict(all_scored: list[dict[str, Any]]) -> dict[str, Any]:
     }
     for dim in JUDGE_GRADED_DIMS:
         per_dim[dim] = _per_dim_verdict_judge_graded(all_scored, dim, n)
+    # miss_rate (Dim 5) now has its own computation when item 5 has been
+    # run (reference-coverage data populated). Otherwise falls back to
+    # not-yet-measured.
+    per_dim["miss_rate"] = _per_dim_verdict_miss_rate(all_scored, n)
     for dim in NOT_YET_MEASURED_DIMS:
         per_dim[dim] = _per_dim_verdict_not_yet_measured(dim)
 
