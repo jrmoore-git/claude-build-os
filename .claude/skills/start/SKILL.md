@@ -87,8 +87,14 @@ active_count=$(awk '/^## Promoted/{exit} /^\| L[0-9]/{n++} END{print n+0}' tasks
 # Check for Resolved lessons still in active table (stale from prior sessions)
 resolved_active=$(awk '/^## Promoted/{exit} /^\| L[0-9]+.*\[Resolved/' tasks/lessons.md 2>/dev/null || true)
 
-# Days since last full healthcheck (check git log, not session-log markers)
-last_hc=$(git log --oneline --grep="healthcheck" --since="7 days ago" 2>/dev/null | head -1 || true)
+# Days since last full healthcheck — session-log marker is source of truth;
+# git log is a fallback for sessions that pre-date the marker convention.
+last_hc_marker=$(grep -oE '\[healthcheck: [0-9]{4}-[0-9]{2}-[0-9]{2}\]' tasks/session-log.md 2>/dev/null | tail -1 || true)
+if [ -n "$last_hc_marker" ]; then
+  last_hc="$last_hc_marker"
+else
+  last_hc=$(git log --oneline --grep="healthcheck" --since="7 days ago" 2>/dev/null | head -1 || true)
+fi
 
 # Overdue decisions (NEEDS DECISION or open status, added >7 days ago)
 overdue_decisions=$(grep -E 'NEEDS DECISION|Status: open' tasks/decisions.md 2>/dev/null || true)

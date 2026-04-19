@@ -8,8 +8,8 @@ When session flag is plan_submitted: true, blocks Agent calls that:
 - Have a write-capable subagent_type (general-purpose or unspecified)
 - Do NOT specify isolation: "worktree"
 
-Also warns (non-blocking) when worktree agents receive absolute repo paths
-in their prompts, which bypasses isolation entirely (L23).
+Also blocks (permissionDecision: deny) when worktree agents receive absolute
+repo paths in their prompts, which bypasses isolation entirely (L23, L291).
 
 Read-only subagent types are exempt (Explore, Plan, claude-code-guide, statusline-setup).
 If no flag file or flag is bypass: allow everything.

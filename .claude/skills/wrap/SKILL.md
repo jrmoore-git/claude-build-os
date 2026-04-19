@@ -181,6 +181,15 @@ Append to `tasks/session-log.md` (do not overwrite — append after the last `--
 
 ```
 
+**Healthcheck marker.** If `/healthcheck` ran this session (full scan — not just the counts layer emitted by `/start` Step 1g or this skill's Step 1b), append a marker line `_[healthcheck: YYYY-MM-DD]_` immediately after the session heading. The marker is what `/start`'s 7-day OVERDUE auto-trigger reads — the session-log is the source of truth, not the commit message, because wrap commit subjects routinely omit the word "healthcheck."
+
+Detection:
+```bash
+# Did a healthcheck commit land since the last session boundary?
+hc_ran=$(git log --format=%s --since="1 day ago" 2>/dev/null | grep -iE 'healthcheck|governance audit' | head -1)
+```
+If `$hc_ran` is non-empty OR this session explicitly invoked `/healthcheck`, include the marker line. Otherwise omit it.
+
 ### Step 6b — BuildOS sync check
 
 Check if any framework files diverged from the BuildOS repo this session:
