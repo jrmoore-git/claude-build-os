@@ -723,9 +723,20 @@ def _per_dim_verdict_miss_rate(
 
     Pools reference issues across proposals per arm; miss_rate(arm) =
     total_missed / total_reference_issues. Lower is better.
+
+    REDESIGN B: when the discoverer ran in ensemble mode, scored.json
+    carries reference_coverage_sensitivity with per-rule (majority / union /
+    intersection) coverage. The primary verdict still uses majority; the
+    sensitivity block is surfaced for the markdown report.
     """
     pooled = {arm: {"caught": 0, "missed": 0, "total": 0}
               for arm in ("arm-a", "arm-b")}
+    sensitivity_pooled = {
+        rule: {arm: {"caught": 0, "missed": 0, "total": 0}
+               for arm in ("arm-a", "arm-b")}
+        for rule in ("majority", "union", "intersection")
+    }
+    sensitivity_present = False
     any_scored = False
     unpaired_dropped = 0
     # Fix 1B (must-fix per cross-model review): pair proposals before pooling.
@@ -747,6 +758,29 @@ def _per_dim_verdict_miss_rate(
             pooled[arm]["caught"] += int(rc.get("caught_count", 0))
             pooled[arm]["missed"] += int(rc.get("missed_count", 0))
             pooled[arm]["total"] += int(rc.get("total_reference_issues", 0))
+        # Pool sensitivity data when both arms have it for this proposal.
+        a_sens = (
+            (_arm_dim_data(scored, "arm-a", "miss_rate") or {})
+            .get("reference_coverage_sensitivity") or {}
+        )
+        b_sens = (
+            (_arm_dim_data(scored, "arm-b", "miss_rate") or {})
+            .get("reference_coverage_sensitivity") or {}
+        )
+        if a_sens and b_sens:
+            sensitivity_present = True
+            for rule in ("majority", "union", "intersection"):
+                a_rule = a_sens.get(rule) or {}
+                b_rule = b_sens.get(rule) or {}
+                if not a_rule or not b_rule:
+                    continue
+                for arm, rd in (("arm-a", a_rule), ("arm-b", b_rule)):
+                    sensitivity_pooled[rule][arm]["caught"] += int(
+                        rd.get("caught_count", 0))
+                    sensitivity_pooled[rule][arm]["missed"] += int(
+                        rd.get("missed_count", 0))
+                    sensitivity_pooled[rule][arm]["total"] += int(
+                        rd.get("total_reference_issues", 0))
 
     out: dict[str, Any] = {
         "dimension": "miss_rate",
@@ -808,6 +842,35 @@ def _per_dim_verdict_miss_rate(
         f"n={n}"
     )
     out["primary_winner"] = winner
+    # REDESIGN B sensitivity: append per-rule pooled coverage so render
+    # can show how the verdict shifts under union/intersection aggregation.
+    if sensitivity_present:
+        sens_block: dict[str, Any] = {}
+        for rule in ("majority", "union", "intersection"):
+            r_pooled = sensitivity_pooled[rule]
+            for arm in ("arm-a", "arm-b"):
+                t = r_pooled[arm]["total"]
+                r_pooled[arm]["miss_rate"] = (
+                    r_pooled[arm]["missed"] / t if t > 0 else None
+                )
+            mr_a = r_pooled["arm-a"]["miss_rate"]
+            mr_b = r_pooled["arm-b"]["miss_rate"]
+            if mr_a is None or mr_b is None:
+                rule_delta = None
+                rule_winner = None
+            else:
+                rule_delta = mr_a - mr_b
+                rule_winner = (
+                    "arm-b" if rule_delta > 0
+                    else ("arm-a" if rule_delta < 0 else None)
+                )
+            sens_block[rule] = {
+                "arm-a": r_pooled["arm-a"],
+                "arm-b": r_pooled["arm-b"],
+                "delta": rule_delta,
+                "winner": rule_winner,
+            }
+        out["sensitivity"] = sens_block
     return out
 
 
@@ -1132,6 +1195,35 @@ def render_markdown(
                     "metrics (orphan #11 fix)._",
                     "",
                 ])
+
+    # ── miss_rate sensitivity (REDESIGN B) ────────────────────────────
+    mr = per_dim.get("miss_rate")
+    if mr and mr.get("sensitivity"):
+        sens = mr["sensitivity"]
+        lines.extend([
+            "## miss_rate — sensitivity to ensemble aggregation (REDESIGN B)",
+            "",
+            "| Rule | arm-a miss-rate | arm-b miss-rate | Delta (a−b) | Rule winner |",
+            "|---|---|---|---|---|",
+        ])
+        for rule in ("majority", "union", "intersection"):
+            r = sens.get(rule, {})
+            mr_a = (r.get("arm-a") or {}).get("miss_rate")
+            mr_b = (r.get("arm-b") or {}).get("miss_rate")
+            delta = r.get("delta")
+            winner = r.get("winner") or "—"
+            lines.append(
+                f"| {rule} | {_fmt_pct(mr_a)} | {_fmt_pct(mr_b)} | "
+                f"{('—' if delta is None else f'{delta*100:+.1f}pp')} | "
+                f"{winner} |"
+            )
+        lines.extend([
+            "",
+            "_Majority is the primary scoring rule; union/intersection shown "
+            "for sensitivity. If the rule winner flips across rules, the "
+            "miss_rate signal is fragile to discoverer aggregation choice._",
+            "",
+        ])
 
     # ── Judge-graded detail ───────────────────────────────────────────
     for dim in JUDGE_GRADED_DIMS:

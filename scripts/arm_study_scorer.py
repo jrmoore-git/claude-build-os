@@ -1233,12 +1233,30 @@ def _attach_miss_rate_coverage(
                 }
         return
 
+    # REDESIGN B: when discoverer ran in ensemble mode, attach sensitivity
+    # data using union/intersection in addition to majority (primary).
+    provenance = ref.get("aggregation_provenance") or {}
+    use_v2_matcher = bool(provenance)
+    sensitivity_buckets = {
+        "majority": provenance.get("majority", issues),
+        "union": provenance.get("union", issues),
+        "intersection": provenance.get("intersection", issues),
+    } if use_v2_matcher else None
+
     for arm_neutral, arm_data in scored.get("arms", {}).items():
         combined_path = arm_extractions_dirs.get(arm_neutral)
         if not combined_path or not combined_path.is_file():
             continue
         challenge_text = combined_path.read_text()
-        coverage = mrd.match_reference_issues(issues, challenge_text)
+        if use_v2_matcher:
+            # Primary = majority. v2 word-boundary tokenization + LLM
+            # adjudication for borderline matches. Adjudicator failures
+            # default to "missed" so any fault is conservative.
+            coverage = mrd.match_reference_issues_v2(
+                sensitivity_buckets["majority"], challenge_text,
+            )
+        else:
+            coverage = mrd.match_reference_issues(issues, challenge_text)
         if "miss_rate" not in arm_data:
             arm_data["miss_rate"] = {
                 "dimension": "miss_rate", "status": "scored",
@@ -1254,6 +1272,28 @@ def _attach_miss_rate_coverage(
             "caught": coverage["caught"],
             "missed": coverage["missed"],
         }
+        # Optional: v2 includes borderline + adjudicator stats.
+        for key in ("borderline_count", "adjudicator_calls"):
+            if key in coverage:
+                arm_data["miss_rate"]["reference_coverage"][key] = coverage[key]
+        # Sensitivity attachment for ensemble runs.
+        if use_v2_matcher:
+            sens_block: dict[str, Any] = {}
+            for rule in ("majority", "union", "intersection"):
+                rule_issues = sensitivity_buckets[rule]
+                if rule == "majority":
+                    rule_cov = coverage  # already computed
+                else:
+                    rule_cov = mrd.match_reference_issues_v2(
+                        rule_issues, challenge_text,
+                    )
+                sens_block[rule] = {
+                    "total_reference_issues": rule_cov["total_reference_issues"],
+                    "caught_count": rule_cov["caught_count"],
+                    "missed_count": rule_cov["missed_count"],
+                    "miss_rate": rule_cov["miss_rate"],
+                }
+            arm_data["miss_rate"]["reference_coverage_sensitivity"] = sens_block
 
 
 def _verify_ground_truth_dimensions(
