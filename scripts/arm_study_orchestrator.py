@@ -223,13 +223,30 @@ def main():
     )
     parser.add_argument(
         "--run-id", default=None,
-        help="Run identifier (default: timestamp-based run-YYYYMMDD-HHMMSS)",
+        help="Run identifier (default: timestamp-based run-YYYYMMDD-HHMMSS). "
+             "REQUIRED when --arm-only is set, so both sessions share state.",
+    )
+    parser.add_argument(
+        "--arm-only", choices=("a", "b"), default=None,
+        help="Run only one arm (a=Claude-only, b=production multi-model). "
+             "For parallel-session final n=10 runs: two Claude Code sessions "
+             "each invoke with the same --run-id but different --arm-only, "
+             "then a third session runs the scorer + verdict. Requires "
+             "--run-id to be explicit so both sessions share labels.json.",
     )
     parser.add_argument(
         "--dry-run", action="store_true", default=False,
         help="Do not invoke real subprocesses; create fixture outputs",
     )
     args = parser.parse_args()
+
+    if args.arm_only and not args.run_id:
+        raise ValueError(
+            "--arm-only requires an explicit --run-id so both sessions "
+            "(one per arm) can share labels.json. Generate a shared run-id "
+            "up front (e.g. `run-$(date +%Y%m%d-%H%M%S)`) and pass it to "
+            "both sessions."
+        )
 
     run_id = args.run_id or _default_run_id()
     proposal_rel = pathlib.Path(args.proposal)
@@ -266,11 +283,20 @@ def main():
 
     # Obfuscated label assignment. labels.json maps neutral -> semantic
     # (arm-x -> arm-a, arm-y -> arm-b) — the shape scorer.unblind() expects.
-    arm_a_label, arm_b_label = _assign_labels()
-    labels_map = {arm_a_label: "arm-a", arm_b_label: "arm-b"}
-    (run_dir_abs / "labels.json").write_text(
-        json.dumps(labels_map, indent=2, sort_keys=True) + "\n"
-    )
+    # For parallel-session runs (--arm-only), both sessions share this file:
+    # whichever session starts first writes it; the second reads it.
+    labels_path = run_dir_abs / "labels.json"
+    if labels_path.is_file():
+        labels_map = json.loads(labels_path.read_text())
+        # Invert back to (arm_a_label, arm_b_label) for downstream logic.
+        arm_a_label = next(k for k, v in labels_map.items() if v == "arm-a")
+        arm_b_label = next(k for k, v in labels_map.items() if v == "arm-b")
+    else:
+        arm_a_label, arm_b_label = _assign_labels()
+        labels_map = {arm_a_label: "arm-a", arm_b_label: "arm-b"}
+        labels_path.write_text(
+            json.dumps(labels_map, indent=2, sort_keys=True) + "\n"
+        )
 
     # Per-proposal subdir keeps the run dir extensible to multi-proposal runs
     # and matches the plan's `stores/arm-study/<run_id>/arm-x/<proposal>/` layout.
@@ -288,36 +314,58 @@ def main():
     started_at = _now_utc()
     total_t0 = time.time()
 
-    # Arm A: Claude-only config.
-    cmd_a = _build_command(
-        proposal_rel, arm_a_output_rel, config_rel=CLAUDE_ONLY_CONFIG_REL
-    )
-    result_a = _run_arm("arm_a", cmd_a, arm_a_dir_abs, arm_a_output_rel, args.dry_run)
+    # Arm execution. Full mode runs both arms sequentially; --arm-only
+    # mode runs one. Labels are pre-assigned above, so a separate session
+    # running the other arm will use the same obfuscated mapping.
+    run_arm_a = args.arm_only in (None, "a")
+    run_arm_b = args.arm_only in (None, "b")
 
-    # Arm B: production config (no --config flag).
-    cmd_b = _build_command(proposal_rel, arm_b_output_rel, config_rel=None)
-    result_b = _run_arm("arm_b", cmd_b, arm_b_dir_abs, arm_b_output_rel, args.dry_run)
+    result_a = None
+    result_b = None
+    if run_arm_a:
+        cmd_a = _build_command(
+            proposal_rel, arm_a_output_rel, config_rel=CLAUDE_ONLY_CONFIG_REL
+        )
+        result_a = _run_arm(
+            "arm_a", cmd_a, arm_a_dir_abs, arm_a_output_rel, args.dry_run
+        )
+    if run_arm_b:
+        cmd_b = _build_command(proposal_rel, arm_b_output_rel, config_rel=None)
+        result_b = _run_arm(
+            "arm_b", cmd_b, arm_b_dir_abs, arm_b_output_rel, args.dry_run
+        )
 
     completed_at = _now_utc()
     total_wall_sec = round(time.time() - total_t0, 3)
 
     # Obfuscate manifest: route results by label, not by arm_a/arm_b identity.
-    per_label = {
-        arm_a_label: {
+    # In --arm-only mode, merge with an existing manifest from the sibling
+    # session so both arms' results land in one manifest.
+    manifest_path = run_dir_abs / "manifest.json"
+    existing_manifest = None
+    if args.arm_only and manifest_path.is_file():
+        try:
+            existing_manifest = json.loads(manifest_path.read_text())
+        except (json.JSONDecodeError, OSError):
+            existing_manifest = None
+
+    per_label = (existing_manifest or {}).get("per_label", {})
+    if result_a is not None:
+        per_label[arm_a_label] = {
             "exit_code": result_a["exit_code"],
             "stdout_bytes": result_a["stdout_bytes"],
             "stderr_bytes": result_a["stderr_bytes"],
             "files_generated_count": result_a["files_generated_count"],
             "wall_time_sec": result_a["wall_time_sec"],
-        },
-        arm_b_label: {
+        }
+    if result_b is not None:
+        per_label[arm_b_label] = {
             "exit_code": result_b["exit_code"],
             "stdout_bytes": result_b["stdout_bytes"],
             "stderr_bytes": result_b["stderr_bytes"],
             "files_generated_count": result_b["files_generated_count"],
             "wall_time_sec": result_b["wall_time_sec"],
-        },
-    }
+        }
 
     files_per_label = {
         label: _list_files(run_dir_abs / label)
@@ -328,20 +376,27 @@ def main():
         "run_id": run_id,
         "proposal_path": str(proposal_rel),
         "proposal_sha256": proposal_sha256,
-        "started_at": _iso_z(started_at),
+        "started_at": (existing_manifest or {}).get(
+            "started_at", _iso_z(started_at),
+        ),
         "completed_at": _iso_z(completed_at),
         "total_wall_time_sec": total_wall_sec,
         "obfuscated_labels": list(OBFUSCATED_LABELS),
         "per_label": per_label,
         "files_per_label": files_per_label,
         "dry_run": bool(args.dry_run),
+        "arm_only": args.arm_only,
     }
-    (run_dir_abs / "manifest.json").write_text(
+    manifest_path.write_text(
         json.dumps(manifest, indent=2, sort_keys=True) + "\n"
     )
 
-    # Determine overall status.
-    any_failure = result_a["exit_code"] != 0 or result_b["exit_code"] != 0
+    # Determine overall status. In --arm-only mode, only check the arm that
+    # actually ran in this invocation.
+    any_failure = any(
+        r is not None and r["exit_code"] != 0
+        for r in (result_a, result_b)
+    )
     status = "failure" if any_failure else "success"
 
     _append_audit({
