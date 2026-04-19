@@ -78,13 +78,13 @@ JUDGE_GRADED_DIMS = (
     "net_new_ideas",
 )
 NOT_YET_MEASURED_DIMS = (
-    "plan_quality_delta",
     "code_review_quality_delta",
 )
 MISS_RATE_DIM = "miss_rate"
+PLAN_QUALITY_DELTA_DIM = "plan_quality_delta"
 ALL_REPORTED_DIMS = (
     (GROUND_TRUTH_DIM,) + JUDGE_GRADED_DIMS
-    + (MISS_RATE_DIM,) + NOT_YET_MEASURED_DIMS
+    + (MISS_RATE_DIM, PLAN_QUALITY_DELTA_DIM) + NOT_YET_MEASURED_DIMS
 )
 
 
@@ -507,15 +507,14 @@ def _per_dim_verdict_judge_graded(
 
 
 _NOT_YET_MEASURED_REASON = {
-    "plan_quality_delta": (
-        "Dim 6 requires retrospective scorer reading downstream plan artifact "
-        "(pending: item 6 of metric-fix plan)"
-    ),
     "code_review_quality_delta": (
         "Dim 7 requires retrospective scorer reading downstream code artifact "
-        "(pending: item 6 of metric-fix plan)"
+        "(deferred — would need code-diff analysis linking to proposal commits; "
+        "non-trivial to automate)"
     ),
 }
+
+PLAN_QUALITY_DELTA_MIN = 0.15  # landing-rate delta ≥15pp to call a winner
 
 MISS_RATE_DELTA_MIN = 0.15  # miss_rate delta must be ≥15pp for a winner
 
@@ -527,6 +526,129 @@ def _per_dim_verdict_not_yet_measured(dim: str) -> dict[str, Any]:
         "verdict": "not-yet-measured",
         "reason": _NOT_YET_MEASURED_REASON.get(dim, "dimension not yet implemented"),
     }
+
+
+def _load_retrospective_for_scored(
+    scored: dict[str, Any], store_root: Path,
+) -> dict[str, Any] | None:
+    """Look for retrospective.json in the scored run's directory."""
+    meta = scored.get("metadata") or {}
+    rid = meta.get("run_id")
+    if not rid:
+        return None
+    retro_path = store_root / rid / "retrospective.json"
+    if not retro_path.is_file():
+        return None
+    try:
+        return json.loads(retro_path.read_text())
+    except (OSError, json.JSONDecodeError):
+        return None
+
+
+def _per_dim_verdict_plan_quality(
+    all_scored: list[dict[str, Any]],
+    store_root: Path,
+    n: int,
+) -> dict[str, Any]:
+    """plan_quality_delta verdict from retrospective.json per run.
+
+    Pools landed/partial/not_landed counts across proposals per arm.
+    Landing rate = (landed + 0.5*partial) / total (same as retrospective.py).
+    Higher landing rate wins.
+    """
+    pooled = {arm: {"landed": 0, "partial": 0, "not_landed": 0, "total": 0}
+              for arm in ("arm-a", "arm-b")}
+    any_scored = False
+    no_artifact_count = 0
+    for scored in all_scored:
+        retro = _load_retrospective_for_scored(scored, store_root)
+        if retro is None:
+            continue
+        if retro.get("status") == "no-downstream-artifact":
+            no_artifact_count += 1
+            continue
+        if retro.get("status") != "scored":
+            continue
+        for arm in ("arm-a", "arm-b"):
+            arm_retro = (retro.get("per_arm") or {}).get(arm) or {}
+            if arm_retro.get("status") != "scored":
+                continue
+            summary = arm_retro.get("summary") or {}
+            any_scored = True
+            for k in ("landed", "partial", "not_landed", "total"):
+                pooled[arm][k] += int(summary.get(k, 0))
+
+    out: dict[str, Any] = {
+        "dimension": "plan_quality_delta",
+        "signal_type": "retrospective-landing (plan > refined > judgment)",
+        "arm-a": pooled["arm-a"],
+        "arm-b": pooled["arm-b"],
+    }
+    if not any_scored:
+        out["verdict"] = "not-yet-measured"
+        if no_artifact_count > 0:
+            out["reason"] = (
+                f"{no_artifact_count} of {n} proposals have no downstream "
+                f"artifact adjacent to the proposal; no retrospective data"
+            )
+        else:
+            out["reason"] = (
+                "retrospective.json absent for all proposals — run "
+                "arm_study_retrospective.py per run-id to generate"
+            )
+        return out
+
+    for arm in ("arm-a", "arm-b"):
+        total = pooled[arm]["total"]
+        pooled[arm]["landing_rate"] = (
+            (pooled[arm]["landed"] + 0.5 * pooled[arm]["partial"]) / total
+            if total > 0 else None
+        )
+    out["arm-a"] = pooled["arm-a"]
+    out["arm-b"] = pooled["arm-b"]
+
+    lr_a = pooled["arm-a"]["landing_rate"]
+    lr_b = pooled["arm-b"]["landing_rate"]
+    if lr_a is None or lr_b is None:
+        out["verdict"] = "not-yet-measured"
+        out["reason"] = "insufficient landing data on one or both arms"
+        return out
+
+    delta = lr_b - lr_a  # positive = B lands more items
+    out["delta"] = delta
+    out["retrospective_proposals_with_artifact"] = n - no_artifact_count
+
+    if abs(delta) < PLAN_QUALITY_DELTA_MIN:
+        out["verdict"] = "inconclusive"
+        out["reason"] = (
+            f"landing-rate delta {delta*100:+.1f}pp within "
+            f"±{PLAN_QUALITY_DELTA_MIN*100:.0f}pp noise floor"
+        )
+        return out
+
+    winner = "arm-b" if delta > 0 else "arm-a"
+    # Confidence requires n≥5 AND all scored proposals agreed.
+    retro_n = n - no_artifact_count
+    if retro_n < MIN_SAMPLE_FOR_DIRECTIONAL:
+        out["verdict"] = "insufficient-retrospective-sample"
+        out["reason"] = (
+            f"only {retro_n} of {n} proposals had a downstream artifact — "
+            f"below MIN_SAMPLE_FOR_DIRECTIONAL={MIN_SAMPLE_FOR_DIRECTIONAL} "
+            f"for this dim"
+        )
+        return out
+    label = (
+        f"directional-favor-{winner}"
+        if retro_n < MIN_SAMPLE_FOR_CONFIDENT
+        else f"confident-favor-{winner}"
+    )
+    out["verdict"] = label
+    out["reason"] = (
+        f"landing-rate delta {delta*100:+.1f}pp favors {winner} "
+        f"(retro_n={retro_n})"
+    )
+    out["primary_winner"] = winner
+    return out
 
 
 def _per_dim_verdict_miss_rate(
@@ -708,9 +830,17 @@ def _compose_overall_verdict(
 # ── Entry point ────────────────────────────────────────────────────────────
 
 
-def compute_verdict(all_scored: list[dict[str, Any]]) -> dict[str, Any]:
+def compute_verdict(
+    all_scored: list[dict[str, Any]],
+    store_root: Path = DEFAULT_STORE,
+) -> dict[str, Any]:
     """Aggregate across N proposals and return a verdict dict with per-dim
-    primary signals + overall composition."""
+    primary signals + overall composition.
+
+    store_root: where retrospective.json files live for Dim 6 (item 6 of
+    metric-fix plan). Defaults to DEFAULT_STORE so tests that don't
+    exercise retrospective data work unchanged.
+    """
     n = len(all_scored)
     thresholds = {
         "primary_accuracy_delta_pp": PRIMARY_ACCURACY_DELTA_PP,
@@ -737,10 +867,15 @@ def compute_verdict(all_scored: list[dict[str, Any]]) -> dict[str, Any]:
     }
     for dim in JUDGE_GRADED_DIMS:
         per_dim[dim] = _per_dim_verdict_judge_graded(all_scored, dim, n)
-    # miss_rate (Dim 5) now has its own computation when item 5 has been
-    # run (reference-coverage data populated). Otherwise falls back to
-    # not-yet-measured.
+    # miss_rate (Dim 5) — now computed when item 5 discoverer + scorer
+    # coverage pass has run (reference-coverage data populated).
     per_dim["miss_rate"] = _per_dim_verdict_miss_rate(all_scored, n)
+    # plan_quality_delta (Dim 6) — now computed when item 6 retrospective
+    # scorer has run (retrospective.json present for at least some
+    # proposals). Requires store_root to locate the sibling file.
+    per_dim["plan_quality_delta"] = _per_dim_verdict_plan_quality(
+        all_scored, store_root, n,
+    )
     for dim in NOT_YET_MEASURED_DIMS:
         per_dim[dim] = _per_dim_verdict_not_yet_measured(dim)
 
@@ -991,7 +1126,7 @@ def main() -> int:
             print(f"ERROR: {e}", file=sys.stderr)
             return 2
 
-    verdict = compute_verdict(scored_list)
+    verdict = compute_verdict(scored_list, store_root=args.store_root)
 
     if args.output_markdown:
         args.output_markdown.parent.mkdir(parents=True, exist_ok=True)

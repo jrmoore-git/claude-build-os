@@ -294,14 +294,21 @@ def test_judge_graded_dim_regression_blocked_on_harmful_items():
 
 
 def test_not_yet_measured_dims_report_reason():
+    """Dim 7 (code_review_quality_delta) is the only remaining not-yet-wired
+    dim after Dim 5 (miss_rate) and Dim 6 (plan_quality_delta) are wired
+    in items 5 and 6 of the metric-fix plan. Its reason should surface
+    concrete words like "deferred" or "non-trivial" so readers know it's
+    an active gap, not a missing value."""
     scored = _scored(catch_rate_verifier=(10, 5, 1))
     v = verdict.compute_verdict([scored] * 3)
     for dim in verdict.NOT_YET_MEASURED_DIMS:
         d = v["per_dimension_verdicts"][dim]
         assert d["verdict"] == "not-yet-measured"
         assert d["reason"]
-        # Reason references the pending item.
-        assert "item" in d["reason"].lower() or "pending" in d["reason"].lower()
+        assert any(
+            kw in d["reason"].lower()
+            for kw in ("deferred", "pending", "requires", "non-trivial")
+        )
 
 
 # ── Overall composition ────────────────────────────────────────────────────
