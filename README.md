@@ -31,48 +31,64 @@ Build OS has 22 skills, but you don't need to know any of them by name. The slas
 
 ---
 
-## The Enforcement Ladder
+## Why This Exists
 
-Memory gives you continuity. The enforcement ladder gives you control.
+Most people start by treating Claude Code like a chat window with tools: ask, reply, refine, repeat. That works for small tasks. It breaks once the work has state, history, and consequences.
 
-Instructions in `CLAUDE.md` are guidance. Claude will often follow them. Under time pressure, ambiguous context, or competing goals, guidance alone may not hold. Why? Because the model is not executing a fixed procedure — it is predicting the next best action from a limited context window. The model is not malicious; it is probabilistic. Deterministic checks are stronger than advisory text.
+The problem is rarely "the model is dumb." The problem is that without a system, each session starts close to zero. Specifications, decisions, and lessons that lived only in chat disappear with the window. Build OS fixes that by making the project legible on disk: a PRD for scope, decision logs for settled choices, lessons for mistakes not to repeat, and task files for current work.
 
-```mermaid
-flowchart BT
-    A["1 — Lesson · Written down once, advisory"] --> B["2 — Rule · Loaded from .claude/rules/"]
-    B --> C["3 — Hook · Deterministic script, fires every time"]
-    C --> D["4 — Architecture · Structurally impossible to violate"]
-```
-
-A concrete example: telling the model "do not hallucinate contact data" does not reliably stop it from inventing an email address from a person's name and company. A validation hook that checks generated addresses against a real source does. If a rule matters, reduce discretion.
-
-> If you've told Claude to do something three times and it still gets missed, stop rewriting the instruction. Move it up the ladder.
-
-A lessons file that only grows is a governance failure. Lessons must promote to rules, rules must promote to hooks, or they must be archived. Accumulation without promotion means the system isn't learning — it's hoarding.
+The job shifts from "write a better prompt" to "build a better operating environment."
 
 ---
 
-## Governance Tiers
+## Pick Your Starting Tier
 
-Start at the lowest tier that matches your risk. Move up when the stakes increase.
+Start at the lowest tier that matches your risk. Upgrade when the stakes increase.
 
-| Tier | You're building... | What you add |
+- **Solo hobby project, learning, exploration** → **Tier 0** (CLAUDE.md + git)
+- **Multi-session work, anything lasting >1 week** → **Tier 1** (+ PRD, decisions, lessons, handoff)
+- **Production systems, real users, financial consequences** → **Tier 2** (+ hooks, contract tests, review)
+- **Autonomous agents, acts on your behalf, sensitive data** → **Tier 3** (+ cross-model review, approvals, kill switches)
+
+Full tier details with governance consequences are in [Governance Tiers](#governance-tiers) further down. You don't need to decide now — `/setup` will pick a tier based on your answers.
+
+---
+
+## Prerequisites
+
+Build OS scales its infrastructure requirements with the governance tier.
+
+### Tier 0–1: Just Claude Code
+
+- [Claude Code](https://claude.ai/claude-code) (CLI, desktop, or IDE extension)
+- git
+
+Skills that work out of the box: `/think`, `/elevate`, `/plan`, `/ship`, `/start`, `/wrap`, `/log`, `/sync`, `/design`, `/triage`, `/setup`, `/guide`, `/investigate`, `/healthcheck`, `/audit`.
+
+### Tier 2+: Cross-Model Review
+
+The `/challenge`, `/challenge --deep`, `/polish`, and `/review` skills send proposals to three different model families for independent review. Different model families disagree in useful ways — models from the same family tend to agree with each other (self-preference bias), so cross-family review produces stronger signals.
+
+**You need:** Python 3.11+, API keys from three providers (Anthropic, OpenAI, Google AI), LiteLLM, and the OpenAI Python SDK. Model-to-persona assignments are configured in `config/debate-models.json`.
+
+**Full setup instructions:** [Infrastructure](docs/infrastructure.md).
+
+| Setup level | What works |
+|---|---|
+| **Claude Code + git only** | All skills except `/challenge` (cross-model), `/challenge --deep`, `/polish`, `/review`. Full governance framework, session management, planning, design, and shipping. |
+| **+ LiteLLM + API keys** | Cross-model review and refinement. Three models independently challenge, judge, refine, and review your work. |
+
+You can start at Tier 0 and add cross-model review later. The framework doesn't break without it — you just won't have multi-model review until you set it up.
+
+### Optional capabilities
+
+| Capability | What it powers | Setup |
 |---|---|---|
-| **0 — Advisory** | Personal projects, learning, solo exploration | `CLAUDE.md` + git + human review |
-| **1 — Structured** | Multi-session projects, anything lasting >1 week | + PRD, decisions log, lessons log, handoff |
-| **2 — Enforced** | Production systems, real users, financial consequences | + hooks, contract tests, review protocol |
-| **3 — Production OS** | Autonomous agents, acts on your behalf, sensitive data | + cross-model review, kill switches, approval gating |
+| **Perplexity Sonar API** | `/research` — deep web research with citations | Add `PERPLEXITY_API_KEY` to `.env`. [Details](docs/infrastructure.md) |
+| **Ollama** | Semantic search across governance files | `brew install ollama && ollama pull nomic-embed-text`. [Details](docs/infrastructure.md) |
+| **Headless browser** | `/design review` — visual QA with screenshots | Install [gstack](https://github.com/garrytan/gstack), run `bash scripts/setup-design-tools.sh`. [Details](docs/infrastructure.md) |
 
-**What goes wrong if you stay too low:**
-
-- **Tier 0:** You lose context between sessions, repeat old decisions, and spend the start of every session re-explaining the project.
-- **Tier 1:** Docs exist, but nothing forces compliance. The model skips tests or makes risky edits because the rules are only advisory.
-- **Tier 2:** Code changes are controlled, but the system can still take expensive or high-impact actions unless approvals and shutdown paths are explicit.
-
-> **Upgrade triggers:**
-> Lost context between sessions → **Tier 1**.
-> Claude made risky changes without review → **Tier 2**.
-> The system acts on your behalf → **Tier 3**.
+Without these, skills fall back to keyword search, Claude's built-in web search, and design knowledge without screenshots. The core pipeline never requires them.
 
 ---
 
@@ -88,11 +104,24 @@ cd claude-build-os
 
 `setup.sh` detects your platform, finds Python 3.11+, installs git hooks, copies templates, and writes a config cache. No interactive prompts — everything auto-detected. Then open Claude Code and run `/setup` to configure your project.
 
-**Requirements:** [Claude Code](https://claude.ai/claude-code), git, Python 3.11+, Unix shell (macOS or Linux).
-
 **First time?** Read the [Getting Started Guide](docs/getting-started.md) to build your first feature in an hour.
 
 **Not an engineer?** Read [Non-Engineer Start Here](docs/non-engineer-start-here.md) first — it shows what works at each level of setup (browser only → Claude Code → full API-key setup). Hit unfamiliar terms? The [Glossary](docs/glossary.md) has plain-English definitions.
+
+### Your First 10 Minutes
+
+Concrete checklist once you have the repo cloned:
+
+1. `./setup.sh` — installs hooks, copies templates, caches config.
+2. Open Claude Code in the project directory.
+3. Run `/setup` — 3 questions, generates your `docs/project-prd.md`.
+4. Run `/think discover` — structured problem discovery; writes a design doc.
+5. Run `/plan` — writes an implementation plan to disk.
+6. Build — normal Claude Code usage against the plan.
+7. Run `/review` if you have API keys configured (otherwise do a manual review).
+8. Run `/ship` — pre-flight gates → commit → deploy.
+
+Each step writes to disk, so next session can pick up where you stopped.
 
 ---
 
@@ -101,10 +130,10 @@ cd claude-build-os
 If you do nothing else:
 
 **Essential:**
-1. **Create a PRD** that Claude references every session. Numbered sections, explicit scope, clear non-goals.
-2. **Define before planning.** Articulate *what* you're building and *why* before designing *how*.
-3. **Plan before building.** Write the plan to a file. Review it. Then execute.
-4. **Write to disk, not context.** Plans, reviews, decisions, and handoffs all go to files.
+1. **Have a PRD that Claude references every session.** `/setup` generates one from your answers to a few questions — you don't write it from scratch. Numbered sections, explicit scope, clear non-goals.
+2. **Define before planning.** Articulate *what* you're building and *why* before designing *how*. Run `/think discover` — it does this for you.
+3. **Plan before building.** Run `/plan` — it writes the plan to a file. Review it. Then execute.
+4. **Write to disk, not context.** Plans, reviews, decisions, and handoffs all go to files. BuildOS skills do this by default.
 
 **Add as you scale:**
 5. **Keep a lessons log.** Record every surprise and mistake, numbered and referenceable.
@@ -115,6 +144,8 @@ If you do nothing else:
 ---
 
 ## The Pipeline
+
+**Pipeline = stages across a feature.** (The [Session Loop](#the-session-loop) below covers what every single session does, no matter which pipeline stage it's in.)
 
 Build OS structures work as a pipeline. Product thinking defines the *what*; engineering delivers the *how*.
 
@@ -157,16 +188,6 @@ Not every task uses every stage. The framework scales with risk:
 For spikes, big bets, and the full tier breakdown — see the [Cheat Sheet](docs/cheat-sheet.md).
 
 Use `/plan --auto` to auto-chain the full pipeline for any tier. The key insight: **Think** (what are we building and why?) is a different activity from **Plan** (how do we build it?). Skipping the first leads to well-planned solutions to the wrong problem.
-
----
-
-## Why This Exists
-
-Most people start by treating Claude Code like a chat window with tools: ask, reply, refine, repeat. That works for small tasks. It breaks once the work has state, history, and consequences.
-
-The problem is rarely "the model is dumb." The problem is that without a system, each session starts close to zero. Specifications, decisions, and lessons that lived only in chat disappear with the window. Build OS fixes that by making the project legible on disk: a PRD for scope, decision logs for settled choices, lessons for mistakes not to repeat, and task files for current work.
-
-The job shifts from "write a better prompt" to "build a better operating environment."
 
 ---
 
@@ -237,6 +258,51 @@ project-root/
 
 ---
 
+## Governance Tiers
+
+Start at the lowest tier that matches your risk. Move up when the stakes increase.
+
+| Tier | You're building... | What you add |
+|---|---|---|
+| **0 — Advisory** | Personal projects, learning, solo exploration | `CLAUDE.md` + git + human review |
+| **1 — Structured** | Multi-session projects, anything lasting >1 week | + PRD, decisions log, lessons log, handoff |
+| **2 — Enforced** | Production systems, real users, financial consequences | + hooks, contract tests, review protocol |
+| **3 — Production OS** | Autonomous agents, acts on your behalf, sensitive data | + cross-model review, kill switches, approval gating |
+
+**What goes wrong if you stay too low:**
+
+- **Tier 0:** You lose context between sessions, repeat old decisions, and spend the start of every session re-explaining the project.
+- **Tier 1:** Docs exist, but nothing forces compliance. The model skips tests or makes risky edits because the rules are only advisory.
+- **Tier 2:** Code changes are controlled, but the system can still take expensive or high-impact actions unless approvals and shutdown paths are explicit.
+
+> **Upgrade triggers:**
+> Lost context between sessions → **Tier 1**.
+> Claude made risky changes without review → **Tier 2**.
+> The system acts on your behalf → **Tier 3**.
+
+---
+
+## The Enforcement Ladder
+
+Memory gives you continuity. The enforcement ladder gives you control.
+
+Instructions in `CLAUDE.md` are guidance. Claude will often follow them. Under time pressure, ambiguous context, or competing goals, guidance alone may not hold. Why? Because the model is not executing a fixed procedure — it is predicting the next best action from a limited context window. The model is not malicious; it is probabilistic. Deterministic checks are stronger than advisory text.
+
+```mermaid
+flowchart BT
+    A["1 — Lesson · Written down once, advisory"] --> B["2 — Rule · Loaded from .claude/rules/"]
+    B --> C["3 — Hook · Deterministic script, fires every time"]
+    C --> D["4 — Architecture · Structurally impossible to violate"]
+```
+
+A concrete example: telling the model "do not hallucinate contact data" does not reliably stop it from inventing an email address from a person's name and company. A validation hook that checks generated addresses against a real source does. If a rule matters, reduce discretion.
+
+> If you've told Claude to do something three times and it still gets missed, stop rewriting the instruction. Move it up the ladder.
+
+A lessons file that only grows is a governance failure. Lessons must promote to rules, rules must promote to hooks, or they must be archived. Accumulation without promotion means the system isn't learning — it's hoarding.
+
+---
+
 ## The Skills
 
 Build OS ships with 22 skills. You don't need to learn them — just describe what you're doing and Claude picks the right one. These are the ones you'll use most:
@@ -264,44 +330,6 @@ Full reference with flags and modes: [Cheat Sheet](docs/cheat-sheet.md).
 **Confident but wrong mocks.** Claude will generate mocks based on its understanding of an API, which may be outdated or incorrect. A test suite can pass perfectly while validating the wrong behavior. Keep at least one smoke test that hits the real integration path.
 
 **Cost discipline is architecture.** A budget written in a doc is not a control. If every scheduled job defaults to the strongest model, your "policy" is fiction. Limits and routing need to exist in code.
-
----
-
-## Prerequisites
-
-Build OS scales its infrastructure requirements with the governance tier.
-
-### Tier 0–1: Just Claude Code
-
-- [Claude Code](https://claude.ai/claude-code) (CLI, desktop, or IDE extension)
-- git
-
-Skills that work out of the box: `/think`, `/elevate`, `/plan`, `/ship`, `/start`, `/wrap`, `/log`, `/sync`, `/design`, `/triage`, `/setup`, `/guide`, `/investigate`, `/healthcheck`, `/audit`.
-
-### Tier 2+: Cross-Model Review
-
-The `/challenge`, `/challenge --deep`, `/polish`, and `/review` skills send proposals to three different model families for independent review. Different model families disagree in useful ways — models from the same family tend to agree with each other (self-preference bias), so cross-family review produces stronger signals.
-
-**You need:** Python 3.11+, API keys from three providers (Anthropic, OpenAI, Google AI), LiteLLM, and the OpenAI Python SDK. Model-to-persona assignments are configured in `config/debate-models.json`.
-
-**Full setup instructions:** [Infrastructure](docs/infrastructure.md).
-
-| Setup level | What works |
-|---|---|
-| **Claude Code + git only** | All skills except `/challenge` (cross-model), `/challenge --deep`, `/polish`, `/review`. Full governance framework, session management, planning, design, and shipping. |
-| **+ LiteLLM + API keys** | Cross-model review and refinement. Three models independently challenge, judge, refine, and review your work. |
-
-You can start at Tier 0 and add cross-model review later. The framework doesn't break without it — you just won't have multi-model review until you set it up.
-
-### Optional capabilities
-
-| Capability | What it powers | Setup |
-|---|---|---|
-| **Perplexity Sonar API** | `/research` — deep web research with citations | Add `PERPLEXITY_API_KEY` to `.env`. [Details](docs/infrastructure.md) |
-| **Ollama** | Semantic search across governance files | `brew install ollama && ollama pull nomic-embed-text`. [Details](docs/infrastructure.md) |
-| **Headless browser** | `/design review` — visual QA with screenshots | Install [gstack](https://github.com/garrytan/gstack), run `bash scripts/setup-design-tools.sh`. [Details](docs/infrastructure.md) |
-
-Without these, skills fall back to keyword search, Claude's built-in web search, and design knowledge without screenshots. The core pipeline never requires them.
 
 ---
 
