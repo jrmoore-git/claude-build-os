@@ -35,6 +35,14 @@ stores/*.db
 cc.sh
 .gstack/
 
+# Arm-study (local exploration — not framework tooling)
+scripts/arm_study_*
+scripts/_batch_score_*
+scripts/_batch_rescore_*
+tests/test_arm_study_*
+stores/arm-study/
+config/study/
+
 # ═══════════════════════════════════════════════════════════════════════════
 # Personal session artifacts — stay local, not shared with framework users
 # ═══════════════════════════════════════════════════════════════════════════
