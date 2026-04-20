@@ -818,3 +818,71 @@ class TestSuggestionTracking:
         hook_intent_router.record_suggestion("review")
         assert hook_intent_router.already_suggested("review") is True
         assert hook_intent_router.already_suggested("investigate") is False
+
+
+# ── Root-cause forcing protocol ─────────────────────────────────────────────
+
+class TestProblemReportRegex:
+    """PROBLEM_REPORT_REGEX must fire on any bug-report phrasing and stay
+    silent on neutral prompts. The protocol injection depends on this regex."""
+
+    def test_broke_matches(self):
+        assert hook_intent_router.PROBLEM_REPORT_REGEX.search("it broke") is not None
+
+    def test_bug_matches(self):
+        assert hook_intent_router.PROBLEM_REPORT_REGEX.search("found a bug") is not None
+
+    def test_fix_this_matches(self):
+        assert hook_intent_router.PROBLEM_REPORT_REGEX.search("fix this now") is not None
+
+    def test_workaround_matches(self):
+        assert hook_intent_router.PROBLEM_REPORT_REGEX.search("can we add a workaround") is not None
+
+    def test_bandaid_matches(self):
+        assert hook_intent_router.PROBLEM_REPORT_REGEX.search("is this a bandaid?") is not None
+        assert hook_intent_router.PROBLEM_REPORT_REGEX.search("is this a band-aid?") is not None
+
+    def test_wrong_value_matches(self):
+        assert hook_intent_router.PROBLEM_REPORT_REGEX.search("the query returns wrong value") is not None
+
+    def test_incorrect_matches(self):
+        assert hook_intent_router.PROBLEM_REPORT_REGEX.search("the output is incorrect") is not None
+
+    def test_quick_fix_matches(self):
+        assert hook_intent_router.PROBLEM_REPORT_REGEX.search("just a quick fix") is not None
+
+    def test_patch_this_matches(self):
+        assert hook_intent_router.PROBLEM_REPORT_REGEX.search("patch this for now") is not None
+
+    def test_neutral_prompt_does_not_match(self):
+        assert hook_intent_router.PROBLEM_REPORT_REGEX.search("what time is it in Tokyo") is None
+
+    def test_feature_request_does_not_match(self):
+        assert hook_intent_router.PROBLEM_REPORT_REGEX.search("I want to build a dashboard") is None
+
+    def test_research_prompt_does_not_match(self):
+        assert hook_intent_router.PROBLEM_REPORT_REGEX.search("research the state of the art") is None
+
+
+class TestRootCauseProtocol:
+    """The injected protocol must be well-formed and reference the HARD RULE."""
+
+    def test_protocol_is_nonempty(self):
+        assert hook_intent_router.ROOT_CAUSE_PROTOCOL
+        assert len(hook_intent_router.ROOT_CAUSE_PROTOCOL) > 100
+
+    def test_protocol_names_insertion_point(self):
+        assert "Insertion point" in hook_intent_router.ROOT_CAUSE_PROTOCOL
+
+    def test_protocol_bans_primary_bandaid_fixes(self):
+        text = hook_intent_router.ROOT_CAUSE_PROTOCOL
+        assert "UPDATE" in text
+        assert "backfill" in text
+        assert "filter" in text
+
+    def test_protocol_cites_workflow_rule(self):
+        assert "workflow.md" in hook_intent_router.ROOT_CAUSE_PROTOCOL
+        assert "Root Cause First" in hook_intent_router.ROOT_CAUSE_PROTOCOL
+
+    def test_protocol_allows_unknown_answer(self):
+        assert "I don't know yet" in hook_intent_router.ROOT_CAUSE_PROTOCOL

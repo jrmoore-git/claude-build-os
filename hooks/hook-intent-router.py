@@ -40,6 +40,37 @@ SUGGESTION_TRACKER_FILE = f"/tmp/claude-intent-suggestions-{SESSION_ID}.json"
 PROJECT_ROOT = os.environ.get("CLAUDE_PROJECT_DIR", os.getcwd())
 TASKS_DIR = os.path.join(PROJECT_ROOT, "tasks")
 
+# Root-cause forcing protocol — injected on every bug-report turn (NOT gated
+# by already_suggested). Rule text in .claude/rules/workflow.md "Root Cause
+# First" is loaded at session start but does not reliably bind behavior;
+# anchoring on a band-aid can happen before the rule is re-read. This regex
+# is broader than the /investigate diagnostic pattern below because it also
+# catches explicit fix-demand language ("fix this", "workaround", "patch").
+PROBLEM_REPORT_REGEX = re.compile(
+    r'\b(broke|broken|crash|error|fail|failing|bug|weird|not working|'
+    r'doesn.t work|stopped working|keeps? failing|'
+    r'wrong value|wrong answer|incorrect|messed up|mis(attribut|classifi|label)|'
+    r'fix (this|that|it|the)|patch (this|that|it|the)|'
+    r'workaround|work.?around|band.?aid|quick fix|hack (this|that|it|together)|'
+    r'why is .+ happening|why does .+ keep|why isn.t .+ working)\b',
+    re.IGNORECASE,
+)
+
+ROOT_CAUSE_PROTOCOL = (
+    "ROOT-CAUSE PROTOCOL — before recommending ANY fix (including trivial ones):\n\n"
+    "1. Insertion point — file:line where the wrong state is created or the bad value enters the system. "
+    "If you haven't read that code yet, read it now and state what you found.\n"
+    "2. Causal chain — in one sentence, why does the insertion path produce the wrong value?\n"
+    "3. Scope — will other rows / other cases hit the same bug? If yes, a row-level fix is a band-aid.\n"
+    "4. Fix at source — your recommendation must modify the insertion path. UPDATE/backfill/filter/"
+    "try-except-swallow are cleanup steps, never the primary fix.\n"
+    "5. Verification — how will you confirm NEW data (post-fix) is correct? Only then backfill.\n\n"
+    "\"I don't know yet\" is a valid answer. A recommendation that skips steps 1-3 because you're "
+    "guessing at the fix is a HARD RULE violation (see .claude/rules/workflow.md § \"Root Cause First\"). "
+    "This protocol is in addition to any skill routing suggestion — both still apply."
+)
+
+
 # Intent patterns: (compiled_regex, skill_route, context_message)
 # Order matters — first match wins.
 INTENT_PATTERNS = [
@@ -586,6 +617,14 @@ def main():
                 suggestions.append(message)
                 record_suggestion(skill)
             break  # first match wins
+
+    # Root-cause forcing protocol — fires every turn on any problem-report
+    # prompt, NOT gated by already_suggested. The band-aid anchoring risk
+    # resets each turn, so the procedural preamble must re-fire each turn.
+    # See .claude/rules/workflow.md § "Root Cause First — No Bandaids (HARD RULE)"
+    # for the underlying rule; this hook is the procedural-coupling enforcement.
+    if PROBLEM_REPORT_REGEX.search(prompt):
+        suggestions.append(ROOT_CAUSE_PROTOCOL)
 
     if suggestions:
         print("\n\n".join(suggestions))
