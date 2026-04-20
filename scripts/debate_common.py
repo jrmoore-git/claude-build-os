@@ -78,6 +78,7 @@ def _load_credentials():
     Returns (api_key, litellm_url, is_fallback).
     On failure, prints actionable error to stderr and returns (None, None, False).
     """
+    _load_dotenv()
     api_key = os.environ.get("LITELLM_MASTER_KEY")
     if api_key:
         litellm_url = os.environ.get("LITELLM_URL", DEFAULT_LITELLM_URL)
