@@ -40,34 +40,62 @@ SUGGESTION_TRACKER_FILE = f"/tmp/claude-intent-suggestions-{SESSION_ID}.json"
 PROJECT_ROOT = os.environ.get("CLAUDE_PROJECT_DIR", os.getcwd())
 TASKS_DIR = os.path.join(PROJECT_ROOT, "tasks")
 
-# Root-cause forcing protocol — injected on every bug-report turn (NOT gated
+# Diagnostic turn contract — injected on every diagnostic-intent turn (NOT gated
 # by already_suggested). Rule text in .claude/rules/workflow.md "Root Cause
 # First" is loaded at session start but does not reliably bind behavior;
-# anchoring on a band-aid can happen before the rule is re-read. This regex
-# is broader than the /investigate diagnostic pattern below because it also
-# catches explicit fix-demand language ("fix this", "workaround", "patch").
+# advisor-mode misfire (emitting options lists before gathering evidence)
+# happens before the rule is re-read. The regex is broader than the
+# /investigate INTENT pattern below — it covers the full diagnostic intent
+# class (failures, drift/regressions, wrong-output reports, fix demands,
+# runtime failure signals, working-vs-failing comparisons).
 PROBLEM_REPORT_REGEX = re.compile(
+    # failing / broken language
     r'\b(broke|broken|crash|error|fail|failing|bug|weird|not working|'
     r'doesn.t work|stopped working|keeps? failing|'
+    # wrong-output language
     r'wrong value|wrong answer|incorrect|messed up|mis(attribut|classifi|label)|'
+    # fix-demand language (preserves band-aid trigger)
     r'fix (this|that|it|the)|patch (this|that|it|the)|'
     r'workaround|work.?around|band.?aid|quick fix|hack (this|that|it|together)|'
-    r'why is .+ happening|why does .+ keep|why isn.t .+ working)\b',
+    # why-questions
+    r'why is .+ happening|why does .+ keep|why isn.t .+ working|'
+    # drift / regression — diagnostic intent class beyond bug reports
+    r'regression|diverged|different now|used to work|worked before|broke after|'
+    r'what changed|wasn.t like this|'
+    # working-vs-failing comparison signals (one works, others don't)
+    r'some (are failing|don.t work|aren.t working)|one works|works but|'
+    # runtime failure signals in logs/output
+    r'stopReason|non.?zero exit|timed out|empty payload|empty output|empty response)\b',
     re.IGNORECASE,
 )
 
 ROOT_CAUSE_PROTOCOL = (
-    "ROOT-CAUSE PROTOCOL — before recommending ANY fix (including trivial ones):\n\n"
-    "1. Insertion point — file:line where the wrong state is created or the bad value enters the system. "
-    "If you haven't read that code yet, read it now and state what you found.\n"
-    "2. Causal chain — in one sentence, why does the insertion path produce the wrong value?\n"
-    "3. Scope — will other rows / other cases hit the same bug? If yes, a row-level fix is a band-aid.\n"
-    "4. Fix at source — your recommendation must modify the insertion path. UPDATE/backfill/filter/"
-    "try-except-swallow are cleanup steps, never the primary fix.\n"
-    "5. Verification — how will you confirm NEW data (post-fix) is correct? Only then backfill.\n\n"
-    "\"I don't know yet\" is a valid answer. A recommendation that skips steps 1-3 because you're "
-    "guessing at the fix is a HARD RULE violation (see .claude/rules/workflow.md § \"Root Cause First\"). "
-    "This protocol is in addition to any skill routing suggestion — both still apply."
+    "DIAGNOSTIC TURN CONTRACT — this turn reports a failure, regression, or unexpected "
+    "behavior. Until at least one discriminating piece of evidence is cited (from the "
+    "prompt OR a tool call this turn), you are in PROBE MODE.\n\n"
+    "ALLOWED in PROBE MODE:\n"
+    "- report observed facts from the prompt or a tool call\n"
+    "- compare working vs failing examples when both exist\n"
+    "- run the single next measurement that would discriminate between hypotheses\n"
+    "- say \"I don't know yet, measuring X\"\n\n"
+    "DISALLOWED in PROBE MODE (HARD RULE — re-draft if you slip):\n"
+    "- recommending a fix\n"
+    "- ranking hypotheses\n"
+    "- presenting an options list (\"Options: 1/2/3\", \"my pick\", \"best next step is\")\n"
+    "- claiming a root cause\n\n"
+    "COMPARE-FIRST PRIMITIVE: if one working example and one-or-more failing examples exist, "
+    "the first move is to diff them (size, config, invocation path, logs). Not a hypothesis. "
+    "A diff.\n\n"
+    "Only after a discriminating fact is cited, exit PROBE MODE and apply the root-cause protocol:\n"
+    "1. Insertion point — file:line where the wrong state is created. State what you read.\n"
+    "2. Causal chain — one sentence, why the insertion path produces the wrong value.\n"
+    "3. Scope — will other cases hit this? A row-level fix to a class bug is a band-aid.\n"
+    "4. Fix at source — modify the insertion path. UPDATE/backfill/filter/try-except-swallow "
+    "are cleanup, never the primary fix.\n"
+    "5. Verification — how NEW data (post-fix) will be confirmed correct. Only then backfill.\n\n"
+    "\"I don't know yet\" is a valid first response; synthesis before evidence is not. See "
+    ".claude/rules/workflow.md § \"Root Cause First\". This protocol is in addition to any "
+    "skill routing suggestion — both still apply."
 )
 
 
