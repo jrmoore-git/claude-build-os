@@ -236,6 +236,13 @@ class TestGitHistory:
         if not os.path.isfile(target):
             pytest.skip("debate.py not found")
 
+        git_log = subprocess.run(
+            ["git", "log", "--oneline", "-1", "--", target],
+            capture_output=True, text=True
+        )
+        if not git_log.stdout.strip():
+            pytest.skip("debate.py has no git history in this repo (symlinked consumer project)")
+
         stdout, _ = run_hook({"file_path": target})
         assert stdout
         output = parse_output(stdout)

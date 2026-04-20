@@ -6,6 +6,35 @@ Mistakes, surprises, and patterns worth remembering. Each entry is a lesson lear
 
 **Target:** Keep this file under 30 active entries. When it grows beyond that, promote recurring lessons to `.claude/rules/` files and archive one-offs.
 
+## Classes (D45)
+
+Each lesson is tagged by **fix-shape, not topic** — two incidents share a class when the intervention that prevents the next one would be the same, regardless of whether the surface topic matches. When any class reaches 3 incidents, it's a candidate for structural intervention (per D45). Below 3, fix reactively.
+
+### Active class index (as of 2026-04-19)
+
+- `llm-false-negative-verifier` (2): L33, L52 — *one away from trigger*
+- `tuning-without-paired-evidence` (2): L44, L47 — *one away from trigger*
+- `silent-filter-ratio-trap` (1): L57
+- `prose-code-drift` (1): L51
+- `redundancy-inflation-cross-check` (1): L46
+- `llm-correlated-error-on-missing-context` (1): L28
+- `iterative-vs-upfront-design` (1): L30
+- `metric-measures-wrong-thing` (1): L31
+- `intervention-at-wrong-layer` (1): L32
+- `scope-drift-from-ambient-criteria` (1): L45
+- `tool-on-vs-off-per-lens` (1): L43
+- `attribution-error-tool-stream` (1): L48
+- `stale-cited-numbers` (1): L49
+- `provider-transport-assumption` (1): L50
+- `hedge-accretion-needs-reframe` (1): L53
+- `agent-framework-implicit-behavior` (1): L54
+- `fixture-bypasses-real-path` (1): L55
+- `error-envelope-swallowed` (1): L56
+- `enforcement-state-not-in-repo` (1): L41
+- `hidden-coupling-surfaces-on-split` (1): L39
+
+**When adding a new lesson:** classify against this index. Reuse an existing class if the fix-shape matches; create a new one otherwise. Update the count here in the same commit.
+
 ---
 
 | # | Lesson | Source | Rule |

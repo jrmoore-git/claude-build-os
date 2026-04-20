@@ -100,6 +100,19 @@ If the same behavior has been corrected three times at the same level, escalate 
 
 **Lesson closure rule:** When a commit fixes a lesson, the same commit must update the lesson's status in `tasks/lessons.md` to Resolved (code fix shipped) or Promoted (rule/hook/architecture). A lesson left Active after its fix ships poisons future sessions — `/start` surfaces it as open work, other sessions waste time re-investigating.
 
+## Class-Based Intervention Trigger (D45)
+
+`tasks/lessons.md` maintains a class index: each lesson tagged by **fix-shape, not topic**. Two incidents share a class when the intervention that would prevent the next one is the same.
+
+**Trigger:** when any class reaches 3 incidents, that class becomes a candidate for structural intervention. Below 3, fix reactively. At 3+:
+1. Design a targeted intervention for that class's fix-shape (not one-size infra).
+2. Validate outcome quality per L44 — n≥3 paired comparisons on representative inputs — before shipping.
+3. Include a sunset clause: if the intervention doesn't prevent the next incident in its class, or produces false positives costing more than the incidents would have, roll it back.
+
+**When wrapping a session that added a new lesson:** update the class index in `tasks/lessons.md`, and if a class crossed 3, flag it in `tasks/handoff.md` so the next session picks it up.
+
+**Why this exists:** Per D45 — systemic interventions on N=1 evidence have historically produced causal misreads (L57 post-mortem proposed structured-outputs for an input-parsing bug). The trigger forces evidence accumulation before systemic spend, while still catching recurring patterns before they compound.
+
 ## Large-Task Execution
 
 The context window is expensive RAM; the filesystem is free storage. For complex multi-track work, write the plan to disk and execute against the file, not the conversation. Write plans, reviews, and state to files — read selectively. If a skill runs in a loop (N items × M calls), process in batches to avoid quadratic context growth. Anti-pattern: loading 312K tokens "just in case" when 50K suffices.
