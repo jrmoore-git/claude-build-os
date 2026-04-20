@@ -81,8 +81,8 @@ Include results with similarity > 0.5. Treat scores below 0.55 as low-confidence
 Quick staleness scan — output ONLY if something needs attention. Silence = healthy.
 
 ```bash
-# Count active lessons (rows before the "## Promoted" header — excludes Promoted + Archived)
-active_count=$(awk '/^## Promoted/{exit} /^\| L[0-9]/{n++} END{print n+0}' tasks/lessons.md 2>/dev/null) || active_count=0
+# Count active lessons via canonical counter (excludes Promoted + Archived tables).
+active_count=$(python3.11 scripts/lesson_counts.py --active 2>/dev/null) || active_count=0
 
 # Check for Resolved lessons still in active table (stale from prior sessions)
 resolved_active=$(awk '/^## Promoted/{exit} /^\| L[0-9]+.*\[Resolved/' tasks/lessons.md 2>/dev/null || true)

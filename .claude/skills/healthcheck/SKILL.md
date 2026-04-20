@@ -62,11 +62,13 @@ Between tool calls, emit ZERO text to the chat. The ONLY user-visible output is:
 
 Lightweight — runs in both `/start` and `/wrap`. Does NOT run the full procedure below.
 
-```python
-# Pseudocode — actual implementation is Bash/Read/Grep in /start and /wrap
-lesson_count = count active rows in tasks/lessons.md
-resolved_active = grep for "[Resolved" in active lesson table
-days_since_scan = check session-log for "[healthcheck]" in last 7 days
+```bash
+# Canonical counter — used identically by /start and /wrap (scopes to the Active
+# table, excludes Promoted + Archived; a prior divergent `grep -c "^\| L[0-9]+"`
+# over-counted by ~25 because it matched all three tables).
+lesson_count=$(python3.11 scripts/lesson_counts.py --active 2>/dev/null) || lesson_count=0
+resolved_active=$(awk '/^## Promoted/{exit} /^\| L[0-9]+.*\[Resolved/' tasks/lessons.md 2>/dev/null)
+# days_since_scan: read session-log for "[healthcheck]" marker in last 7 days
 ```
 
 **Output only if something's wrong:**

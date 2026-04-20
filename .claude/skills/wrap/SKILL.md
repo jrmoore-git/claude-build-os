@@ -78,9 +78,14 @@ new_decisions=$(git diff HEAD -- tasks/decisions.md | grep '^+|' | grep -oE 'D[0
 
 If all new items are well-formed: emit nothing.
 
-**Also check global limits** (cheap — always run):
-- Active count >25: "⚠ Lessons at N/30 — approaching limit."
-- Active count >30: "⚠ Lessons OVER target (N/30) — triage needed."
+**Also check global limits** (cheap — always run). Get active count from the canonical counter:
+
+```bash
+active_count=$(python3.11 scripts/lesson_counts.py --active 2>/dev/null) || active_count=0
+```
+
+- `active_count` >25: "⚠ Lessons at N/30 — approaching limit."
+- `active_count` >30: "⚠ Lessons OVER target (N/30) — triage needed."
 - Days since last full scan >7: "⚠ Full /healthcheck overdue (N days) — auto-triggering." Same `[healthcheck]` marker in session-log that `/start` checks — whichever runs first resets the clock for both.
 
 **Auto-trigger escalation:** If this session added 3+ new governance items (`new_lessons` + `new_decisions` count ≥ 3), run the targeted `/healthcheck` scan (not full — just the items from this session plus their cross-refs). Escalate to full scan only if the targeted check finds cross-ref integrity issues. Also auto-trigger full scan if >7 days since last `[healthcheck]` marker (catches the case where `/start` was skipped).
@@ -249,8 +254,12 @@ import json, os, subprocess, sys, time
 sys.path.insert(0, "scripts")
 from telemetry import log_event
 
-# Session start ts from JSONL (most recent session_start for current session_id)
-sid = os.environ.get("CLAUDE_SESSION_ID") or f"pid-{os.getppid()}"
+# Session start ts from JSONL (most recent session_start for current session_id).
+# Use telemetry._session_id() so this matches what hooks emit (walks process
+# tree to find the claude ancestor — os.getppid() alone returns the transient
+# shell when wrap runs via Bash tool, producing a different id than hooks use).
+from telemetry import _session_id
+sid = _session_id()
 start_ts = 0.0
 store = "stores/session-telemetry.jsonl"
 if os.path.exists(store):
