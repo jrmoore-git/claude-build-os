@@ -28,6 +28,8 @@
 | "Update the docs", "sync docs" | `/sync` |
 | "What is this?", "classify this", "where does this go?" | `/triage` |
 | "Audit this codebase", "what's in here?" | `/audit` |
+| "Check governance health", "is the system healthy", "audit lessons", "lessons overdue" | `/healthcheck` |
+| "New project", "onboard this repo", "set up BuildOS", "initialize BuildOS" | `/setup` |
 
 ## Disambiguating /challenge vs /pressure-test
 
