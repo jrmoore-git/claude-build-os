@@ -3050,6 +3050,15 @@ def cmd_refine(args):
               "(requires LiteLLM proxy)", file=sys.stderr)
         enable_tools = False
 
+    prose_prompt_template = None
+    if effective_mode == "prose":
+        prose_prompt_path = Path(__file__).parent.parent / "config" / "prompts" / "refine-prose.md"
+        if not prose_prompt_path.exists():
+            print(f"ERROR: --mode prose requires {prose_prompt_path} to exist (D49).",
+                  file=sys.stderr)
+            sys.exit(1)
+        prose_prompt_template = prose_prompt_path.read_text()
+
     for i in range(rounds):
         model = models[i % len(models)]
         round_num = i + 1
@@ -3073,6 +3082,11 @@ def cmd_refine(args):
                 system_prompt = CRITIQUE_REFINE_FIRST_ROUND_PROMPT.format(judgment_context=ctx)
             else:
                 system_prompt = CRITIQUE_REFINE_SUBSEQUENT_ROUND_PROMPT.format(judgment_context=ctx)
+        elif effective_mode == "prose":
+            # Preservation-first refinement for voice-driven prose (D49).
+            # Same prompt every round — no first vs subsequent distinction;
+            # each round independently evaluates against the preservation bar.
+            system_prompt = prose_prompt_template.format(judgment_context=ctx)
         else:
             if i == 0:
                 system_prompt = REFINE_FIRST_ROUND_PROMPT.format(judgment_context=ctx)
@@ -3151,6 +3165,10 @@ def cmd_refine(args):
                 truncation_threshold = 0.35
             elif effective_mode == "critique":
                 truncation_threshold = 0.45
+            elif effective_mode == "prose":
+                # Prose preservation-first: output ≈ input; zero-edit rounds
+                # produce output == input. <85% suggests real truncation.
+                truncation_threshold = 0.85
             else:
                 truncation_threshold = REFINE_TRUNCATION_RATIO
             truncated = False
@@ -4022,9 +4040,11 @@ def main():
     rf = sub.add_parser("refine", help="Iterative cross-model refinement")
     rf.add_argument("--document", required=True, type=argparse.FileType("r"),
                      help="Path to document to refine")
-    rf.add_argument("--mode", choices=["proposal", "critique"], default=None,
-                     help="Refine mode: proposal (add specificity) or critique (sharpen). "
-                          "Auto-detects from frontmatter if omitted.")
+    rf.add_argument("--mode", choices=["proposal", "critique", "prose"], default=None,
+                     help="Refine mode: proposal (add specificity), critique (sharpen), "
+                          "or prose (preservation-first for voice-driven prose — D49). "
+                          "Auto-detects proposal/critique from frontmatter if omitted; "
+                          "prose is opt-in only and requires explicit --mode prose.")
     rf.add_argument("--rounds", type=int, default=None,
                      help="Number of refinement rounds (default: 6 for proposal, 2 for critique)")
     rf.add_argument("--models", default=None,
