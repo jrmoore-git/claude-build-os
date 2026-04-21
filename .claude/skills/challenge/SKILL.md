@@ -15,6 +15,9 @@ Question the premise, scope, and complexity of proposed work before committing t
 
 ```bash
 # Step 1: Challenge (same as standard /challenge Step 7)
+# Persona set depends on content type per Step 5b — code-adjacent proposals
+# use architect,security,pm,frame; non-code proposals (ic-memo, lp-memo,
+# research, strategy) use frame only. Example below is the code-adjacent case.
 python3.11 scripts/debate.py --security-posture $POSTURE challenge \
   --proposal tasks/<slug>-proposal.md \
   --personas architect,security,pm,frame \
@@ -183,22 +186,59 @@ If the script is missing, errors, or returns nothing, continue with the raw prop
 
 When risk cannot be classified confidently, default to Tier 1.
 
+### Step 5b: Detect content type (D48)
+
+Before selecting personas, determine whether the proposal concerns **code** or **non-code** content. Code-review personas (architect, security, staff) are designed for technical decisions; applying them to non-code proposals (LP/IC memos, strategy docs, research writing) produces category-error critique — the failure D48 was coined to fix.
+
+**Detection order:**
+
+1. **Proposal frontmatter.** If `tasks/<slug>-proposal.md` has a `content_type:` field, use it. Valid values: `code`, `infra`, `product`, `framework-design`, `design`, `ic-memo`, `lp-memo`, `research`, `strategy`.
+
+2. **Proposal subject.** If no frontmatter field, read the "Proposed Approach" / "Problem" sections. If the thing being proposed is a code change, infrastructure change, or product/framework decision, treat as code-adjacent. If the thing being proposed is prose content (an investment memo, a strategy letter, a research document), treat as non-code.
+
+3. **Ask if ambiguous.** If neither frontmatter nor body clearly signal the type, ask: "Is this proposal about code/infrastructure, or about non-code content (memo, strategy, research)?" Record the answer in `tasks/<slug>-proposal.md` frontmatter as `content_type:` so it persists.
+
+4. **Default to code.** If still unclear and the user doesn't answer, default to code (preserves current behavior for legacy proposals that predate D48).
+
+**Content-type → route:**
+
+| Content type | Persona route (Step 6) |
+|---|---|
+| `code`, `infra`, `product`, `framework-design`, `design` | Code-review persona set |
+| `ic-memo`, `lp-memo`, `research`, `strategy` | Non-code-safe path: `frame` only |
+
+Store the detected content type. Steps 6 and 7 branch on it.
+
 ### Step 6: Select personas
 
-Always: **architect**, **security**, **pm**, **frame**.
-
-`frame` is the candidate-set lens — it critiques what's missing from the proposal's options (binary framings, missing compositional candidates, source-driven inheritance, problem inflation) rather than the candidates themselves. With `--enable-tools` it expands to two parallel challengers: `frame-structural` (no tools, reasons from proposal alone) and `frame-factual` (tools on, verifies proposal claims against codebase). See `.claude/rules/review-protocol.md` Stage 1 for rationale.
-
-Add dynamically based on proposal content:
+**If content type is code-adjacent** (per Step 5b: `code`, `infra`, `product`, `framework-design`, `design`): Always **architect**, **security**, **pm**, **frame**. Add dynamically:
 - **product** if the proposal changes user-facing behavior or workflows
 - **design** if the proposal affects UI or frontend experience
 
+**If content type is non-code** (per Step 5b: `ic-memo`, `lp-memo`, `research`, `strategy`): **frame** only.
+
+`frame` is the candidate-set lens — it critiques what's missing from the proposal's options (binary framings, missing compositional candidates, source-driven inheritance, problem inflation) rather than the candidates themselves. With `--enable-tools` it expands to two parallel challengers: `frame-structural` (no tools, reasons from proposal alone) and `frame-factual` (tools on, verifies proposal claims against codebase). See `.claude/rules/review-protocol.md` Stage 1 for rationale.
+
+**Why `frame` alone for non-code (Pass 1A):** architect/security/staff are code-review lenses that category-error on prose content (D48 evidence: LP-memo run via default personas produced security-engineer critique on an investment thesis). `frame` is content-agnostic by design — it evaluates proposal structure (missing candidates, false binaries, inherited framing), not technical implementation. Until Pass 1B introduces domain-specific persona panels for memo/research content (skeptical-LP, competitor-analyst, evidence-checker), `frame` alone is the safe default. Users who want richer non-code critique can pass `--personas` explicitly to `debate.py challenge`.
+
 ### Step 7: Run cross-model challenge
+
+**For code-adjacent content** (from Step 5b):
 
 ```bash
 python3.11 scripts/debate.py --security-posture $POSTURE challenge \
   --proposal <enriched or raw proposal> \
   --personas architect,security,pm,frame[,product][,design] \
+  --enable-tools \
+  --output tasks/<slug>-findings.md
+```
+
+**For non-code content** (from Step 5b):
+
+```bash
+python3.11 scripts/debate.py --security-posture $POSTURE challenge \
+  --proposal <enriched or raw proposal> \
+  --personas frame \
   --enable-tools \
   --output tasks/<slug>-findings.md
 ```
