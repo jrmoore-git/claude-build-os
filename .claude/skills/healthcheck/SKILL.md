@@ -287,7 +287,40 @@ confirms"), log each status change:
 /opt/homebrew/bin/python3.11 scripts/lesson_events.py log <ID> <resolved|promoted|archived> --detail "<action taken>"
 ```
 
-### Step 5d: Pruning — Governance Redundancy Check
+### Step 5d: Skill Graph Reachability
+
+Check whether every skill on disk is reachable from natural-language routing, and
+whether any routed skill has no directory. Runs:
+
+```bash
+/opt/homebrew/bin/python3.11 scripts/skill_reachability.py --json
+```
+
+Report surfaces four classes:
+
+- **Orphan skills** — exist in `.claude/skills/*/SKILL.md` but absent from
+  `.claude/rules/natural-language-routing.md`. A user typing natural language
+  can't reach them. Either add a routing row or confirm the skill is
+  infrastructure-only (e.g., auto-triggered from another skill).
+- **Phantom routes** — referenced in the routing table but no skill directory
+  exists. Dead link — fix the table.
+- **Trigger collisions** — the same user phrase maps to 2+ skills outside
+  the Disambiguating section. Either add a disambiguation block or tighten
+  the trigger phrasing.
+- **Description overlaps** — pairs of skills sharing 3+ content words in their
+  frontmatter description. Advisory only — shared words don't prove overlap.
+  Read the descriptions before acting.
+
+**Output policy:** orphans and phantoms are hard issues (exit 1). Collisions
+and overlaps are advisories (exit 2). Include the raw counts in the health
+report and list specific items only if the user requests detail.
+
+**Scope (known gap):** This step audits `.claude/rules/natural-language-routing.md`.
+It does NOT audit `hooks/hook-intent-router.py` — the artifact-state-aware
+proactive router. Hook-rule drift (a pattern in the hook that the rule doesn't
+document, or vice versa) is uncovered by this step.
+
+### Step 5e: Pruning — Governance Redundancy Check
 
 Check whether governance is earning its keep. Flag candidates for removal — never auto-prune.
 
@@ -328,6 +361,7 @@ Only report items needing action. Healthy items are noise.
 | Active decisions | N | — | OK / N overdue |
 | Rules size | ##KB | <50KB | OK / PRESSURE |
 | Cross-ref integrity | — | — | OK / N issues |
+| Skill graph | N orphans / N phantoms | 0 / 0 | OK / ISSUES |
 | Last full scan | N days | <7d | OK / OVERDUE |
 
 ## Learning Velocity

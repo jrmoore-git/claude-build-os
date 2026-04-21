@@ -45,6 +45,40 @@ These two skills overlap in language ("is this a good idea?", "sanity check", "r
 
 The intent router hook (`hook-intent-router.py`) detects artifact state on disk and adjusts its suggestions accordingly. When the hook fires a dynamic suggestion, follow it unless the user's language clearly overrides.
 
+## Disambiguating /investigate vs /audit vs /pressure-test
+
+All three surface risk or problems. Route by **what the input is**, not by keywords:
+
+| Input | Route | Why |
+|---|---|---|
+| A specific failure, bug, unexpected behavior | `/investigate` | Root-cause analysis on an observed symptom. Starts from evidence. |
+| An entire codebase, directory, or unknown system | `/audit` | Blind discovery, then targeted questions. Starts from zero knowledge. |
+| A plan, proposal, or decision already on disk | `/pressure-test` | Adversarial analysis of something already designed. Starts from an artifact. |
+
+**Quick test:** Is something broken right now? → `/investigate`. Is it a pile of code you don't know? → `/audit`. Is it a plan you want to stress-test? → `/pressure-test`.
+
+## Disambiguating /think discover vs /explore
+
+Both generate options. Different frames:
+
+| Intent | Route | Output |
+|---|---|---|
+| "I have a fuzzy problem, help me structure it" | `/think discover` | Single-model problem-discovery doc with forcing questions, premise challenges |
+| "I need multiple concrete directions to compare" | `/explore` | 3+ divergent directions with cross-model synthesis |
+
+**Key distinction:** `/think discover` produces one structured framing. `/explore` produces multiple rival framings. If the user already knows the problem and wants options, skip `/think` → `/explore`. If the problem itself is fuzzy, `/think discover` first.
+
+## Disambiguating /polish vs /review
+
+Both improve a document. Opposite postures:
+
+| Intent | Route | Posture |
+|---|---|---|
+| "Make this sharper" (collaborative, iterative) | `/polish` | 6 rounds, 3 models, not adversarial |
+| "Find what's wrong with this" (find bugs, gaps, risks) | `/review` | 3 lenses, adversarial, flags issues |
+
+**Key distinction:** `/polish` assumes the draft is roughly right and sharpens it. `/review` assumes the draft might be wrong and hunts for flaws. If the user says "is this ready to ship?" → `/review`. If they say "help me make this better" → `/polish`.
+
 ## How to Route
 
 Match intent, not keywords. Invoke directly — don't explain the skill first. When ambiguous, check artifact state before asking. Chain skills automatically when one outputs another's input. One suggestion per pattern per session.

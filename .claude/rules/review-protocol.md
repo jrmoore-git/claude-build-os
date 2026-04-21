@@ -91,6 +91,7 @@ When a `/review` finding is dismissed (confirmed false positive), append it here
 <!-- append dismissed PM-lens findings as markdown list items -->
 - **"Missing Phase 1 test file that plan explicitly schedules for Phase 3".** Before flagging a missing test file as a Phase 1 spec violation, grep the plan for the filename and read the Phase table that contains it — the plan may schedule it to a later phase.
 - **"File missing from the diff" when the file is gitignored by project convention.** Before flagging a missing file as a deliverable gap, `ls` the path on disk — a gitignored file that exists still satisfies the deliverable.
+- **"Step renumbering (e.g., 5d→5e) may break external references".** Before flagging an ordinal rename inside a single doc as a cross-reference hazard, grep the codebase for the ordinal — skill sub-step ordinals are internal landmarks with zero external callers in this repo. Verified in `tasks/garry-resolver-adoption-review.md` (2026-04-20).
 
 ### Security lens negative examples
 <!-- append dismissed Security-lens findings -->
