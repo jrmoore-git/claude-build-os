@@ -220,6 +220,59 @@ Three-stage effort to fix "confidently wrong" output from the debate pipeline by
 
 Evidence: decisions D28-D31; lessons L43, L46, L47. See `.claude/rules/review-protocol.md` Stage 1 for operator-facing spec.
 
+---
+
+# April 18-20, 2026
+
+## Root-Cause Enforcement at the Hook Layer (D44)
+
+Rule text in `.claude/rules/workflow.md § Root Cause First` was loaded at session start but did not reliably bind behavior — Claude would anchor on a band-aid (UPDATE, backfill, UI filter) before re-reading the rule. Moved the enforcement to `hook-intent-router.py`: on any turn matching bug-report, regression, wrong-output, or fix-demand phrasings, the hook injects the DIAGNOSTIC TURN CONTRACT into context.
+
+- **PROBE MODE** until a discriminating fact is cited. Allowed: observed facts, working-vs-failing diffs, the single next discriminating measurement, "I don't know yet."
+- **Disallowed in PROBE MODE (HARD RULE):** recommending a fix, ranking hypotheses, options lists or "my pick" claims, root-cause claims.
+- **COMPARE-FIRST PRIMITIVE:** if working and failing examples both exist, the first move is a diff, not a hypothesis.
+- **After evidence is cited:** the 5-step root-cause protocol applies (insertion point → causal chain → scope → fix at source → verification).
+
+Fires every matching turn, not session-gated, because anchoring risk resets per turn. `PROBLEM_REPORT_REGEX` expanded in a follow-up commit to cover drift signals ("used to work", "what changed"), working-vs-failing language ("some are failing", "one works but"), and runtime failure signals ("stopReason", "empty payload", "timed out"). See D44, L61.
+
+## Class-Intervention Protocol (D45)
+
+`tasks/lessons.md` entries now carry a **fix-shape class tag** — two incidents share a class when the intervention that would prevent the next one is the same. Protocol: below 3 incidents in a class, fix reactively; at 3+, design a targeted intervention, validate outcome quality (n≥3 paired comparisons per L44) before shipping, include a sunset clause. Prevents systemic spend on N=1 evidence (L57 post-mortem had proposed structured-outputs for what turned out to be an input-parsing bug). Class index lives at the top of `tasks/lessons.md`; `/wrap` updates it.
+
+## Arm-Study Infrastructure Removed from Framework (D46, D47)
+
+- **D46:** Production `/challenge` retains the cross-family panel (`arm-b` config). Archive-stratum result did not flip the decision; current-substantive stratum shows +8.5pp catch_rate and 3x fewer hallucinations over single-model.
+- **D47:** 23 files of arm-study measurement tooling removed from the framework surface (scorer, orchestrator, verdict pipeline, prompts, batch drivers, tests). Not reusable capability — personal methodology exploration. `.gitignore` updated to keep future local exploration local. Portable findings preserved as L59 (scorer is not byte-deterministic at small n — treat per-dim confidence as directional) and L60 (proposal population change between runs is confounded, not power increase).
+
+## Polish/Debate Refine Bug Fix (L57)
+
+Two compounding bugs made `/polish` report `DONE` while shipping zero improvements:
+
+1. `cmd_refine` truncation check measured `len(revised)/len(current_doc)` against a threshold; `/polish` Step 2b wrapped the input with ~150 lines of project context, so revisions of the doc portion landed at ~50% ratio and tripped discard every round.
+2. The `--judgment` slot regex-filters for `### Challenge ... Decision: ACCEPT` blocks and silently drops anything else — "move context to --judgment" would have hidden the bug while still dropping context.
+
+Added `--system-context` to `debate.py refine` (verbatim prepend, no filtering, framed as reference material so D31's Frame Check directive stays authoritative). `/polish` Step 2b now passes context via the new flag. JSON output gains `rounds_discarded` + `rounds_successful` so the sanity check uses `rounds_successful == 0` — robust to mixed failure modes where `rounds_discarded == rounds_completed` silently passes. E2E verified on the pathological case (doc ≈ context size) — 2/2 successful rounds, 0 discards.
+
+## `.env` Autoload for Standalone Callers (L58)
+
+`scripts/debate_common._load_credentials()` now calls `_load_dotenv()` itself. Any standalone script that routes through `debate_common` picks up `.env` automatically — replaces per-call-site patches. Fix shipped after n=10 miss-discoverer hit the same bug L58 had originally patched at one call site.
+
+## Telemetry + Lesson-Count Single-Source-of-Truth Fixes (`87c1c14`)
+
+Two class-bugs surfaced during session wrap:
+
+- **Telemetry `session_id` drift.** `scripts/telemetry._session_id()` used `os.getppid()`, which was correct by accident for hook-invoked calls (Claude spawns hooks directly) but wrong for scripts invoked via the Bash tool (PPID = transient shell, different id per event). Silently broke cross-event joins — L61 landed but telemetry reported `lessons=0`. Fixed with a process-tree walk that finds the nearest `claude` CLI ancestor. `/wrap` now imports `_session_id()` instead of re-deriving.
+- **Active-lesson count drift.** `/start`, `/wrap`, and `/healthcheck` each improvised an inline grep/awk on `tasks/lessons.md`. The regex `^\| L[0-9]+ ` included rows from the Promoted (8) and Archived (17) tables — reported 52 active, actual was 27. New `scripts/lesson_counts.py --active` scopes to the Active table (exits at `## Promoted`) and is now the single call site for all three skills.
+
+## Operator Actions
+
+- Re-read `.claude/rules/workflow.md § Root Cause First` — same language, now also enforced per-turn by the hook.
+- Check `tasks/lessons.md` class index if you want to see which fix-shapes are active or near the 3-incident trigger.
+- If you maintain downstream skills that read lesson counts, call `python3.11 scripts/lesson_counts.py --active` instead of inline grep.
+- No breaking changes. `debate.py refine --system-context` is new; the `--document` flag is unchanged.
+
+---
+
 ## Other Changes
 
 - README rewritten to lead with the enforcement ladder; collapsed detail for adoption

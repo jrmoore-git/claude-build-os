@@ -396,23 +396,33 @@ Auto-runs the corresponding test file when a toolbelt script is edited.
 
 ## hook-intent-router.py
 
-Deterministic skill routing. Classifies user intent via keyword matching and injects routing suggestions into Claude's context before processing. Also checks for recurring-error flags set by hook-error-tracker.py.
+Two jobs: (1) deterministic skill routing, (2) injecting the DIAGNOSTIC TURN CONTRACT on bug-report / regression / working-vs-failing prompts. Also picks up recurring-error flags set by hook-error-tracker.py.
 
 **When it fires:** Every user message submission.
 
 **What it does:**
 
-1. Reads the user's message from stdin (`prompt` field)
-2. Matches against intent patterns (diagnostic, feature, planning, review, shipping, etc.)
-3. If a pattern matches, outputs a routing suggestion as plain text (injected into Claude's context)
-4. Checks for recurring-error flags from hook-error-tracker.py — if the same error class appeared 2+ times, injects a proactive `/investigate` suggestion
-5. Tracks suggestions per session to avoid nagging (each skill suggested at most once per session)
+1. Reads the user's message from stdin (`prompt` field).
+2. Matches against skill-routing intent patterns (feature, planning, review, shipping, etc.). First match wins — patterns ordered by specificity.
+3. Matches against `PROBLEM_REPORT_REGEX` — covers failures, drift/regressions ("used to work", "what changed"), wrong-output reports, fix demands, runtime failure signals ("stopReason", "empty payload", "timed out"), and working-vs-failing comparisons ("some are failing", "one works but"). If it matches, injects `ROOT_CAUSE_PROTOCOL` (the DIAGNOSTIC TURN CONTRACT) into context.
+4. Checks for recurring-error flags from hook-error-tracker.py — if the same error class appeared 2+ times, injects a proactive `/investigate` suggestion.
+5. Tracks skill suggestions per session to avoid nagging (each skill suggested at most once per session). The diagnostic turn contract fires every matching turn, not session-gated — anchoring risk resets per turn.
+
+**DIAGNOSTIC TURN CONTRACT — what gets injected:**
+
+- **PROBE MODE** until a discriminating fact is cited (from prompt OR a tool call this turn).
+- **Allowed in probe mode:** report observed facts, compare working vs failing examples, run the single next discriminating measurement, say "I don't know yet, measuring X".
+- **Disallowed in probe mode (HARD RULE):** recommending a fix, ranking hypotheses, presenting options lists or "my pick" claims, claiming a root cause.
+- **COMPARE-FIRST PRIMITIVE:** if one working and one-or-more failing examples exist, the first move is a diff — not a hypothesis.
+- **After evidence is cited:** 5-step root-cause protocol (insertion point → causal chain → scope → fix at source → verification) applies.
+
+Rationale: `.claude/rules/workflow.md § Root Cause First` is loaded at session start but doesn't reliably bind diagnostic-turn behavior — per-turn hook injection does. See D44 (`5b2551f`), expanded scope in `932466f`, and L61.
 
 **Key behaviors:**
-- First match wins — patterns are ordered by specificity
-- Simple tasks ("fix the typo on line 42") produce no suggestion — no pattern matches
-- Session-scoped: suggestions reset each session via temp files (`/tmp/claude-intent-suggestions-{session_id}.json`)
-- Output is advisory context, not a block — Claude can still override if the suggestion doesn't fit
+- Simple tasks ("fix the typo on line 42") produce no suggestion — no pattern matches.
+- Skill suggestions are session-scoped and reset via temp files (`/tmp/claude-intent-suggestions-{session_id}.json`).
+- All output is advisory context, not a block — Claude can still override if a suggestion doesn't fit.
+- The contract checks that the template headers are output; it does not verify the trace was actually performed.
 
 **Timeout:** 2 seconds.
 
